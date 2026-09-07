@@ -1,0 +1,831 @@
+<title>Dossier Polyclinique de Poitiers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --paper:      #f4f6f3;
+    --card:       #ffffff;
+    --card-2:     #eef2ec;
+    --ink:        #16222e;
+    --ink-soft:   #48586a;
+    --ink-faint:  #75879a;
+    --line:       #d6ded4;
+    --line-soft:  #e5ebe2;
+    --navy:       #0f2a44;
+    --navy-ink:   #e8eef5;
+    --green:      #157a44;
+    --green-deep: #0f5a31;
+    --green-tint: #e4f0e6;
+    --amber:      #b8791a;
+    --amber-tint: #f6ecd8;
+    --red:        #b23b3b;
+    --red-tint:   #f4e0de;
+    --violet:     #6a4a9c;
+    --violet-tint:#ece5f4;
+    --shadow:     0 1px 2px rgba(16,34,44,.04), 0 6px 20px rgba(16,34,44,.06);
+  }
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --paper:      #0e161d;
+      --card:       #16222c;
+      --card-2:     #1c2c38;
+      --ink:        #e7edf2;
+      --ink-soft:   #a3b3c2;
+      --ink-faint:  #6f8091;
+      --line:       #263745;
+      --line-soft:  #1f2e3a;
+      --navy:       #0b2036;
+      --navy-ink:   #dce6f1;
+      --green:      #4bb877;
+      --green-deep: #6fce97;
+      --green-tint: #143324;
+      --amber:      #d9a445;
+      --amber-tint: #35290f;
+      --red:        #e07a7a;
+      --red-tint:   #3a1e1e;
+      --violet:     #a98fd6;
+      --violet-tint:#251c39;
+      --shadow:     0 1px 2px rgba(0,0,0,.3), 0 8px 26px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:      #0e161d;
+    --card:       #16222c;
+    --card-2:     #1c2c38;
+    --ink:        #e7edf2;
+    --ink-soft:   #a3b3c2;
+    --ink-faint:  #6f8091;
+    --line:       #263745;
+    --line-soft:  #1f2e3a;
+    --navy:       #0b2036;
+    --navy-ink:   #dce6f1;
+    --green:      #4bb877;
+    --green-deep: #6fce97;
+    --green-tint: #143324;
+    --amber:      #d9a445;
+    --amber-tint: #35290f;
+    --red:        #e07a7a;
+    --red-tint:   #3a1e1e;
+    --violet:     #a98fd6;
+    --violet-tint:#251c39;
+    --shadow:     0 1px 2px rgba(0,0,0,.3), 0 8px 26px rgba(0,0,0,.4);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+  a { color: var(--green-deep); }
+
+  /* ---------- Header ---------- */
+  header.masthead {
+    background: var(--navy);
+    color: var(--navy-ink);
+    border-bottom: 3px solid var(--green);
+  }
+  .masthead .wrap { padding-top: 52px; padding-bottom: 46px; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .74rem;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--green-deep);
+    margin: 0 0 18px;
+  }
+  :root:not([data-theme="light"]) .masthead .eyebrow,
+  :root[data-theme="dark"] .masthead .eyebrow { color: #6fce97; }
+  .masthead .eyebrow { color: #7fe3a6; }
+  h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 500;
+    font-size: clamp(2.1rem, 5.2vw, 3.4rem);
+    line-height: 1.04;
+    letter-spacing: -.015em;
+    text-wrap: balance;
+    margin: 0 0 18px;
+  }
+  .lede {
+    font-size: 1.12rem;
+    max-width: 60ch;
+    color: #cdd9e6;
+    margin: 0 0 30px;
+  }
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+    gap: 1px;
+    background: rgba(255,255,255,.12);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .meta-cell { background: var(--navy); padding: 14px 16px; }
+  .meta-cell .k {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .66rem; letter-spacing: .16em; text-transform: uppercase;
+    color: #8ea6bd; margin-bottom: 5px;
+  }
+  .meta-cell .v { font-size: .92rem; font-weight: 500; color: #eef4fb; line-height: 1.35; }
+
+  /* ---------- Sections ---------- */
+  section { padding: 56px 0; border-bottom: 1px solid var(--line-soft); }
+  section:last-of-type { border-bottom: 0; }
+  .sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
+  .sec-num {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .8rem; font-weight: 600;
+    color: var(--green); padding-top: .35rem;
+  }
+  h2 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 500;
+    font-size: clamp(1.6rem, 3.4vw, 2.2rem);
+    letter-spacing: -.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .sec-intro { color: var(--ink-soft); max-width: 66ch; margin: 12px 0 34px; }
+
+  /* ---------- Access model ---------- */
+  .roles { display: grid; gap: 10px; }
+  .role {
+    display: grid;
+    grid-template-columns: 52px 1fr;
+    gap: 18px;
+    align-items: start;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--tier, var(--line));
+    border-radius: 10px;
+    padding: 15px 18px;
+    box-shadow: var(--shadow);
+  }
+  .role .lvl {
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 600; font-size: 1.15rem;
+    color: var(--tier, var(--ink));
+    text-align: center;
+    line-height: 1;
+    padding-top: 3px;
+  }
+  .role .lvl small { display: block; font-size: .58rem; letter-spacing: .1em; color: var(--ink-faint); margin-top: 5px; font-weight: 500; }
+  .role .rname { font-weight: 600; font-size: 1.02rem; }
+  .role .rdesc { color: var(--ink-soft); font-size: .92rem; margin-top: 2px; }
+
+  /* ---------- Module catalogue ---------- */
+  .modules { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .mod {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 22px 22px 20px;
+    box-shadow: var(--shadow);
+    display: flex; flex-direction: column;
+  }
+  .mod-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 4px; }
+  .mod h3 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600; font-size: 1.24rem;
+    margin: 0; letter-spacing: -.01em;
+  }
+  .route {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .78rem;
+    color: var(--green-deep);
+    background: var(--green-tint);
+    padding: 3px 8px; border-radius: 6px;
+    display: inline-block; margin: 8px 0 12px;
+  }
+  .pill {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .64rem; letter-spacing: .06em; text-transform: uppercase;
+    font-weight: 600;
+    padding: 4px 9px; border-radius: 999px; white-space: nowrap;
+    border: 1px solid transparent;
+  }
+  .pill.base   { background: var(--green-tint);  color: var(--green-deep); border-color: color-mix(in srgb, var(--green) 30%, transparent); }
+  .pill.mid    { background: var(--amber-tint);  color: var(--amber);      border-color: color-mix(in srgb, var(--amber) 30%, transparent); }
+  .pill.high   { background: var(--violet-tint); color: var(--violet);     border-color: color-mix(in srgb, var(--violet) 30%, transparent); }
+  .pill.dg     { background: var(--navy);        color: #eaf1f8;           border-color: var(--navy); }
+  .pill.special{ background: var(--red-tint);    color: var(--red);        border-color: color-mix(in srgb, var(--red) 30%, transparent); }
+  .mod p.purpose { color: var(--ink-soft); font-size: .93rem; margin: 0 0 14px; }
+  .mod .feat-label {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .62rem; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--ink-faint); margin: 0 0 8px;
+  }
+  .mod ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+  .mod ul li { position: relative; padding-left: 16px; font-size: .9rem; color: var(--ink); line-height: 1.45; }
+  .mod ul li::before {
+    content: ""; position: absolute; left: 0; top: .58em;
+    width: 5px; height: 5px; border-radius: 1px;
+    background: var(--green); transform: rotate(45deg);
+  }
+  .mod ul li b { font-weight: 600; }
+
+  /* ---------- Entities / data model ---------- */
+  .entities { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .entity {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px 22px;
+    box-shadow: var(--shadow);
+  }
+  .entity h3 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600; font-size: 1.14rem;
+    margin: 0 0 3px; letter-spacing: -.01em;
+  }
+  .entity .ent-sub { font-size: .8rem; color: var(--ink-faint); margin: 0 0 14px; }
+  .entity dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; column-gap: 16px; row-gap: 7px; }
+  .entity dt {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .8rem; font-weight: 500; color: var(--ink);
+    white-space: nowrap;
+  }
+  .entity dd {
+    margin: 0; font-size: .82rem; color: var(--ink-soft); line-height: 1.4;
+  }
+  .entity dd .ty {
+    font-family: "IBM Plex Mono", monospace; font-size: .72rem;
+    color: var(--green-deep); background: var(--green-tint);
+    padding: 1px 6px; border-radius: 4px; margin-right: 6px;
+  }
+  .entity dd .calc { color: var(--amber); font-style: italic; }
+
+  /* ---------- Capabilities ---------- */
+  .caps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .cap {
+    background: var(--card-2);
+    border: 1px solid var(--line-soft);
+    border-radius: 10px; padding: 18px 20px;
+  }
+  .cap h4 {
+    margin: 0 0 6px; font-size: 1rem; font-weight: 600;
+    display: flex; align-items: center; gap: 9px;
+  }
+  .cap h4 .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--green); flex: none; }
+  .cap p { margin: 0; font-size: .9rem; color: var(--ink-soft); }
+  .cap .mono { font-size: .82rem; color: var(--ink); }
+
+  /* ---------- Backend / API ---------- */
+  .flow {
+    display: flex; align-items: stretch; gap: 0; flex-wrap: wrap;
+    margin: 4px 0 26px;
+  }
+  .flow .node {
+    flex: 1 1 150px; min-width: 140px;
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow);
+  }
+  .flow .node .nt {
+    font-family: "IBM Plex Mono", monospace; font-size: .64rem;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 6px;
+  }
+  .flow .node .nn { font-weight: 600; font-size: .96rem; margin-bottom: 4px; }
+  .flow .node .nd { font-size: .8rem; color: var(--ink-soft); line-height: 1.4; }
+  .flow .arrow {
+    flex: 0 0 34px; display: flex; align-items: center; justify-content: center;
+    color: var(--green); font-size: 1.3rem; font-family: monospace;
+  }
+  .code-block {
+    font-family: "IBM Plex Mono", monospace; font-size: .82rem;
+    background: var(--navy); color: #dce6f1;
+    padding: 16px 18px; border-radius: 10px;
+    overflow-x: auto; line-height: 1.7; margin: 0 0 22px;
+    border: 1px solid var(--line);
+  }
+  .code-block .c { color: #7f9ab5; }
+  .code-block .k { color: #7fe3a6; }
+  table.params {
+    width: 100%; border-collapse: collapse; font-size: .86rem; margin: 0 0 8px;
+    overflow: hidden; border-radius: 10px; box-shadow: var(--shadow);
+  }
+  table.params th {
+    background: var(--navy); color: #eaf1f8; text-align: left;
+    padding: 9px 12px; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; font-weight: 600;
+  }
+  table.params td { padding: 9px 12px; border-bottom: 1px solid var(--line-soft); background: var(--card); vertical-align: top; }
+  table.params tr:last-child td { border-bottom: 0; }
+  table.params .mono { font-size: .82rem; color: var(--green-deep); }
+  .params-wrap { overflow-x: auto; margin-bottom: 22px; }
+
+  /* ---------- Callout ---------- */
+  .callout {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 26px 28px;
+    box-shadow: var(--shadow);
+  }
+  .callout h3 {
+    font-family: "Fraunces", serif; font-weight: 600;
+    margin: 0 0 14px; font-size: 1.2rem;
+  }
+  .build-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 14px; }
+  .build-list li { display: grid; grid-template-columns: 30px 1fr; gap: 14px; align-items: start; }
+  .build-list .n {
+    font-family: "IBM Plex Mono", monospace; font-weight: 600;
+    color: var(--green); font-size: .95rem; padding-top: 1px;
+  }
+  .build-list .t b { font-weight: 600; }
+  .build-list .t span { color: var(--ink-soft); }
+
+  .note {
+    margin-top: 22px;
+    border-left: 3px solid var(--amber);
+    background: var(--amber-tint);
+    padding: 14px 18px; border-radius: 0 8px 8px 0;
+    font-size: .9rem; color: var(--ink);
+  }
+  .note b { color: var(--amber); }
+
+  footer { padding: 40px 0 60px; color: var(--ink-faint); font-size: .82rem; }
+  footer .mono { font-size: .78rem; }
+
+  @media (max-width: 720px) {
+    .modules, .caps { grid-template-columns: 1fr; }
+    .role { grid-template-columns: 44px 1fr; gap: 14px; }
+    section { padding: 44px 0; }
+  }
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <p class="eyebrow">Reverse engineering · Dossier fonctionnel</p>
+    <h1>Polyclinique de Poitiers — Plateforme collaborative</h1>
+    <p class="lede">Cartographie complète d'une plateforme de gestion administrative hospitalière : 13 modules, un contrôle d'accès à 7 niveaux, et les workflows métier reconstitués depuis l'interface — base de conception pour votre propre plateforme.</p>
+    <div class="meta-grid">
+      <div class="meta-cell"><div class="k">Hôte</div><div class="v mono">onhercules.app</div></div>
+      <div class="meta-cell"><div class="k">Type</div><div class="v">PWA installable</div></div>
+      <div class="meta-cell"><div class="k">Auth</div><div class="v">OAuth2 / OIDC (PKCE)</div></div>
+      <div class="meta-cell"><div class="k">Backend</div><div class="v">Convex (via Hercules)</div></div>
+      <div class="meta-cell"><div class="k">Devise</div><div class="v">FCFA · contexte Cameroun</div></div>
+      <div class="meta-cell"><div class="k">Relevé le</div><div class="v">3 sept. 2026</div></div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">01</span><h2>Modèle d'accès — 7 niveaux + rôle spécial</h2></div>
+    <p class="sec-intro">Chaque membre porte un rôle qui détermine les modules visibles. Les niveaux sont cumulatifs : un niveau donné hérite des accès de tous les niveaux inférieurs. Le Directeur Général attribue les rôles depuis <span class="mono">/admin/users</span>. Un membre peut être <b>Actif</b> ou <b>Inactif</b>.</p>
+    <div class="roles">
+      <div class="role" style="--tier:var(--green)"><div class="lvl">1</div><div><div class="rname">Employé</div><div class="rdesc">Accès de base : tableau de bord, comptes rendus, documents, commandes techniciens.</div></div></div>
+      <div class="role" style="--tier:var(--green)"><div class="lvl">2</div><div><div class="rname">Chef d'équipe</div><div class="rdesc">Mêmes accès qu'un employé, plus la supervision d'équipe.</div></div></div>
+      <div class="role" style="--tier:var(--amber)"><div class="lvl">3</div><div><div class="rname">Comptable</div><div class="rdesc">Accès élargi : registre RH, commandes médicales, statistiques &amp; primes.</div></div></div>
+      <div class="role" style="--tier:var(--amber)"><div class="lvl">4</div><div><div class="rname">Directeur RH</div><div class="rdesc">Accès RH complet + gestion des primes et statistiques.</div></div></div>
+      <div class="role" style="--tier:var(--violet)"><div class="lvl">5</div><div><div class="rname">Directeur Administratif 1</div><div class="rdesc">Direction administrative : récapitulatif financier, validation des commandes techniciens.</div></div></div>
+      <div class="role" style="--tier:var(--violet)"><div class="lvl">6</div><div><div class="rname">Directeur Administratif 2</div><div class="rdesc">Direction administrative élargie, mêmes droits que DA1.</div></div></div>
+      <div class="role" style="--tier:var(--navy)"><div class="lvl">7</div><div><div class="rname">Directeur Général (Admin)</div><div class="rdesc">Accès total : gestion des membres, tous les modules, auditeurs externes.</div></div></div>
+      <div class="role" style="--tier:var(--red)"><div class="lvl">★<small>SPÉCIAL</small></div><div><div class="rname">Auditeur Externe</div><div class="rdesc">Accès restreint : tableau de bord + section Auditeurs Externes uniquement (données confidentielles).</div></div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">02</span><h2>Catalogue des 13 modules</h2></div>
+    <p class="sec-intro">Chaque module correspond à une route de l'application à page unique (SPA). La pastille indique le niveau d'accès minimum requis.</p>
+    <div class="modules">
+
+      <div class="mod">
+        <div class="mod-top"><div><h3>Tableau de bord</h3></div><span class="pill base">Tous</span></div>
+        <span class="route">/</span>
+        <p class="purpose">Vue d'ensemble de l'activité, avec raccourcis vers les modules principaux.</p>
+        <p class="feat-label">Éléments clés</p>
+        <ul>
+          <li>Cartes de synthèse : <b>points de présence</b>, statut du compte rendu du jour, rapports du mois, niveau d'accès</li>
+          <li>Accès rapide : Compte rendu, Documents, Fiche API (.doc)</li>
+          <li>Salutation contextualisée par rôle</li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-top"><div><h3>Comptes Rendus</h3></div><span class="pill base">Tous</span></div>
+        <span class="route">/reports</span>
+        <p class="purpose">Compte rendu d'activité journalier, soumis dans une fenêtre horaire, avec score de présence et vue superviseur.</p>
+        <p class="feat-label">Éléments clés</p>
+        <ul>
+          <li><b>Fenêtre de soumission</b> : chaque jour ouvrable de 16h00 à 20h00, compte à rebours affiché</li>
+          <li>Soumission hors fenêtre possible mais signalée aux superviseurs</li>
+          <li>Score « points de présence » + historique personnel</li>
+          <li><b>Vue Superviseur</b> : taux de soumission (X/N membres), statut par membre, contenu de chaque compte rendu</li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-top"><div><h3>Documents</h3></div><span class="pill base">Tous</span></div>
+        <span class="route">/documents</span>
+        <p class="purpose">Espace documentaire sécurisé avec extraction automatique des métadonnées par IA à l'upload.</p>
+        <p class="feat-label">Éléments clés</p>
+        <ul>
+          <li><b>IA à l'upload</b> : titre, description et catégorie extraits automatiquement</li>
+          <li>Recherche plein texte + filtre par catégorie</li>
+          <li>Documents protégés par <b>code d'accès</b> ; marqueurs « Téléchargeable »</li>
+          <li>Génération d'une « Fiche API (.doc) »</li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-top"><div><h3>Récapitulatif Financier</h3></div><span class="pill high">Niv. 5+</span></div>
+        <span class="route">/financial</span>
+        <p class="purpose">Tableau de trésorerie journalier multi-comptes avec calculs automatiques et verrouillage d'édition.</p>
+        <p class="feat-label">Éléments clés</p>
+        <ul>
+          <li><b>9 comptes</b> suivis (F3 / OM / MOMO Poitiers &amp; Les Lilas, E DR TIM, Carte Visa, E DR TIM Finance)</li>
+          <li>Recettes du jour (espèces, chèque, visa, retraits, mobile money) avec pièces justificatives</li>
+          <li>Soldes calculés automatiquement : <span class="mono">J-1 + entrées − retraits</span></li>
+          <li><b>Verrou d'édition concurrent</b> (Verrou actif / Libérer) + verrouillage mensuel</li>
+          <li>Récap du jour, notes, historique des 14 derniers jours</li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-top"><div><h3>Registre RH</h3></div><span class="pill mid">Niv. 3+</span></div>
+        <span class="route">/hr</span>
+        <p class="purpose">Gestion des dossiers du personnel : effectifs, contrats et alertes.</p>
+        <p class="feat-label">Éléments clés</p>
+        <ul>
+          <li>Compteurs : effectif total, départements, <b>alertes contrats</b>, contrats expirés</li>
+          <li>Fiche employé : poste, département, type de contrat (CDI…)</li>
+          <li>Recherche + filtres par département et par contrat</li>
+          <li>Ajout d'employé ; onglet « Récap Salaires »</li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-top"><div><h3>Commande Médicale</h3></div><span class="pill mid">Niv. 3+</span></div>
+        <span class="route">/orders</span>
+        <p class="purpose">Commandes de médicaments (avec DCI) et de consommables médicaux.</p>
+        <p class="feat-label">Éléments clés</p>
+        <ul>
+          <li>Onglets Médicaments / Consommables, tableau éditable</li>
+          <li><b>Import / export CSV</b></li>
+          <li><b>Comparaison automatique</b> entre commandes successives</li>
+          <li>Historique horodaté des commandes</li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-top"><div><h3>Commandes Techniciens</h3></div><span class="pill base">Tous</span></div>
+        <span class="route">/tech-orders</span>
+        <p class="purpose">Demandes de matériel des techniciens, soumises à validation de l'administration.</p>
+        <p class="feat-label">Éléments clés</p>
+        <ul>
+          <li>Demande avec demandeur, service, chef, <b>pièces photo</b></li>
+          <li>Cycle de statut (En attente → validé par l'administration)</li>
+          <li>Création « Nouvelle commande » + vue détail</li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-top"><div><h3>Récapitulatif Salaire</h3></div><span class="pill mid">RH / Paie</span></div>
+        <span class="route">/payroll</span>
+        <p class="purpose">Tableau récapitulatif de paie mensuel, agrégé par employé avec catégories de déclaration.</p>
+        <p class="feat-label">Éléments clés</p>
+        <ul>
+          <li>Colonnes : base, primes/congé, heures sup/ancienneté, sanctions, absence, dettes de soins, acompte, impôts &amp; CNPS, mutuelle</li>
+          <li>Totaux calculés (Total 1, Total 2, net) + total général</li>
+          <li><b>3 régimes</b> : SESAME (non déclarés CNPS), SOFINA (nouveaux), SGC (déclarés CNPS)</li>
+          <li>Sélecteur de mois ; création de bulletin</li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-top"><div><h3>Bulletins de Paie</h3></div><span class="pill mid">RH / Paie</span></div>
+        <span class="route">/payroll/bulletins</span>
+        <p class="purpose">Bulletin de paie individuel détaillé, conforme au format légal camerounais.</p>
+        <p class="feat-label">Éléments clés</p>
+        <ul>
+          <li>Lignes de paie <b>codées</b> (66111 salaire, primes, indemnités…)</li>
+          <li>Cotisations : CNPS, IRPP, CAC, TDL, CFC, FNE, PVID, ATMP</li>
+          <li>Congés (acquis / pris / reste), net à payer, régime de versement</li>
+          <li>Navigation employé par employé + <b>export PDF</b></li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-top"><div><h3>Statistiques &amp; Primes</h3></div><span class="pill mid">Niv. 3+</span></div>
+        <span class="route">/stats</span>
+        <p class="purpose">Tableau de caisse mensuel et calcul des primes des médecins par catégorie.</p>
+        <p class="feat-label">Éléments clés</p>
+        <ul>
+          <li>Onglets : externes labo/radio, interprètes scanner/IRM, internes, prescripteurs</li>
+          <li>Colonnes de caisse (scanner, quantiféron, esthétique, thérapies…) ; total espèces &amp; CA auto</li>
+          <li><b>Import IA / OCR</b> : Excel, CSV, PDF, Word, photos → remplissage auto du tableau</li>
+          <li>Export/Import CSV ; graphes de primes</li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-top"><div><h3>Auditeurs Externes</h3></div><span class="pill special">Audit · DG</span></div>
+        <span class="route">/audit</span>
+        <p class="purpose">Suivi confidentiel des primes des médecins externes et éléments administratifs sensibles.</p>
+        <p class="feat-label">Éléments clés</p>
+        <ul>
+          <li>Catégories : prescripteurs &amp; interprètes scanner / IRM / Petscan, masse salariale, prime administrative, heures sup, sanctions, congés</li>
+          <li>Tableau de montants (FCFA) avec dates début/fin et remarques</li>
+          <li><b>Import / export Excel</b> ; rapport d'audit rédigé ; graphes comparatifs</li>
+          <li>Cloisonné : visible par l'auditeur externe et le DG seulement</li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-top"><div><h3>Gestion Membres</h3></div><span class="pill dg">DG · Niv. 7</span></div>
+        <span class="route">/admin/users</span>
+        <p class="purpose">Administration des membres : attribution des niveaux d'accès et activation.</p>
+        <p class="feat-label">Éléments clés</p>
+        <ul>
+          <li>Attribution du rôle / niveau à chaque membre</li>
+          <li>État <b>Actif / Inactif</b> par membre</li>
+          <li>Libellés de fonction personnalisés ; recherche</li>
+        </ul>
+      </div>
+
+      <div class="mod">
+        <div class="mod-top"><div><h3>Lisez-moi</h3></div><span class="pill base">Tous</span></div>
+        <span class="route">/readme</span>
+        <p class="purpose">Guide intégré de l'application : rôles, installation PWA et description des modules.</p>
+        <p class="feat-label">Éléments clés</p>
+        <ul>
+          <li>Sert aussi d'<b>écran de connexion</b> public quand l'utilisateur n'est pas authentifié</li>
+          <li>Tableau des rôles &amp; niveaux ; guide d'installation PWA (desktop / Android / iOS)</li>
+          <li>Fiche descriptive cliquable de chaque module</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">03</span><h2>Modèle de données — entités &amp; champs</h2></div>
+    <p class="sec-intro">Champs exacts relevés dans les formulaires de création et les vues détail. Base directe pour un schéma de base de données. <span class="calc" style="color:var(--amber);font-style:italic">En orange</span> : valeurs calculées automatiquement.</p>
+    <div class="entities">
+
+      <div class="entity">
+        <h3>Membre</h3>
+        <p class="ent-sub">/admin/users · éditeur de membre</p>
+        <dl>
+          <dt>email</dt><dd><span class="ty">email</span>identifiant de connexion</dd>
+          <dt>rôle / niveau</dt><dd><span class="ty">enum</span>7 niveaux + Auditeur Externe</dd>
+          <dt>poste</dt><dd><span class="ty">texte</span>titre de fonction</dd>
+          <dt>département</dt><dd><span class="ty">texte</span>service</dd>
+          <dt>code_accès_perso</dt><dd><span class="ty">secret</span>optionnel</dd>
+          <dt>isActive</dt><dd><span class="ty">bool</span>compte actif / inactif</dd>
+          <dt>libellé</dt><dd><span class="ty">texte</span>ex. « Agent Testeur »</dd>
+        </dl>
+      </div>
+
+      <div class="entity">
+        <h3>Employé (dossier RH)</h3>
+        <p class="ent-sub">/hr · nouvel employé</p>
+        <dl>
+          <dt>nom_complet *</dt><dd><span class="ty">texte</span></dd>
+          <dt>poste *</dt><dd><span class="ty">texte</span></dd>
+          <dt>département *</dt><dd><span class="ty">texte</span></dd>
+          <dt>niveau_études</dt><dd><span class="ty">texte</span>BAC+3, Master…</dd>
+          <dt>diplômes</dt><dd><span class="ty">texte</span></dd>
+          <dt>type_contrat</dt><dd><span class="ty">enum</span>CDI…</dd>
+          <dt>salaire_mensuel</dt><dd><span class="ty">FCFA</span></dd>
+          <dt>date_début / fin</dt><dd><span class="ty">date</span>→ alertes contrat</dd>
+          <dt>congés</dt><dd><span class="ty">texte</span>historique + solde</dd>
+          <dt>avancements</dt><dd><span class="ty">texte</span></dd>
+          <dt>cv_notes</dt><dd><span class="ty">texte</span></dd>
+        </dl>
+      </div>
+
+      <div class="entity">
+        <h3>Compte rendu</h3>
+        <p class="ent-sub">/reports · soumission journalière</p>
+        <dl>
+          <dt>auteur</dt><dd><span class="ty">membre</span></dd>
+          <dt>date</dt><dd><span class="ty">date</span></dd>
+          <dt>contenu</dt><dd><span class="ty">texte</span>tâches du jour</dd>
+          <dt>soumis_à</dt><dd><span class="ty">horodatage</span></dd>
+          <dt>hors_fenêtre</dt><dd><span class="ty">bool</span><span class="calc"> déduit du créneau 16h–20h</span></dd>
+          <dt>points_présence</dt><dd><span class="ty">int</span><span class="calc"> score cumulé</span></dd>
+        </dl>
+      </div>
+
+      <div class="entity">
+        <h3>Document</h3>
+        <p class="ent-sub">/documents · déposer</p>
+        <dl>
+          <dt>fichier *</dt><dd><span class="ty">blob</span>PDF/Word/Excel/image</dd>
+          <dt>titre *</dt><dd><span class="ty">texte</span><span class="calc"> pré-rempli IA</span></dd>
+          <dt>description</dt><dd><span class="ty">texte</span><span class="calc"> pré-rempli IA</span></dd>
+          <dt>catégorie</dt><dd><span class="ty">texte</span><span class="calc"> pré-rempli IA</span></dd>
+          <dt>code_accès</dt><dd><span class="ty">secret</span>optionnel</dd>
+          <dt>niveau_visible</dt><dd><span class="ty">enum</span>à partir de…</dd>
+          <dt>niveau_téléch.</dt><dd><span class="ty">enum</span>à partir de…</dd>
+          <dt>adminOnly</dt><dd><span class="ty">bool</span>confidentiel DAF/DG</dd>
+        </dl>
+      </div>
+
+      <div class="entity">
+        <h3>Commande technicien</h3>
+        <p class="ent-sub">/tech-orders · validation admin</p>
+        <dl>
+          <dt>date</dt><dd><span class="ty">date</span></dd>
+          <dt>libellé</dt><dd><span class="ty">texte</span>optionnel</dd>
+          <dt>demandeur *</dt><dd><span class="ty">texte</span></dd>
+          <dt>service *</dt><dd><span class="ty">texte</span></dd>
+          <dt>chef_service *</dt><dd><span class="ty">texte</span></dd>
+          <dt>méthode *</dt><dd><span class="ty">texte</span>email, tél…</dd>
+          <dt>photos[]</dt><dd><span class="ty">fichiers</span>upload / caméra</dd>
+          <dt>lignes[]</dt><dd><span class="ty">table</span>produit, DCI, qté, PU, total</dd>
+          <dt>statut</dt><dd><span class="ty">enum</span>en attente / validé / rejeté</dd>
+          <dt>commentaires[]</dt><dd><span class="ty">fil</span>discussion</dd>
+        </dl>
+      </div>
+
+      <div class="entity">
+        <h3>Commande médicale</h3>
+        <p class="ent-sub">/orders · médicaments &amp; consommables</p>
+        <dl>
+          <dt>date</dt><dd><span class="ty">date</span></dd>
+          <dt>libellé</dt><dd><span class="ty">texte</span>optionnel</dd>
+          <dt>type</dt><dd><span class="ty">enum</span>médicaments / consommables</dd>
+          <dt>lignes[]</dt><dd><span class="ty">table</span>produit, DCI, qté, PU, total</dd>
+          <dt>source</dt><dd><span class="ty">CSV</span>import possible</dd>
+          <dt>total_général</dt><dd><span class="ty">FCFA</span><span class="calc"> somme des lignes</span></dd>
+        </dl>
+      </div>
+
+      <div class="entity">
+        <h3>Journée financière</h3>
+        <p class="ent-sub">/financial · grand livre journalier</p>
+        <dl>
+          <dt>date</dt><dd><span class="ty">date</span></dd>
+          <dt>soldes_J0[9]</dt><dd><span class="ty">FCFA</span>F3/OM/MOMO Poitiers &amp; Lilas, E DR TIM, Visa, E DR TIM Finance</dd>
+          <dt>blocs[8]</dt><dd><span class="ty">entités</span>Poitiers, Les Lilas, Carte Visa, E DR TIM Finance, Médicaments, Biodiagnostic, MED-Esthetic, Autres Lignes</dd>
+          <dt>ligne_bloc</dt><dd><span class="ty">FCFA</span>espèces, chèque, visa, OM, MOMO + retraits, chacun avec justificatif</dd>
+          <dt>soldes</dt><dd><span class="ty">FCFA</span><span class="calc"> = J-1 + entrées − retraits (par formule)</span></dd>
+          <dt>recette_totale</dt><dd><span class="ty">FCFA</span><span class="calc"> auto</span></dd>
+          <dt>notes</dt><dd><span class="ty">texte</span></dd>
+          <dt>verrou</dt><dd><span class="ty">lock</span>édition exclusive + clôture mensuelle</dd>
+        </dl>
+      </div>
+
+      <div class="entity">
+        <h3>Ligne de paie (récap)</h3>
+        <p class="ent-sub">/payroll · par employé &amp; par mois</p>
+        <dl>
+          <dt>employé / mois</dt><dd><span class="ty">réf</span></dd>
+          <dt>salaire_journalier</dt><dd><span class="ty">FCFA</span></dd>
+          <dt>jours_travaillés</dt><dd><span class="ty">int</span></dd>
+          <dt>base, primes, h.sup</dt><dd><span class="ty">FCFA</span></dd>
+          <dt>total_1</dt><dd><span class="ty">FCFA</span><span class="calc"> base+prime+congés+h.sup+ancienneté</span></dd>
+          <dt>sanctions, absence, dettes</dt><dd><span class="ty">FCFA</span>retenues</dd>
+          <dt>acompte, CNPS, mutuelle</dt><dd><span class="ty">FCFA</span></dd>
+          <dt>total_2</dt><dd><span class="ty">FCFA</span><span class="calc"> total_1 − retenues</span></dd>
+          <dt>régime</dt><dd><span class="ty">enum</span>SESAME / SOFINA / SGC</dd>
+        </dl>
+      </div>
+
+      <div class="entity">
+        <h3>Bulletin de paie</h3>
+        <p class="ent-sub">/payroll/bulletins · format légal CM</p>
+        <dl>
+          <dt>employé / période</dt><dd><span class="ty">réf</span></dd>
+          <dt>lignes_gain[]</dt><dd><span class="ty">codées</span>66111 salaire, primes, indemnités</dd>
+          <dt>cotisations[]</dt><dd><span class="ty">codées</span>CNPS, IRPP, CAC, TDL, CFC, FNE, PVID, ATMP</dd>
+          <dt>congés</dt><dd><span class="ty">jours</span>acquis / pris / reste</dd>
+          <dt>net_à_payer</dt><dd><span class="ty">FCFA</span><span class="calc"> brut − cotisations</span></dd>
+          <dt>export</dt><dd><span class="ty">PDF</span></dd>
+        </dl>
+      </div>
+
+      <div class="entity">
+        <h3>Statistique de caisse</h3>
+        <p class="ent-sub">/stats · mensuel, import IA/OCR</p>
+        <dl>
+          <dt>intervalle_dates</dt><dd><span class="ty">date→date</span></dd>
+          <dt>horaires</dt><dd><span class="ty">texte</span></dd>
+          <dt>postes_caisse[]</dt><dd><span class="ty">FCFA</span>scanner, quantiféron, ténofovir, esthétique, thérapies…</dd>
+          <dt>total_espèces</dt><dd><span class="ty">FCFA</span><span class="calc"> auto</span></dd>
+          <dt>assurance, TEP</dt><dd><span class="ty">FCFA</span></dd>
+          <dt>chiffre_affaires</dt><dd><span class="ty">FCFA</span><span class="calc"> auto</span></dd>
+        </dl>
+      </div>
+
+      <div class="entity">
+        <h3>Prime médecin</h3>
+        <p class="ent-sub">/stats &amp; /audit · une ligne par acte/médecin</p>
+        <dl>
+          <dt>catégorie</dt><dd><span class="ty">enum</span>~14 : externes, prescripteurs / interprètes scanner·IRM·Petscan, masse salariale, prime admin, heures sup, sanctions, congés…</dd>
+          <dt>médecin / désignation</dt><dd><span class="ty">texte</span></dd>
+          <dt>date_début / fin</dt><dd><span class="ty">date</span></dd>
+          <dt>actes</dt><dd><span class="ty">int</span>volet /stats uniquement</dd>
+          <dt>montant_unit.</dt><dd><span class="ty">FCFA</span>volet /stats</dd>
+          <dt>montant_total</dt><dd><span class="ty">FCFA</span><span class="calc"> actes × unit. (stats)</span></dd>
+          <dt>notes</dt><dd><span class="ty">texte</span></dd>
+          <dt>rapport_audit</dt><dd><span class="ty">texte</span>1 par catégorie (volet /audit)</dd>
+        </dl>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">04</span><h2>Capacités transversales</h2></div>
+    <p class="sec-intro">Ces mécanismes reviennent dans plusieurs modules et forment le socle technique à reproduire.</p>
+    <div class="caps">
+      <div class="cap"><h4><span class="dot"></span>Authentification déléguée</h4><p>OAuth2 / OpenID Connect via un fournisseur externe (Hercules Auth), flux <span class="mono">PKCE (S256)</span>, scopes <span class="mono">openid profile email offline_access</span>. Connexions Google, Apple, Microsoft ou <b>code par e-mail (OTP)</b>. Protection anti-bot Cloudflare Turnstile.</p></div>
+      <div class="cap"><h4><span class="dot"></span>Application installable (PWA)</h4><p>Installable sur desktop et mobile, fonctionne comme une app native, mises à jour automatiques. Guide d'installation intégré pour Chrome/Edge, Android et iOS/Safari.</p></div>
+      <div class="cap"><h4><span class="dot"></span>Extraction IA &amp; OCR</h4><p>Métadonnées de documents déduites automatiquement à l'upload. Import IA/OCR dans les statistiques : Excel, CSV, PDF, Word et <b>photos</b> convertis en lignes de tableau, à vérifier avant enregistrement.</p></div>
+      <div class="cap"><h4><span class="dot"></span>Import / export tabulaire</h4><p>Import et export <span class="mono">CSV</span> (commandes, statistiques) et <span class="mono">Excel</span> (audit). Comparaison automatique entre jeux de données successifs pour les commandes médicales.</p></div>
+      <div class="cap"><h4><span class="dot"></span>Édition concurrente verrouillée</h4><p>Le tableau financier pose un <b>verrou d'édition</b> (« Verrou actif / Libérer ») pour empêcher les écritures simultanées, complété d'un verrouillage mensuel des données clôturées.</p></div>
+      <div class="cap"><h4><span class="dot"></span>Fenêtres temporelles &amp; notifications</h4><p>Les comptes rendus n'acceptent une soumission « dans les temps » que sur un créneau horaire des jours ouvrables ; toute soumission hors fenêtre est <b>signalée aux superviseurs</b>.</p></div>
+      <div class="cap"><h4><span class="dot"></span>Confidentialité par rôle</h4><p>Certaines données (primes des médecins externes) sont cloisonnées à un rôle spécial + le DG, indépendamment de la hiérarchie de niveaux classique.</p></div>
+      <div class="cap"><h4><span class="dot"></span>API financière tierce</h4><p>Une API expose les <b>données financières consolidées</b> à des systèmes externes (comptabilité, BI). Requêtes authentifiées par <b>clé API</b> avec restriction possible par adresse IP.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">05</span><h2>Backend &amp; API financière</h2></div>
+    <p class="sec-intro">Le fichier « README API Financier » (fourni avec la plateforme) révèle l'architecture réelle du backend — <b>Convex</b>, servi via l'App Builder Hercules — et une API d'export financier protégée par un proxy.</p>
+
+    <p class="feat-label" style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px">Chaîne de traitement d'une requête API</p>
+    <div class="flow">
+      <div class="node"><div class="nt">Client tiers</div><div class="nn">Compta · BI</div><div class="nd">Envoie <span class="mono">X-Api-Key</span> + date</div></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="nt">Couche 1</div><div class="nn">Proxy Node.js</div><div class="nd">Restriction IP · clé API · rate-limit (req/min)</div></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="nt">Couche 2</div><div class="nn">Convex HTTP Action</div><div class="nd">Re-valide la clé API côté backend</div></div>
+      <div class="arrow">→</div>
+      <div class="node"><div class="nt">Données</div><div class="nn">Convex DB</div><div class="nd"><span class="mono">*.convex.site</span></div></div>
+    </div>
+
+    <p class="feat-label" style="font-family:'IBM Plex Mono',monospace;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px">Requête type &amp; configuration proxy</p>
+    <div class="code-block"><span class="c"># Endpoint — clé dans l'en-tête, jamais dans l'URL</span>
+GET /api/financial?date=2025-08-01&amp;entity=poitiers
+     -H <span class="k">"X-Api-Key: &lt;clé ≥ 32 caractères&gt;"</span>
+
+<span class="c"># .env du proxy</span>
+PROXY_PORT=3100
+CONVEX_SITE_URL=https://&lt;deployment&gt;.convex.site
+FINANCIAL_API_KEY=&lt;identique au secret Convex&gt;
+ALLOWED_IPS=192.168.1.10,10.0.0.5   <span class="c"># vide = pas de restriction</span>
+RATE_LIMIT_RPM=30</div>
+
+    <div class="params-wrap">
+      <table class="params">
+        <thead><tr><th>Élément</th><th>Détail</th></tr></thead>
+        <tbody>
+          <tr><td><b>Paramètre <span class="mono">date</span></b></td><td>Requis · format <span class="mono">YYYY-MM-DD</span></td></tr>
+          <tr><td><b>Paramètre <span class="mono">entity</span></b></td><td>Optionnel · <span class="mono">poitiers · lilas · edrtim · carte_visa · edrtim_finance</span></td></tr>
+          <tr><td><b>Codes réponse</b></td><td><span class="mono">200</span> ok · <span class="mono">401</span> clé invalide · <span class="mono">403</span> IP refusée · <span class="mono">429</span> quota · <span class="mono">502</span> backend Convex</td></tr>
+          <tr><td><b>Santé</b></td><td><span class="mono">GET /health</span> → statut du proxy</td></tr>
+          <tr><td><b>Secrets</b></td><td>Gérés dans Hercules App Builder → Advanced → Secrets (Convex)</td></tr>
+          <tr><td><b>Durcissement conseillé</b></td><td>TLS via Nginx/Caddy · rotation de clé /6 mois · proxy en réseau privé, port 3100 fermé sur Internet</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note"><b>Insight backend.</b> Le backend réel est <b>Convex</b> (temps réel, HTTP Actions), pas la base Supabase connectée à cet outil. Pour votre plateforme, l'équivalent serait n'importe quelle base + une couche API à clé ; l'important est le patron : <b>proxy de sécurité découplé du backend</b>, jamais d'exposition directe de la base.</div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">06</span><h2>À reproduire pour votre plateforme</h2></div>
+    <p class="sec-intro">Les briques structurantes à concevoir en priorité si vous rebâtissez cette plateforme indépendamment de Hercules.</p>
+    <div class="callout">
+      <ul class="build-list">
+        <li><span class="n">A</span><span class="t"><b>RBAC à 7 niveaux cumulatifs + rôle spécial cloisonné.</b> <span>Le cœur du produit : une matrice route × niveau minimum, plus un rôle « auditeur » orthogonal qui voit un module que même les niveaux intermédiaires ne voient pas.</span></span></li>
+        <li><span class="n">B</span><span class="t"><b>Workflow de compte rendu quotidien avec fenêtre horaire et scoring.</b> <span>Créneau de soumission, compte à rebours, points de présence, détection hors-fenêtre, vue superviseur agrégée.</span></span></li>
+        <li><span class="n">C</span><span class="t"><b>Grand livre financier journalier multi-comptes.</b> <span>Report du solde J-1, calculs dérivés, pièces justificatives, verrou d'édition concurrent et clôture mensuelle.</span></span></li>
+        <li><span class="n">D</span><span class="t"><b>Moteur de paie localisé (Cameroun).</b> <span>Récap mensuel + bulletins individuels au format légal : CNPS, IRPP, CAC, CFC, FNE, congés, et régimes SESAME / SOFINA / SGC.</span></span></li>
+        <li><span class="n">E</span><span class="t"><b>Saisie tabulaire assistée par IA/OCR.</b> <span>Import de photos et documents bureautiques vers des tableaux structurés, avec relecture humaine avant validation.</span></span></li>
+        <li><span class="n">F</span><span class="t"><b>Gestion documentaire à catégorisation automatique + API de sortie.</b> <span>Store de documents avec métadonnées déduites, protection par code, et API financière à clé pour l'intégration tierce.</span></span></li>
+      </ul>
+      <div class="note"><b>À noter.</b> L'application porte un nom interne « Poitiers Coworking » distinct de l'identité publique « Polyclinique de Poitiers ». Des données de test / démonstration subsistent dans les comptes rendus et la liste des membres — à ne pas confondre avec le contenu métier réel lors de l'analyse.</div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>Dossier reconstitué par exploration de l'interface authentifiée (rôle Directeur Général). Aucune donnée personnelle ni chiffre de paie réel n'est reproduit ici — seuls la structure, les champs et les workflows sont documentés.</p>
+    <p class="mono">Relevé : 2026-09-03 · 13 modules · 8 rôles · PWA / OAuth2-OIDC</p>
+  </div>
+</footer>

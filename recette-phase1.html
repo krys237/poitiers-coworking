@@ -1,0 +1,343 @@
+<title>Cahier de recette n°1 — Paie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --paper:#f4f6f3; --card:#fff; --card-2:#eef2ec; --ink:#16222e; --ink-soft:#48586a; --ink-faint:#75879a;
+    --line:#d6ded4; --line-soft:#e5ebe2; --navy:#0f2a44; --navy-ink:#e8eef5;
+    --green:#157a44; --green-deep:#0f5a31; --green-tint:#e4f0e6;
+    --amber:#b8791a; --amber-tint:#f6ecd8; --red:#b23b3b; --red-tint:#f4e0de;
+    --violet:#6a4a9c; --violet-tint:#ece5f4; --blue:#2660a4; --blue-tint:#e2ecf7;
+    --shadow:0 1px 2px rgba(16,34,44,.04),0 6px 20px rgba(16,34,44,.06);
+  }
+  :root:not([data-theme="light"]) { @media (prefers-color-scheme: dark) {
+    --paper:#0e161d; --card:#16222c; --card-2:#1c2c38; --ink:#e7edf2; --ink-soft:#a3b3c2; --ink-faint:#6f8091;
+    --line:#263745; --line-soft:#1f2e3a; --navy:#0b2036; --navy-ink:#dce6f1;
+    --green:#4bb877; --green-deep:#6fce97; --green-tint:#143324;
+    --amber:#d9a445; --amber-tint:#35290f; --red:#e07a7a; --red-tint:#3a1e1e;
+    --violet:#a98fd6; --violet-tint:#251c39; --blue:#6ba3e0; --blue-tint:#14283d;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 26px rgba(0,0,0,.4);
+  }}
+  :root[data-theme="dark"] {
+    --paper:#0e161d; --card:#16222c; --card-2:#1c2c38; --ink:#e7edf2; --ink-soft:#a3b3c2; --ink-faint:#6f8091;
+    --line:#263745; --line-soft:#1f2e3a; --navy:#0b2036; --navy-ink:#dce6f1;
+    --green:#4bb877; --green-deep:#6fce97; --green-tint:#143324;
+    --amber:#d9a445; --amber-tint:#35290f; --red:#e07a7a; --red-tint:#3a1e1e;
+    --violet:#a98fd6; --violet-tint:#251c39; --blue:#6ba3e0; --blue-tint:#14283d;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 26px rgba(0,0,0,.4);
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family:"IBM Plex Sans",system-ui,sans-serif; font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1080px; margin:0 auto; padding:0 24px; }
+  .mono { font-family:"IBM Plex Mono",ui-monospace,monospace; }
+  code { font-family:"IBM Plex Mono",monospace; font-size:.84em; background:var(--card-2); padding:1px 5px; border-radius:4px; }
+
+  header.mast { background:var(--navy); color:var(--navy-ink); border-bottom:3px solid var(--green); position:sticky; top:0; z-index:5; }
+  .mast .wrap { padding:18px 24px 16px; display:grid; grid-template-columns:1fr auto; gap:16px; align-items:center; }
+  .eyebrow { font-family:"IBM Plex Mono",monospace; font-size:.68rem; letter-spacing:.2em; text-transform:uppercase; color:#7fe3a6; margin:0 0 4px; }
+  h1 { font-family:"Fraunces",Georgia,serif; font-weight:500; font-size:clamp(1.4rem,3vw,1.9rem); line-height:1.1; letter-spacing:-.01em; margin:0; }
+  .progress { min-width:220px; text-align:right; }
+  .progress .pct { font-family:"Fraunces",serif; font-size:1.6rem; font-weight:600; line-height:1; }
+  .progress .lbl { font-size:.72rem; color:#9fb3c8; }
+  .progress .bar { height:6px; background:rgba(255,255,255,.14); border-radius:3px; margin-top:8px; overflow:hidden; }
+  .progress .bar i { display:block; height:100%; width:0; background:#7fe3a6; transition:width .3s; }
+  .progress button { margin-top:8px; font:inherit; font-size:.72rem; background:transparent; color:#9fb3c8; border:1px solid rgba(255,255,255,.2); border-radius:6px; padding:3px 8px; cursor:pointer; }
+
+  section { padding:44px 0; border-bottom:1px solid var(--line-soft); }
+  section:last-of-type { border-bottom:0; }
+  .sec-head { display:flex; align-items:baseline; gap:14px; margin-bottom:6px; }
+  .sec-num { font-family:"IBM Plex Mono",monospace; font-size:.78rem; font-weight:600; color:var(--green); padding-top:.3rem; }
+  h2 { font-family:"Fraunces",Georgia,serif; font-weight:500; font-size:clamp(1.45rem,3vw,1.9rem); letter-spacing:-.01em; margin:0; text-wrap:balance; }
+  .sec-intro { color:var(--ink-soft); max-width:70ch; margin:8px 0 24px; }
+
+  /* cycle */
+  .cycle { display:flex; flex-wrap:wrap; align-items:stretch; margin:0 0 8px; }
+  .cnode { flex:1 1 118px; min-width:112px; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; box-shadow:var(--shadow); }
+  .cnode .n { font-family:"IBM Plex Mono",monospace; font-size:.6rem; letter-spacing:.12em; color:var(--green); }
+  .cnode .t { font-weight:600; font-size:.88rem; line-height:1.25; margin-top:2px; }
+  .cnode .d { font-size:.72rem; color:var(--ink-soft); margin-top:3px; line-height:1.35; }
+  .carrow { flex:0 0 26px; display:flex; align-items:center; justify-content:center; color:var(--green); font-size:1.1rem; }
+
+  /* prerequisites */
+  .pre { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px 22px; box-shadow:var(--shadow); }
+  .pre ol { margin:0; padding-left:20px; display:grid; gap:8px; }
+  .pre li { font-size:.94rem; }
+  pre.code { font-family:"IBM Plex Mono",monospace; font-size:.8rem; background:var(--navy); color:#dce6f1; padding:12px 14px; border-radius:8px; overflow-x:auto; line-height:1.6; margin:8px 0 0; }
+  pre.code .c { color:#7f9ab5; }
+  .demo { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin-top:16px; }
+  .demo .dcell { background:var(--card-2); border:1px solid var(--line-soft); border-radius:8px; padding:10px 12px; }
+  .demo .k { font-family:"IBM Plex Mono",monospace; font-size:.6rem; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint); }
+  .demo .v { font-weight:600; font-size:.9rem; margin-top:2px; }
+
+  /* scenario cards */
+  .scen { background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); margin-bottom:14px; overflow:hidden; }
+  .scen.done { border-color:color-mix(in srgb,var(--green) 45%,transparent); }
+  .scen > .sh { display:grid; grid-template-columns:auto 1fr auto; gap:14px; align-items:center; padding:14px 18px; cursor:pointer; user-select:none; }
+  .scen > .sh:hover { background:var(--card-2); }
+  .scen .num { font-family:"IBM Plex Mono",monospace; font-weight:600; color:#fff; background:var(--navy); border-radius:6px; padding:4px 8px; font-size:.78rem; }
+  .scen.done .num { background:var(--green); }
+  .scen .title { font-family:"Fraunces",serif; font-weight:600; font-size:1.08rem; }
+  .scen .meta { display:flex; gap:6px; flex-wrap:wrap; margin-top:3px; }
+  .pill { font-family:"IBM Plex Mono",monospace; font-size:.6rem; letter-spacing:.06em; text-transform:uppercase; font-weight:600; padding:2px 7px; border-radius:999px; border:1px solid transparent; }
+  .pill.route { background:var(--green-tint); color:var(--green-deep); }
+  .pill.niv { background:var(--violet-tint); color:var(--violet); }
+  .pill.cli { background:var(--blue-tint); color:var(--blue); }
+  .pill.warn { background:var(--amber-tint); color:var(--amber); }
+  .check { display:flex; align-items:center; gap:8px; font-size:.8rem; color:var(--ink-soft); white-space:nowrap; }
+  .check input { width:18px; height:18px; accent-color:var(--green); cursor:pointer; }
+  .scen .body { display:none; padding:0 18px 18px; border-top:1px solid var(--line-soft); }
+  .scen.open .body { display:block; }
+  .body h4 { font-family:"IBM Plex Mono",monospace; font-size:.62rem; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-faint); margin:16px 0 8px; }
+  .body ol { margin:0; padding-left:20px; display:grid; gap:6px; }
+  .body li { font-size:.92rem; }
+  .body li b { font-weight:600; }
+  .expect { border-left:3px solid var(--green); background:var(--green-tint); padding:10px 14px; border-radius:0 8px 8px 0; font-size:.9rem; }
+  .expect ul { margin:4px 0 0; padding-left:18px; }
+  .note { border-left:3px solid var(--amber); background:var(--amber-tint); padding:10px 14px; border-radius:0 8px 8px 0; font-size:.88rem; margin-top:10px; }
+  .note b { color:var(--amber); }
+
+  /* invariants */
+  .inv { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+  .ic { background:var(--card-2); border:1px solid var(--line-soft); border-radius:10px; padding:14px 16px; }
+  .ic .t { font-weight:600; font-size:.94rem; display:flex; gap:8px; align-items:center; }
+  .ic .t .dot { width:8px; height:8px; border-radius:99px; background:var(--green); flex:none; }
+  .ic p { margin:4px 0 0; font-size:.86rem; color:var(--ink-soft); }
+
+  footer { padding:36px 0 60px; color:var(--ink-faint); font-size:.8rem; }
+  @media (max-width:720px){ .inv{ grid-template-columns:1fr; } .mast .wrap{ grid-template-columns:1fr; } .progress{ text-align:left; } }
+</style>
+
+<header class="mast">
+  <div class="wrap">
+    <div>
+      <p class="eyebrow">Cahier de recette n°1 · Phase 1 — Paie automatisée</p>
+      <h1>Cahier de recette n°1 — Paie</h1>
+    </div>
+    <div class="progress">
+      <div class="pct"><span id="pct">0</span>%</div>
+      <div class="lbl"><span id="done">0</span> / <span id="total">0</span> scénarios validés</div>
+      <div class="bar"><i id="bar"></i></div>
+      <button id="reset" type="button">Réinitialiser la recette</button>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">00</span><h2>Le cycle de paie en place</h2></div>
+    <p class="sec-intro">Chaque scénario ci-dessous exerce une étape de ce cycle. Le fil rouge : <b>toute saisie recalcule instantanément les bulletins</b> (requêtes réactives Convex), et un mois <b>clôturé</b> fige tout.</p>
+    <div class="cycle">
+      <div class="cnode"><div class="n">01</div><div class="t">Employés</div><div class="d">fiches, import CSV, date d'embauche</div></div>
+      <div class="carrow">→</div>
+      <div class="cnode"><div class="n">02</div><div class="t">Barème daté</div><div class="d">CNPS / CGI applicable au mois</div></div>
+      <div class="carrow">→</div>
+      <div class="cnode"><div class="n">03</div><div class="t">Planning</div><div class="d">absences → jours travaillés</div></div>
+      <div class="carrow">→</div>
+      <div class="cnode"><div class="n">04</div><div class="t">Saisie du mois</div><div class="d">variables + primes/charges</div></div>
+      <div class="carrow">→</div>
+      <div class="cnode"><div class="n">05</div><div class="t">Bulletins</div><div class="d">recalcul live · clôture</div></div>
+      <div class="carrow">→</div>
+      <div class="cnode"><div class="n">06</div><div class="t">Courrier</div><div class="d">e-mail + PDF joint</div></div>
+      <div class="carrow">→</div>
+      <div class="cnode"><div class="n">07</div><div class="t">Archives</div><div class="d">mois figés, PDF stockés</div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">01</span><h2>Comment procéder</h2></div>
+    <div class="pre" style="margin-bottom:14px">
+      <ol>
+        <li><b>Préparez l'environnement</b> (bloc suivant) et vérifiez que le tableau de bord affiche 8 employés.</li>
+        <li><b>Suivez les scénarios dans l'ordre</b> : ils s'enchaînent comme le cycle de paie (les données créées par un scénario servent au suivant).</li>
+        <li>Pour chaque scénario : dépliez-le, exécutez les <b>étapes</b> dans l'application, comparez avec le <b>résultat attendu</b> (les chiffres sont calculés, ils doivent correspondre exactement), puis cochez <b>« Validé »</b>.</li>
+        <li>Si un résultat diverge : notez le scénario, l'étape et la valeur observée — et relancez l'équivalent <b>CLI</b> pour distinguer un problème d'écran d'un problème de calcul.</li>
+        <li>Les scénarios marqués <span class="pill warn">attention</span> modifient l'état de façon durable (clôture, rôles) : lisez l'avertissement avant d'agir.</li>
+        <li>Terminez par les <b>tests automatisés</b> (dernier scénario) : ils garantissent les invariants quel que soit ce que vous avez saisi.</li>
+      </ol>
+    </div>
+    <div class="sec-head" style="margin-top:22px"><span class="sec-num">02</span><h2>Prérequis &amp; données de démo</h2></div>
+    <div class="pre">
+      <ol>
+        <li>Deux terminaux dans <code>app/</code> : <code>npx convex dev</code> (backend) et <code>npm run dev</code> (front, <code>http://localhost:5173</code>).</li>
+        <li>Variable <code>AUTH_DEV_BYPASS=true</code> sur le déploiement Convex (déjà définie) : vous êtes connecté comme <b>Directeur (dev) · niveau 7</b>.</li>
+        <li>Sur le tableau de bord, si l'effectif est vide : <b>« Initialiser les données de démo »</b>. Idempotent — relançable sans doublon.</li>
+        <li>Pour les scénarios marqués <span class="pill cli">CLI</span>, utilisez Git Bash (les guillemets JSON sont abîmés par PowerShell) :</li>
+      </ol>
+      <pre class="code"><span class="c"># forme générale — même code que l'interface</span>
+npx convex run &lt;module&gt;:&lt;fonction&gt; '{"periode":"2026-09"}'
+<span class="c"># identifiants d'employés</span>
+npx convex run employes:liste '{}'</pre>
+      <div class="demo">
+        <div class="dcell"><div class="k">Entreprise</div><div class="v">POITIERS COWORKING · Douala</div></div>
+        <div class="dcell"><div class="k">Effectif démo</div><div class="v">8 employés (E001–E008)</div></div>
+        <div class="dcell"><div class="k">Sociétés</div><div class="v">SESAME · SOFINA · SGC</div></div>
+        <div class="dcell"><div class="k">Barème</div><div class="v">indicatif, effectif 01/07/2016</div></div>
+        <div class="dcell"><div class="k">Congés</div><div class="v">1,5 j / mois de service</div></div>
+        <div class="dcell"><div class="k">E-mail</div><div class="v">mode simulation (pas de clé)</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">03</span><h2>Scénarios de recette</h2></div>
+    <p class="sec-intro">Cliquez un scénario pour le déplier. Cochez « Validé » quand le résultat attendu est observé — l'avancement est mémorisé dans ce navigateur.</p>
+    <div id="scenarios"></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">04</span><h2>Invariants garantis (vérifiés par les tests)</h2></div>
+    <p class="sec-intro">Ce que le moteur garantit quel que soit le scénario. <code>npm run test:paie</code> rejoue 12 contrôles ; la logique des absences en a 9.</p>
+    <div class="inv">
+      <div class="ic"><div class="t"><span class="dot"></span>Net = Brut − Total des retenues</div><p>Et le total des retenues est exactement la <b>somme des lignes listées</b> sur le bulletin (cotisations, sanctions, dettes, acompte, charges du registre).</p></div>
+      <div class="ic"><div class="t"><span class="dot"></span>Barème daté</div><p>Un bulletin référence la version du barème applicable à sa période. Un mois clôturé n'est jamais recalculé avec un barème plus récent.</p></div>
+      <div class="ic"><div class="t"><span class="dot"></span>CNPS plafonnée</div><p>La base des cotisations CNPS/PVID est plafonnée (750 000 FCFA dans le barème indicatif) ; CFC, FNE et IRPP suivent leurs bases propres.</p></div>
+      <div class="ic"><div class="t"><span class="dot"></span>Salaire proratisé</div><p><code>salaire du mois = brut × jours travaillés / 30</code>. Seules les absences <b>non rémunérées</b> entament les jours travaillés.</p></div>
+      <div class="ic"><div class="t"><span class="dot"></span>Clôture = gel</div><p>Après « Générer et clôturer », bulletins figés (snapshots), saisie / planning / primes en lecture seule, courrier basé sur les snapshots.</p></div>
+      <div class="ic"><div class="t"><span class="dot"></span>Accès par niveau</div><p>Chaque route a un niveau minimum (paie = 4, paramètres = 7). Le rôle auditeur externe ne voit que le tableau de bord et l'audit.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>Cahier de recette de la Phase 1 (paie automatisée) — plateforme unifiée POITIERS COWORKING. État du 6 septembre 2026 : 10 écrans, 3 actions Node (PDF), mode e-mail simulation. Montants en FCFA entiers.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  const S = [
+    { id: "dash", t: "Tableau de bord", route: "/", niv: 1,
+      pre: "Données de démo initialisées.",
+      steps: ["Ouvrir le tableau de bord.", "Lire les quatre cartes : effectif actif, masse brute, net à payer, état du mois.", "Changer une donnée ailleurs (ex. une absence) puis revenir : les cartes ont changé sans rechargement."],
+      expect: ["Effectif actif = <b>8</b>.", "État du mois courant = <b>« Ouvert — live »</b> ; un mois clôturé afficherait « Clôturé ».", "Aucune erreur dans la console du navigateur."] },
+    { id: "emp", t: "Employés — fiches, date d'embauche, import CSV", route: "/employes", niv: 3,
+      pre: "—",
+      steps: ["Rechercher « ABAMI » : la liste se filtre.", "Ajouter un employé <b>E009</b> (nom, fonction, société, brut, <b>date d'embauche</b>, solde congés initial) → il apparaît dans la liste et dans tous les écrans de paie.", "Modifier la <b>date d'embauche</b> directement dans la ligne (champ date) : sauvegarde immédiate.", "Importer un CSV avec l'en-tête <code>matricule;nom;fonction;societe;salaire_brut;date_debut;email</code> contenant E001 (modifié) et un nouveau E010."],
+      expect: ["Message d'import : <b>« 1 créé(s), 1 mis à jour »</b> (upsert par matricule).", "Le badge « fiche(s) sans date d'embauche » n'apparaît que si une fiche active n'a pas de date.", "Les bulletins du mois incluent aussitôt les nouveaux employés."],
+      cli: "npx convex run employes:liste '{}'" },
+    { id: "bar", t: "Barème daté", route: "CLI", niv: 4, cliOnly: true,
+      pre: "—",
+      steps: ["Lister les barèmes et lire celui applicable à septembre 2026.", "Créer une nouvelle version effective au 1er janvier 2027 (valeurs par défaut) : les mois ≥ 2027 l'utiliseront, les mois antérieurs gardent l'ancienne."],
+      expect: ["<code>pourPeriode</code> renvoie la version dont <code>effectiveFrom</code> est la plus récente ≤ début du mois.", "Le job <code>controlerBaremeOfficiel</code> est un squelette (source officielle à connecter) : il ne modifie rien."],
+      cli: "npx convex run bareme:pourPeriode '{\"periode\":\"2026-09\"}'\nnpx convex run bareme:liste '{}'\nnpx convex run bareme:upsert '{\"effectiveFrom\":\"2027-01-01\",\"source\":\"test recette\"}'" },
+    { id: "saisie", t: "Saisie mensuelle — recalcul en direct", route: "/paie/saisie", niv: 4,
+      pre: "Mois courant ouvert.",
+      steps: ["Sur un employé, mettre <b>Primes = 20000</b> et <b>Heures sup = 10000</b> → le bouton « Enregistrer » de la ligne s'active.", "Enregistrer : Brut, Retenues et Net de la ligne changent <b>immédiatement</b>.", "Mettre <b>Acompte = 15000</b> et enregistrer : le net baisse de 15 000 exactement (retenue hors cotisation).", "Changer de période : les saisies sont propres à chaque mois."],
+      expect: ["Brut = salaire proratisé + primes + heures sup (+ registre).", "L'acompte apparaît comme ligne <b>42121 Acompte</b> sur le bulletin.", "Sur un mois clôturé, les champs sont désactivés (« lecture seule »)."],
+      cli: "npx convex run payroll:saisiesDuMois '{\"periode\":\"2026-09\"}'" },
+    { id: "plan", t: "Planning des absences → paie", route: "/paie/planning", niv: 4,
+      pre: "Employés avec date d'embauche (sinon acquisition « année en cours »).",
+      steps: ["Ajouter une <b>absence non justifiée</b> de 2 jours (du 07 au 08) pour ACHALE.", "Lire sa ligne : Abs. non payées = 2, <b>Jours travaillés = 28 / 30</b>, badge « 28 j · 2 abs » (paie synchronisée).", "Aller dans Saisie mensuelle : ses jours = 28, absences = 2 ; son brut = 195 941 × 28 / 30 = <b>182 878</b>.", "Ajouter un <b>congé payé</b> de 5 jours à un autre employé : jours travaillés inchangés, « Congés pris » = 5, <b>solde</b> diminué de 5.", "Supprimer une absence (deux clics : « Supprimer » puis « Confirmer ») : la paie est recalée.", "Cliquer « Synchroniser la paie du mois » : recale tout l'effectif."],
+      expect: ["Acquis (cumul) = solde initial + 1,5 × mois de service depuis la date d'embauche.", "Un événement à cheval sur deux mois est ventilé entre les deux (vérifier avec un 28/09 → 03/10).", "Un mois clôturé n'est jamais modifié par le planning."],
+      cli: "npx convex run planning:vueMensuelle '{\"periode\":\"2026-09\"}'\nnpx convex run planning:ajouterAbsence '{\"employeId\":\"<id>\",\"type\":\"absence\",\"dateDebut\":\"2026-09-07\",\"dateFin\":\"2026-09-08\"}'" },
+    { id: "primes", t: "Primes & charges → bulletins", route: "/paie/primes", niv: 4,
+      pre: "Mois ouvert.",
+      steps: ["Ajouter une <b>prime</b> « Prime de rendement » 15 000 pour ABAMI (suggestions dans le libellé).", "Ajouter une <b>charge</b> « Retenue sur avance » 8 000 pour ABAMI.", "Lire les cartes : total primes 15 000, total charges −8 000, effet net 7 000, 1 employé ; récap par employé en bas.", "Ouvrir Bulletins : le bulletin d'ABAMI a une ligne de gain <b>PRIME Prime de rendement</b> et une retenue <b>RETENUE Retenue sur avance</b>.", "Supprimer une ligne (confirmation inline) : le bulletin se recalcule."],
+      expect: ["Brut d'ABAMI = 106 950 + 15 000 = <b>121 950</b> ; net augmenté de la prime moins ses cotisations, puis diminué de 8 000.", "Sur un mois clôturé, le formulaire disparaît et la suppression est refusée par le serveur."],
+      cli: "npx convex run primes:liste '{\"periode\":\"2026-09\"}'" },
+    { id: "bull", t: "Bulletins — A4, impression, clôture", route: "/paie/bulletins", niv: 4,
+      pre: "Les scénarios précédents ont modifié septembre.",
+      steps: ["Choisir la période : un bulletin A4 par employé (en-tête entreprise, filigrane, gains codés, cotisations, net à payer).", "« Imprimer / PDF » : un bulletin par page dans l'aperçu d'impression (barre latérale masquée).", "Choisir un mois <b>passé sans données</b> (ex. juin 2026 — juillet et août sont déjà clôturés) puis « Générer et clôturer le mois » et confirmer.", "Revenir sur Saisie mensuelle / Planning / Primes pour ce mois : tout est en lecture seule.", "Ouvrir <code>/paie/bulletins?periode=2026-06</code> : la période s'ouvre directement."],
+      expect: ["Message « 8 bulletin(s) générés et mois clôturé », badge <b>« Clôturé (figé) »</b>.", "Relancer la clôture du même mois est refusé (« déjà clôturé »).", "Total net affiché = somme des nets."],
+      warn: "La clôture est irréversible depuis l'interface — utilisez un mois vide pour la recette (juillet et août 2026 sont déjà clôturés).",
+      cli: "npx convex run payroll:bulletinsDuMois '{\"periode\":\"2026-06\"}'\nnpx convex run payroll:genererEtCloturer '{\"periode\":\"2026-06\"}'" },
+    { id: "courrier", t: "Courrier de paie — lettre, e-mail, PDF joint", route: "/paie/courrier", niv: 4,
+      pre: "Au moins un employé avec un e-mail.",
+      steps: ["Modifier le <b>modèle de lettre</b> (variables <code>{nom} {periode} {net} {entreprise}</code>) et l'enregistrer.", "Saisir un e-mail dans la ligne d'un employé (sauvegarde au changement de champ).", "Sélectionner cet employé seul, puis <b>« Envoyer par e-mail (1) »</b> et confirmer.", "Lire le résultat : « Mode simulation — 0 envoyé, 1 simulé, 0 échec · PDF générés : ~5 Ko » ; la colonne « Dernier envoi » affiche <b>Simulé</b> + horodatage.", "« Afficher l'aperçu » : lettre rendue (variables remplacées) + bulletin, une page par personne à l'impression.", "Envoyer à un employé <b>sans e-mail</b> : statut <b>Échec — Adresse e-mail manquante</b>."],
+      expect: ["Le PDF (page 1 lettre, page 2 bulletin) est généré même en simulation — la taille est indiquée.", "Avec <code>RESEND_API_KEY</code> défini, le badge passe en « Envoi réel » et le bulletin figé passe en statut « envoyé »."],
+      cli: "npx convex run paiePdf:envoyerCourrier '{\"periode\":\"2026-09\",\"employeIds\":[\"<id>\"]}'\nnpx convex run courrier:journal '{\"periode\":\"2026-09\"}'" },
+    { id: "arch", t: "Archives — mois clôturés & PDF stockés", route: "/paie/archives", niv: 4,
+      pre: "Un mois clôturé (août 2026 par la démo, ou celui du scénario Bulletins).",
+      steps: ["Lire la ligne du mois : clôturé le / par, nombre de bulletins, brut, net, envoyés, PDF x / n.", "« Détail » : liste des bulletins figés (statut Généré / Envoyé).", "« Générer les PDF (n) » : les PDF sont créés et stockés ; le compteur passe à <b>n / n</b> et le bouton devient « PDF archivés ».", "Dans le détail, « Télécharger » ouvre le PDF du bulletin (URL de stockage Convex).", "« Voir les bulletins » ouvre l'écran Bulletins sur ce mois."],
+      expect: ["L'archivage est idempotent : relancer ne régénère pas les PDF existants (« déjà archivé(s) »).", "Un mois non clôturé ne peut pas être archivé (erreur explicite)."],
+      cli: "npx convex run archives:liste '{}'\nnpx convex run paiePdf:archiverPdfs '{\"periode\":\"2026-08\"}'" },
+    { id: "param", t: "Paramètres entreprise", route: "/parametres", niv: 7,
+      pre: "—",
+      steps: ["Changer le <b>filigrane</b> et la <b>couleur d'en-tête</b>, enregistrer.", "Ouvrir Bulletins : l'en-tête et le filigrane ont changé ; idem dans un nouveau PDF archivé.", "Renseigner l'<b>e-mail expéditeur</b> : affiché sur l'écran Courrier.", "Passer « Congés acquis par mois » à 2 : dans Planning, les acquis cumulés sont recalculés."],
+      expect: ["Les documents (écran, impression, PDF, e-mail HTML) reprennent tous les mêmes paramètres.", "Écran réservé au niveau 7 (DG)."] },
+    { id: "rbac", t: "Contrôle d'accès par niveau", route: "CLI", niv: 7, cliOnly: true,
+      pre: "Identifiant du membre dev : <code>users:liste</code>.",
+      steps: ["Passer le rôle du membre dev en <b>gestionnaire_rh</b> (niveau 4) : le menu perd « Paramètres » ; la paie reste accessible.", "Passer en <b>employe</b> (niveau 1) : ne restent que le tableau de bord ; un écran de paie ouvert affiche une erreur d'accès.", "Passer en <b>auditeur_externe</b> : tableau de bord seul (l'audit arrivera en Phase 4).", "<b>Remettre le rôle dg</b> pour continuer la recette."],
+      expect: ["Le menu est filtré par <code>canAccess(role, route)</code> et le serveur refuse les fonctions (« niveau insuffisant »)."],
+      warn: "Ne fermez pas la recette avec un rôle réduit : sans niveau 7, plus personne ne peut modifier les rôles depuis l'interface — la CLI reste possible.",
+      cli: "npx convex run users:liste '{}'\nnpx convex run users:modifier '{\"userId\":\"<id>\",\"role\":\"gestionnaire_rh\"}'\nnpx convex run users:modifier '{\"userId\":\"<id>\",\"role\":\"dg\"}'" },
+    { id: "tests", t: "Tests automatisés du moteur", route: "CLI", niv: 0, cliOnly: true,
+      pre: "Dans <code>app/</code>.",
+      steps: ["Lancer <code>npm run test:paie</code>.", "Lire les 12 contrôles (brut, net, plafond CNPS, IRPP progressif, registre primes/charges, retenues listées)."],
+      expect: ["« Tous les tests passent. »", "Bulletin exemple : brut 2 670 000 → net 1 960 162 (barème indicatif)."],
+      cli: "npm run test:paie" },
+  ];
+
+  const KEY = "recette-phase1";
+  let etat = {};
+  try { etat = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { etat = {}; }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(etat)); } catch (e) {} };
+  const esc = (s) => s;
+
+  const root = document.getElementById("scenarios");
+  root.innerHTML = S.map((s, i) => `
+    <article class="scen ${etat[s.id] ? "done" : ""}" data-id="${s.id}">
+      <div class="sh" role="button" tabindex="0" aria-expanded="false">
+        <span class="num">${String(i + 1).padStart(2, "0")}</span>
+        <div>
+          <div class="title">${esc(s.t)}</div>
+          <div class="meta">
+            <span class="pill route">${s.route}</span>
+            ${s.niv ? `<span class="pill niv">niveau ${s.niv}+</span>` : ""}
+            ${s.cli ? `<span class="pill cli">CLI</span>` : ""}
+            ${s.warn ? `<span class="pill warn">attention</span>` : ""}
+          </div>
+        </div>
+        <label class="check" onclick="event.stopPropagation()"><input type="checkbox" data-check="${s.id}" ${etat[s.id] ? "checked" : ""}> Validé</label>
+      </div>
+      <div class="body">
+        <h4>Pré-requis</h4><div style="font-size:.9rem">${esc(s.pre)}</div>
+        <h4>Étapes</h4><ol>${s.steps.map((x) => `<li>${x}</li>`).join("")}</ol>
+        <h4>Résultat attendu</h4><div class="expect"><ul>${s.expect.map((x) => `<li>${x}</li>`).join("")}</ul></div>
+        ${s.warn ? `<div class="note"><b>Attention.</b> ${s.warn}</div>` : ""}
+        ${s.cli ? `<h4>Équivalent CLI (Git Bash)</h4><pre class="code">${s.cli.replace(/</g, "&lt;")}</pre>` : ""}
+      </div>
+    </article>`).join("");
+
+  const total = S.length;
+  document.getElementById("total").textContent = total;
+  function refresh() {
+    const done = S.filter((s) => etat[s.id]).length;
+    document.getElementById("done").textContent = done;
+    document.getElementById("pct").textContent = Math.round((done / total) * 100);
+    document.getElementById("bar").style.width = (done / total) * 100 + "%";
+  }
+  refresh();
+
+  root.addEventListener("click", (e) => {
+    const head = e.target.closest(".sh");
+    if (head && !e.target.closest(".check")) {
+      const art = head.parentElement; art.classList.toggle("open");
+      head.setAttribute("aria-expanded", art.classList.contains("open"));
+    }
+  });
+  root.addEventListener("keydown", (e) => {
+    if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("sh")) { e.preventDefault(); e.target.click(); }
+  });
+  root.addEventListener("change", (e) => {
+    const id = e.target.getAttribute("data-check");
+    if (!id) return;
+    etat[id] = e.target.checked; save();
+    e.target.closest(".scen").classList.toggle("done", e.target.checked);
+    refresh();
+  });
+  document.getElementById("reset").addEventListener("click", () => {
+    etat = {}; save();
+    root.querySelectorAll("input[data-check]").forEach((c) => { c.checked = false; c.closest(".scen").classList.remove("done"); });
+    refresh();
+  });
+})();
+</script>

@@ -1,0 +1,24 @@
+# Dépendances et builds
+node_modules/
+app/dist/
+
+# Secrets et configuration locale (JAMAIS versionnés)
+app/.env
+app/.env.local
+app/api-proxy/.env
+.env
+.env.local
+
+# Profils navigateur (sessions, cookies) et captures de la plateforme tierce (données personnelles)
+chrome-cdp/
+profile/
+shots/
+
+# Documents confidentiels de la plateforme de référence
+*.doc
+api-doc.html
+
+# Sauvegardes et fichiers temporaires
+*.tgz
+*.log
+.claude/

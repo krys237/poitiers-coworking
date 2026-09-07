@@ -1,0 +1,453 @@
+<title>Cahier de recette n°2 — Plateforme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --paper:#f4f6f3; --card:#fff; --card-2:#eef2ec; --ink:#16222e; --ink-soft:#48586a; --ink-faint:#75879a;
+    --line:#d6ded4; --line-soft:#e5ebe2; --navy:#0f2a44; --navy-ink:#e8eef5;
+    --green:#157a44; --green-deep:#0f5a31; --green-tint:#e4f0e6;
+    --amber:#b8791a; --amber-tint:#f6ecd8; --red:#b23b3b; --red-tint:#f4e0de;
+    --violet:#6a4a9c; --violet-tint:#ece5f4; --blue:#2660a4; --blue-tint:#e2ecf7;
+    --shadow:0 1px 2px rgba(16,34,44,.04),0 6px 20px rgba(16,34,44,.06);
+  }
+  :root:not([data-theme="light"]) { @media (prefers-color-scheme: dark) {
+    --paper:#0e161d; --card:#16222c; --card-2:#1c2c38; --ink:#e7edf2; --ink-soft:#a3b3c2; --ink-faint:#6f8091;
+    --line:#263745; --line-soft:#1f2e3a; --navy:#0b2036; --navy-ink:#dce6f1;
+    --green:#4bb877; --green-deep:#6fce97; --green-tint:#143324;
+    --amber:#d9a445; --amber-tint:#35290f; --red:#e07a7a; --red-tint:#3a1e1e;
+    --violet:#a98fd6; --violet-tint:#251c39; --blue:#6ba3e0; --blue-tint:#14283d;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 26px rgba(0,0,0,.4);
+  }}
+  :root[data-theme="dark"] {
+    --paper:#0e161d; --card:#16222c; --card-2:#1c2c38; --ink:#e7edf2; --ink-soft:#a3b3c2; --ink-faint:#6f8091;
+    --line:#263745; --line-soft:#1f2e3a; --navy:#0b2036; --navy-ink:#dce6f1;
+    --green:#4bb877; --green-deep:#6fce97; --green-tint:#143324;
+    --amber:#d9a445; --amber-tint:#35290f; --red:#e07a7a; --red-tint:#3a1e1e;
+    --violet:#a98fd6; --violet-tint:#251c39; --blue:#6ba3e0; --blue-tint:#14283d;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 26px rgba(0,0,0,.4);
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family:"IBM Plex Sans",system-ui,sans-serif; font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1100px; margin:0 auto; padding:0 24px; }
+  .mono { font-family:"IBM Plex Mono",ui-monospace,monospace; }
+  code { font-family:"IBM Plex Mono",monospace; font-size:.84em; background:var(--card-2); padding:1px 5px; border-radius:4px; }
+  a { color:var(--green-deep); }
+
+  header.mast { background:var(--navy); color:var(--navy-ink); border-bottom:3px solid var(--green); position:sticky; top:0; z-index:5; }
+  .mast .wrap { padding:16px 24px 14px; display:grid; grid-template-columns:1fr auto; gap:16px; align-items:center; }
+  .eyebrow { font-family:"IBM Plex Mono",monospace; font-size:.66rem; letter-spacing:.2em; text-transform:uppercase; color:#7fe3a6; margin:0 0 4px; }
+  h1 { font-family:"Fraunces",Georgia,serif; font-weight:500; font-size:clamp(1.3rem,3vw,1.8rem); line-height:1.1; letter-spacing:-.01em; margin:0; }
+  .progress { min-width:230px; text-align:right; }
+  .progress .pct { font-family:"Fraunces",serif; font-size:1.5rem; font-weight:600; line-height:1; }
+  .progress .lbl { font-size:.7rem; color:#9fb3c8; }
+  .progress .bar { height:6px; background:rgba(255,255,255,.14); border-radius:3px; margin-top:8px; overflow:hidden; }
+  .progress .bar i { display:block; height:100%; width:0; background:#7fe3a6; transition:width .3s; }
+  .progress button { margin-top:8px; font:inherit; font-size:.7rem; background:transparent; color:#9fb3c8; border:1px solid rgba(255,255,255,.2); border-radius:6px; padding:3px 8px; cursor:pointer; }
+
+  section { padding:40px 0; border-bottom:1px solid var(--line-soft); }
+  section:last-of-type { border-bottom:0; }
+  .sec-head { display:flex; align-items:baseline; gap:14px; margin-bottom:6px; }
+  .sec-num { font-family:"IBM Plex Mono",monospace; font-size:.78rem; font-weight:600; color:var(--green); padding-top:.3rem; }
+  h2 { font-family:"Fraunces",Georgia,serif; font-weight:500; font-size:clamp(1.4rem,3vw,1.85rem); letter-spacing:-.01em; margin:0; text-wrap:balance; }
+  h3.ph { font-family:"Fraunces",serif; font-weight:600; font-size:1.2rem; margin:28px 0 10px; display:flex; align-items:center; gap:10px; }
+  .sec-intro { color:var(--ink-soft); max-width:72ch; margin:8px 0 22px; }
+
+  .pre { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px 22px; box-shadow:var(--shadow); }
+  .pre ol, .pre ul { margin:0; padding-left:20px; display:grid; gap:8px; }
+  .pre li { font-size:.94rem; }
+  pre.code { font-family:"IBM Plex Mono",monospace; font-size:.8rem; background:var(--navy); color:#dce6f1; padding:12px 14px; border-radius:8px; overflow-x:auto; line-height:1.6; margin:8px 0 0; }
+  pre.code .c { color:#7f9ab5; }
+
+  /* phases overview */
+  .phases { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .phc { background:var(--card); border:1px solid var(--line); border-top:4px solid var(--tier); border-radius:10px; padding:14px 16px; box-shadow:var(--shadow); }
+  .phc .n { font-family:"IBM Plex Mono",monospace; font-size:.6rem; letter-spacing:.14em; text-transform:uppercase; color:var(--tier); }
+  .phc .t { font-family:"Fraunces",serif; font-weight:600; font-size:1.04rem; margin:2px 0 4px; }
+  .phc .d { font-size:.8rem; color:var(--ink-soft); line-height:1.4; }
+
+  /* routes table */
+  .tbl-wrap { overflow-x:auto; }
+  table.tbl { width:100%; border-collapse:collapse; font-size:.86rem; box-shadow:var(--shadow); border-radius:10px; overflow:hidden; }
+  table.tbl th { background:var(--navy); color:#eaf1f8; text-align:left; padding:8px 12px; font-size:.64rem; letter-spacing:.08em; text-transform:uppercase; font-weight:600; }
+  table.tbl td { padding:7px 12px; border-bottom:1px solid var(--line-soft); background:var(--card); vertical-align:top; }
+  table.tbl tr:last-child td { border-bottom:0; }
+  table.tbl .mono { font-size:.8rem; color:var(--green-deep); }
+
+  /* filters */
+  .filters { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 14px; }
+  .fbtn { font:inherit; font-size:.8rem; padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--ink-soft); cursor:pointer; }
+  .fbtn.on { background:var(--navy); color:#fff; border-color:var(--navy); }
+
+  /* scenario cards */
+  .scen { background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow); margin-bottom:12px; overflow:hidden; border-left:4px solid var(--tier,var(--line)); }
+  .scen.done { border-color:color-mix(in srgb,var(--green) 45%,transparent); border-left-color:var(--green); }
+  .scen.hide { display:none; }
+  .scen > .sh { display:grid; grid-template-columns:auto 1fr auto; gap:14px; align-items:center; padding:13px 18px; cursor:pointer; user-select:none; }
+  .scen > .sh:hover { background:var(--card-2); }
+  .scen .num { font-family:"IBM Plex Mono",monospace; font-weight:600; color:#fff; background:var(--tier,var(--navy)); border-radius:6px; padding:4px 8px; font-size:.74rem; white-space:nowrap; }
+  .scen.done .num { background:var(--green); }
+  .scen .title { font-family:"Fraunces",serif; font-weight:600; font-size:1.04rem; }
+  .scen .meta { display:flex; gap:6px; flex-wrap:wrap; margin-top:3px; }
+  .pill { font-family:"IBM Plex Mono",monospace; font-size:.58rem; letter-spacing:.06em; text-transform:uppercase; font-weight:600; padding:2px 7px; border-radius:999px; border:1px solid transparent; }
+  .pill.route { background:var(--green-tint); color:var(--green-deep); }
+  .pill.niv { background:var(--violet-tint); color:var(--violet); }
+  .pill.cli { background:var(--blue-tint); color:var(--blue); }
+  .pill.warn { background:var(--amber-tint); color:var(--amber); }
+  .pill.audit { background:var(--red-tint); color:var(--red); }
+  .check { display:flex; align-items:center; gap:8px; font-size:.78rem; color:var(--ink-soft); white-space:nowrap; }
+  .check input { width:18px; height:18px; accent-color:var(--green); cursor:pointer; }
+  .scen .body { display:none; padding:0 18px 18px; border-top:1px solid var(--line-soft); }
+  .scen.open .body { display:block; }
+  .body h4 { font-family:"IBM Plex Mono",monospace; font-size:.6rem; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-faint); margin:16px 0 8px; }
+  .body ol { margin:0; padding-left:20px; display:grid; gap:6px; }
+  .body li { font-size:.92rem; }
+  .why { border-left:3px solid var(--violet); background:var(--violet-tint); padding:10px 14px; border-radius:0 8px 8px 0; font-size:.9rem; }
+  .why b { color:var(--violet); }
+  .expect { border-left:3px solid var(--green); background:var(--green-tint); padding:10px 14px; border-radius:0 8px 8px 0; font-size:.9rem; }
+  .expect ul { margin:4px 0 0; padding-left:18px; }
+  .note { border-left:3px solid var(--amber); background:var(--amber-tint); padding:10px 14px; border-radius:0 8px 8px 0; font-size:.88rem; margin-top:10px; }
+  .note b { color:var(--amber); }
+
+  .inv { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+  .ic { background:var(--card-2); border:1px solid var(--line-soft); border-radius:10px; padding:14px 16px; }
+  .ic .t { font-weight:600; font-size:.94rem; display:flex; gap:8px; align-items:center; }
+  .ic .t .dot { width:8px; height:8px; border-radius:99px; background:var(--green); flex:none; }
+  .ic p { margin:4px 0 0; font-size:.86rem; color:var(--ink-soft); }
+
+  footer { padding:36px 0 60px; color:var(--ink-faint); font-size:.8rem; }
+  @media (max-width:760px){ .phases{ grid-template-columns:1fr 1fr; } .inv{ grid-template-columns:1fr; } .mast .wrap{ grid-template-columns:1fr; } .progress{ text-align:left; } }
+</style>
+
+<header class="mast">
+  <div class="wrap">
+    <div>
+      <p class="eyebrow">Cahier de recette n°2 · Plateforme unifiée · Phases 1 à 4</p>
+      <h1>Cahier de recette n°2 — Plateforme</h1>
+    </div>
+    <div class="progress">
+      <div class="pct"><span id="pct">0</span>%</div>
+      <div class="lbl"><span id="done">0</span> / <span id="total">0</span> scénarios validés</div>
+      <div class="bar"><i id="bar"></i></div>
+      <button id="reset" type="button">Réinitialiser la recette</button>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">00</span><h2>Ce que vous allez tester, et pourquoi c'est construit ainsi</h2></div>
+    <p class="sec-intro">La plateforme réunit l'<b>étendue d'exploitation</b> de la version Hercules (trésorerie journalière, commandes, audit, contrôle d'accès fin, API d'export) et la <b>profondeur d'automatisation de la paie</b> de la version Lovable. Chaque scénario ci-dessous dit <b>comment</b> vérifier une fonctionnalité et <b>pourquoi</b> elle est conçue de cette façon.</p>
+    <div class="phases">
+      <div class="phc" style="--tier:var(--green)"><div class="n">Phase 1</div><div class="t">Paie automatisée</div><div class="d">Employés, barème daté, planning, saisie, primes, bulletins, courrier + PDF, archives. Détail dans le cahier n°1.</div></div>
+      <div class="phc" style="--tier:var(--blue)"><div class="n">Phase 2</div><div class="t">Exploitation financière</div><div class="d">Grand livre journalier à 8 blocs avec soldes reportés, verrou, clôture ; documents avec accès par objet et extraction IA.</div></div>
+      <div class="phc" style="--tier:var(--amber)"><div class="n">Phase 3</div><div class="t">Activité &amp; suivi</div><div class="d">Commandes avec comparaison, interventions, comptes rendus à fenêtre horaire, statistiques &amp; primes.</div></div>
+      <div class="phc" style="--tier:var(--violet)"><div class="n">Phase 4</div><div class="t">Contrôle &amp; intégration</div><div class="d">Audit cloisonné, membres et journal, API d'export sécurisée + proxy, barème et tâches planifiées.</div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">01</span><h2>Comment procéder</h2></div>
+    <div class="pre" style="margin-bottom:14px">
+      <ol>
+        <li><b>Environnement</b> : deux terminaux dans <code>app/</code> — <code>npx convex dev</code> et <code>npm run dev</code> (<code>http://localhost:5173</code>). Vous êtes <b>Directeur (dev) · niveau 7</b> grâce à <code>AUTH_DEV_BYPASS=true</code>.</li>
+        <li><b>Données de démo</b> : sur le tableau de bord, cliquez dans l'ordre <b>« Initialiser les données de démo »</b> (Phase 1), puis <b>« Initialiser la démo Phase 2 »</b>, <b>« … Phase 3 »</b>, <b>« … Phase 4 »</b>. Tous les seeds sont idempotents (relançables sans doublon). Si les boutons n'apparaissent pas, c'est que la démo est déjà chargée.</li>
+        <li><b>Ordre conseillé</b> : filtrez par phase (boutons ci-dessous) et suivez les scénarios dans l'ordre — ils s'enchaînent (les données d'un scénario servent au suivant). La paie est déjà couverte par le cahier n°1 ; ici elle est résumée en un parcours express.</li>
+        <li>Pour chaque scénario : dépliez, lisez le <b>pourquoi</b>, exécutez les <b>étapes</b>, comparez au <b>résultat attendu</b> (les chiffres sont calculés à partir des données de démo : ils doivent correspondre, sauf si vous avez déjà modifié ces données — les scénarios le précisent), puis cochez <b>Validé</b>.</li>
+        <li>Les scénarios <span class="pill cli">CLI</span> se jouent dans <b>Git Bash</b> (PowerShell abîme les guillemets JSON) ; ceux marqués <span class="pill warn">attention</span> changent durablement l'état (clôture, rôles) ; ceux marqués <span class="pill audit">audit</span> exigent le rôle auditeur ou DG.</li>
+        <li>Terminez par les <b>tests automatisés</b> (8 suites, 93 contrôles) : ils garantissent les invariants quoi que vous ayez saisi.</li>
+      </ol>
+      <pre class="code"><span class="c"># forme générale des équivalents CLI (même code que l'interface)</span>
+npx convex run &lt;module&gt;:&lt;fonction&gt; '{"periode":"2026-09"}'
+<span class="c"># identifiants utiles</span>
+npx convex run employes:liste '{}'      npx convex run users:liste '{}'
+npx convex run commandes:liste '{}'     npx convex run interventions:liste '{}'</pre>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">02</span><h2>Carte des écrans et niveaux d'accès</h2></div>
+    <p class="sec-intro">Le menu est filtré par <code>canAccess(rôle, route)</code> et le serveur refuse toute fonction sous le niveau requis : l'écran et l'API racontent la même histoire. L'audit est <b>orthogonal</b> : réservé à l'auditeur externe et au DG, invisible pour les niveaux 3 à 6.</p>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Groupe</th><th>Écran</th><th>Route</th><th>Niveau minimum</th><th>Phase</th></tr></thead>
+      <tbody>
+        <tr><td>Exploitation</td><td>Tableau de bord</td><td class="mono">/</td><td>1 (sections selon niveau)</td><td>1–4</td></tr>
+        <tr><td>Exploitation</td><td>Récapitulatif financier</td><td class="mono">/financier</td><td>5 — DA1, DA2, DG</td><td>2</td></tr>
+        <tr><td>Exploitation</td><td>Documents</td><td class="mono">/documents</td><td>1 + accès par document</td><td>2</td></tr>
+        <tr><td>Exploitation</td><td>Commandes</td><td class="mono">/commandes</td><td>3 (validation 5)</td><td>3</td></tr>
+        <tr><td>Exploitation</td><td>Interventions</td><td class="mono">/interventions</td><td>1 (validation 5)</td><td>3</td></tr>
+        <tr><td>Exploitation</td><td>Comptes rendus</td><td class="mono">/comptes-rendus</td><td>1 (superviseur 2)</td><td>3</td></tr>
+        <tr><td>Exploitation</td><td>Statistiques &amp; primes</td><td class="mono">/statistiques</td><td>3</td><td>3</td></tr>
+        <tr><td>Paie</td><td>Employés · Saisie · Bulletins · Courrier · Planning · Primes · Archives</td><td class="mono">/employes, /paie/*</td><td>3 (employés) · 4 (paie)</td><td>1</td></tr>
+        <tr><td>Contrôle</td><td>Audit</td><td class="mono">/audit</td><td>auditeur externe ou DG</td><td>4</td></tr>
+        <tr><td>Contrôle</td><td>Barème</td><td class="mono">/bareme</td><td>4 (nouvelle version : 7)</td><td>4</td></tr>
+        <tr><td>Contrôle</td><td>Membres · Journal · Fiche API · Paramètres</td><td class="mono">/membres, /journal, /api-readme, /parametres</td><td>7 — DG</td><td>4</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">03</span><h2>Scénarios de recette</h2></div>
+    <p class="sec-intro">Cliquez un scénario pour le déplier. L'avancement est mémorisé dans ce navigateur.</p>
+    <div class="filters" id="filters"></div>
+    <div id="scenarios"></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">04</span><h2>Invariants garantis (vérifiés par les tests)</h2></div>
+    <p class="sec-intro">Huit suites, 93 contrôles : <code>npm run test:paie</code> (12), <code>test:tresorerie</code> (13), <code>test:fenetre</code> (15), <code>test:commandes</code> (13), <code>test:stats</code> (8), <code>test:audit</code> (12), <code>test:api</code> (13), <code>test:proxy</code> (7). La logique métier est isolée dans des modules purs (<code>convex/lib/*</code>) : testable sans base ni serveur.</p>
+    <div class="inv">
+      <div class="ic"><div class="t"><span class="dot"></span>Paie : net = brut − retenues listées</div><p>Barème daté par période, CNPS plafonnée, salaire proratisé par les jours travaillés, primes/charges du registre en lignes nommées.</p></div>
+      <div class="ic"><div class="t"><span class="dot"></span>Trésorerie : report J-1 et chaîne</div><p><code>solde = J-1 + entrées − retraits</code> par canal ; le J-1 est la dernière journée saisie ; modifier une journée recalcule les suivantes ; recette = entrées seulement.</p></div>
+      <div class="ic"><div class="t"><span class="dot"></span>Fenêtre de soumission</div><p>Lundi–vendredi 16h–20h heure de Douala (UTC+1). Dans la fenêtre = 1 point, hors fenêtre = accepté, marqué, 0 point.</p></div>
+      <div class="ic"><div class="t"><span class="dot"></span>Workflows contrôlés</div><p>Commandes <code>en_attente → validée | rejetée → livrée</code>, interventions <code>ouverte → en cours → clôturée | rejetée</code> ; transitions invalides refusées ; rejet = motif obligatoire.</p></div>
+      <div class="ic"><div class="t"><span class="dot"></span>Sécurité API</div><p>Clé comparée en temps constant, deux couches (proxy + backend), rate-limit et liste blanche IP, journalisation de chaque appel, jamais d'exposition directe de la base.</p></div>
+      <div class="ic"><div class="t"><span class="dot"></span>Gel et cloisonnement</div><p>Mois de paie ou de trésorerie clôturé = immuable ; audit réservé auditeur + DG ; jamais de plateforme sans DG actif.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>Cahier de recette n°2 — plateforme unifiée POITIERS COWORKING, état du 7 septembre 2026 : 20 écrans, 4 phases, backend Convex (temps réel), PWA React. Le cahier n°1 détaille la paie. Montants en FCFA entiers ; les chiffres attendus supposent les données de démo non modifiées.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  const TIER = { 1: "var(--green)", 2: "var(--blue)", 3: "var(--amber)", 4: "var(--violet)" };
+  const PH = { 1: "Phase 1 — Paie", 2: "Phase 2 — Financier & documents", 3: "Phase 3 — Activité", 4: "Phase 4 — Contrôle" };
+  const S = [
+    // ---------------- Phase 1 (parcours express) ----------------
+    { id: "p1", ph: 1, t: "Parcours express de la paie (résumé du cahier n°1)", route: "/paie/*", niv: 4,
+      why: "La paie est le différenciateur : toute saisie (absence, prime, jours) recalcule instantanément les bulletins grâce aux requêtes réactives, et un mois clôturé fige tout. Le cahier n°1 détaille chaque étape ; ce parcours vérifie que la chaîne complète tient.",
+      steps: ["<b>Employés</b> : importez <code>test-import-employes.csv</code> → « 1 créé, 1 mis à jour ».", "<b>Planning</b> : 2 jours d'absence non payée à un employé → jours travaillés 28/30.", "<b>Primes &amp; charges</b> : prime 15 000 + charge 8 000 → lignes nommées sur le bulletin.", "<b>Saisie mensuelle</b> : acompte 15 000 → le net baisse d'exactement 15 000.", "<b>Bulletins</b> : A4, un par page ; <b>Courrier</b> : envoi simulé → « Simulé » + PDF généré ; <b>Archives</b> : août 2026, 8/8 PDF."],
+      expect: ["Chaque écran reflète les autres sans rechargement.", "Net = brut − somme des retenues listées, à l'unité près."] },
+
+    // ---------------- Phase 2 ----------------
+    { id: "f1", ph: 2, t: "Grand livre — soldes reportés J-1", route: "/financier", niv: 5,
+      why: "Comptabilité de caisse : le solde de chaque canal (espèces F3, Orange Money, MTN MoMo, Visa…) s'obtient à partir du solde de la journée précédente. Le « J-1 » est la dernière journée réellement saisie, pas la veille calendaire : un jour sans saisie n'existe pas dans le livre.",
+      steps: ["Ouvrir Récapitulatif financier à la date du jour.", "Lire les 9 cartes de soldes et le badge « Ouverture reportée du JJ/MM ».", "Survoler/lire la formule sous chaque carte (ex. F3 Poitiers = J-1 + espèces + chèque + visa − retrait)."],
+      expect: ["Avec la démo intacte : F3 Poitiers <b>2 650 000</b>, OM Poitiers 507 000, MOMO Poitiers 304 000, E DR TIM 2 000 000 (pur report).", "Le badge cite la dernière journée saisie, pas forcément hier."],
+      cli: "npx convex run financier:journee '{\"date\":\"2026-09-07\"}'" },
+    { id: "f2", ph: 2, t: "Verrou d'édition et recalcul en direct", route: "/financier", niv: 5,
+      why: "Deux personnes ne doivent jamais écrire la même journée en même temps. Le verrou est nominatif, expire après 15 minutes d'inactivité, et le serveur refuse toute écriture sans verrou détenu.",
+      steps: ["« Prendre le verrou » → badge « Vous éditez ce tableau. Verrou actif ».", "Dans le bloc Poitiers, ajouter 100 000 aux espèces : la carte F3 change <b>pendant la frappe</b>.", "« Enregistrer » → note « Journée enregistrée » ; « Libérer »."],
+      expect: ["F3 Poitiers augmente de 100 000 immédiatement, puis persiste après rechargement.", "Un autre membre verrait « Verrouillé par Directeur (dev) »."] },
+    { id: "f3", ph: 2, t: "Recalcul en chaîne des journées suivantes", route: "/financier", niv: 5,
+      why: "Corriger une journée passée doit propager la correction : les soldes des journées suivantes en dépendent. Seules les journées à soldes J0 saisis manuellement coupent la chaîne.",
+      steps: ["Se placer sur J-1 (le 06/09 avec la démo), prendre le verrou, ajouter 100 000 aux espèces Poitiers, enregistrer.", "Revenir sur la date du jour."],
+      expect: ["L'ouverture reportée et le F3 du jour ont augmenté <b>du même montant</b>.", "Le badge du jour cite toujours la même journée d'ouverture."],
+      cli: "npx convex run financier:enregistrer '{\"date\":\"2026-09-06\", ...}'  # voir la signature dans convex/financier.ts" },
+    { id: "f4", ph: 2, t: "Soldes d'ouverture J0", route: "/financier", niv: 5,
+      why: "La première journée d'un livre (ou une reprise après inventaire) n'a pas de J-1 : on saisit les 9 soldes d'ouverture à la main. Ils deviennent la base des reports suivants.",
+      steps: ["« Soldes J0 » → saisir 9 montants → Enregistrer."],
+      expect: ["Badge « Soldes d'ouverture saisis (J0) » ; le report automatique ne s'applique plus à cette date."] },
+    { id: "f5", ph: 2, t: "Justificatif par ligne", route: "/financier", niv: 5,
+      why: "Chaque mouvement de caisse peut être prouvé (reçu, bordereau). Le fichier est stocké dans Convex et lié à la ligne — base de l'audit et de l'export.",
+      steps: ["Bouton « Justif. » d'une ligne → choisir un fichier → la ligne affiche « Justif. ✓ »."],
+      expect: ["Le clic sur « Justif. ✓ » ouvre le fichier."] },
+    { id: "f6", ph: 2, t: "Clôture mensuelle de trésorerie", route: "/financier", niv: 5, warn: "Irréversible : utilisez un mois vide (juin 2026 par exemple). Juillet 2026 est déjà clôturé par la démo.",
+      why: "Comme la paie, un mois de trésorerie clôturé devient immuable : c'est ce qui rend l'historique et l'export opposables.",
+      steps: ["Choisir une date de juin, prendre le verrou, « Clôturer juin » (deux clics de confirmation inline).", "Essayer d'enregistrer une journée de juin."],
+      expect: ["Badge « Mois clôturé — immuable » ; toute écriture est refusée par le serveur.", "Le journal (Phase 4) contient un événement « clôture financière »."],
+      cli: "npx convex run financier:cloturerMois '{\"periode\":\"2026-06\"}'" },
+    { id: "f7", ph: 2, t: "Historique des 14 derniers jours", route: "/financier", niv: 5,
+      why: "Vue de pilotage : recettes et soldes clés des deux dernières semaines, pour repérer une anomalie sans ouvrir chaque journée.",
+      steps: ["Lire le tableau en bas de l'écran ; cliquer une ligne."],
+      expect: ["Le clic change la date de l'écran et charge la journée."] },
+    { id: "d1", ph: 2, t: "Documents — accès par objet et code", route: "/documents", niv: 1,
+      why: "Au-delà du rôle, chaque document porte son propre niveau de visibilité, son niveau de téléchargement, un drapeau confidentiel (DA1/DA2/DG) et un code optionnel. L'URL du fichier n'est jamais envoyée au navigateur sans contrôle : elle est délivrée par une mutation après vérification.",
+      steps: ["Lire les 4 cartes (en DG) et leurs badges : catégorie, « Confidentiel », « Code requis », « voir niv. x+ · télécharger niv. y+ ».", "Sur « Contrat de bail — Espace Akwa », « Télécharger (code) » → saisir <code>0000</code> puis <code>1234</code>."],
+      expect: ["<code>0000</code> → « Code d'accès incorrect » ; <code>1234</code> → le fichier s'ouvre.", "La procédure d'accueil se télécharge sans code."],
+      cli: "npx convex run documents:obtenirUrl '{\"documentId\":\"<id>\",\"code\":\"1234\"}'" },
+    { id: "d2", ph: 2, t: "Documents — filtrage par niveau", route: "/documents", niv: 1, warn: "Remettez le rôle « dg » à la fin (voir scénario Membres).",
+      why: "La liste elle-même est filtrée côté serveur : un membre ne voit pas ce qu'il n'a pas le droit de voir — pas seulement « ne peut pas ouvrir ».",
+      steps: ["Passer le membre dev en <code>comptable</code> (niveau 3) depuis Membres ou la CLI.", "Revenir sur Documents."],
+      expect: ["Le rapport confidentiel (niveau 5) disparaît ; le contrat reste visible mais « Lecture seule pour votre niveau » (téléchargement niveau 5).", "Remettre <code>dg</code> : tout réapparaît."],
+      cli: "npx convex run users:modifier '{\"userId\":\"<id-dev>\",\"role\":\"comptable\"}'" },
+    { id: "d3", ph: 2, t: "Dépôt avec extraction des métadonnées", route: "/documents", niv: 1,
+      why: "Le titre, la description et la catégorie sont proposés automatiquement : par l'IA (Claude) si une clé est configurée, sinon par une heuristique (nom de fichier, mots-clés). L'humain corrige avant dépôt — l'IA propose, elle ne décide pas.",
+      steps: ["Choisir un fichier nommé <code>facture-pharma-2026-09.txt</code>.", "Lire le badge du mode et les champs pré-remplis ; ajuster ; choisir niveaux visible/téléchargement ; Déposer."],
+      expect: ["Badge « heuristique » (sans clé) : titre « Facture pharma 2026 09 », catégorie « Factures ».", "La carte apparaît avec les badges choisis. Avec <code>ANTHROPIC_API_KEY</code> définie : badge « IA »."] },
+    { id: "dash2", ph: 2, t: "Tableau de bord — Trésorerie", route: "/", niv: 5,
+      why: "Le dirigeant voit d'un coup d'œil si la journée est saisie et où en est la caisse principale.",
+      steps: ["Lire les cartes Recette du jour, Dernière journée saisie, Solde F3 Poitiers."],
+      expect: ["Cohérentes avec l'écran Financier (ex. recette du jour 1 178 000 avec la démo intacte)."] },
+
+    // ---------------- Phase 3 ----------------
+    { id: "c1", ph: 3, t: "Commandes — comparaison automatique", route: "/commandes", niv: 3,
+      why: "Comparer une commande à la précédente du même type révèle les dérives (produit ajouté, quantité doublée, prix modifié) avant validation. La clé de comparaison est le nom de produit normalisé (casse, espaces).",
+      steps: ["Onglet Médicaments → « Voir » CMD-2026-003.", "Lire le bloc « Par rapport à CMD-2026-001 »."],
+      expect: ["Total <b>319 000</b> vs 339 000 : <b>−20 000 FCFA (−5,9 %)</b>.", "Ajouté : Oméprazole 20 × 25 ; retiré : Amoxicilline 500 × 40 ; modifié : Doliprane 50 → 80 ; 1 inchangé."],
+      cli: "npx convex run commandes:detail '{\"commandeId\":\"<id>\"}'" },
+    { id: "c2", ph: 3, t: "Commandes — workflow de validation", route: "/commandes", niv: 5,
+      why: "Les transitions sont contrôlées côté serveur : impossible de « livrer » une commande non validée, et un rejet doit être motivé pour être opposable. Les niveaux 5+ valident.",
+      steps: ["Sur CMD-2026-003 (en attente) : « Rejeter » sans motif → bouton de confirmation désactivé ; saisir un motif → confirmer.", "Ou « Valider » → puis « Marquer comme livrée »."],
+      expect: ["Statut et commentaire horodaté ; en CLI, <code>en_attente → livree</code> est refusé : « Transition … non autorisée »."],
+      cli: "npx convex run commandes:changerStatut '{\"commandeId\":\"<id>\",\"statut\":\"livree\"}'" },
+    { id: "c3", ph: 3, t: "Nouvelle commande + import / export CSV", route: "/commandes", niv: 3,
+      why: "Les commandes arrivent souvent en tableur : l'import (séparateur ; ou ,, nombres « 1 000 » ou « 850,50 ») pré-remplit les lignes, le total se calcule, et l'export permet de renvoyer la commande au fournisseur.",
+      steps: ["« Nouvelle commande » → « Importer CSV » avec l'en-tête <code>Nom du produit;DCI;Quantité;Prix unitaire</code> → Enregistrer.", "Ouvrir le détail → « Télécharger CSV »."],
+      expect: ["Référence auto <b>CMD-2026-004</b>, statut en attente, total = somme des lignes."] },
+    { id: "i1", ph: 3, t: "Interventions techniciens", route: "/interventions", niv: 1,
+      why: "Une demande de maintenance est un objet collaboratif : photos, matériel chiffré, priorité, puis validation par la direction (niveau 5+), suivi jusqu'à clôture, fil de commentaires.",
+      steps: ["« Nouvelle intervention » : titre, priorité haute, 2 photos, 2 lignes de matériel → Enregistrer.", "Détail : « Valider (passer en cours) », puis « Clôturer ».", "Filtrer par statut / priorité."],
+      expect: ["Référence <b>INT-2026-004</b> ; miniatures cliquables ; total des lignes ; statut ouverte → en cours → clôturée.", "Un rejet sans motif est refusé."] },
+    { id: "r1", ph: 3, t: "Compte rendu journalier — fenêtre horaire", route: "/comptes-rendus", niv: 1,
+      why: "La ponctualité est un signal de gestion : la fenêtre (lundi–vendredi, 16h–20h heure de Douala) distingue « dans les temps » (1 point) de « hors fenêtre » (accepté, marqué, 0 point). Un compte rendu par membre et par jour.",
+      steps: ["Lire la carte Fenêtre (compte à rebours « ouverte jusqu'à… » ou « prochaine ouverture dans… »).", "Rédiger et soumettre le compte rendu du jour."],
+      expect: ["Hors fenêtre : « HORS FENÊTRE (0 point) », carte « Soumis à HH:MM · hors fenêtre », score inchangé.", "Dans la fenêtre : « +1 point », score +1."],
+      cli: "npx convex run comptesRendus:soumettre '{\"contenu\":\"Test recette\"}'" },
+    { id: "r2", ph: 3, t: "Vue superviseur et validation", route: "/comptes-rendus", niv: 2,
+      why: "Le superviseur voit le taux de soumission du jour, qui est hors fenêtre, et valide les contenus ; un compte rendu validé n'est plus modifiable par son auteur.",
+      steps: ["Section « Vue superviseur » : taux, statut par membre, contenus du jour.", "« Valider » un compte rendu."],
+      expect: ["Avec la démo : 4 membres actifs, taux 3/4 · 75 % avant votre soumission, <b>4/4 · 100 %</b> après ; MBALLA Sylvie marquée hors fenêtre un jour.", "Badge Validé ; l'auteur ne peut plus éditer."],
+      cli: "npx convex run comptesRendus:vueSuperviseur '{}'" },
+    { id: "s1", ph: 3, t: "Tableau de caisse mensuel", route: "/statistiques", niv: 3,
+      why: "Les colonnes calculées évitent les erreurs de tableur : total espèces = somme des 8 postes encaissés ; chiffre d'affaires = espèces + assurance + TEP scan ; les sorties du jour ne sont pas des recettes.",
+      steps: ["Lire les cartes ; ajouter une ligne (Du / Au + montants) ; « Modifier » une ligne ; supprimer (2 clics).", "« Exporter CSV » puis « Importer CSV » du même fichier."],
+      expect: ["Démo : espèces <b>9 677 000</b>, CA <b>14 237 000</b>, sorties 785 000 ; totaux recalculés à chaque ligne ; l'import <b>ajoute</b> (lignes dupliquées)."],
+      cli: "npx convex run stats:caisse '{\"periode\":\"2026-09\"}'" },
+    { id: "s2", ph: 3, t: "Primes médecins et graphes", route: "/statistiques", niv: 3,
+      why: "Le montant d'une prime = actes × montant unitaire, calculé automatiquement, par catégorie d'acte (externes, interprètes, prescripteurs scanner/IRM…). Les graphes sont dessinés en SVG sans librairie.",
+      steps: ["Onglet « Prescripteurs IRM » ; ajouter Dr X, 5 actes × 20 000.", "Onglet « Graphes »."],
+      expect: ["Avant ajout : total 300 000, 2 médecins, 10 actes ; la nouvelle ligne affiche 100 000 pré-calculé.", "Graphe CA sur 6 mois (septembre non nul) et primes par catégorie."],
+      cli: "npx convex run stats:primes '{\"periode\":\"2026-09\"}'" },
+    { id: "dash3", ph: 3, t: "Tableau de bord — Activité", route: "/", niv: 1,
+      why: "Chaque membre voit son propre score de présence et l'état de son compte rendu du jour ; les niveaux 3+ voient le CA et les primes du mois.",
+      steps: ["Lire les cartes Points de présence, Compte rendu du jour, CA du mois, Primes du mois."],
+      expect: ["CA 14 237 000 et primes 1 460 000 avec la démo intacte."] },
+
+    // ---------------- Phase 4 ----------------
+    { id: "a1", ph: 4, t: "Cloisonnement du module Audit", route: "/audit", audit: true, warn: "Remettez le rôle « dg » à la fin.",
+      why: "L'audit est orthogonal à la hiérarchie : un directeur administratif (niveau 6) est refusé, l'auditeur externe ne voit que ce module et le tableau de bord. Le refus est côté serveur, pas seulement dans le menu.",
+      steps: ["Membres : passer le membre dev en <code>da2</code>.", "Ouvrir /audit (ou la CLI).", "Remettre <code>dg</code>."],
+      expect: ["« Accès refusé : module réservé à l'auditeur externe et au Directeur Général » ; l'entrée Audit disparaît du menu.", "Le membre démo <code>demo:auditeur</code> a, lui, accès à Audit uniquement."],
+      cli: "npx convex run audit:resume '{\"periode\":\"2026-09\"}'" },
+    { id: "a2", ph: 4, t: "Synthèse d'audit et variation mensuelle", route: "/audit", audit: true,
+      why: "14 catégories (primes des médecins par acte, masse salariale, prime administrative, heures sup, sanctions, congés…) partagent un schéma unique : nom, dates, montant, notes. La synthèse compare au mois précédent.",
+      steps: ["Onglet Synthèse, septembre 2026.", "« Ouvrir » Masse salariale."],
+      expect: ["Total <b>4 887 000</b> vs 4 496 040 en août : <b>+390 960 (+8,7 %)</b> ; 2/14 rapports rédigés.", "Masse salariale : 3 lignes, total 3 400 000, rapport présent."] },
+    { id: "a3", ph: 4, t: "Lignes d'audit + import / export CSV", route: "/audit", audit: true,
+      why: "L'auditeur travaille souvent dans un tableur : export et ré-import (les lignes TOTAL sont ignorées à l'import pour ne pas fausser les montants).",
+      steps: ["Onglet Sanctions : ajouter « Retard répété » 25 000 ; « Exporter CSV » ; « Importer CSV » du même fichier ; Modifier / Supprimer (2 clics)."],
+      expect: ["Total mis à jour ; l'import ajoute les lignes <b>sans</b> la ligne TOTAL."] },
+    { id: "a4", ph: 4, t: "Rapport d'audit rédigé", route: "/audit", audit: true,
+      why: "Chaque catégorie porte un rapport textuel horodaté et signé : observations, anomalies, recommandations. C'est la trace du contrôle.",
+      steps: ["Dans une catégorie : rédiger, « Enregistrer le rapport »."],
+      expect: ["Horodatage + auteur ; le Journal contient un événement <code>audit_rapport</code>."] },
+    { id: "a5", ph: 4, t: "Total salaires reçus et graphes comparatifs", route: "/audit", audit: true,
+      why: "L'auditeur croise les primes avec la paie réelle : la vue agrège les bulletins figés (mois clôturés) et le calcul du mois ouvert, avec la variation mois par mois.",
+      steps: ["Onglet « Total salaires reçus » puis « Graphes comparatifs »."],
+      expect: ["Août (clôturé) net 2 665 695 ; septembre (calcul direct) ≈ 2 924 774 (+9,7 %) — varie si vous avez modifié la paie.", "Barres par catégorie d'audit et net par mois."] },
+    { id: "m1", ph: 4, t: "Gestion des membres et garde-fou du dernier DG", route: "/membres", niv: 7,
+      why: "Les rôles se donnent avant la première connexion : un membre créé par e-mail est « en attente de rattachement » et sera lié à son identité OIDC dès qu'il se connectera (sans perdre son rôle). Et jamais de plateforme sans Directeur Général actif.",
+      steps: ["« Créer un membre » : <code>test@poitiers.local</code>, comptable.", "Tenter de désactiver « Directeur (dev) ».", "Changer le rôle d'un membre démo."],
+      expect: ["Badge « En attente de rattachement » ; refus « Impossible : ce membre est le dernier Directeur Général actif » ; le Journal contient <code>membre_role</code>."],
+      cli: "npx convex run users:liste '{}'" },
+    { id: "j1", ph: 4, t: "Journal d'activité", route: "/journal", niv: 7,
+      why: "Les actions sensibles (rôles, activations, clôtures de paie et de trésorerie, appels API, contrôles du barème, rapports d'audit) sont tracées avec auteur, cible et détail : la base d'un audit interne.",
+      steps: ["Filtrer par « Appel API financière », puis par « Clôture de paie »."],
+      expect: ["Les 200 derniers événements, filtrables ; les appels API montrent statut HTTP et IP."],
+      cli: "npx convex run journal:liste '{}'" },
+    { id: "p1", ph: 4, t: "API d'export financière (backend)", route: "curl", cliOnly: true, niv: 7,
+      why: "Le patron Hercules v2 : la clé est re-validée côté backend en temps constant (aucune fuite par le temps de réponse), les erreurs sont explicites (401 clé, 400 paramètres, 404 date sans saisie), chaque appel est journalisé, et les en-têtes interdisent la mise en cache.",
+      steps: ["Récupérer la clé : <code>cat app/api-proxy/.env</code> (ou le dashboard Convex).", "Jouer les appels ci-dessous contre <code>https://wonderful-shark-673.eu-west-1.convex.site</code>.", "Ouvrir Fiche API : le compteur 7 jours et la liste des appels ont bougé."],
+      expect: ["<code>/health</code> 200 · sans clé <b>401</b> · <code>date=2026-13-40</code> <b>400</b> · <code>2020-01-01</code> <b>404</b> · <code>date=2026-09-07&amp;entity=poitiers,lilas</code> <b>200</b> avec mouvements, soldes d'ouverture/clôture et recette (849 000 avec la démo intacte).", "En-têtes <code>Cache-Control: no-store</code>, <code>X-Content-Type-Options: nosniff</code>."],
+      cli: "SITE=https://wonderful-shark-673.eu-west-1.convex.site; KEY=$(grep FINANCIAL_API_KEY app/api-proxy/.env | cut -d= -f2)\ncurl -s $SITE/health\ncurl -s -o /dev/null -w '%{http_code}\\n' \"$SITE/api/financial?date=2026-09-07\"\ncurl -s -H \"X-Api-Key: $KEY\" \"$SITE/api/financial?date=2026-09-07&entity=poitiers,lilas\"" },
+    { id: "p2", ph: 4, t: "Proxy Node.js (liste blanche IP, rate-limit)", route: "api-proxy/", cliOnly: true, niv: 7,
+      why: "Deux couches indépendantes : le proxy filtre au niveau réseau (IP, quota par minute) avant même d'atteindre le backend, qui re-vérifie la clé. On n'expose jamais la base directement.",
+      steps: ["Dans <code>app/api-proxy/</code> : <code>cp .env.example .env</code>, renseigner la clé, <code>RATE_LIMIT_RPM=3</code> ; lancer <code>npm run proxy</code> depuis <code>app/</code>.", "Appeler 4 fois <code>/api/financial</code> via le proxy ; puis mettre <code>ALLOWED_IPS=10.9.9.9</code> et rappeler."],
+      expect: ["4ᵉ appel → <b>429</b> avec <code>Retry-After</code> ; hors liste blanche → <b>403</b> ; logs JSON sur la console du proxy ; relais 200 sinon."],
+      cli: "curl -s -o /dev/null -w '%{http_code}\\n' -H \"X-Api-Key: $KEY\" \"http://localhost:3100/api/financial?date=2026-09-07&entity=carte_visa\"" },
+    { id: "b1", ph: 4, t: "Barème daté et contrôle planifié", route: "/bareme", niv: 4,
+      why: "Les taux CNPS/CGI changent : chaque version est datée et immuable, un bulletin utilise la version applicable à sa période. Un contrôle quotidien (cron 06:00 UTC) vérifie la source officielle quand elle est configurée — et ne modifie jamais rien tout seul.",
+      steps: ["Lire la version applicable au mois choisi et ses tranches IRPP.", "« Vérifier maintenant » → dernier contrôle mis à jour.", "« Nouvelle version » effective au 2027-01-01 (niveau 7)."],
+      expect: ["Dernier contrôle : « source officielle non configurée (BAREME_SOURCE_URL) — barème actif conservé ».", "La version 2027 apparaît ; janvier 2027 l'utilise, décembre 2026 non."],
+      cli: "npx convex run bareme:liste '{}'\nnpx convex run bareme:pourPeriode '{\"periode\":\"2027-01\"}'" },
+    { id: "t", ph: 4, t: "Tests automatisés (8 suites, 93 contrôles)", route: "CLI", cliOnly: true,
+      why: "La logique métier vit dans des modules purs : on prouve les invariants sans base ni serveur, et on les rejoue après chaque changement.",
+      steps: ["Dans <code>app/</code> : lancer les 8 scripts."],
+      expect: ["« Tous les tests passent. » pour chaque suite."],
+      cli: "for t in paie tresorerie fenetre commandes stats audit api proxy; do npm run test:$t; done" },
+  ];
+
+  const KEY = "recette-globale";
+  let etat = {}; try { etat = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { etat = {}; }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(etat)); } catch (e) {} };
+
+  const root = document.getElementById("scenarios");
+  let html = "", lastPh = 0;
+  S.forEach((s, i) => {
+    if (s.ph !== lastPh) { html += `<h3 class="ph" data-ph="${s.ph}" style="color:${TIER[s.ph]}">${PH[s.ph]}</h3>`; lastPh = s.ph; }
+    html += `
+    <article class="scen ${etat[s.id] ? "done" : ""}" data-id="${s.id}" data-ph="${s.ph}" style="--tier:${TIER[s.ph]}">
+      <div class="sh" role="button" tabindex="0" aria-expanded="false">
+        <span class="num">${String(i + 1).padStart(2, "0")}</span>
+        <div>
+          <div class="title">${s.t}</div>
+          <div class="meta">
+            <span class="pill route">${s.route}</span>
+            ${s.niv ? `<span class="pill niv">niveau ${s.niv}+</span>` : ""}
+            ${s.audit ? `<span class="pill audit">audit</span>` : ""}
+            ${s.cli ? `<span class="pill cli">CLI</span>` : ""}
+            ${s.warn ? `<span class="pill warn">attention</span>` : ""}
+          </div>
+        </div>
+        <label class="check" onclick="event.stopPropagation()"><input type="checkbox" data-check="${s.id}" ${etat[s.id] ? "checked" : ""}> Validé</label>
+      </div>
+      <div class="body">
+        <h4>Pourquoi c'est conçu ainsi</h4><div class="why">${s.why}</div>
+        <h4>Étapes</h4><ol>${s.steps.map((x) => `<li>${x}</li>`).join("")}</ol>
+        <h4>Résultat attendu</h4><div class="expect"><ul>${s.expect.map((x) => `<li>${x}</li>`).join("")}</ul></div>
+        ${s.warn ? `<div class="note"><b>Attention.</b> ${s.warn}</div>` : ""}
+        ${s.cli ? `<h4>Équivalent CLI (Git Bash)</h4><pre class="code">${s.cli.replace(/</g, "&lt;")}</pre>` : ""}
+      </div>
+    </article>`;
+  });
+  root.innerHTML = html;
+
+  // filters
+  const F = document.getElementById("filters");
+  const all = [0, 1, 2, 3, 4];
+  let cur = 0;
+  F.innerHTML = all.map((p) => `<button class="fbtn ${p === 0 ? "on" : ""}" data-ph="${p}">${p === 0 ? "Toutes les phases" : PH[p]}</button>`).join("");
+  F.addEventListener("click", (e) => {
+    const b = e.target.closest(".fbtn"); if (!b) return;
+    cur = +b.dataset.ph;
+    F.querySelectorAll(".fbtn").forEach((x) => x.classList.toggle("on", +x.dataset.ph === cur));
+    root.querySelectorAll(".scen").forEach((a) => a.classList.toggle("hide", cur !== 0 && +a.dataset.ph !== cur));
+    root.querySelectorAll("h3.ph").forEach((h) => h.style.display = (cur === 0 || +h.dataset.ph === cur) ? "" : "none");
+  });
+
+  const total = S.length; document.getElementById("total").textContent = total;
+  function refresh() {
+    const done = S.filter((s) => etat[s.id]).length;
+    document.getElementById("done").textContent = done;
+    document.getElementById("pct").textContent = Math.round((done / total) * 100);
+    document.getElementById("bar").style.width = (done / total) * 100 + "%";
+  }
+  refresh();
+  root.addEventListener("click", (e) => {
+    const head = e.target.closest(".sh");
+    if (head && !e.target.closest(".check")) { const art = head.parentElement; art.classList.toggle("open"); head.setAttribute("aria-expanded", art.classList.contains("open")); }
+  });
+  root.addEventListener("keydown", (e) => { if ((e.key === "Enter" || e.key === " ") && e.target.classList.contains("sh")) { e.preventDefault(); e.target.click(); } });
+  root.addEventListener("change", (e) => {
+    const id = e.target.getAttribute("data-check"); if (!id) return;
+    etat[id] = e.target.checked; save(); e.target.closest(".scen").classList.toggle("done", e.target.checked); refresh();
+  });
+  document.getElementById("reset").addEventListener("click", () => {
+    etat = {}; save(); root.querySelectorAll("input[data-check]").forEach((c) => { c.checked = false; c.closest(".scen").classList.remove("done"); }); refresh();
+  });
+})();
+</script>

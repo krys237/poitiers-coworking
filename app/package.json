@@ -1,0 +1,38 @@
+{
+  "name": "poitiers-plateforme",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "convex": "convex dev",
+    "test:paie": "node --experimental-strip-types tests/paie.test.ts",
+    "test:tresorerie": "node --experimental-strip-types tests/tresorerie.test.ts",
+    "test:fenetre": "node --experimental-strip-types tests/fenetre.test.ts",
+    "test:commandes": "node --experimental-strip-types tests/commandes.test.ts",
+    "test:stats": "node --experimental-strip-types tests/stats.test.ts",
+    "test:audit": "node --experimental-strip-types tests/audit.test.ts",
+    "test:api": "node --experimental-strip-types tests/apiSecurite.test.ts",
+    "test:proxy": "node --experimental-strip-types tests/proxy.test.ts",
+    "proxy": "node api-proxy/server.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
+    "convex": "^1.17.0",
+    "pdf-lib": "^1.17.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5",
+    "vite-plugin-pwa": "^0.21.1"
+  }
+}
