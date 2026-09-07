@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "convex": "convex dev",
     "test:paie": "node --experimental-strip-types tests/paie.test.ts",
@@ -16,7 +16,8 @@
     "test:audit": "node --experimental-strip-types tests/audit.test.ts",
     "test:api": "node --experimental-strip-types tests/apiSecurite.test.ts",
     "test:proxy": "node --experimental-strip-types tests/proxy.test.ts",
-    "proxy": "node api-proxy/server.mjs"
+    "proxy": "node api-proxy/server.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",

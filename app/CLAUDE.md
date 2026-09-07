@@ -180,3 +180,13 @@ Convex agent skills for common tasks can be installed by running
 - Tests Node (`--experimental-strip-types`) : les libs pures importées par les tests doivent importer leurs dépendances avec
   l'extension `.ts` et `import type` pour les types (`convex/tsconfig.json` a `allowImportingTsExtensions`) ; pas de hook de
   résolution (`module.register` plante à la sortie sous Windows).
+
+## Déploiement du frontend (Vercel)
+Convex n'héberge que le backend ; le frontend React se déploie sur Vercel (`vercel.json` à la racine de `app/`).
+- Projet Vercel : **Root Directory = `app`**, framework Vite, build `npm run build`, sortie `dist` (préréglés par `vercel.json`).
+- Variable d'environnement **`VITE_CONVEX_URL`** = URL du déploiement Convex (dev : `https://wonderful-shark-673.eu-west-1.convex.cloud` ;
+  prod : créer un déploiement de production avec `npx convex deploy` et utiliser son URL, ou brancher l'intégration
+  Convex↔Vercel avec `CONVEX_DEPLOY_KEY` et la commande `npx convex deploy --cmd 'npm run build'`).
+- Les liens profonds (`/paie/saisie`…) sont réécrits vers `index.html` (SPA) ; `sw.js` n'est pas mis en cache.
+- ⚠ Tant que `AUTH_DEV_BYPASS=true` est actif sur le déploiement Convex ciblé, **toute personne ayant le lien est DG** :
+  réserver le lien à la présentation, ou brancher l'OIDC avant une diffusion large.
