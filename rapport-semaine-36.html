@@ -1,0 +1,325 @@
+<title>Rapport de la semaine 36</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --paper:#f4f6f3; --card:#fff; --card-2:#eef2ec; --ink:#16222e; --ink-soft:#48586a; --ink-faint:#75879a;
+    --line:#d6ded4; --line-soft:#e5ebe2; --navy:#0f2a44; --navy-ink:#e8eef5;
+    --green:#157a44; --green-deep:#0f5a31; --green-tint:#e4f0e6;
+    --amber:#b8791a; --amber-tint:#f6ecd8; --red:#b23b3b; --red-tint:#f4e0de;
+    --violet:#6a4a9c; --violet-tint:#ece5f4; --blue:#2660a4; --blue-tint:#e2ecf7;
+    --shadow:0 1px 2px rgba(16,34,44,.04),0 6px 20px rgba(16,34,44,.06);
+  }
+  :root:not([data-theme="light"]) { @media (prefers-color-scheme: dark) {
+    --paper:#0e161d; --card:#16222c; --card-2:#1c2c38; --ink:#e7edf2; --ink-soft:#a3b3c2; --ink-faint:#6f8091;
+    --line:#263745; --line-soft:#1f2e3a; --navy:#0b2036; --navy-ink:#dce6f1;
+    --green:#4bb877; --green-deep:#6fce97; --green-tint:#143324;
+    --amber:#d9a445; --amber-tint:#35290f; --red:#e07a7a; --red-tint:#3a1e1e;
+    --violet:#a98fd6; --violet-tint:#251c39; --blue:#6ba3e0; --blue-tint:#14283d;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 26px rgba(0,0,0,.4);
+  }}
+  :root[data-theme="dark"] {
+    --paper:#0e161d; --card:#16222c; --card-2:#1c2c38; --ink:#e7edf2; --ink-soft:#a3b3c2; --ink-faint:#6f8091;
+    --line:#263745; --line-soft:#1f2e3a; --navy:#0b2036; --navy-ink:#dce6f1;
+    --green:#4bb877; --green-deep:#6fce97; --green-tint:#143324;
+    --amber:#d9a445; --amber-tint:#35290f; --red:#e07a7a; --red-tint:#3a1e1e;
+    --violet:#a98fd6; --violet-tint:#251c39; --blue:#6ba3e0; --blue-tint:#14283d;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 26px rgba(0,0,0,.4);
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family:"IBM Plex Sans",system-ui,sans-serif; font-size:16px; line-height:1.62; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:960px; margin:0 auto; padding:0 24px; }
+  .mono { font-family:"IBM Plex Mono",ui-monospace,monospace; }
+  a { color:var(--green-deep); }
+  code { font-family:"IBM Plex Mono",monospace; font-size:.84em; background:var(--card-2); padding:1px 5px; border-radius:4px; }
+
+  header.mast { background:var(--navy); color:var(--navy-ink); border-bottom:3px solid var(--green); }
+  .mast .wrap { padding:52px 24px 44px; }
+  .eyebrow { font-family:"IBM Plex Mono",monospace; font-size:.72rem; letter-spacing:.22em; text-transform:uppercase; color:#7fe3a6; margin:0 0 16px; }
+  h1 { font-family:"Fraunces",Georgia,serif; font-weight:500; font-size:clamp(2rem,4.8vw,3rem); line-height:1.06; letter-spacing:-.015em; text-wrap:balance; margin:0 0 16px; }
+  .lede { font-size:1.08rem; max-width:64ch; color:#cdd9e6; margin:0 0 28px; }
+  .meta-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:1px; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.12); border-radius:10px; overflow:hidden; }
+  .meta-cell { background:var(--navy); padding:13px 16px; }
+  .meta-cell .k { font-family:"IBM Plex Mono",monospace; font-size:.64rem; letter-spacing:.16em; text-transform:uppercase; color:#8ea6bd; margin-bottom:4px; }
+  .meta-cell .v { font-size:.9rem; font-weight:500; color:#eef4fb; line-height:1.35; }
+
+  section { padding:48px 0; border-bottom:1px solid var(--line-soft); }
+  section:last-of-type { border-bottom:0; }
+  .sec-head { display:flex; align-items:baseline; gap:14px; margin-bottom:8px; }
+  .sec-num { font-family:"IBM Plex Mono",monospace; font-size:.78rem; font-weight:600; color:var(--green); padding-top:.32rem; }
+  h2 { font-family:"Fraunces",Georgia,serif; font-weight:500; font-size:clamp(1.5rem,3.2vw,2rem); letter-spacing:-.01em; margin:0; text-wrap:balance; }
+  h3 { font-family:"Fraunces",serif; font-weight:600; font-size:1.15rem; margin:26px 0 8px; }
+  p { max-width:70ch; }
+  .sec-intro { color:var(--ink-soft); margin:10px 0 24px; }
+  ul.tight { margin:0; padding-left:20px; display:grid; gap:7px; max-width:74ch; }
+  ul.tight li b { font-weight:600; }
+
+  .summary { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--green); border-radius:12px; padding:22px 26px; box-shadow:var(--shadow); }
+  .summary ol { margin:0; padding-left:20px; display:grid; gap:9px; }
+  .summary li { font-size:.98rem; }
+
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:8px 0 6px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; box-shadow:var(--shadow); }
+  .kpi .v { font-family:"Fraunces",serif; font-weight:600; font-size:1.7rem; line-height:1; color:var(--navy); }
+  .kpi .k { font-size:.78rem; color:var(--ink-soft); margin-top:6px; line-height:1.3; }
+
+  .timeline { display:grid; gap:0; border-left:2px solid var(--line); margin-left:8px; padding-left:22px; }
+  .tl { position:relative; padding:0 0 22px; }
+  .tl::before { content:""; position:absolute; left:-29px; top:.45rem; width:12px; height:12px; border-radius:99px; background:var(--green); border:2px solid var(--paper); }
+  .tl .d { font-family:"IBM Plex Mono",monospace; font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; color:var(--green-deep); }
+  .tl .t { font-weight:600; margin:2px 0 3px; }
+  .tl .x { font-size:.92rem; color:var(--ink-soft); max-width:70ch; }
+
+  .tbl-wrap { overflow-x:auto; margin:8px 0 6px; }
+  table.tbl { width:100%; border-collapse:collapse; font-size:.88rem; box-shadow:var(--shadow); border-radius:10px; overflow:hidden; }
+  table.tbl th { background:var(--navy); color:#eaf1f8; text-align:left; padding:9px 12px; font-size:.64rem; letter-spacing:.08em; text-transform:uppercase; font-weight:600; }
+  table.tbl td { padding:8px 12px; border-bottom:1px solid var(--line-soft); background:var(--card); vertical-align:top; }
+  table.tbl tr:last-child td { border-bottom:0; }
+  table.tbl td.h { font-weight:600; }
+  .ok { color:var(--green-deep); font-weight:600; } .ko { color:var(--red); font-weight:600; } .mid { color:var(--amber); font-weight:600; }
+
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .pc { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px 22px; box-shadow:var(--shadow); }
+  .pc .tag { font-family:"IBM Plex Mono",monospace; font-size:.62rem; letter-spacing:.14em; text-transform:uppercase; padding:3px 8px; border-radius:5px; display:inline-block; margin-bottom:10px; }
+  .pc.h .tag { background:var(--blue-tint); color:var(--blue); }
+  .pc.l .tag { background:var(--green-tint); color:var(--green-deep); }
+  .pc h3 { margin:0 0 6px; }
+  .pc ul { margin:8px 0 0; padding-left:18px; display:grid; gap:5px; font-size:.9rem; }
+
+  .callout { border-left:3px solid var(--violet); background:var(--violet-tint); padding:14px 18px; border-radius:0 8px 8px 0; margin:18px 0 0; }
+  .callout b { color:var(--violet); }
+  .note { border-left:3px solid var(--amber); background:var(--amber-tint); padding:12px 16px; border-radius:0 8px 8px 0; font-size:.92rem; margin-top:14px; }
+  .note b { color:var(--amber); }
+
+  .deliv { display:grid; gap:10px; }
+  .dv { display:grid; grid-template-columns:auto 1fr; gap:14px; align-items:start; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 16px; }
+  .dv .ic { font-family:"IBM Plex Mono",monospace; font-size:.68rem; font-weight:600; letter-spacing:.06em; color:#fff; background:var(--navy); border-radius:6px; padding:4px 8px; white-space:nowrap; }
+  .dv .t { font-weight:600; }
+  .dv .x { font-size:.86rem; color:var(--ink-soft); }
+
+  footer { padding:36px 0 60px; color:var(--ink-faint); font-size:.82rem; }
+  @media (max-width:720px){ .two{ grid-template-columns:1fr; } }
+  @media print { header.mast{ background:#0f2a44 !important; -webkit-print-color-adjust:exact; } section{ padding:24px 0; } }
+</style>
+
+<header class="mast">
+  <div class="wrap">
+    <p class="eyebrow">Rapport de travail hebdomadaire · Semaine 36</p>
+    <h1>Analyse par reverse engineering des deux plateformes et définition de la cible</h1>
+    <p class="lede">Du lundi 31 août au dimanche 6 septembre 2026. Objectif de la semaine : comprendre précisément le besoin de l'employeur à partir des deux plateformes existantes, puis décider ce que nous construisons — et comment.</p>
+    <div class="meta-grid">
+      <div class="meta-cell"><div class="k">Période</div><div class="v">31 août – 6 sept. 2026</div></div>
+      <div class="meta-cell"><div class="k">Projet</div><div class="v">Plateforme unifiée « POITIERS COWORKING »</div></div>
+      <div class="meta-cell"><div class="k">Plateformes analysées</div><div class="v">Hercules (prod.) · Lovable (employeur)</div></div>
+      <div class="meta-cell"><div class="k">Méthode</div><div class="v">Reverse engineering outillé</div></div>
+      <div class="meta-cell"><div class="k">Résultat</div><div class="v">Cible définie, construction lancée</div></div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">01</span><h2>Résumé exécutif</h2></div>
+    <div class="summary">
+      <ol>
+        <li><b>Le besoin réel a été clarifié.</b> Derrière le nom « coworking », il s'agit d'un <b>back-office de gestion administrative d'établissement de santé</b> (contexte Cameroun, FCFA, CNPS/IRPP) : trésorerie journalière, RH et paie, approvisionnement, suivi d'activité, audit, gestion documentaire, intégration externe.</li>
+        <li><b>Deux plateformes, deux philosophies.</b> La version Hercules (en production) couvre <b>large</b> — 13 modules, contrôle d'accès à 7 niveaux, API d'export — mais reste <b>superficielle sur la paie</b>. La version Lovable de l'employeur va <b>profond sur l'automatisation de la paie</b> (barème officiel, recalcul temps réel, génération et envoi de masse) en simplifiant tout le reste.</li>
+        <li><b>La cible retenue combine les deux</b> : le moteur de paie automatisé greffé sur le socle d'exploitation et de contrôle fin, sous un seul modèle d'accès et un seul socle de données.</li>
+        <li><b>L'architecture est décidée</b> : Convex (backend réactif) + React PWA, 3 domaines fonctionnels, 20 écrans, RBAC 7 niveaux + auditeur, moteur de paie à barème daté, feuille de route en 5 phases.</li>
+        <li><b>La construction a démarré sur cette base</b> : la Phase 1 (paie) a été livrée et vérifiée en fin de semaine ; les phases suivantes s'enchaînent immédiatement.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">02</span><h2>Contexte et objectif</h2></div>
+    <p>L'employeur dispose de deux applications répondant au même besoin métier, construites sur deux plateformes <em>no-code</em> différentes : une version en production sur <b>Hercules</b> (« Polyclinique de Poitiers — Plateforme collaborative ») et une version plus récente sur <b>Lovable</b> (« salary-automator-pro »). Aucune spécification écrite n'existait. Pour concevoir notre propre plateforme, il fallait donc <b>extraire le besoin depuis les applications elles-mêmes</b> : quels modules, quelles règles métier, quel modèle de données, quelles règles d'accès, quelle architecture technique — et où chaque version excelle ou manque.</p>
+    <p>L'objectif de la semaine était triple : <b>comprendre</b> (ce que fait chaque plateforme et pourquoi), <b>comparer</b> (les écarts entre les deux), <b>décider</b> (ce que nous construisons, avec quelle architecture et dans quel ordre).</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">03</span><h2>Méthode : un reverse engineering outillé</h2></div>
+    <p class="sec-intro">Les deux applications sont des applications monopage rendues côté client : une simple lecture des pages ne donne rien. Nous avons piloté un vrai navigateur et capturé systématiquement chaque écran, formulaire, onglet et vue de détail.</p>
+    <div class="timeline">
+      <div class="tl"><div class="d">Jeudi 3 septembre</div><div class="t">Accès et cartographie de la plateforme Hercules</div><div class="x">Contournement de la protection anti-robot (Cloudflare Turnstile) en attachant l'automatisation à un navigateur Chrome lancé normalement plutôt qu'à un navigateur instrumenté ; connexion avec un compte élevé au rôle Directeur Général. Parcours des 13 modules, extraction du guide intégré (rôles, niveaux, description des modules).</div></div>
+      <div class="tl"><div class="d">Jeudi 3 septembre</div><div class="t">Descente dans les formulaires et les vues de détail</div><div class="x">Ouverture de chaque modale de création (employé, commande technicien, commande médicale, dépôt de document, éditeur de membre) pour relever les <b>champs exacts</b> ; découverte du workflow de validation des commandes techniciens et du contrôle d'accès <b>par document</b>.</div></div>
+      <div class="tl"><div class="d">Samedi 6 septembre</div><div class="t">Tableaux denses et backend</div><div class="x">Exploration des onglets Financier (8 blocs de recettes avec formules de solde), Statistiques (tableau de caisse + primes médecins) et Audit (14 catégories). Lecture du guide de l'API financière fourni avec la plateforme : il révèle le backend réel (<b>Convex</b>) et l'architecture de l'API d'export (proxy Node.js + validation de clé côté backend).</div></div>
+      <div class="tl"><div class="d">Samedi 6 septembre</div><div class="t">Revérification et analyse de la seconde plateforme</div><div class="x">Contrôle de la version Hercules cache désactivé (un seul changement : l'API passée en v2.0, huit entités, livrée en ZIP). Exploration complète de la version Lovable de l'employeur : 21 écrans, dont une douzaine dédiés à la paie.</div></div>
+      <div class="tl"><div class="d">Samedi 6 septembre</div><div class="t">Synthèse, comparaison, architecture cible et lancement de la construction</div><div class="x">Rédaction du document de compréhension, de l'analyse comparative et de l'esquisse d'architecture ; choix de la stack ; mise en place des fondations et livraison de la Phase 1 (paie) en fin de journée.</div></div>
+    </div>
+    <div class="callout"><b>Pourquoi cette méthode.</b> Relever les champs de chaque formulaire et les colonnes de chaque tableau, plutôt que décrire les écrans de loin, nous a donné directement le <b>modèle de données</b> et les <b>règles de calcul</b> (formules de solde, totaux de paie, fenêtre horaire des comptes rendus). C'est ce niveau de précision qui a rendu la construction possible sans allers-retours.</div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">04</span><h2>Résultats — plateforme 1 : Hercules (en production)</h2></div>
+    <p class="sec-intro">Identité publique « Polyclinique de Poitiers », nom interne « Poitiers Coworking ». PWA installable, authentification déléguée OAuth2/OIDC (Google, Apple, Microsoft, code par e-mail).</p>
+    <div class="kpis">
+      <div class="kpi"><div class="v">13</div><div class="k">modules cartographiés</div></div>
+      <div class="kpi"><div class="v">7+1</div><div class="k">niveaux d'accès cumulatifs + rôle auditeur orthogonal</div></div>
+      <div class="kpi"><div class="v">11</div><div class="k">entités de données relevées champ par champ</div></div>
+      <div class="kpi"><div class="v">8</div><div class="k">blocs de recettes du grand livre financier</div></div>
+      <div class="kpi"><div class="v">14</div><div class="k">catégories du module d'audit confidentiel</div></div>
+    </div>
+    <h3>Ce qu'elle fait</h3>
+    <ul class="tight">
+      <li><b>Comptes rendus journaliers</b> soumis dans une fenêtre horaire (16h–20h, jours ouvrables), avec score de présence et vue superviseur.</li>
+      <li><b>Grand livre financier journalier</b> multi-entités : 8 blocs (espèces, chèque, carte, mobile money, retraits, justificatifs), soldes reportés de la veille par formule, verrou d'édition concurrent, clôture mensuelle.</li>
+      <li><b>RH et paie</b> : registre du personnel, récapitulatif mensuel des salaires (trois régimes de versement SESAME / SOFINA / SGC selon le statut CNPS), bulletins au format légal camerounais — mais saisie essentiellement manuelle, deux écrans.</li>
+      <li><b>Commandes</b> médicales (avec DCI) et demandes des techniciens avec validation hiérarchique et fil de commentaires.</li>
+      <li><b>Statistiques &amp; primes</b> des médecins par catégorie d'acte, import par IA/OCR ; <b>audit confidentiel</b> cloisonné à l'auditeur externe et au DG.</li>
+      <li><b>Documents</b> avec extraction automatique des métadonnées et contrôle d'accès par document (niveau de visibilité, de téléchargement, drapeau confidentiel, code).</li>
+      <li><b>API d'export financier</b> sécurisée : proxy Node.js (liste blanche IP, clé API, rate-limit) devant une fonction HTTP Convex qui re-valide la clé.</li>
+    </ul>
+    <h3>Ce que nous avons appris de décisif</h3>
+    <ul class="tight">
+      <li>Le <b>backend réel est Convex</b> (base réactive), servi par l'App Builder Hercules — une information invisible depuis l'interface, obtenue par le guide de l'API.</li>
+      <li>Le contrôle d'accès est <b>fin et à deux dimensions</b> : une hiérarchie de 7 niveaux cumulatifs, plus un rôle auditeur orthogonal, plus des droits par objet sur les documents.</li>
+      <li>Les <b>règles de calcul</b> sont explicites dans l'interface (formules de solde, définitions Total 1 / Total 2 / net) — nous les avons relevées mot pour mot.</li>
+      <li>Des données de test subsistent en production (comptes rendus fictifs, membres de test) : à ne pas confondre avec le métier réel.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">05</span><h2>Résultats — plateforme 2 : Lovable (version de l'employeur)</h2></div>
+    <p class="sec-intro">Même marque « POITIERS COWORKING », mais réorientée en <b>gestion d'espace de coworking + paie du personnel</b> (taux d'occupation, réservations, interventions sur les espaces). Le personnel de démonstration reste médical : c'est un reskin de la même organisation.</p>
+    <div class="kpis">
+      <div class="kpi"><div class="v">21</div><div class="k">écrans, dont ~12 dédiés à la paie</div></div>
+      <div class="kpi"><div class="v">3</div><div class="k">rôles seulement (Administrateur, Gestionnaire RH, Employé)</div></div>
+      <div class="kpi"><div class="v">92</div><div class="k">employés dans le jeu de données (vs 5 sur Hercules)</div></div>
+    </div>
+    <h3>Le « génie » de cette version : l'automatisation de la paie</h3>
+    <ul class="tight">
+      <li><b>Barème officiel lu automatiquement</b> chaque mois (CNPS / Code général des impôts), avec surveillance de la source et repli si elle est injoignable.</li>
+      <li><b>Recalcul en temps réel</b> de tous les bulletins à chaque saisie (absence, prime, heures supplémentaires), alimentation de l'historique et des archives.</li>
+      <li><b>Import Excel/CSV de tout l'effectif</b> avec mise à jour par matricule, puis recalcul ; <b>génération de masse</b> des bulletins A4 et PDF.</li>
+      <li>Modules absents chez Hercules : <b>planning des absences</b> (congés acquis/pris/solde), <b>primes &amp; charges</b>, <b>courrier de paie</b> avec envoi par e-mail, archives, historique, <b>paramètres entreprise</b> (logo, filigrane, couleur des documents).</li>
+      <li>La notion de <b>société</b> (SESAME / SOFINA / SGC) devient un attribut de l'employé, pour fractionner la paie et les exports.</li>
+    </ul>
+    <h3>Ce qu'elle abandonne</h3>
+    <ul class="tight">
+      <li>Pas de grand livre financier journalier (une simple liste mensuelle recettes/dépenses), pas de commandes médicales, <b>pas d'audit confidentiel</b>, <b>pas d'API d'export</b>, pas de contrôle d'accès fin ni par document, comptes rendus réduits à des procès-verbaux de réunion.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">06</span><h2>Analyse comparative et besoin consolidé</h2></div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Axe</th><th>Hercules (production)</th><th>Lovable (employeur)</th><th>Retenu pour la cible</th></tr></thead>
+      <tbody>
+        <tr><td class="h">Force principale</td><td>Exploitation large</td><td>Automatisation de la paie</td><td class="ok">Les deux</td></tr>
+        <tr><td class="h">Paie</td><td class="mid">2 écrans, saisie manuelle</td><td class="ok">~12 modules, barème auto, recalcul, envoi</td><td class="ok">Moteur Lovable + format légal Hercules</td></tr>
+        <tr><td class="h">Trésorerie</td><td class="ok">Grand livre journalier multi-comptes</td><td class="ko">Liste mensuelle</td><td class="ok">Grand livre Hercules</td></tr>
+        <tr><td class="h">Commandes</td><td class="ok">Médicales (DCI) + techniciens</td><td class="mid">Fournitures + interventions</td><td class="ok">Type paramétrable, workflow, comparaison</td></tr>
+        <tr><td class="h">Audit</td><td class="ok">Module confidentiel dédié</td><td class="ko">Absent</td><td class="ok">Conservé, cloisonné</td></tr>
+        <tr><td class="h">API externe</td><td class="ok">Proxy + backend (v2.0)</td><td class="ko">Absente</td><td class="ok">Patron Hercules v2</td></tr>
+        <tr><td class="h">Rôles</td><td class="ok">7 niveaux + auditeur + accès par document</td><td class="mid">3 rôles</td><td class="ok">7+1, avec projection des 3 rôles simples</td></tr>
+        <tr><td class="h">Comptes rendus</td><td class="ok">Fenêtre horaire + scoring</td><td class="mid">PV de réunion avec statut</td><td class="ok">Fenêtre + scoring + statut de relecture</td></tr>
+        <tr><td class="h">Backend</td><td>Convex (via Hercules)</td><td>Stack Lovable</td><td class="ok">Convex, en propre</td></tr>
+      </tbody>
+    </table></div>
+    <div class="callout"><b>Le besoin de l'employeur, consolidé.</b> Un seul outil qui <b>fait gagner du temps chaque mois</b> (la paie automatisée, répétitive et à risque d'erreur) tout en restant le <b>système de référence de l'exploitation</b> (trésorerie du jour, commandes, activité) et de la <b>gouvernance</b> (audit, accès fin, traçabilité, ouverture aux systèmes comptables). Aucune des deux versions ne le fait seule ; c'est leur combinaison que nous construisons.</div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">07</span><h2>Décisions : ce que nous construisons, et comment</h2></div>
+    <div class="two">
+      <div class="pc h">
+        <span class="tag">Architecture</span>
+        <h3>Convex + React PWA</h3>
+        <ul>
+          <li><b>Backend réactif</b> : les bulletins, soldes et totaux se recomposent automatiquement à chaque écriture — le « recalcul temps réel » devient une propriété du socle, pas un chantier.</li>
+          <li>Fonctions HTTP pour l'API d'export, tâches planifiées pour le contrôle du barème, stockage de fichiers intégré (justificatifs, documents, PDF).</li>
+          <li>Application installable (PWA), authentification OIDC déléguée, comme l'existant.</li>
+        </ul>
+      </div>
+      <div class="pc l">
+        <span class="tag">Modèle fonctionnel</span>
+        <h3>3 domaines, 20 écrans</h3>
+        <ul>
+          <li><b>Paie automatisée</b> : employés + import, barème daté, planning des absences, saisie mensuelle, primes &amp; charges, bulletins, courrier + PDF, archives.</li>
+          <li><b>Exploitation</b> : grand livre financier, documents, commandes, interventions, comptes rendus, statistiques.</li>
+          <li><b>Contrôle &amp; intégration</b> : audit, membres, journal, API d'export + proxy, barème, paramètres.</li>
+        </ul>
+      </div>
+    </div>
+    <h3>Principes de conception retenus</h3>
+    <ul class="tight">
+      <li><b>RBAC unifié</b> : les 7 niveaux cumulatifs et l'auditeur orthogonal de Hercules, avec accès par objet ; les 3 rôles simples de Lovable se projettent dessus (Administrateur → 7, Gestionnaire RH → 4, Employé → 1).</li>
+      <li><b>Barème daté</b> : chaque bulletin référence la version du barème applicable à sa période ; un mois clôturé n'est jamais recalculé.</li>
+      <li><b>Gel par clôture</b> : mois de paie et de trésorerie clôturés = immuables, comme dans l'existant.</li>
+      <li><b>Sécurité de l'API</b> : deux couches (proxy réseau + backend), clé comparée en temps constant, journalisation ; jamais d'exposition directe de la base.</li>
+      <li><b>Logique métier pure et testée</b> : formules de paie, de trésorerie, de fenêtre horaire, de comparaison de commandes isolées dans des modules testables sans serveur.</li>
+    </ul>
+    <h3>Feuille de route</h3>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Phase</th><th>Contenu</th><th>Pourquoi cet ordre</th></tr></thead>
+      <tbody>
+        <tr><td class="h">P0 Fondations</td><td>Auth, RBAC, membres, paramètres entreprise</td><td>Socle transverse de tous les modules</td></tr>
+        <tr><td class="h">P1 Paie automatisée</td><td>Employés + import, barème, planning, saisie, primes, bulletins, courrier + PDF, archives</td><td>Valeur maximale : rembourse l'effort dès le premier mois</td></tr>
+        <tr><td class="h">P2 Exploitation financière</td><td>Grand livre journalier, documents (IA + accès fin)</td><td>Profondeur Hercules, données quotidiennes</td></tr>
+        <tr><td class="h">P3 Activité &amp; suivi</td><td>Commandes, interventions, comptes rendus, statistiques</td><td>Complétude opérationnelle</td></tr>
+        <tr><td class="h">P4 Contrôle &amp; intégration</td><td>Audit, journal, API d'export + proxy, barème planifié</td><td>Gouvernance et ouverture, sur des fondations éprouvées</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">08</span><h2>Livrables de la semaine</h2></div>
+    <div class="deliv">
+      <div class="dv"><span class="ic">DOC</span><div><div class="t">Document de compréhension du projet (<code>COMPREHENSION-PROJET.md</code>)</div><div class="x">Vue d'ensemble, architecture, routes, RBAC, 13 modules détaillés (champs, règles), modèle de données, glossaire du domaine, changements détectés, comparaison avec la version Lovable, priorités de reconstruction.</div></div></div>
+      <div class="dv"><span class="ic">DOSSIER</span><div><div class="t">Dossier de reverse engineering (page interactive)</div><div class="x">Modèle d'accès, catalogue des modules, modèle de données (11 entités), backend et API financière, capacités transversales, checklist de reconstruction.</div></div></div>
+      <div class="dv"><span class="ic">ARCHI</span><div><div class="t">Esquisse d'architecture cible (page interactive)</div><div class="x">Principe directeur, architecture en couches, stack et alternatives, carte des modules, RBAC unifié, modèle de données, moteur de paie, feuille de route.</div></div></div>
+      <div class="dv"><span class="ic">CODE</span><div><div class="t">Fondations et Phase 1 de la plateforme (<code>app/</code>)</div><div class="x">Schéma de données complet, RBAC, moteur de paie pur et testé, barème daté, écrans de paie, déploiement Convex opérationnel avec données de démonstration.</div></div></div>
+      <div class="dv"><span class="ic">RECETTE</span><div><div class="t">Cahier de recette n°1 — Paie</div><div class="x">Comment procéder, prérequis, 12 scénarios avec étapes, résultats attendus chiffrés et équivalents en ligne de commande.</div></div></div>
+      <div class="dv"><span class="ic">OUTILS</span><div><div class="t">Outillage d'exploration réutilisable</div><div class="x">Scripts de pilotage du navigateur (connexion, parcours des modules, capture des formulaires, onglets, texte complet) et technique documentée de contournement de la protection anti-robot.</div></div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">09</span><h2>Chiffres clés de la semaine</h2></div>
+    <div class="kpis">
+      <div class="kpi"><div class="v">2</div><div class="k">plateformes analysées de bout en bout</div></div>
+      <div class="kpi"><div class="v">34</div><div class="k">écrans parcourus (13 + 21)</div></div>
+      <div class="kpi"><div class="v">6</div><div class="k">formulaires de création relevés champ par champ</div></div>
+      <div class="kpi"><div class="v">11</div><div class="k">entités du modèle de données consolidé</div></div>
+      <div class="kpi"><div class="v">5</div><div class="k">livrables documentaires produits</div></div>
+      <div class="kpi"><div class="v">1</div><div class="k">phase livrée et vérifiée (paie)</div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">10</span><h2>Points d'attention et suite</h2></div>
+    <ul class="tight">
+      <li><b>Confidentialité.</b> Les captures et exports des plateformes analysées contiennent des données personnelles (noms, e-mails, salaires) et un document classé confidentiel : ils sont conservés hors du dépôt de code et ne figurent dans aucun livrable partagé.</li>
+      <li><b>Barème indicatif.</b> Les taux CNPS/CGI embarqués sont indicatifs et versionnés : ils doivent être validés avec la source officielle avant toute paie réelle — c'est précisément pourquoi le barème est daté et contrôlé.</li>
+      <li><b>Éléments à brancher pour la production</b> : fournisseur OIDC (le mode développement remplace l'authentification pour l'instant), envoi d'e-mails réel, clé d'extraction IA, source officielle du barème.</li>
+      <li><b>Limites de l'analyse.</b> Le backend des plateformes n'était pas accessible directement ; le modèle de données a été reconstitué depuis l'interface et le guide de l'API. Les jeux de données de production contenaient des données de test.</li>
+    </ul>
+    <div class="note"><b>Suite immédiate (semaine 37).</b> Enchaîner les phases 2, 3 et 4 sur la base décidée, vérifier l'ensemble, livrer un cahier de recette global couvrant les quatre phases, puis mettre le dépôt sous contrôle de version sur GitHub. Ces travaux ont démarré dès le lundi 7 septembre.</div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>Rapport de travail — semaine 36 (31 août – 6 septembre 2026). Projet plateforme unifiée POITIERS COWORKING. Les chiffres et règles cités proviennent de l'exploration des interfaces et du guide de l'API financière ; aucune donnée personnelle des plateformes analysées n'est reproduite.</p>
+  </div>
+</footer>
