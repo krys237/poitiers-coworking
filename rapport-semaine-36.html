@@ -107,11 +107,11 @@
   <div class="wrap">
     <p class="eyebrow">Rapport de travail hebdomadaire · Semaine 36</p>
     <h1>Analyse par reverse engineering des deux plateformes et définition de la cible</h1>
-    <p class="lede">Du lundi 31 août au dimanche 6 septembre 2026. Objectif de la semaine : comprendre précisément le besoin de l'employeur à partir des deux plateformes existantes, puis décider ce que nous construisons — et comment.</p>
+    <p class="lede">Du lundi 31 août au dimanche 6 septembre 2026. Objectif de la semaine : comprendre précisément le besoin du directeur à partir des deux plateformes existantes, puis décider ce que nous construisons — et comment.</p>
     <div class="meta-grid">
       <div class="meta-cell"><div class="k">Période</div><div class="v">31 août – 6 sept. 2026</div></div>
       <div class="meta-cell"><div class="k">Projet</div><div class="v">Plateforme unifiée « POITIERS COWORKING »</div></div>
-      <div class="meta-cell"><div class="k">Plateformes analysées</div><div class="v">Hercules (prod.) · Lovable (employeur)</div></div>
+      <div class="meta-cell"><div class="k">Plateformes analysées</div><div class="v">Hercules (prod.) · Lovable (directeur)</div></div>
       <div class="meta-cell"><div class="k">Méthode</div><div class="v">Reverse engineering outillé</div></div>
       <div class="meta-cell"><div class="k">Résultat</div><div class="v">Cible définie, construction lancée</div></div>
     </div>
@@ -124,7 +124,7 @@
     <div class="summary">
       <ol>
         <li><b>Le besoin réel a été clarifié.</b> Derrière le nom « coworking », il s'agit d'un <b>back-office de gestion administrative d'établissement de santé</b> (contexte Cameroun, FCFA, CNPS/IRPP) : trésorerie journalière, RH et paie, approvisionnement, suivi d'activité, audit, gestion documentaire, intégration externe.</li>
-        <li><b>Deux plateformes, deux philosophies.</b> La version Hercules (en production) couvre <b>large</b> — 13 modules, contrôle d'accès à 7 niveaux, API d'export — mais reste <b>superficielle sur la paie</b>. La version Lovable de l'employeur va <b>profond sur l'automatisation de la paie</b> (barème officiel, recalcul temps réel, génération et envoi de masse) en simplifiant tout le reste.</li>
+        <li><b>Deux plateformes, deux philosophies.</b> La version Hercules (en production) couvre <b>large</b> — 13 modules, contrôle d'accès à 7 niveaux, API d'export — mais reste <b>superficielle sur la paie</b>. La version Lovable du directeur va <b>profond sur l'automatisation de la paie</b> (barème officiel, recalcul temps réel, génération et envoi de masse) en simplifiant tout le reste.</li>
         <li><b>La cible retenue combine les deux</b> : le moteur de paie automatisé greffé sur le socle d'exploitation et de contrôle fin, sous un seul modèle d'accès et un seul socle de données.</li>
         <li><b>L'architecture est décidée</b> : Convex (backend réactif) + React PWA, 3 domaines fonctionnels, 20 écrans, RBAC 7 niveaux + auditeur, moteur de paie à barème daté, feuille de route en 5 phases.</li>
         <li><b>La construction a démarré sur cette base</b> : la Phase 1 (paie) a été livrée et vérifiée en fin de semaine ; les phases suivantes s'enchaînent immédiatement.</li>
@@ -136,7 +136,7 @@
 <section>
   <div class="wrap">
     <div class="sec-head"><span class="sec-num">02</span><h2>Contexte et objectif</h2></div>
-    <p>L'employeur dispose de deux applications répondant au même besoin métier, construites sur deux plateformes <em>no-code</em> différentes : une version en production sur <b>Hercules</b> (« Polyclinique de Poitiers — Plateforme collaborative ») et une version plus récente sur <b>Lovable</b> (« salary-automator-pro »). Aucune spécification écrite n'existait. Pour concevoir notre propre plateforme, il fallait donc <b>extraire le besoin depuis les applications elles-mêmes</b> : quels modules, quelles règles métier, quel modèle de données, quelles règles d'accès, quelle architecture technique — et où chaque version excelle ou manque.</p>
+    <p>Le directeur dispose de deux applications répondant au même besoin métier, construites sur deux plateformes <em>no-code</em> différentes : une version en production sur <b>Hercules</b> (« Polyclinique de Poitiers — Plateforme collaborative ») et une version plus récente sur <b>Lovable</b> (« salary-automator-pro »). Aucune spécification écrite n'existait. Pour concevoir notre propre plateforme, il fallait donc <b>extraire le besoin depuis les applications elles-mêmes</b> : quels modules, quelles règles métier, quel modèle de données, quelles règles d'accès, quelle architecture technique — et où chaque version excelle ou manque.</p>
     <p>L'objectif de la semaine était triple : <b>comprendre</b> (ce que fait chaque plateforme et pourquoi), <b>comparer</b> (les écarts entre les deux), <b>décider</b> (ce que nous construisons, avec quelle architecture et dans quel ordre).</p>
   </div>
 </section>
@@ -149,7 +149,7 @@
       <div class="tl"><div class="d">Jeudi 3 septembre</div><div class="t">Accès et cartographie de la plateforme Hercules</div><div class="x">Contournement de la protection anti-robot (Cloudflare Turnstile) en attachant l'automatisation à un navigateur Chrome lancé normalement plutôt qu'à un navigateur instrumenté ; connexion avec un compte élevé au rôle Directeur Général. Parcours des 13 modules, extraction du guide intégré (rôles, niveaux, description des modules).</div></div>
       <div class="tl"><div class="d">Jeudi 3 septembre</div><div class="t">Descente dans les formulaires et les vues de détail</div><div class="x">Ouverture de chaque modale de création (employé, commande technicien, commande médicale, dépôt de document, éditeur de membre) pour relever les <b>champs exacts</b> ; découverte du workflow de validation des commandes techniciens et du contrôle d'accès <b>par document</b>.</div></div>
       <div class="tl"><div class="d">Samedi 6 septembre</div><div class="t">Tableaux denses et backend</div><div class="x">Exploration des onglets Financier (8 blocs de recettes avec formules de solde), Statistiques (tableau de caisse + primes médecins) et Audit (14 catégories). Lecture du guide de l'API financière fourni avec la plateforme : il révèle le backend réel (<b>Convex</b>) et l'architecture de l'API d'export (proxy Node.js + validation de clé côté backend).</div></div>
-      <div class="tl"><div class="d">Samedi 6 septembre</div><div class="t">Revérification et analyse de la seconde plateforme</div><div class="x">Contrôle de la version Hercules cache désactivé (un seul changement : l'API passée en v2.0, huit entités, livrée en ZIP). Exploration complète de la version Lovable de l'employeur : 21 écrans, dont une douzaine dédiés à la paie.</div></div>
+      <div class="tl"><div class="d">Samedi 6 septembre</div><div class="t">Revérification et analyse de la seconde plateforme</div><div class="x">Contrôle de la version Hercules cache désactivé (un seul changement : l'API passée en v2.0, huit entités, livrée en ZIP). Exploration complète de la version Lovable du directeur : 21 écrans, dont une douzaine dédiés à la paie.</div></div>
       <div class="tl"><div class="d">Samedi 6 septembre</div><div class="t">Synthèse, comparaison, architecture cible et lancement de la construction</div><div class="x">Rédaction du document de compréhension, de l'analyse comparative et de l'esquisse d'architecture ; choix de la stack ; mise en place des fondations et livraison de la Phase 1 (paie) en fin de journée.</div></div>
     </div>
     <div class="callout"><b>Pourquoi cette méthode.</b> Relever les champs de chaque formulaire et les colonnes de chaque tableau, plutôt que décrire les écrans de loin, nous a donné directement le <b>modèle de données</b> et les <b>règles de calcul</b> (formules de solde, totaux de paie, fenêtre horaire des comptes rendus). C'est ce niveau de précision qui a rendu la construction possible sans allers-retours.</div>
@@ -189,7 +189,7 @@
 
 <section>
   <div class="wrap">
-    <div class="sec-head"><span class="sec-num">05</span><h2>Résultats — plateforme 2 : Lovable (version de l'employeur)</h2></div>
+    <div class="sec-head"><span class="sec-num">05</span><h2>Résultats — plateforme 2 : Lovable (version du directeur)</h2></div>
     <p class="sec-intro">Même marque « POITIERS COWORKING », mais réorientée en <b>gestion d'espace de coworking + paie du personnel</b> (taux d'occupation, réservations, interventions sur les espaces). Le personnel de démonstration reste médical : c'est un reskin de la même organisation.</p>
     <div class="kpis">
       <div class="kpi"><div class="v">21</div><div class="k">écrans, dont ~12 dédiés à la paie</div></div>
@@ -215,7 +215,7 @@
   <div class="wrap">
     <div class="sec-head"><span class="sec-num">06</span><h2>Analyse comparative et besoin consolidé</h2></div>
     <div class="tbl-wrap"><table class="tbl">
-      <thead><tr><th>Axe</th><th>Hercules (production)</th><th>Lovable (employeur)</th><th>Retenu pour la cible</th></tr></thead>
+      <thead><tr><th>Axe</th><th>Hercules (production)</th><th>Lovable (directeur)</th><th>Retenu pour la cible</th></tr></thead>
       <tbody>
         <tr><td class="h">Force principale</td><td>Exploitation large</td><td>Automatisation de la paie</td><td class="ok">Les deux</td></tr>
         <tr><td class="h">Paie</td><td class="mid">2 écrans, saisie manuelle</td><td class="ok">~12 modules, barème auto, recalcul, envoi</td><td class="ok">Moteur Lovable + format légal Hercules</td></tr>
@@ -228,7 +228,7 @@
         <tr><td class="h">Backend</td><td>Convex (via Hercules)</td><td>Stack Lovable</td><td class="ok">Convex, en propre</td></tr>
       </tbody>
     </table></div>
-    <div class="callout"><b>Le besoin de l'employeur, consolidé.</b> Un seul outil qui <b>fait gagner du temps chaque mois</b> (la paie automatisée, répétitive et à risque d'erreur) tout en restant le <b>système de référence de l'exploitation</b> (trésorerie du jour, commandes, activité) et de la <b>gouvernance</b> (audit, accès fin, traçabilité, ouverture aux systèmes comptables). Aucune des deux versions ne le fait seule ; c'est leur combinaison que nous construisons.</div>
+    <div class="callout"><b>Le besoin du directeur, consolidé.</b> Un seul outil qui <b>fait gagner du temps chaque mois</b> (la paie automatisée, répétitive et à risque d'erreur) tout en restant le <b>système de référence de l'exploitation</b> (trésorerie du jour, commandes, activité) et de la <b>gouvernance</b> (audit, accès fin, traçabilité, ouverture aux systèmes comptables). Aucune des deux versions ne le fait seule ; c'est leur combinaison que nous construisons.</div>
   </div>
 </section>
 
