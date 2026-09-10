@@ -6,8 +6,10 @@ import { fcfa, libellePeriode, periodeCourante, messageErreur } from "../lib/for
 
 const TAUX: [string, string][] = [
   ["plafondCnps", "Plafond CNPS (FCFA)"], ["tauxPvidSal", "PVID salarié (%)"], ["tauxPvidPat", "PVID patronal (%)"], ["tauxPf", "Prestations familiales (%)"],
-  ["tauxAtmp", "ATMP (%)"], ["tauxCfcSal", "CFC salarié (%)"], ["tauxCfcPat", "CFC patronal (%)"], ["tauxFne", "FNE (%)"], ["abattementIrppPct", "Abattement IRPP (%)"], ["tauxCac", "CAC sur IRPP (%)"],
+  ["tauxAtmp", "ATMP (%)"], ["tauxCfcSal", "CFC salarié (%)"], ["tauxCfcPat", "CFC patronal (%)"], ["tauxFne", "FNE (%)"], ["abattementIrppPct", "Abattement IRPP (%)"], ["tauxCac", "CAC sur IRPP (%)"], ["abattementIrppAnnuel", "Abattement IRPP annuel (FCFA)"],
 ];
+const DEF: Record<string, number> = { abattementIrppAnnuel: 500000 };
+const valeurDe = (b: any, k: string) => b[k] ?? DEF[k];
 
 export function Bareme() {
   const [periode, setPeriode] = useState(periodeCourante());
@@ -21,12 +23,13 @@ export function Bareme() {
   const [f, setF] = useState<any>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
-  useEffect(() => { if (applicable && !f) setF({ effectiveFrom: "", source: "", ...Object.fromEntries(TAUX.map(([k]) => [k, String((applicable as any)[k])])), irppBrackets: applicable.irppBrackets.map((b: any) => ({ jusqua: b.jusqua === null ? "" : String(b.jusqua), taux: String(b.taux) })) }); }, [applicable]);
+  useEffect(() => { if (applicable && !f) setF({ effectiveFrom: "", source: "", tdlActif: applicable.tdlActif ?? true, ravActif: applicable.ravActif ?? true, ...Object.fromEntries(TAUX.map(([k]) => [k, String(valeurDe(applicable, k))])), irppBrackets: applicable.irppBrackets.map((b: any) => ({ jusqua: b.jusqua === null ? "" : String(b.jusqua), taux: String(b.taux) })) }); }, [applicable]);
 
   const soumettre = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const valeurs: any = Object.fromEntries(TAUX.map(([k]) => [k, Number(String(f[k]).replace(",", "."))]));
+      valeurs.tdlActif = !!f.tdlActif; valeurs.ravActif = !!f.ravActif;
       valeurs.irppBrackets = f.irppBrackets.map((b: any) => ({ jusqua: b.jusqua === "" ? null : Number(b.jusqua), taux: Number(String(b.taux).replace(",", ".")) }));
       await upsert({ effectiveFrom: f.effectiveFrom, source: f.source || "Saisie manuelle", valeurs });
       setMsg(`Nouvelle version enregistrée, effective à partir du ${f.effectiveFrom}.`); setOuvert(false);
@@ -56,7 +59,9 @@ export function Bareme() {
         <div className="panel">
           <h3 style={{ margin: "0 0 8px" }}>Taux en vigueur — {applicable.source}</h3>
           <div className="meta-grid">
-            {TAUX.map(([k, l]) => <div key={k}><b>{l}</b> {k === "plafondCnps" ? fcfa((applicable as any)[k]) : `${(applicable as any)[k]} %`}</div>)}
+            {TAUX.map(([k, l]) => <div key={k}><b>{l}</b> {k === "plafondCnps" || k === "abattementIrppAnnuel" ? fcfa(valeurDe(applicable, k)) : `${valeurDe(applicable, k)} %`}</div>)}
+            <div><b>TDL (taxe de développement local)</b> {(applicable.tdlActif ?? true) ? "appliquée" : "non appliquée"}</div>
+            <div><b>RAV (redevance audiovisuelle)</b> {(applicable.ravActif ?? true) ? "appliquée" : "non appliquée"}</div>
           </div>
           <div className="feat-label">Tranches IRPP (base imposable mensuelle)</div>
           <div className="tbl-wrap"><table className="grid"><thead><tr><th>Jusqu'à</th><th className="num">Taux</th></tr></thead>
@@ -71,6 +76,8 @@ export function Bareme() {
             <label>Effective à partir du<input type="date" value={f.effectiveFrom} onChange={(e) => setF({ ...f, effectiveFrom: e.target.value })} required /></label>
             <label>Source<input value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })} placeholder="Loi de finances 2027, circulaire CNPS…" /></label>
             {TAUX.map(([k, l]) => <label key={k}>{l}<input value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} inputMode="decimal" required /></label>)}
+            <label style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><input type="checkbox" checked={!!f.tdlActif} onChange={(e) => setF({ ...f, tdlActif: e.target.checked })} style={{ width: "auto" }} /> Appliquer la TDL</label>
+            <label style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><input type="checkbox" checked={!!f.ravActif} onChange={(e) => setF({ ...f, ravActif: e.target.checked })} style={{ width: "auto" }} /> Appliquer la RAV</label>
           </div>
           <div className="feat-label">Tranches IRPP — laisser « jusqu'à » vide pour la dernière (ouverte)</div>
           {f.irppBrackets.map((b: any, i: number) => (

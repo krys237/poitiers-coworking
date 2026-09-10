@@ -38,6 +38,7 @@ export const NIVEAU_MODULE: Record<string, number> = {
   "/statistiques": 3,
   "/paie": 4,
   "/paie/bulletins": 4,
+  "/paie/liste": 4,
   "/paie/planning": 4,
   "/paie/primes": 4,
   "/paie/courrier": 4,

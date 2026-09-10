@@ -190,3 +190,23 @@ Convex n'héberge que le backend ; le frontend React se déploie sur Vercel (`ve
 - Les liens profonds (`/paie/saisie`…) sont réécrits vers `index.html` (SPA) ; `sw.js` n'est pas mis en cache.
 - ⚠ Tant que `AUTH_DEV_BYPASS=true` est actif sur le déploiement Convex ciblé, **toute personne ayant le lien est DG** :
   réserver le lien à la présentation, ou brancher l'OIDC avant une diffusion large.
+
+## Format de paie de référence (consignes du directeur, 10/09/2026)
+Source : application « PAIE POITIERS COWORKING » du directeur (`Downloads/nouvelle doc/paie-poitiers-coworking`, TanStack Start) ;
+son `src/lib/payroll.ts` et `src/components/bulletin-a4.tsx` font foi. Alignement réalisé dans `lib/paie.ts`, `lib/calculBulletins.ts`,
+`BulletinCard.tsx`, `paiePdf.ts`, `SaisieMensuelle.tsx` (Récapitulatif salaires), `ListeSalaires.tsx`, `Bulletins.tsx`.
+- **Formules** : journalier = brut ÷ 30 ; salaire de base = journalier × jours travaillés ; **indemnité de congés** = journalier × congés pris
+  (les congés payés sortent des jours travaillés dans `lib/absences.ts`) ; Total 1 = base + primes (fixes, transport, assiduité, logement,
+  registre) + indemnité + heures sup + ancienneté ; **transport exonéré** (base taxable = Total 1 − transport) ; CNPS plafonnée (750 000) ;
+  **IRPP annuel** : (base taxable × 0,7 − CNPS − abattement annuel 500 000 ÷ 12) × 12 sur les tranches 2 M / 3 M / 5 M (10/15/25/35 %) ÷ 12 ;
+  CAC 10 % de l'IRPP ; **TDL** barème sur le salaire de base, **RAV** barème sur la base taxable (interrupteurs `tdlActif`/`ravActif` du barème) ;
+  charges salariales = CNPS + IRPP + CAC + TDL + RAV + CFC ; « Acompte / dette / impôts & CNPS » = acompte + charges salariales ;
+  Total 2 = Total 1 − (charges salariales + sanctions + absences (FCFA) + dettes de soins + acompte + mutuelle + charges du registre) ; net = max(0, Total 2).
+- **Bulletin** : liste FIXE de lignes codées toujours présentes (66111, 66112, 66116, 6613, 66121, 66122, 6631, 66125 ; 43131, 66411, 66412, 66413,
+  44721, 44722, 44723, 44724, 64131, 64132, 44725, sanctions, absences, dettes, acompte, mutuelle) + lignes libres PRIME/RETENUE ; en-tête
+  « Période du … au … / Paiement le 05 du mois suivant par banque » (`lib/periode.ts`, `parametres.jourPaiement`) ; bloc employeur (NIU, N° CNPS),
+  matricule/catégorie/échelon, jours & congés, synthèse, « Payé par : SALAIRE <société> », visa RH (`parametres.responsableRH`),
+  « BULLETIN VALIDÉ le … » quand le mois est clôturé, sinon « NON VALIDÉ – document provisoire ». PDF nommé « Entreprise - Nom - période ».
+- **Écrans** : Récapitulatif salaires (colonnes de la liste papier + légende Total 1/Total 2/SESAME-SOFINA-SGC), Liste des salaires
+  (`/paie/liste`, net dans la colonne de la société), Bulletins du mois (page récapitulative avant les bulletins, filtre `?employe=matricule`).
+- Snapshot `bulletins.details` figé à la clôture (format bulletin) ; `saisiesMensuelles` : + `primeAssiduite`, `indemniteLogement`, `absences` (FCFA).

@@ -17,8 +17,9 @@ const NAV: { grp: string; items: { to: string; label: string; perm: string }[] }
     grp: "Paie",
     items: [
       { to: "/employes", label: "Employés", perm: "/employes" },
-      { to: "/paie/saisie", label: "Saisie mensuelle", perm: "/paie" },
-      { to: "/paie/bulletins", label: "Bulletins", perm: "/paie/bulletins" },
+      { to: "/paie/saisie", label: "Récapitulatif salaires", perm: "/paie" },
+      { to: "/paie/liste", label: "Liste des salaires", perm: "/paie" },
+      { to: "/paie/bulletins", label: "Bulletins du mois", perm: "/paie/bulletins" },
       { to: "/paie/courrier", label: "Courrier de paie", perm: "/paie/courrier" },
       { to: "/paie/planning", label: "Planning des absences", perm: "/paie/planning" },
       { to: "/paie/primes", label: "Primes & charges", perm: "/paie/primes" },

@@ -8,6 +8,7 @@ import { Courrier } from "./pages/Courrier";
 import { Planning } from "./pages/Planning";
 import { Primes } from "./pages/Primes";
 import { Archives } from "./pages/Archives";
+import { ListeSalaires } from "./pages/ListeSalaires";
 import { Financier } from "./pages/Financier";
 import { Documents } from "./pages/Documents";
 import { Commandes } from "./pages/Commandes";
@@ -30,6 +31,7 @@ export function App() {
           <Route path="/employes" element={<Employes />} />
           <Route path="/paie/saisie" element={<SaisieMensuelle />} />
           <Route path="/paie/bulletins" element={<Bulletins />} />
+          <Route path="/paie/liste" element={<ListeSalaires />} />
           <Route path="/paie/courrier" element={<Courrier />} />
           <Route path="/paie/planning" element={<Planning />} />
           <Route path="/paie/primes" element={<Primes />} />

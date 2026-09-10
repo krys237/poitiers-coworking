@@ -27,7 +27,7 @@ export const genererEtCloturer = mutation({
       await ctx.db.insert("bulletins", {
         employeId: b.employeId, periode, baremeId: b.baremeId, societe: b.societe,
         brut: b.brut, totalRetenues: b.totalRetenues, net: b.net,
-        lignesGain: b.lignesGain, cotisations: b.cotisations, statut: "genere", genereLe,
+        lignesGain: b.lignesGain, cotisations: b.cotisations, details: b.details, statut: "genere", genereLe,
       });
     }
     await ctx.db.insert("cloturesPaie", { periode, closedBy: user._id, closedAt: genereLe, baremeId: r.baremeId });
@@ -46,21 +46,24 @@ export const saisiesDuMois = query({
   },
 });
 
+const VALEURS = v.object({
+  joursTravailles: v.number(), absencesJours: v.number(), sanctions: v.number(),
+  primesVariables: v.number(), transport: v.number(), heuresSup: v.number(),
+  anciennete: v.number(), mutuellePct: v.number(), dettesSoins: v.number(), acompte: v.number(),
+  primeAssiduite: v.optional(v.number()), indemniteLogement: v.optional(v.number()), absences: v.optional(v.number()),
+});
+
 // Saisie/màj des éléments variables d'un employé pour un mois (déclenche le recalcul réactif).
 export const saisirMois = mutation({
-  args: {
-    employeId: v.id("employes"), periode: v.string(),
-    valeurs: v.object({
-      joursTravailles: v.number(), absencesJours: v.number(), sanctions: v.number(),
-      primesVariables: v.number(), transport: v.number(), heuresSup: v.number(),
-      anciennete: v.number(), mutuellePct: v.number(), dettesSoins: v.number(), acompte: v.number(),
-    }),
-  },
+  args: { employeId: v.id("employes"), periode: v.string(), valeurs: VALEURS },
   handler: async (ctx, { employeId, periode, valeurs }) => {
     await requireLevel(ctx, 4);
+    const clos = await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
+    if (clos) throw new Error(`Le mois ${periode} est clôturé : saisie en lecture seule.`);
     const existant = await ctx.db.query("saisiesMensuelles")
       .withIndex("by_employe_periode", (q) => q.eq("employeId", employeId).eq("periode", periode)).unique();
-    if (existant) await ctx.db.patch(existant._id, valeurs);
-    else await ctx.db.insert("saisiesMensuelles", { employeId, periode, ...valeurs });
+    const v2 = { ...valeurs, primeAssiduite: valeurs.primeAssiduite ?? 0, indemniteLogement: valeurs.indemniteLogement ?? 0, absences: valeurs.absences ?? 0 };
+    if (existant) await ctx.db.patch(existant._id, v2);
+    else await ctx.db.insert("saisiesMensuelles", { employeId, periode, ...v2 });
   },
 });

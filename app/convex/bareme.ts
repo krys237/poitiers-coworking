@@ -30,6 +30,7 @@ const valeursV = v.object({
   plafondCnps: v.number(), tauxPvidSal: v.number(), tauxPvidPat: v.number(), tauxPf: v.number(), tauxAtmp: v.number(),
   tauxCfcSal: v.number(), tauxCfcPat: v.number(), tauxFne: v.number(), abattementIrppPct: v.number(), tauxCac: v.number(),
   irppBrackets: v.array(v.object({ jusqua: v.union(v.number(), v.null()), taux: v.number() })),
+  abattementIrppAnnuel: v.optional(v.number()), tdlActif: v.optional(v.boolean()), ravActif: v.optional(v.boolean()),
 });
 
 // Nouvelle version datée (DG). Sans `valeurs` : BAREME_DEFAUT (amorçage).
@@ -44,7 +45,8 @@ export const upsert = mutation({
     const id = await ctx.db.insert("baremes", {
       effectiveFrom, plafondCnps: b.plafondCnps, tauxPvidSal: b.tauxPvidSal, tauxPvidPat: b.tauxPvidPat, tauxPf: b.tauxPf, tauxAtmp: b.tauxAtmp,
       tauxCfcSal: b.tauxCfcSal, tauxCfcPat: b.tauxCfcPat, tauxFne: b.tauxFne, abattementIrppPct: b.abattementIrppPct, tauxCac: b.tauxCac,
-      irppBrackets: tranches, source, controleLe: new Date().toISOString(), statut: "actif",
+      irppBrackets: tranches, abattementIrppAnnuel: b.abattementIrppAnnuel ?? 500000, tdlActif: b.tdlActif ?? true, ravActif: b.ravActif ?? true,
+      source, controleLe: new Date().toISOString(), statut: "actif",
     });
     await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "bareme_version", cible: effectiveFrom, detail: source });
     return id;

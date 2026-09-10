@@ -90,6 +90,7 @@ export function resumeMois(args: {
   return {
     joursCalendaires: joursCal, joursBase, absencesNonPayees, absencesPayees, congesPrisMois, congesPrisCumul,
     congesAcquisCumul, soldeConges: round1(congesAcquisCumul - congesPrisCumul),
-    joursTravailles: Math.max(0, joursBase - absencesNonPayees),
+    // Les congés payés sont rémunérés par l'indemnité de congés (journalier × congés pris) : ils sortent des jours travaillés.
+    joursTravailles: Math.max(0, joursBase - absencesNonPayees - congesPrisMois),
   };
 }

@@ -21,6 +21,7 @@ export const creer = mutation({
     adresse: v.optional(v.string()), cnps: v.optional(v.string()), niu: v.optional(v.string()),
     email: v.optional(v.string()), societe: SOCIETE, salaireBrut: v.number(), contrat: v.optional(v.string()),
     dateDebut: v.optional(v.string()), dateFin: v.optional(v.string()), congesInitial: v.optional(v.number()),
+    categorie: v.optional(v.string()), echelon: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await requireLevel(ctx, 4);
@@ -36,6 +37,7 @@ export const modifier = mutation({
     cnps: v.optional(v.string()), niu: v.optional(v.string()), societe: v.optional(SOCIETE),
     salaireBrut: v.optional(v.number()), actif: v.optional(v.boolean()),
     dateDebut: v.optional(v.string()), dateFin: v.optional(v.string()), congesInitial: v.optional(v.number()),
+    categorie: v.optional(v.string()), echelon: v.optional(v.string()),
   },
   handler: async (ctx, { employeId, ...patch }) => {
     await requireLevel(ctx, 4);

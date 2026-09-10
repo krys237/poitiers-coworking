@@ -42,6 +42,10 @@ export default defineSchema({
     modeleCourrier: v.optional(v.string()),   // lettre d'accompagnement ({nom} {periode} {net} {entreprise})
     emailExpediteur: v.optional(v.string()),  // adresse "from" des envois
     congesParMois: v.optional(v.number()),    // jours de congé acquis par mois de service (déf. 1.5)
+    niu: v.optional(v.string()),              // NIU de l'entreprise (en-tête bulletin)
+    numeroCnps: v.optional(v.string()),       // N° CNPS employeur (en-tête bulletin)
+    responsableRH: v.optional(v.string()),    // visa du responsable RH sur les bulletins
+    jourPaiement: v.optional(v.number()),     // jour de paiement du mois suivant (déf. 5)
   }),
 
   // ---- Paie (Phase 1) ----
@@ -60,6 +64,8 @@ export default defineSchema({
     dateDebut: v.optional(v.string()),// embauche — base de l'acquisition des congés
     dateFin: v.optional(v.string()),
     congesInitial: v.optional(v.number()), // solde de congés reporté à l'entrée dans l'outil
+    categorie: v.optional(v.string()),     // catégorie professionnelle (bulletin)
+    echelon: v.optional(v.string()),       // échelon (bulletin)
     actif: v.boolean(),
   })
     .index("by_matricule", ["matricule"])
@@ -82,6 +88,9 @@ export default defineSchema({
       jusqua: v.union(v.number(), v.null()), // plafond de tranche, null = au-delà
       taux: v.number(),               // % de la tranche
     })),
+    abattementIrppAnnuel: v.optional(v.number()), // abattement annuel IRPP (déf. 500 000), appliqué ÷ 12
+    tdlActif: v.optional(v.boolean()),  // appliquer la taxe de développement local (barème forfaitaire)
+    ravActif: v.optional(v.boolean()),  // appliquer la redevance audiovisuelle (barème forfaitaire)
     source: v.string(),               // origine du barème
     controleLe: v.optional(v.string()),
     statut: v.union(v.literal("actif"), v.literal("brouillon")),
@@ -101,6 +110,9 @@ export default defineSchema({
     mutuellePct: v.number(),          // % mutuelle
     dettesSoins: v.number(),
     acompte: v.number(),
+    primeAssiduite: v.optional(v.number()),   // prime d'assiduité (FCFA)
+    indemniteLogement: v.optional(v.number()),// indemnité de logement (FCFA)
+    absences: v.optional(v.number()),         // retenue pour absences (FCFA) — colonne « ABSENCE » du récapitulatif
   })
     .index("by_periode", ["periode"])
     .index("by_employe_periode", ["employeId", "periode"]),
@@ -146,6 +158,14 @@ export default defineSchema({
     envoyeLe: v.optional(v.string()),
     genereLe: v.string(),
     pdfId: v.optional(v.id("_storage")), // PDF archivé (généré par paiePdf.archiverPdfs)
+    details: v.optional(v.object({       // synthèse figée (format bulletin de référence)
+      salaireJournalier: v.number(), salaireBase: v.number(), joursTravailles: v.number(),
+      congesAcquis: v.number(), congesPris: v.number(), congesRestants: v.number(), indemniteConges: v.number(),
+      primes: v.number(), heuresSup: v.number(), anciennete: v.number(),
+      total1: v.number(), total2: v.number(), brutTaxable: v.number(), baseCnps: v.number(),
+      mutuelle: v.number(), acompteImpotsCnps: v.number(), chargesSalariales: v.number(), chargesPatronales: v.number(),
+      irpp: v.number(), cac: v.number(), tdl: v.number(), rav: v.number(), cnpsSalarie: v.number(),
+    })),
   })
     .index("by_periode", ["periode"])
     .index("by_employe_periode", ["employeId", "periode"]),
