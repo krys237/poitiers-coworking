@@ -111,7 +111,7 @@
 <header class="mast">
   <div class="wrap">
     <div>
-      <p class="eyebrow">Cahier de recette n°1 · Phase 1 — Paie automatisée</p>
+      <p class="eyebrow">Cahier de recette n°1 · Phase 1 — Paie automatisée · révision 2 (format de référence du directeur)</p>
       <h1>Cahier de recette n°1 — Paie</h1>
     </div>
     <div class="progress">
@@ -126,21 +126,29 @@
 <section>
   <div class="wrap">
     <div class="sec-head"><span class="sec-num">00</span><h2>Le cycle de paie en place</h2></div>
-    <p class="sec-intro">Chaque scénario ci-dessous exerce une étape de ce cycle. Le fil rouge : <b>toute saisie recalcule instantanément les bulletins</b> (requêtes réactives Convex), et un mois <b>clôturé</b> fige tout.</p>
+    <p class="sec-intro">Chaque scénario ci-dessous exerce une étape de ce cycle. Deux fils rouges : <b>toute saisie recalcule instantanément les bulletins</b> (requêtes réactives Convex) et un mois <b>clôturé</b> fige tout. Depuis la révision 2, les écrans et les formules reprennent à l'identique le <b>modèle de paie de référence du directeur</b> — les montants doivent correspondre au franc près.</p>
     <div class="cycle">
-      <div class="cnode"><div class="n">01</div><div class="t">Employés</div><div class="d">fiches, import CSV, date d'embauche</div></div>
+      <div class="cnode"><div class="n">01</div><div class="t">Employés</div><div class="d">fiches, import CSV, embauche, catégorie</div></div>
       <div class="carrow">→</div>
-      <div class="cnode"><div class="n">02</div><div class="t">Barème daté</div><div class="d">CNPS / CGI applicable au mois</div></div>
+      <div class="cnode"><div class="n">02</div><div class="t">Barème daté</div><div class="d">taux, abattement IRPP, TDL / RAV</div></div>
       <div class="carrow">→</div>
-      <div class="cnode"><div class="n">03</div><div class="t">Planning</div><div class="d">absences → jours travaillés</div></div>
+      <div class="cnode"><div class="n">03</div><div class="t">Planning</div><div class="d">absences et congés → jours travaillés</div></div>
       <div class="carrow">→</div>
-      <div class="cnode"><div class="n">04</div><div class="t">Saisie du mois</div><div class="d">variables + primes/charges</div></div>
+      <div class="cnode"><div class="n">04</div><div class="t">Récapitulatif salaires</div><div class="d">colonnes de la liste papier · Total 1 / Total 2</div></div>
       <div class="carrow">→</div>
-      <div class="cnode"><div class="n">05</div><div class="t">Bulletins</div><div class="d">recalcul live · clôture</div></div>
+      <div class="cnode"><div class="n">05</div><div class="t">Bulletins</div><div class="d">A4 de référence · clôture = validation</div></div>
       <div class="carrow">→</div>
       <div class="cnode"><div class="n">06</div><div class="t">Courrier</div><div class="d">e-mail + PDF joint</div></div>
       <div class="carrow">→</div>
       <div class="cnode"><div class="n">07</div><div class="t">Archives</div><div class="d">mois figés, PDF stockés</div></div>
+    </div>
+    <div class="demo" style="margin-top:16px">
+      <div class="dcell"><div class="k">Salaire journalier</div><div class="v">brut mensuel ÷ 30</div></div>
+      <div class="dcell"><div class="k">Salaire de base</div><div class="v">journalier × jours travaillés</div></div>
+      <div class="dcell"><div class="k">Indemnité de congés</div><div class="v">journalier × congés pris</div></div>
+      <div class="dcell"><div class="k">Total 1 (brut)</div><div class="v">base + primes + congés + h. sup + ancienneté</div></div>
+      <div class="dcell"><div class="k">Base taxable</div><div class="v">Total 1 − transport (exonéré)</div></div>
+      <div class="dcell"><div class="k">Total 2 (net)</div><div class="v">Total 1 − retenues et impôts</div></div>
     </div>
   </div>
 </section>
@@ -155,7 +163,8 @@
         <li>Pour chaque scénario : dépliez-le, exécutez les <b>étapes</b> dans l'application, comparez avec le <b>résultat attendu</b> (les chiffres sont calculés, ils doivent correspondre exactement), puis cochez <b>« Validé »</b>.</li>
         <li>Si un résultat diverge : notez le scénario, l'étape et la valeur observée — et relancez l'équivalent <b>CLI</b> pour distinguer un problème d'écran d'un problème de calcul.</li>
         <li>Les scénarios marqués <span class="pill warn">attention</span> modifient l'état de façon durable (clôture, rôles) : lisez l'avertissement avant d'agir.</li>
-        <li>Terminez par les <b>tests automatisés</b> (dernier scénario) : ils garantissent les invariants quel que soit ce que vous avez saisi.</li>
+        <li>Les scénarios <b>04 Récapitulatif salaires</b>, <b>05 Liste des salaires</b> et <b>08 Bulletins</b> comparent l'écran au <b>modèle papier du directeur</b> : vérifiez d'abord les intitulés de colonnes, ensuite les montants.</li>
+        <li>Terminez par les <b>tests automatisés</b> (dernier scénario) : ils rejouent les deux cas chiffrés de référence et garantissent les invariants quel que soit ce que vous avez saisi.</li>
       </ol>
     </div>
     <div class="sec-head" style="margin-top:22px"><span class="sec-num">02</span><h2>Prérequis &amp; données de démo</h2></div>
@@ -177,6 +186,9 @@ npx convex run employes:liste '{}'</pre>
         <div class="dcell"><div class="k">Barème</div><div class="v">indicatif, effectif 01/07/2016</div></div>
         <div class="dcell"><div class="k">Congés</div><div class="v">1,5 j / mois de service</div></div>
         <div class="dcell"><div class="k">E-mail</div><div class="v">mode simulation (pas de clé)</div></div>
+        <div class="dcell"><div class="k">Cas de référence</div><div class="v">ABAMI · brut 106 950 → net 95 530</div></div>
+        <div class="dcell"><div class="k">Paiement</div><div class="v">le 05 du mois suivant, par banque</div></div>
+        <div class="dcell"><div class="k">Plafond CNPS</div><div class="v">750 000 · abattement IRPP 500 000 / an</div></div>
       </div>
     </div>
   </div>
@@ -193,21 +205,23 @@ npx convex run employes:liste '{}'</pre>
 <section>
   <div class="wrap">
     <div class="sec-head"><span class="sec-num">04</span><h2>Invariants garantis (vérifiés par les tests)</h2></div>
-    <p class="sec-intro">Ce que le moteur garantit quel que soit le scénario. <code>npm run test:paie</code> rejoue 12 contrôles ; la logique des absences en a 9.</p>
+    <p class="sec-intro">Ce que le moteur garantit quel que soit le scénario. <code>npm run test:paie</code> rejoue <b>26 contrôles</b>, dont deux comparaisons chiffrées avec l'application de référence du directeur.</p>
     <div class="inv">
-      <div class="ic"><div class="t"><span class="dot"></span>Net = Brut − Total des retenues</div><p>Et le total des retenues est exactement la <b>somme des lignes listées</b> sur le bulletin (cotisations, sanctions, dettes, acompte, charges du registre).</p></div>
+      <div class="ic"><div class="t"><span class="dot"></span>Total 2 = Total 1 − retenues listées</div><p>Le net (Total 2) est le Total 1 <b>moins exactement la somme des lignes de retenue imprimées</b> : CNPS, IRPP, CAC, TDL, RAV, CFC, mutuelle, sanctions, absence, dettes de soins, acompte, charges du registre.</p></div>
+      <div class="ic"><div class="t"><span class="dot"></span>Salaire au jour</div><p><code>journalier = brut ÷ 30</code> ; <code>base = journalier × jours travaillés</code> ; <code>indemnité de congés = journalier × congés pris</code>. Absences non payées <b>et</b> congés payés sortent des jours travaillés.</p></div>
+      <div class="ic"><div class="t"><span class="dot"></span>Transport exonéré, CNPS plafonnée</div><p>La prime de transport entre dans le Total 1 mais sort de la base taxable (CNPS, CFC, IRPP). La base CNPS est plafonnée à 750 000 FCFA dans le barème indicatif.</p></div>
+      <div class="ic"><div class="t"><span class="dot"></span>IRPP calculé en annuel</div><p><code>(base taxable × 0,7 − CNPS − 500 000 ÷ 12) × 12</code>, tranches 2 M / 3 M / 5 M à 10 / 15 / 25 / 35 %, puis divisé par 12. CAC = 10 % de l'IRPP. TDL et RAV suivent leurs barèmes forfaitaires.</p></div>
+      <div class="ic"><div class="t"><span class="dot"></span>Lignes codées toujours présentes</div><p>Le bulletin imprime la même suite de codes pour tout le monde (66111 → 44725), <b>même à zéro</b> : les mois et les employés restent comparables, et la lecture suit la liste papier.</p></div>
       <div class="ic"><div class="t"><span class="dot"></span>Barème daté</div><p>Un bulletin référence la version du barème applicable à sa période. Un mois clôturé n'est jamais recalculé avec un barème plus récent.</p></div>
-      <div class="ic"><div class="t"><span class="dot"></span>CNPS plafonnée</div><p>La base des cotisations CNPS/PVID est plafonnée (750 000 FCFA dans le barème indicatif) ; CFC, FNE et IRPP suivent leurs bases propres.</p></div>
-      <div class="ic"><div class="t"><span class="dot"></span>Salaire proratisé</div><p><code>salaire du mois = brut × jours travaillés / 30</code>. Seules les absences <b>non rémunérées</b> entament les jours travaillés.</p></div>
-      <div class="ic"><div class="t"><span class="dot"></span>Clôture = gel</div><p>Après « Générer et clôturer », bulletins figés (snapshots), saisie / planning / primes en lecture seule, courrier basé sur les snapshots.</p></div>
-      <div class="ic"><div class="t"><span class="dot"></span>Accès par niveau</div><p>Chaque route a un niveau minimum (paie = 4, paramètres = 7). Le rôle auditeur externe ne voit que le tableau de bord et l'audit.</p></div>
+      <div class="ic"><div class="t"><span class="dot"></span>Clôture = gel + validation</div><p>Après « Générer et clôturer », bulletins figés (snapshot du détail), saisie / planning / primes en lecture seule, et le cadre du bulletin passe de « NON VALIDÉ – document provisoire » à <b>« BULLETIN VALIDÉ le … »</b>.</p></div>
+      <div class="ic"><div class="t"><span class="dot"></span>Accès par niveau</div><p>Chaque route a un niveau minimum (paie et barème = 4, paramètres = 7). Le rôle auditeur externe ne voit que le tableau de bord et l'audit.</p></div>
     </div>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    <p>Cahier de recette de la Phase 1 (paie automatisée) — plateforme unifiée POITIERS COWORKING. État du 6 septembre 2026 : 10 écrans, 3 actions Node (PDF), mode e-mail simulation. Montants en FCFA entiers.</p>
+    <p>Cahier de recette de la Phase 1 (paie automatisée) — plateforme unifiée POITIERS COWORKING. Révision 2 du 14 septembre 2026 : 11 écrans, format de récapitulatif et de bulletin aligné sur l'application de référence du directeur, 4 actions Node (PDF), mode e-mail simulation. Montants en FCFA entiers.</p>
   </div>
 </footer>
 
@@ -218,61 +232,69 @@ npx convex run employes:liste '{}'</pre>
       pre: "Données de démo initialisées.",
       steps: ["Ouvrir le tableau de bord.", "Lire les quatre cartes : effectif actif, masse brute, net à payer, état du mois.", "Changer une donnée ailleurs (ex. une absence) puis revenir : les cartes ont changé sans rechargement."],
       expect: ["Effectif actif = <b>8</b>.", "État du mois courant = <b>« Ouvert — live »</b> ; un mois clôturé afficherait « Clôturé ».", "Aucune erreur dans la console du navigateur."] },
-    { id: "emp", t: "Employés — fiches, date d'embauche, import CSV", route: "/employes", niv: 3,
+    { id: "emp", t: "Employés — fiches, embauche, catégorie, import CSV", route: "/employes", niv: 3,
       pre: "—",
-      steps: ["Rechercher « ABAMI » : la liste se filtre.", "Ajouter un employé <b>E009</b> (nom, fonction, société, brut, <b>date d'embauche</b>, solde congés initial) → il apparaît dans la liste et dans tous les écrans de paie.", "Modifier la <b>date d'embauche</b> directement dans la ligne (champ date) : sauvegarde immédiate.", "Importer un CSV avec l'en-tête <code>matricule;nom;fonction;societe;salaire_brut;date_debut;email</code> contenant E001 (modifié) et un nouveau E010."],
-      expect: ["Message d'import : <b>« 1 créé(s), 1 mis à jour »</b> (upsert par matricule).", "Le badge « fiche(s) sans date d'embauche » n'apparaît que si une fiche active n'a pas de date.", "Les bulletins du mois incluent aussitôt les nouveaux employés."],
-      cli: "npx convex run employes:liste '{}'" },
-    { id: "bar", t: "Barème daté", route: "CLI", niv: 4, cliOnly: true,
-      pre: "—",
-      steps: ["Lister les barèmes et lire celui applicable à septembre 2026.", "Créer une nouvelle version effective au 1er janvier 2027 (valeurs par défaut) : les mois ≥ 2027 l'utiliseront, les mois antérieurs gardent l'ancienne."],
-      expect: ["<code>pourPeriode</code> renvoie la version dont <code>effectiveFrom</code> est la plus récente ≤ début du mois.", "Le job <code>controlerBaremeOfficiel</code> est un squelette (source officielle à connecter) : il ne modifie rien."],
+      steps: ["Rechercher « ABAMI » : la liste se filtre. Son brut de référence est <b>106 950</b> — c'est le cas chiffré que suivent les scénarios suivants.", "Ajouter un employé <b>E009</b> (nom, fonction, société, brut, <b>date d'embauche</b>, solde congés initial) → il apparaît dans la liste et dans tous les écrans de paie.", "Modifier la <b>date d'embauche</b> directement dans la ligne (champ date) : sauvegarde immédiate.", "Renseigner la <b>catégorie</b> et l'<b>échelon</b> d'ABAMI : ces deux champs s'impriment sur le bulletin mais ne sont pas encore dans le formulaire — passer par la CLI <code>employes:modifier</code>.", "Importer un CSV avec l'en-tête <code>matricule;nom;fonction;societe;salaire_brut;date_debut;email</code> contenant E001 (modifié) et un nouveau E010."],
+      expect: ["Message d'import : <b>« 1 créé(s), 1 mis à jour »</b> (upsert par matricule).", "Le badge « fiche(s) sans date d'embauche » n'apparaît que si une fiche active n'a pas de date.", "Catégorie et échelon apparaissent dans la grille d'identité du bulletin ; à défaut, un tiret.", "Les bulletins du mois incluent aussitôt les nouveaux employés."],
+      cli: "npx convex run employes:liste '{}'\nnpx convex run employes:modifier '{\"employeId\":\"<id>\",\"categorie\":\"5\",\"echelon\":\"B\"}'" },
+    { id: "bar", t: "Barème daté — taux du mois, abattement IRPP, TDL / RAV", route: "/bareme", niv: 4,
+      pre: "Écran Barème accessible au niveau 4 ; créer une version demande le niveau 7.",
+      steps: ["Ouvrir Barème : la version applicable est affichée avec ses taux (plafond CNPS, PVID, CFC, FNE, CAC) et, depuis la révision 2, l'<b>abattement IRPP annuel</b> (500 000 par défaut) et l'état des taxes <b>TDL</b> et <b>RAV</b>.", "Ouvrir Récapitulatif salaires : le panneau <b>« Taux du mois »</b> affiche exactement les mêmes valeurs, avec la source et la date d'effet du barème.", "Créer une version effective au 1er du mois courant avec <b>TDL et RAV décochées</b>, puis revenir au récapitulatif : les lignes 44723 (TDL) et 44725 (RAV) tombent à 0 sur tous les bulletins et le net remonte d'autant.", "Recréer une version identique avec TDL et RAV cochées pour revenir à l'état de référence.", "Créer une version effective au 1er janvier 2027 : les mois ≥ 2027 l'utiliseront, les mois antérieurs gardent l'ancienne."],
+      expect: ["<code>pourPeriode</code> renvoie la version dont <code>effectiveFrom</code> est la plus récente ≤ début du mois.", "Un mois déjà clôturé garde son barème d'origine, quelle que soit la version créée ensuite.", "Le job <code>controlerBaremeOfficiel</code> journalise « source non configurée » tant que <code>BAREME_SOURCE_URL</code> est absente : il ne modifie aucun taux."],
+      warn: "Une nouvelle version recalcule tous les mois ouverts à partir de sa date d'effet. Terminez ce scénario avec TDL et RAV rétablies, sinon les montants des scénarios suivants ne correspondront plus à la référence.",
       cli: "npx convex run bareme:pourPeriode '{\"periode\":\"2026-09\"}'\nnpx convex run bareme:liste '{}'\nnpx convex run bareme:upsert '{\"effectiveFrom\":\"2027-01-01\",\"source\":\"test recette\"}'" },
-    { id: "saisie", t: "Saisie mensuelle — recalcul en direct", route: "/paie/saisie", niv: 4,
-      pre: "Mois courant ouvert.",
-      steps: ["Sur un employé, mettre <b>Primes = 20000</b> et <b>Heures sup = 10000</b> → le bouton « Enregistrer » de la ligne s'active.", "Enregistrer : Brut, Retenues et Net de la ligne changent <b>immédiatement</b>.", "Mettre <b>Acompte = 15000</b> et enregistrer : le net baisse de 15 000 exactement (retenue hors cotisation).", "Changer de période : les saisies sont propres à chaque mois."],
-      expect: ["Brut = salaire proratisé + primes + heures sup (+ registre).", "L'acompte apparaît comme ligne <b>42121 Acompte</b> sur le bulletin.", "Sur un mois clôturé, les champs sont désactivés (« lecture seule »)."],
-      cli: "npx convex run payroll:saisiesDuMois '{\"periode\":\"2026-09\"}'" },
-    { id: "plan", t: "Planning des absences → paie", route: "/paie/planning", niv: 4,
+    { id: "saisie", t: "Récapitulatif salaires — colonnes de référence, recalcul en direct", route: "/paie/saisie", niv: 4,
+      pre: "Mois courant ouvert, panneau « Taux du mois » visible.",
+      steps: ["Lire l'en-tête du tableau — <b>RÉCAPITULATIF SALAIRE — MOIS AAAA</b> — puis la suite des colonnes du modèle papier : salaire journalier, nombre de jours travaillés, salaire de base, primes fixes / congé, heures sup / ancienneté, <b>Total 1</b>, sanctions, absence, dettes de soins, acompte / dette / impôts &amp; CNPS, mutuelle %, mutuelle, <b>Total 2</b>, puis <b>Salaire SESAME</b>, <b>Salaire SOFINA</b>, <b>Salaire SGC</b>.", "Vérifier ABAMI sans aucune saisie : salaire journalier <b>3 565</b> (106 950 ÷ 30), 30 jours, salaire de base <b>106 950</b>, Total 1 <b>106 950</b>, Total 2 <b>95 530</b> — les chiffres de l'application du directeur.", "Dans la colonne « Primes fixes / congé », renseigner <b>Primes fixes 20 000</b>, <b>Transport 15 000</b>, <b>Assiduité 5 000</b>, <b>Logement 10 000</b>, puis cliquer <b>Enregistrer</b> sur la ligne (le bouton ne s'active qu'après modification).", "Le Total 1 augmente de 50 000 immédiatement. Le net augmente de moins, sauf pour le transport : il entre dans le Total 1 mais <b>sort de la base taxable</b> (exonéré de CNPS, CFC et IRPP).", "Mettre <b>Mutuelle % = 2</b> et enregistrer : la colonne Mutuelle affiche 2 % du Total 1 et le Total 2 baisse exactement d'autant.", "Mettre <b>Acompte = 15 000</b> : la colonne « Acompte / dette / impôts &amp; CNPS » affiche <b>acompte + charges salariales</b> ; la petite mention « + retenues » sous le champ isole la part CNPS / IRPP / CAC / TDL / RAV / CFC.", "Renseigner <b>Sanctions</b>, <b>Absence</b> (en FCFA, pas en jours) et <b>Dettes de soins</b> : chaque montant est déduit du Total 2 franc pour franc.", "Lire la ligne <b>TOTAL</b> en pied de tableau, puis la <b>légende</b> sous le tableau : définition de SALAIRE NET, de TOTAL 1, de TOTAL 2 et des trois sociétés SESAME / SOFINA / SGC.", "Cliquer <b>Ouvrir</b> en fin de ligne : le bulletin de ce seul employé s'affiche (filtre <code>?employe=matricule</code>)."],
+      expect: ["Total 1 = salaire de base + primes (fixes, transport, assiduité, logement, registre) + indemnité de congés + heures sup + ancienneté.", "Total 2 = Total 1 − (charges salariales + sanctions + absence + dettes de soins + acompte + mutuelle + charges du registre) ; le net affiché = max(0, Total 2).", "Le net n'apparaît que dans la colonne de <b>la société de l'employé</b> ; les deux autres affichent un tiret.", "Sur un mois clôturé, tous les champs sont désactivés, le bouton Enregistrer disparaît et le badge indique « Mois clôturé — lecture seule »."],
+      cli: "npx convex run payroll:saisiesDuMois '{\"periode\":\"2026-09\"}'\nnpx convex run payroll:bulletinsDuMois '{\"periode\":\"2026-09\"}'" },
+    { id: "liste", t: "Liste des salaires — récapitulatif général par société", route: "/paie/liste", niv: 4,
+      pre: "Même période que le scénario précédent.",
+      steps: ["Ouvrir <b>Liste des salaires</b> (menu latéral, ou bouton depuis le Récapitulatif salaires).", "Lire le titre centré : <b>« Récapitulatif général salaire et primes perçus de POITIERS COWORKING – Mois AAAA »</b>.", "Vérifier les colonnes : N°, noms et prénoms, <b>SOFINA</b>, <b>SGC</b>, <b>SESAME</b>, Primes, Total perçu.", "Vérifier une ligne : le net est écrit dans la colonne de la société de l'employé, les deux autres affichent un tiret, et « Total perçu » reprend ce net.", "Comparer la ligne <b>TOTAUX</b> avec les trois colonnes de société du Récapitulatif salaires : les montants sont identiques.", "Cliquer <b>Imprimer</b> : seul le tableau sort (barre d'outils et menu masqués) et le document proposé s'appelle « POITIERS COWORKING - Liste des salaires - Mois AAAA »."],
+      expect: ["Colonne Primes = total des lignes de type prime du registre « Primes &amp; charges » pour cet employé et ce mois (0 → tiret).", "Somme des trois colonnes de société = Total perçu cumulé = somme des nets du mois.", "Sur un mois clôturé, le badge passe à « Mois clôturé (bulletins figés) » et les montants viennent des snapshots."],
+      warn: "Le bouton « Générer les bulletins » de cet écran est le même que celui des Bulletins : il clôture le mois. Ne l'utilisez que sur un mois de test.",
+      cli: "npx convex run payroll:bulletinsDuMois '{\"periode\":\"2026-09\"}'" },
+    { id: "plan", t: "Planning des absences et congés → paie", route: "/paie/planning", niv: 4,
       pre: "Employés avec date d'embauche (sinon acquisition « année en cours »).",
-      steps: ["Ajouter une <b>absence non justifiée</b> de 2 jours (du 07 au 08) pour ACHALE.", "Lire sa ligne : Abs. non payées = 2, <b>Jours travaillés = 28 / 30</b>, badge « 28 j · 2 abs » (paie synchronisée).", "Aller dans Saisie mensuelle : ses jours = 28, absences = 2 ; son brut = 195 941 × 28 / 30 = <b>182 878</b>.", "Ajouter un <b>congé payé</b> de 5 jours à un autre employé : jours travaillés inchangés, « Congés pris » = 5, <b>solde</b> diminué de 5.", "Supprimer une absence (deux clics : « Supprimer » puis « Confirmer ») : la paie est recalée.", "Cliquer « Synchroniser la paie du mois » : recale tout l'effectif."],
-      expect: ["Acquis (cumul) = solde initial + 1,5 × mois de service depuis la date d'embauche.", "Un événement à cheval sur deux mois est ventilé entre les deux (vérifier avec un 28/09 → 03/10).", "Un mois clôturé n'est jamais modifié par le planning."],
+      steps: ["Ajouter une <b>absence non justifiée</b> de 2 jours (du 07 au 08) pour ACHALE.", "Lire sa ligne : Abs. non payées = 2, <b>Jours travaillés = 28 / 30</b>, badge « 28 j · 2 abs » (paie synchronisée).", "Aller dans Récapitulatif salaires : ses jours = 28 et son salaire de base = journalier × 28, soit 195 941 ÷ 30 × 28 = <b>182 878</b>.", "Ajouter un <b>congé payé</b> de 5 jours à un autre employé : ses <b>jours travaillés passent à 25</b>, « Congés pris » = 5, le solde diminue de 5.", "Ouvrir son bulletin : le salaire de base ne couvre que 25 jours, mais une ligne <b>6613 Congés payés</b> ajoute l'indemnité de congés = journalier × 5. Le Total 1 est donc pratiquement inchangé.", "Supprimer une absence (deux clics : « Supprimer » puis « Confirmer ») : la paie est recalée.", "Cliquer « Synchroniser la paie du mois » : recale tout l'effectif."],
+      expect: ["Acquis (cumul) = solde initial + 1,5 × mois de service depuis la date d'embauche ; reste à prendre = acquis − congés pris.", "Les quatre compteurs (jours travaillés, acquis, pris, reste à prendre) se retrouvent tels quels dans la bande « jours &amp; congés » du bulletin.", "Un événement à cheval sur deux mois est ventilé entre les deux (vérifier avec un 28/09 → 03/10).", "Un mois clôturé n'est jamais modifié par le planning."],
       cli: "npx convex run planning:vueMensuelle '{\"periode\":\"2026-09\"}'\nnpx convex run planning:ajouterAbsence '{\"employeId\":\"<id>\",\"type\":\"absence\",\"dateDebut\":\"2026-09-07\",\"dateFin\":\"2026-09-08\"}'" },
     { id: "primes", t: "Primes & charges → bulletins", route: "/paie/primes", niv: 4,
       pre: "Mois ouvert.",
-      steps: ["Ajouter une <b>prime</b> « Prime de rendement » 15 000 pour ABAMI (suggestions dans le libellé).", "Ajouter une <b>charge</b> « Retenue sur avance » 8 000 pour ABAMI.", "Lire les cartes : total primes 15 000, total charges −8 000, effet net 7 000, 1 employé ; récap par employé en bas.", "Ouvrir Bulletins : le bulletin d'ABAMI a une ligne de gain <b>PRIME Prime de rendement</b> et une retenue <b>RETENUE Retenue sur avance</b>.", "Supprimer une ligne (confirmation inline) : le bulletin se recalcule."],
-      expect: ["Brut d'ABAMI = 106 950 + 15 000 = <b>121 950</b> ; net augmenté de la prime moins ses cotisations, puis diminué de 8 000.", "Sur un mois clôturé, le formulaire disparaît et la suppression est refusée par le serveur."],
+      steps: ["Ajouter une <b>prime</b> « Prime de rendement » 15 000 pour ABAMI (suggestions dans le libellé).", "Ajouter une <b>charge</b> « Retenue sur avance » 8 000 pour ABAMI.", "Lire les cartes : total primes 15 000, total charges −8 000, effet net 7 000, 1 employé ; récap par employé en bas.", "Ouvrir Récapitulatif salaires : le Total 1 d'ABAMI passe à <b>121 950</b> et la colonne Primes de la Liste des salaires affiche 15 000.", "Ouvrir son bulletin : une ligne de gain <b>PRIME Prime de rendement</b> s'ajoute après les lignes codées, et une retenue <b>RETENUE Retenue sur avance</b> après les cotisations.", "Supprimer une ligne (confirmation inline) : tous les écrans se recalculent."],
+      expect: ["Une prime du registre est <b>soumise aux cotisations</b> (elle entre dans le Total 1 puis dans la base taxable) ; une charge est déduite du net sans cotisation.", "Net d'ABAMI = net de référence augmenté de la prime nette de ses cotisations, puis diminué de 8 000.", "Sur un mois clôturé, le formulaire disparaît et la suppression est refusée par le serveur."],
       cli: "npx convex run primes:liste '{\"periode\":\"2026-09\"}'" },
-    { id: "bull", t: "Bulletins — A4, impression, clôture", route: "/paie/bulletins", niv: 4,
-      pre: "Les scénarios précédents ont modifié septembre.",
-      steps: ["Choisir la période : un bulletin A4 par employé (en-tête entreprise, filigrane, gains codés, cotisations, net à payer).", "« Imprimer / PDF » : un bulletin par page dans l'aperçu d'impression (barre latérale masquée).", "Choisir un mois <b>passé sans données</b> (ex. juin 2026 — juillet et août sont déjà clôturés) puis « Générer et clôturer le mois » et confirmer.", "Revenir sur Saisie mensuelle / Planning / Primes pour ce mois : tout est en lecture seule.", "Ouvrir <code>/paie/bulletins?periode=2026-06</code> : la période s'ouvre directement."],
-      expect: ["Message « 8 bulletin(s) générés et mois clôturé », badge <b>« Clôturé (figé) »</b>.", "Relancer la clôture du même mois est refusé (« déjà clôturé »).", "Total net affiché = somme des nets."],
+    { id: "bull", t: "Bulletins — récapitulatif, A4 de référence, clôture", route: "/paie/bulletins", niv: 4,
+      pre: "Les scénarios précédents ont modifié le mois courant.",
+      steps: ["Choisir la période : la page commence par une <b>page récapitulative</b> (N°, nom, société, brut, retenues, net à payer, ligne de totaux), puis vient un bulletin A4 par employé.", "Lire le bandeau d'un bulletin : <b>BULLETIN DE PAIE · Période du 01/09/2026 au 30/09/2026 · Paiement le 05/10/2026 par banque</b>.", "Bloc employeur à gauche : nom, adresse, <b>NIU</b> et <b>N° CNPS</b> (renseignés dans Paramètres). À droite, la grille d'identité : matricule, catégorie, échelon, numéro CNPS du salarié, statut, emploi occupé, département, date d'embauche, horaire, adresse, puis le nom en bandeau.", "Bande suivante : nombre de jours travaillés, congés acquis, congés pris, <b>reste à prendre</b> (en bleu), indemnité de congés, salaire journalier.", "Tableau des lignes : les <b>codes fixes sont toujours imprimés, même à zéro</b> — gains 66111 salaire du mois, 66112 heures sup, 66116 ancienneté, 6613 congés payés, 66121 transport, 66122 assiduité, 6631 logement, 66125 primes fixes ; retenues 43131 CNPS, 44721 IRPP, 44722 CAC, 44723 TDL, 44724 CFC salarié, 44725 RAV, mutuelle, sanctions, absences, dettes de soins, acompte ; les lignes du registre s'ajoutent en PRIME / RETENUE. Les lignes patronales (66411 PF, 66412 PVID, 66413 ATMP, 64131 FNE, 64132 CFC) n'alimentent que la colonne « charg. patron. ».", "Vérifier les deux lignes de totaux : <b>TOTAL BRUT</b> (= Total 1 du récapitulatif) et <b>TOTAL COTISATIONS &amp; RETENUES</b>, avec la colonne « charg. patron. » pour l'information employeur.", "Synthèse : salaire brut, charges salariales, charges patronales, heures sup, puis <b>NET A PAYER</b> sur fond vert ; en dessous, « Payé par : <b>SALAIRE SESAME / SOFINA / SGC</b> » selon la société.", "Bas de page : cadre <b>Visa du responsable RH</b> (nom pris dans Paramètres) et cadre de validation — sur un mois ouvert, <b>« BULLETIN NON VALIDÉ – document provisoire »</b> en rouge.", "Ouvrir <code>/paie/bulletins?periode=2026-09&amp;employe=E001</code> : la période et l'employé sont pré-filtrés, un badge « Filtre » apparaît et la page récapitulative disparaît (un seul bulletin).", "« Imprimer / PDF » : récapitulatif en page 1, puis un bulletin par page ; le document proposé s'appelle « POITIERS COWORKING - Bulletins - Mois AAAA », ou « POITIERS COWORKING - Nom de l'employé - Mois AAAA » si un filtre est actif.", "Choisir un mois <b>passé sans données</b> (ex. juin 2026 — juillet et août sont déjà clôturés), puis « Générer et clôturer le mois » et confirmer."],
+      expect: ["Message « 8 bulletin(s) générés et mois clôturé », badge <b>« Mois archivé (figé) »</b>.", "Après clôture, le cadre de validation passe au vert : <b>« BULLETIN VALIDÉ le JJ/MM/AAAA »</b>, et le visa RH porte le nom du responsable.", "TOTAL COTISATIONS &amp; RETENUES = TOTAL BRUT − NET A PAYER, au franc près.", "Relancer la clôture du même mois est refusé (« déjà clôturé »)."],
       warn: "La clôture est irréversible depuis l'interface — utilisez un mois vide pour la recette (juillet et août 2026 sont déjà clôturés).",
       cli: "npx convex run payroll:bulletinsDuMois '{\"periode\":\"2026-06\"}'\nnpx convex run payroll:genererEtCloturer '{\"periode\":\"2026-06\"}'" },
     { id: "courrier", t: "Courrier de paie — lettre, e-mail, PDF joint", route: "/paie/courrier", niv: 4,
       pre: "Au moins un employé avec un e-mail.",
-      steps: ["Modifier le <b>modèle de lettre</b> (variables <code>{nom} {periode} {net} {entreprise}</code>) et l'enregistrer.", "Saisir un e-mail dans la ligne d'un employé (sauvegarde au changement de champ).", "Sélectionner cet employé seul, puis <b>« Envoyer par e-mail (1) »</b> et confirmer.", "Lire le résultat : « Mode simulation — 0 envoyé, 1 simulé, 0 échec · PDF générés : ~5 Ko » ; la colonne « Dernier envoi » affiche <b>Simulé</b> + horodatage.", "« Afficher l'aperçu » : lettre rendue (variables remplacées) + bulletin, une page par personne à l'impression.", "Envoyer à un employé <b>sans e-mail</b> : statut <b>Échec — Adresse e-mail manquante</b>."],
-      expect: ["Le PDF (page 1 lettre, page 2 bulletin) est généré même en simulation — la taille est indiquée.", "Avec <code>RESEND_API_KEY</code> défini, le badge passe en « Envoi réel » et le bulletin figé passe en statut « envoyé »."],
-      cli: "npx convex run paiePdf:envoyerCourrier '{\"periode\":\"2026-09\",\"employeIds\":[\"<id>\"]}'\nnpx convex run courrier:journal '{\"periode\":\"2026-09\"}'" },
+      steps: ["Modifier le <b>modèle de lettre</b> (variables <code>{nom} {periode} {net} {entreprise}</code>) et l'enregistrer.", "Saisir un e-mail dans la ligne d'un employé (sauvegarde au changement de champ).", "Sélectionner cet employé seul, puis <b>« Envoyer par e-mail (1) »</b> et confirmer.", "Lire le résultat : « Mode simulation — 0 envoyé, 1 simulé, 0 échec · PDF générés : ~5 Ko » ; la colonne « Dernier envoi » affiche <b>Simulé</b> + horodatage.", "« Afficher l'aperçu » : lettre rendue (variables remplacées) + bulletin au format de référence, une page par personne à l'impression.", "Envoyer à un employé <b>sans e-mail</b> : statut <b>Échec — Adresse e-mail manquante</b>."],
+      expect: ["Le PDF joint (page 1 lettre, page 2 bulletin) est généré même en simulation — la taille est indiquée — et nommé « POITIERS COWORKING - Nom - Mois AAAA ».", "Le bulletin du PDF reprend la mise en page de l'écran : bandeau période / paiement, bloc employeur, lignes codées, NET A PAYER, visa RH et mention de validation.", "Avec <code>RESEND_API_KEY</code> défini, le badge passe en « Envoi réel » et le bulletin figé passe en statut « envoyé »."],
+      cli: "npx convex run paiePdf:envoyerCourrier '{\"periode\":\"2026-09\",\"employeIds\":[\"<id>\"]}'\nnpx convex run paiePdf:apercuPdf '{\"periode\":\"2026-09\",\"employeId\":\"<id>\"}'\nnpx convex run courrier:journal '{\"periode\":\"2026-09\"}'" },
     { id: "arch", t: "Archives — mois clôturés & PDF stockés", route: "/paie/archives", niv: 4,
       pre: "Un mois clôturé (août 2026 par la démo, ou celui du scénario Bulletins).",
-      steps: ["Lire la ligne du mois : clôturé le / par, nombre de bulletins, brut, net, envoyés, PDF x / n.", "« Détail » : liste des bulletins figés (statut Généré / Envoyé).", "« Générer les PDF (n) » : les PDF sont créés et stockés ; le compteur passe à <b>n / n</b> et le bouton devient « PDF archivés ».", "Dans le détail, « Télécharger » ouvre le PDF du bulletin (URL de stockage Convex).", "« Voir les bulletins » ouvre l'écran Bulletins sur ce mois."],
-      expect: ["L'archivage est idempotent : relancer ne régénère pas les PDF existants (« déjà archivé(s) »).", "Un mois non clôturé ne peut pas être archivé (erreur explicite)."],
+      steps: ["Lire la ligne du mois : clôturé le / par, nombre de bulletins, brut, net, envoyés, PDF x / n.", "« Détail » : liste des bulletins figés (statut Généré / Envoyé).", "« Générer les PDF (n) » : les PDF sont créés et stockés ; le compteur passe à <b>n / n</b> et le bouton devient « PDF archivés ».", "Dans le détail, « Télécharger » ouvre le PDF du bulletin (URL de stockage Convex) : il porte la mention <b>BULLETIN VALIDÉ</b> puisque le mois est clôturé.", "« Voir les bulletins » ouvre l'écran Bulletins sur ce mois."],
+      expect: ["L'archivage est idempotent : relancer ne régénère pas les PDF existants (« déjà archivé(s) »).", "Le PDF archivé est construit sur le <b>snapshot</b> du mois : modifier un barème ou une fiche employé après coup ne le change pas.", "Un mois non clôturé ne peut pas être archivé (erreur explicite)."],
       cli: "npx convex run archives:liste '{}'\nnpx convex run paiePdf:archiverPdfs '{\"periode\":\"2026-08\"}'" },
-    { id: "param", t: "Paramètres entreprise", route: "/parametres", niv: 7,
+    { id: "param", t: "Paramètres entreprise — identité fiscale, paiement, visa", route: "/parametres", niv: 7,
       pre: "—",
-      steps: ["Changer le <b>filigrane</b> et la <b>couleur d'en-tête</b>, enregistrer.", "Ouvrir Bulletins : l'en-tête et le filigrane ont changé ; idem dans un nouveau PDF archivé.", "Renseigner l'<b>e-mail expéditeur</b> : affiché sur l'écran Courrier.", "Passer « Congés acquis par mois » à 2 : dans Planning, les acquis cumulés sont recalculés."],
-      expect: ["Les documents (écran, impression, PDF, e-mail HTML) reprennent tous les mêmes paramètres.", "Écran réservé au niveau 7 (DG)."] },
+      steps: ["Renseigner le <b>NIU</b>, le <b>N° CNPS employeur</b>, le <b>Responsable RH</b> (signataire des bulletins) et le <b>jour de paiement</b> (1 à 28), puis enregistrer.", "Ouvrir un bulletin : le bloc employeur affiche NIU et N° CNPS, le bandeau indique « Paiement le <b>05</b>/10/2026 par banque » pour la paie de septembre, et le cadre de visa porte le nom du responsable RH.", "Changer le jour de paiement à 10 : le bandeau de tous les bulletins devient « Paiement le 10/10/2026 ».", "Changer le <b>filigrane</b> et la <b>couleur d'en-tête</b>, enregistrer : bandeau et filigrane changent à l'écran, à l'impression et dans les nouveaux PDF archivés.", "Renseigner l'<b>e-mail expéditeur</b> : affiché sur l'écran Courrier.", "Passer « Congés acquis par mois » à 2 : dans Planning, les acquis cumulés sont recalculés."],
+      expect: ["Le jour de paiement est borné à 28 et la date affichée tombe toujours sur le <b>mois suivant</b> la période.", "Les quatre supports (écran, impression, PDF archivé, e-mail) reprennent les mêmes paramètres.", "Écran réservé au niveau 7 (DG)."],
+      cli: "npx convex run parametres:get '{}'" },
     { id: "rbac", t: "Contrôle d'accès par niveau", route: "CLI", niv: 7, cliOnly: true,
       pre: "Identifiant du membre dev : <code>users:liste</code>.",
-      steps: ["Passer le rôle du membre dev en <b>gestionnaire_rh</b> (niveau 4) : le menu perd « Paramètres » ; la paie reste accessible.", "Passer en <b>employe</b> (niveau 1) : ne restent que le tableau de bord ; un écran de paie ouvert affiche une erreur d'accès.", "Passer en <b>auditeur_externe</b> : tableau de bord seul (l'audit arrivera en Phase 4).", "<b>Remettre le rôle dg</b> pour continuer la recette."],
-      expect: ["Le menu est filtré par <code>canAccess(role, route)</code> et le serveur refuse les fonctions (« niveau insuffisant »)."],
+      steps: ["Passer le rôle du membre dev en <b>gestionnaire_rh</b> (niveau 4) : le menu perd « Paramètres » ; le récapitulatif, la liste des salaires, les bulletins et le barème restent accessibles.", "Passer en <b>employe</b> (niveau 1) : ne reste que le tableau de bord ; un écran de paie ouvert affiche une erreur d'accès.", "Passer en <b>auditeur_externe</b> : tableau de bord et audit seulement.", "<b>Remettre le rôle dg</b> pour continuer la recette."],
+      expect: ["Le menu est filtré par <code>canAccess(role, route)</code> et le serveur refuse les fonctions (« niveau insuffisant »).", "Les routes de paie (<code>/paie</code>, <code>/paie/liste</code>, <code>/paie/bulletins</code>) et <code>/bareme</code> exigent le niveau 4 ; <code>/parametres</code> le niveau 7."],
       warn: "Ne fermez pas la recette avec un rôle réduit : sans niveau 7, plus personne ne peut modifier les rôles depuis l'interface — la CLI reste possible.",
       cli: "npx convex run users:liste '{}'\nnpx convex run users:modifier '{\"userId\":\"<id>\",\"role\":\"gestionnaire_rh\"}'\nnpx convex run users:modifier '{\"userId\":\"<id>\",\"role\":\"dg\"}'" },
-    { id: "tests", t: "Tests automatisés du moteur", route: "CLI", niv: 0, cliOnly: true,
+    { id: "tests", t: "Tests automatisés du moteur — parité avec la référence", route: "CLI", niv: 0, cliOnly: true,
       pre: "Dans <code>app/</code>.",
-      steps: ["Lancer <code>npm run test:paie</code>.", "Lire les 12 contrôles (brut, net, plafond CNPS, IRPP progressif, registre primes/charges, retenues listées)."],
-      expect: ["« Tous les tests passent. »", "Bulletin exemple : brut 2 670 000 → net 1 960 162 (barème indicatif)."],
+      steps: ["Lancer <code>npm run test:paie</code> : <b>26 contrôles</b> s'affichent.", "Lire les deux cas de référence imprimés en tête : le cas « 150 000 + transport 15 000 » et le cas <b>ABAMI 106 950</b>.", "Vérifier les contrôles de forme : lignes codées fixes présentes, total des retenues = somme des lignes listées, Total 2 = Total 1 − retenues, TDL / RAV désactivées = 0."],
+      expect: ["« Tous les tests passent. »", "Référence 150 000 + transport 15 000 : charges salariales <b>17 023</b>, net <b>147 977</b> (IRPP 5 703, CAC 570, TDL 1 000, RAV 1 950).", "Référence ABAMI 106 950 : charges salariales <b>11 420</b>, net <b>95 530</b> — chiffres identiques à l'application du directeur.", "Cadre 1 300 000 : la base CNPS reste plafonnée à 750 000 et l'IRPP passe dans les tranches hautes."],
       cli: "npm run test:paie" },
   ];
 
