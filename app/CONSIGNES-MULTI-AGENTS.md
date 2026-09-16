@@ -79,6 +79,10 @@ Chaque agent ajoute une ligne quand il touche à une zone frontière ou termine 
 - **2026-09-16 — AUTH** : `src/main.tsx` et `src/pages/Courrier.tsx` sont modifiés et **non commités**
   dans le dossier `features`. À commiter par leur auteur **avant** le début de P1, sinon ils seront
   écrasés lors de la pose du provider d'authentification.
+  ⚠️ Ce n'est pas qu'une question de sauvegarde : **en l'état, `npm run typecheck` échoue sur le
+  dernier commit** (`Courrier.tsx:141` passe une prop `periode` que `BulletinCard` n'accepte pas).
+  Le correctif est précisément dans ces changements non commités. Tant qu'ils ne sont pas commités,
+  tout nouveau worktree part d'un code qui ne compile pas.
 
 ## Demandes
 
