@@ -1,4 +1,4 @@
-import { query, mutation, internalMutation } from "./_generated/server";
+import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, requireLevel } from "./lib/authz";
 import { canView, canDownload, NIVEAU, Role } from "./rbac";
@@ -94,6 +94,20 @@ export const deposerInterne = internalMutation({
     if (existe) { await ctx.storage.delete(a.fichierId); return { cree: false }; }
     await ctx.db.insert("documents", { ...a, modeMeta: "manuel", deposeLe: new Date().toISOString() });
     return { cree: true };
+  },
+});
+
+// Garde-fou pour l'extraction IA (action Node) : exige un membre actif, et refuse qu'un fichier
+// DÉJÀ rattaché à un document soit relu par quelqu'un qui n'a pas le droit de voir ce document
+// (sans ce contrôle, un `_storage` id suffirait à extraire le texte d'une pièce confidentielle).
+// Un fichier tout juste téléversé n'a pas encore de ligne `documents` : l'accès est alors accordé.
+export const controleAccesFichier = internalQuery({
+  args: { fichierId: v.id("_storage") },
+  handler: async (ctx, { fichierId }) => {
+    const me = await requireLevel(ctx, 1);
+    const doc = await ctx.db.query("documents").withIndex("by_fichier", (q) => q.eq("fichierId", fichierId)).first();
+    if (doc && !canView(me.role as Role, doc)) throw new Error("Accès refusé : ce document ne vous est pas visible.");
+    return { userId: me._id };
   },
 });
 

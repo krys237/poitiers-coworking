@@ -48,6 +48,15 @@ export async function requireLevel(ctx: Ctx, min: number) {
   return user;
 }
 
+// Amorçage d'un déploiement neuf : tant qu'AUCUN membre n'existe, la fonction est ouverte
+// (c'est elle qui crée le premier DG) ; dès qu'un membre existe, le niveau est exigé normalement.
+// Réservé aux fonctions d'initialisation (seed) — ne jamais l'utiliser sur une fonction métier.
+export async function requireLevelOuAmorcage(ctx: Ctx, min: number) {
+  const premier = await ctx.db.query("users").first();
+  if (!premier) return null;
+  return await requireLevel(ctx, min);
+}
+
 // Module Audit : cloisonné — auditeur externe ou Directeur Général uniquement (un niveau 6 est refusé).
 export async function requireAudit(ctx: Ctx) {
   const user = await getCurrentUser(ctx);

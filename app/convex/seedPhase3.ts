@@ -1,6 +1,6 @@
 // Phase 3 — données de démo : membres, commandes, interventions, comptes rendus, caisse, primes (idempotent).
 import { query, mutation } from "./_generated/server";
-import { DEV_TOKEN } from "./lib/authz";
+import { DEV_TOKEN, requireLevel } from "./lib/authz";
 import { dateDouala, instantDouala, estJourOuvrable } from "./lib/fenetre";
 import { montantTotalPrime } from "./lib/stats";
 
@@ -39,6 +39,7 @@ export const etatDemo = query({
 export const phase3 = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireLevel(ctx, 7);
     const r = { membres: 0, commandes: 0, interventions: 0, comptesRendus: 0, caisse: 0, primes: 0, ignores: 0 };
     const dev = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("tokenIdentifier", DEV_TOKEN)).unique();
     if (!dev) throw new Error("Initialisez d'abord les données de base (membre dev).");

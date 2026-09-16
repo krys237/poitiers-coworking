@@ -1,4 +1,4 @@
-import { query, mutation, internalMutation } from "./_generated/server";
+import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, requireLevel, PENDING_PREFIX } from "./lib/authz";
 import { journaliser } from "./lib/journal";
@@ -74,6 +74,17 @@ export const creer = mutation({
     const id = await ctx.db.insert("users", { tokenIdentifier: `${PENDING_PREFIX}${email}`, email, nom: a.nom?.trim() || undefined, role: a.role, poste: a.poste || undefined, departement: a.departement || undefined, societe: a.societe, codeAcces: a.codeAcces || undefined, isActive: true });
     await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "membre_creation", cible: a.nom?.trim() || email, detail: `${LIBELLE[a.role as Role]} · en attente de rattachement` });
     return id;
+  },
+});
+
+// Contrôle d'accès pour les ACTIONS (qui n'ont pas `ctx.db`) : l'identité est propagée
+// par `ctx.runQuery`, donc `requireLevel` s'applique normalement ici.
+// Usage : `await ctx.runQuery(internal.users.verifierNiveau, { min: 7 })`.
+export const verifierNiveau = internalQuery({
+  args: { min: v.number() },
+  handler: async (ctx, { min }) => {
+    const u = await requireLevel(ctx, min);
+    return { userId: u._id, nom: u.nom ?? u.email, role: u.role };
   },
 });
 

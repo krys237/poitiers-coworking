@@ -2,6 +2,7 @@
 // Extraction des métadonnées d'un document : API Claude (SDK officiel) si ANTHROPIC_API_KEY est définie,
 // sinon repli heuristique (titre depuis le nom de fichier, catégorie par mots-clés).
 import { action } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import Anthropic from "@anthropic-ai/sdk";
 
@@ -29,6 +30,8 @@ function heuristique(nomFichier: string, typeMime: string, taille: number, texte
 export const extraireMetadonnees = action({
   args: { fichierId: v.id("_storage"), nomFichier: v.string(), typeMime: v.string() },
   handler: async (ctx, { fichierId, nomFichier, typeMime }): Promise<Meta> => {
+    // Membre actif requis + contrôle d'accès par objet sur le fichier (voir documents.controleAccesFichier).
+    await ctx.runQuery(internal.documents.controleAccesFichier, { fichierId });
     const blob = await ctx.storage.get(fichierId);
     const taille = blob?.size ?? 0;
     let texte: string | null = null;

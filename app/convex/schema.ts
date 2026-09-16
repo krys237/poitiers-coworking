@@ -236,7 +236,8 @@ export default defineSchema({
     deposeLe: v.string(),
   })
     .index("by_categorie", ["categorie"])
-    .index("by_depose", ["deposeLe"]),
+    .index("by_depose", ["deposeLe"])
+    .index("by_fichier", ["fichierId"]),
 
   // ---- Activité (Phase 3) ----
   // Commandes médicales (avec DCI) ou de fournitures. Workflow : en_attente → validee | rejetee → livree.

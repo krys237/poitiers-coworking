@@ -18,7 +18,13 @@ export const liste = query({
   },
 });
 
-export const actions = query({ args: {}, handler: async () => ACTIONS.map(([cle, libelle]) => ({ cle, libelle })) });
+export const actions = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireLevel(ctx, 7);
+    return ACTIONS.map(([cle, libelle]) => ({ cle, libelle }));
+  },
+});
 
 // Écriture depuis les HTTP actions et les actions planifiées (pas d'auth : interne).
 export const ecrire = internalMutation({
