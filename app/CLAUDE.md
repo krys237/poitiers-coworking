@@ -1,5 +1,8 @@
 # Plateforme unifiée POITIERS COWORKING — guide du dépôt
 
+> ⚠️ **Deux agents travaillent en parallèle sur ce dépôt.** Lire `CONSIGNES-MULTI-AGENTS.md`
+> (partage des fichiers, branches, worktrees) **avant** toute modification.
+
 Plateforme de gestion administrative **+ moteur de paie automatisé** (contexte Cameroun, FCFA).
 Reconstruction unifiée dérivée de deux plateformes analysées — voir `../COMPREHENSION-PROJET.md`
 (compréhension métier complète) et l'esquisse d'architecture publiée (`../architecture-cible.html`).
