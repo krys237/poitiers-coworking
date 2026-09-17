@@ -93,50 +93,66 @@ function BanniereIllustration({ className }: { className?: string }) {
         fill="#22C55E"
       />
 
-      {/* Ombre sous la pile de registres */}
-      <ellipse cx="245" cy="104" rx="55" ry="4" fill="#BFDBFE" fillOpacity="0.6" />
+      {/* Ombre sous les ordinateurs */}
+      <ellipse cx="240" cy="105" rx="60" ry="4" fill="#BFDBFE" fillOpacity="0.6" />
 
-      {/* Registre 1 (en bas) : Bleu nuit profond */}
+      {/* 1. Écran de bureau secondaire (en arrière-plan) */}
       <g>
-        <rect x="186" y="85" width="112" height="15" rx="2" fill="#FFFFFF" stroke="#CBD5E1" />
-        <line x1="294" y1="87" x2="294" y2="98" stroke="#E2E8F0" strokeWidth="1" />
-        <path
-          d="M182 83H296C297.5 83 298.5 84 298.5 85.5V100C298.5 101.5 297.5 102.5 296 102.5H182C179.5 102.5 178 100.5 178 98V87.5C178 85 179.5 83 182 83Z"
-          fill="#0077B6"
-        />
-        <path
-          d="M182 83C179.5 83 178 85 178 87.5V98C178 100.5 179.5 102.5 182 102.5H186V83H182Z"
-          fill="#03045E"
-        />
-        <line x1="184" y1="87" x2="184" y2="98" stroke="#90E0EF" strokeWidth="1.5" strokeLinecap="round" />
+        {/* Pied de l'écran */}
+        <path d="M255 78H265L268 98H252L255 78Z" fill="#94A3B8" />
+        <ellipse cx="260" cy="98" rx="16" ry="2.5" fill="#64748B" />
+        {/* Cadre de l'écran */}
+        <rect x="220" y="32" width="80" height="50" rx="3.5" fill="#0F172A" stroke="#1E293B" strokeWidth="1.5" />
+        {/* Dalle écran allumée avec graphique financier */}
+        <rect x="223" y="35" width="74" height="42" rx="2" fill="#0077B6" />
+        {/* Courbe financière et histogramme sur l'écran */}
+        <path d="M228 65L238 56L248 60L258 48L268 52L278 44L288 47" stroke="#CAF0F8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <rect x="232" y="66" width="4" height="6" fill="#90E0EF" rx="0.5" />
+        <rect x="242" y="62" width="4" height="10" fill="#90E0EF" rx="0.5" />
+        <rect x="252" y="58" width="4" height="14" fill="#90E0EF" rx="0.5" />
+        <rect x="262" y="54" width="4" height="18" fill="#90E0EF" rx="0.5" />
+        <rect x="272" y="50" width="4" height="22" fill="#90E0EF" rx="0.5" />
+        <rect x="282" y="52" width="4" height="20" fill="#90E0EF" rx="0.5" />
       </g>
 
-      {/* Registre 2 (au milieu) : Doré / Ocre */}
+      {/* 2. Ordinateur portable moderne au premier plan */}
       <g>
-        <rect x="194" y="65" width="102" height="15" rx="2" fill="#FFFFFF" stroke="#CBD5E1" />
+        {/* Écran du laptop (ouvert) */}
         <path
-          d="M190 63H294C295.5 63 296.5 64 296.5 65.5V80C296.5 81.5 295.5 82.5 294 82.5H190C187.5 82.5 186 80.5 186 78V67.5C186 65 187.5 63 190 63Z"
-          fill="#F59E0B"
+          d="M174 52C174 49.5 176 47.5 178.5 47.5H237.5C240 47.5 242 49.5 242 52V92H174V52Z"
+          fill="#0B132B"
+          stroke="#1E293B"
+          strokeWidth="1.2"
         />
-        <path
-          d="M190 63C187.5 63 186 65 186 67.5V78C186 80.5 187.5 82.5 190 82.5H194V63H190Z"
-          fill="#D97706"
-        />
-        <line x1="192" y1="67" x2="192" y2="78" stroke="#FEF3C7" strokeWidth="1.5" strokeLinecap="round" />
-      </g>
+        {/* Dalle du laptop */}
+        <rect x="177" y="50.5" width="62" height="38.5" rx="1.5" fill="#003566" />
+        {/* Contenu de l'écran du laptop : interface financière épurée */}
+        <rect x="181" y="54" width="22" height="4" rx="1" fill="#00B4D8" />
+        <rect x="181" y="61" width="54" height="12" rx="1.5" fill="#001D3D" />
+        <path d="M184 70C190 65 196 68 202 64C208 60 214 66 220 62L228 65" stroke="#00B4D8" strokeWidth="1.2" strokeLinecap="round" />
+        <circle cx="202" cy="64" r="1.5" fill="#90E0EF" />
+        <circle cx="220" cy="62" r="1.5" fill="#90E0EF" />
+        {/* Mini widgets métriques */}
+        <rect x="181" y="76" width="25" height="10" rx="1.5" fill="#001D3D" />
+        <rect x="184" y="78" width="12" height="2" rx="0.5" fill="#90E0EF" />
+        <rect x="184" y="82" width="18" height="2" rx="0.5" fill="#22C55E" />
+        <rect x="210" y="76" width="25" height="10" rx="1.5" fill="#001D3D" />
+        <rect x="213" y="78" width="12" height="2" rx="0.5" fill="#90E0EF" />
+        <rect x="213" y="82" width="15" height="2" rx="0.5" fill="#F59E0B" />
 
-      {/* Registre 3 (au-dessus) : Bleu Roi éclatant */}
-      <g>
-        <rect x="200" y="45" width="94" height="15" rx="2" fill="#FFFFFF" stroke="#CBD5E1" />
+        {/* Base / Clavier du laptop (en perspective) */}
         <path
-          d="M196 43H292C293.5 43 294.5 44 294.5 45.5V60C294.5 61.5 293.5 62.5 292 62.5H196C193.5 62.5 192 60.5 192 58V47.5C192 45 193.5 43 196 43Z"
-          fill="#2563EB"
+          d="M165 92H251L247 101C246.5 102 245.5 102.5 244 102.5H172C170.5 102.5 169.5 102 169 101L165 92Z"
+          fill="#CBD5E1"
+          stroke="#94A3B8"
+          strokeWidth="1"
         />
-        <path
-          d="M196 43C193.5 43 192 45 192 47.5V58C192 60.5 193.5 62.5 196 62.5H200V43H196Z"
-          fill="#1D4ED8"
-        />
-        <line x1="198" y1="47" x2="198" y2="58" stroke="#BFDBFE" strokeWidth="1.5" strokeLinecap="round" />
+        {/* Clavier */}
+        <path d="M172 93.5H244L242 97H174L172 93.5Z" fill="#64748B" />
+        {/* Trackpad */}
+        <rect x="200" y="98" width="16" height="3.5" rx="0.5" fill="#94A3B8" />
+        {/* Encoche ouverture */}
+        <rect x="204" y="92" width="8" height="1" rx="0.5" fill="#64748B" />
       </g>
     </svg>
   );

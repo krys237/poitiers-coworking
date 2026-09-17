@@ -112,12 +112,12 @@ function SidebarContent({
   return (
     <div className="relative flex h-full flex-col justify-between bg-white text-slate-800 overflow-hidden border-r border-slate-200/80">
       {/* 
-        1. Dégradé bleu supérieur avec transition fluide et fondue vers le blanc :
-        Descend depuis le bleu royal électrique en haut, traverse l'en-tête et l'onglet Dashboard,
-        puis se dissout progressivement et doucement dans le blanc pur (aucun décrochage net).
+        1. Dégradé bleu supérieur harmonisé avec le sélecteur actif :
+        Utilise exactement les mêmes tons bleu (from-blue-600 to-[#0077b6]) que les items
+        actifs de navigation pour une parfaite cohérence chromatique de la barre latérale.
       */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-[280px] bg-gradient-to-b from-[#1e69ff] via-[#155dfc] via-[45%] via-[#0077b6] via-[65%] via-[#38bdf8]/25 via-[85%] to-white"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[280px] bg-gradient-to-b from-blue-600 via-[#0077b6] via-[52%] via-[#00b4d8]/20 via-[82%] to-white"
         aria-hidden="true"
       />
 
@@ -257,7 +257,7 @@ function RailLateral({
   return (
     <div className="relative flex h-full flex-col justify-between overflow-hidden border-r border-slate-200/80 bg-white">
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-[200px] bg-gradient-to-b from-[#1e69ff] via-[#155dfc] via-[40%] via-[#0077b6] via-[62%] via-[#38bdf8]/25 via-[84%] to-white"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[200px] bg-gradient-to-b from-blue-600 via-[#0077b6] via-[48%] via-[#00b4d8]/20 via-[80%] to-white"
         aria-hidden="true"
       />
       <div className="relative z-10 flex flex-col items-center gap-1.5 px-3 pt-3.5">

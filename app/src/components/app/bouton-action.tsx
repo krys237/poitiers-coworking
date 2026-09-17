@@ -113,6 +113,7 @@ export function BoutonConfirmation({
   variant = "destructive",
   size,
   disabled,
+  className,
 }: {
   /** Texte du bouton. Dit ce qui va se passer, a l'infinitif. */
   libelle: React.ReactNode;
@@ -129,6 +130,7 @@ export function BoutonConfirmation({
   variant?: VariantBouton;
   size?: TailleBouton;
   disabled?: boolean;
+  className?: string;
 }) {
   const [ouvert, setOuvert] = React.useState(false);
   const [saisie, setSaisie] = React.useState("");
@@ -161,7 +163,7 @@ export function BoutonConfirmation({
       }}
     >
       <AlertDialogTrigger asChild>
-        <Button variant={variant} size={size} disabled={disabled}>
+        <Button variant={variant} size={size} disabled={disabled} className={className}>
           {libelle}
         </Button>
       </AlertDialogTrigger>
