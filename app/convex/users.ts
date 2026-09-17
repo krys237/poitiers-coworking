@@ -1,6 +1,6 @@
-import { query, mutation, internalMutation } from "./_generated/server";
+import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { getCurrentUser, requireLevel, PENDING_PREFIX } from "./lib/authz";
+import { getCurrentUser, requireLevel, PENDING_PREFIX, DEV_BYPASS } from "./lib/authz";
 import { journaliser } from "./lib/journal";
 import { LIBELLE, NIVEAU, Role } from "./rbac";
 
@@ -11,12 +11,21 @@ const ROLE = v.union(
 const SOCIETE = v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"));
 
 // Le membre courant, enrichi de son libellé de rôle et de son niveau.
+// `enAttente` distingue un compte créé mais pas encore autorisé (l'interface doit afficher
+// un écran d'attente, pas le menu) ; `modeDev` signale que le bypass de développement est
+// actif sur ce déploiement — à faire remonter visuellement, c'est un mode non sécurisé.
 export const me = query({
   args: {},
   handler: async (ctx) => {
     const u = await getCurrentUser(ctx);
     if (!u) return null;
-    return { ...u, roleLibelle: LIBELLE[u.role as Role], niveau: NIVEAU[u.role as Role] };
+    return {
+      ...u,
+      roleLibelle: LIBELLE[u.role as Role],
+      niveau: NIVEAU[u.role as Role],
+      enAttente: u.enAttente === true,
+      modeDev: DEV_BYPASS && u.tokenIdentifier === "dev:dg",
+    };
   },
 });
 
@@ -28,7 +37,15 @@ export const liste = query({
     const rows = await ctx.db.query("users").collect();
     return rows.map((u) => ({
       ...u, roleLibelle: LIBELLE[u.role as Role], niveau: NIVEAU[u.role as Role],
-      origine: u.tokenIdentifier.startsWith(PENDING_PREFIX) ? "pending" : u.tokenIdentifier.startsWith("demo:") ? "demo" : u.tokenIdentifier.startsWith("dev:") ? "dev" : "oidc",
+      enAttente: u.enAttente === true,
+      // Un compte sans `tokenIdentifier` a été créé par Convex Auth : c'est le cas nominal.
+      // Les jetons restants sont hérités (pré-provisionnement, jeux de démo, bypass dev).
+      origine: u.enAttente ? "attente"
+        : !u.tokenIdentifier ? "compte"
+        : u.tokenIdentifier.startsWith(PENDING_PREFIX) ? "pending"
+        : u.tokenIdentifier.startsWith("demo:") ? "demo"
+        : u.tokenIdentifier.startsWith("dev:") ? "dev"
+        : "autre",
     })).sort((a, b) => (a.nom ?? a.email).localeCompare(b.nom ?? b.email));
   },
 });
@@ -54,6 +71,12 @@ export const modifier = mutation({
     const propre = Object.fromEntries(Object.entries(patch).filter(([, val]) => val !== undefined));
     await ctx.db.patch(userId, propre);
     const qui = cible.nom ?? cible.email;
+    // Autorisation d'une inscription spontanée : l'activation lève le drapeau d'attente et
+    // donne réellement accès (jusque-là, le compte avait une session mais aucun droit).
+    if (patch.isActive === true && cible.enAttente) {
+      await ctx.db.patch(userId, { enAttente: undefined });
+      await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "membre_autorisation", cible: qui, detail: `accès accordé · ${LIBELLE[(patch.role ?? cible.role) as Role]}` });
+    }
     if (patch.role !== undefined && patch.role !== cible.role)
       await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "membre_role", cible: qui, detail: `${LIBELLE[cible.role as Role]} → ${LIBELLE[patch.role as Role]}` });
     if (patch.isActive !== undefined && patch.isActive !== cible.isActive)
@@ -63,17 +86,31 @@ export const modifier = mutation({
   },
 });
 
-// Pré-provisionnement par e-mail : le membre sera rattaché à son identité OIDC à sa première connexion (lib/authz).
+// Pré-provisionnement par e-mail : le membre est créé avec son rôle AVANT toute connexion.
+// Sa ligne porte le jeton "pending:<email>" jusqu'à ce qu'il s'inscrive avec cette adresse ;
+// `auth.createOrUpdateUser` la rattache alors à son compte (voir auth.ts). C'est le chemin
+// nominal — une inscription non pré-provisionnée n'obtient aucun droit.
 export const creer = mutation({
   args: { email: v.string(), nom: v.optional(v.string()), role: ROLE, poste: v.optional(v.string()), departement: v.optional(v.string()), societe: v.optional(SOCIETE), codeAcces: v.optional(v.string()) },
   handler: async (ctx, a) => {
     const me = await requireLevel(ctx, 7);
     const email = a.email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Adresse e-mail invalide.");
-    if (await ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", email)).first()) throw new Error("Un membre existe déjà avec cet e-mail.");
+    if (await ctx.db.query("users").withIndex("email", (q) => q.eq("email", email)).first()) throw new Error("Un membre existe déjà avec cet e-mail.");
     const id = await ctx.db.insert("users", { tokenIdentifier: `${PENDING_PREFIX}${email}`, email, nom: a.nom?.trim() || undefined, role: a.role, poste: a.poste || undefined, departement: a.departement || undefined, societe: a.societe, codeAcces: a.codeAcces || undefined, isActive: true });
     await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "membre_creation", cible: a.nom?.trim() || email, detail: `${LIBELLE[a.role as Role]} · en attente de rattachement` });
     return id;
+  },
+});
+
+// Contrôle d'accès pour les ACTIONS (qui n'ont pas `ctx.db`) : l'identité est propagée
+// par `ctx.runQuery`, donc `requireLevel` s'applique normalement ici.
+// Usage : `await ctx.runQuery(internal.users.verifierNiveau, { min: 7 })`.
+export const verifierNiveau = internalQuery({
+  args: { min: v.number() },
+  handler: async (ctx, { min }) => {
+    const u = await requireLevel(ctx, min);
+    return { userId: u._id, nom: u.nom ?? u.email, role: u.role };
   },
 });
 

@@ -1,7 +1,7 @@
 import { mutation, action } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { BAREME_DEFAUT } from "./lib/paie";
-import { DEV_TOKEN } from "./lib/authz";
+import { DEV_TOKEN, requireLevelOuAmorcage } from "./lib/authz";
 
 // Amorçage de démonstration : membre DG (dev), entreprise, barème, effectif de démo.
 // Idempotent : ne recrée pas ce qui existe déjà ; complète la date d'embauche des employés de démo qui n'en ont pas.
@@ -19,6 +19,9 @@ const EMPLOYES_DEMO = [
 export const initialiser = mutation({
   args: {},
   handler: async (ctx) => {
+    // Ouvert uniquement sur un déploiement vierge (c'est cette mutation qui crée le premier DG) ;
+    // dès qu'un membre existe, réservé au Directeur Général.
+    await requireLevelOuAmorcage(ctx, 7);
     const r = { user: false, entreprise: false, bareme: false, employes: 0, datesCompletees: 0 };
 
     const dg = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("tokenIdentifier", DEV_TOKEN)).unique();
@@ -102,6 +105,7 @@ type ResultatPhase2 = { journees: number; documents: number; ignores: number };
 export const phase2 = action({
   args: {},
   handler: async (ctx): Promise<ResultatPhase2> => {
+    await ctx.runQuery(internal.users.verifierNiveau, { min: 7 });
     const r: ResultatPhase2 = { journees: 0, documents: 0, ignores: 0 };
     for (const j of JOURNEES_DEMO) {
       const res: { cree: boolean } = await ctx.runMutation(internal.financier.ecrireJourneeInterne, {

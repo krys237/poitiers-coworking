@@ -1,6 +1,6 @@
 // Phase 4 — données de démo : auditeur externe, lignes et rapports d'audit (mois courant + précédent), journal (idempotent).
 import { query, mutation } from "./_generated/server";
-import { DEV_TOKEN } from "./lib/authz";
+import { DEV_TOKEN, requireLevel } from "./lib/authz";
 import { moisPrecedent } from "./lib/audit";
 import { journaliser } from "./lib/journal";
 
@@ -35,6 +35,7 @@ export const etatDemo4 = query({
 export const phase4 = mutation({
   args: {},
   handler: async (ctx) => {
+    await requireLevel(ctx, 7);
     const r = { auditeur: 0, lignes: 0, rapports: 0, journal: 0, ignores: 0 };
     const dev = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("tokenIdentifier", DEV_TOKEN)).unique();
     if (!dev) throw new Error("Initialisez d'abord les données de base (membre dev).");

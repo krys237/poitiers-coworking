@@ -1,16 +1,20 @@
-// Configuration des fournisseurs d'authentification OIDC.
+// Configuration du fournisseur d'authentification.
 //
-// IMPORTANT : Convex analyse ce fichier statiquement au push et REFUSE toute référence
-// à une variable d'environnement non définie (même dans une condition). Ne pas utiliser
-// process.env ici tant que les variables ne sont pas créées sur le déploiement.
+// Depuis P1, l'authentification est assurée par Convex Auth (voir `auth.ts`) : le déploiement
+// signe lui-même les jetons, il n'y a plus d'IdP externe à déclarer. `applicationID: "convex"`
+// est la valeur imposée par Convex Auth, et le domaine est celui du déploiement lui-même.
 //
-// En développement : aucun fournisseur, on utilise AUTH_DEV_BYPASS=true (voir lib/authz.ts).
+// ⚠️ PIÈGE : ce fichier est analysé STATIQUEMENT au push et toute référence à une variable
+// d'environnement non définie fait échouer le déploiement (→ aucune fonction, page blanche).
+// `CONVEX_SITE_URL` est une variable système, toujours présente : elle est donc sûre ici.
+// Ne jamais y référencer une variable créée à la main sans l'avoir définie AVANT le push.
 //
-// Pour activer l'OIDC (OTP e-mail + Google) :
-//   1. Créer CONVEX_OIDC_DOMAIN et CONVEX_OIDC_APP_ID sur le déploiement (npx convex env set …).
-//   2. Remplacer `providers: []` par :
-//        providers: [{ domain: process.env.CONVEX_OIDC_DOMAIN!, applicationID: process.env.CONVEX_OIDC_APP_ID! }],
-//   3. Retirer AUTH_DEV_BYPASS en production.
+// Prérequis sur le déploiement (sinon l'application est silencieusement toujours déconnectée) :
+//   npx convex env set "JWT_PRIVATE_KEY=<clé PKCS8>"
+//   npx convex env set "JWKS=<JWKS JSON>"
+//   npx convex env set SITE_URL http://localhost:5173     (URL du front, pour les liens e-mail)
 export default {
-  providers: [],
+  providers: [
+    { domain: process.env.CONVEX_SITE_URL, applicationID: "convex" },
+  ],
 };

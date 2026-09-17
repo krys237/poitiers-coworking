@@ -9,7 +9,10 @@ import { MODELE_DEFAUT, rendreLettre, htmlEmail, libellePeriode } from "./lib/co
 // Mode d'envoi : réel si RESEND_API_KEY est défini sur le déploiement, sinon simulation (journal seul).
 export const mode = query({
   args: {},
-  handler: async () => ({ reel: !!process.env.RESEND_API_KEY }),
+  handler: async (ctx) => {
+    await requireLevel(ctx, 4);
+    return { reel: !!process.env.RESEND_API_KEY };
+  },
 });
 
 // Aperçu du courrier du mois : une ligne par employé (lettre rendue + bulletin + dernier envoi).

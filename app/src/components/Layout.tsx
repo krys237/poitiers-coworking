@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { canAccess, Role } from "../../convex/rbac";
 import { Header } from "./Header";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -29,7 +28,10 @@ import {
   History,
   Code2,
   Settings,
+  LogOut,
 } from "lucide-react";
+import { useMe } from "../auth/useMe";
+import "../auth/auth.css";
 
 type NavItem = {
   to: string;
@@ -55,8 +57,10 @@ const NAV: { grp: string; items: NavItem[] }[] = [
     grp: "Paie",
     items: [
       { to: "/employes", label: "Employés", perm: "/employes", icon: Users },
-      { to: "/paie/saisie", label: "Récapitulatif salaires", perm: "/paie", icon: TableProperties },
-      { to: "/paie/liste", label: "Liste des salaires", perm: "/paie", icon: ListOrdered },
+      // `perm` reprend exactement la clé de la route correspondante dans App.tsx :
+      // le menu et le garde d'accès lisent ainsi la même ligne de `NIVEAU_MODULE`.
+      { to: "/paie/saisie", label: "Récapitulatif salaires", perm: "/paie/saisie", icon: TableProperties },
+      { to: "/paie/liste", label: "Liste des salaires", perm: "/paie/liste", icon: ListOrdered },
       { to: "/paie/bulletins", label: "Bulletins du mois", perm: "/paie/bulletins", icon: FileCheck2 },
       { to: "/paie/courrier", label: "Courrier de paie", perm: "/paie/courrier", icon: Mail },
       { to: "/paie/planning", label: "Planning des absences", perm: "/paie/planning", icon: CalendarDays },
@@ -81,10 +85,12 @@ function SidebarContent({
   role,
   me,
   onItemClick,
+  signOut,
 }: {
   role: Role;
   me: any;
   onItemClick?: () => void;
+  signOut: () => Promise<unknown>;
 }) {
   return (
     <div className="relative flex h-full flex-col justify-between bg-white text-slate-800 overflow-hidden border-r border-slate-200/80">
@@ -186,7 +192,7 @@ function SidebarContent({
           <div className="text-2xs text-slate-400">Chargement…</div>
         ) : me === null ? (
           <div className="rounded-lg bg-amber-950/40 p-2 text-2xs text-amber-200 border border-amber-800/40">
-            Non connecté (mode démo)
+            Session expirée — rechargez la page.
           </div>
         ) : (
           <div className="flex items-center gap-2.5">
@@ -202,6 +208,15 @@ function SidebarContent({
                 <span className="truncate">{me.roleLibelle} · niv. {me.niveau}</span>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              title="Se déconnecter"
+              aria-label="Se déconnecter"
+              className="shrink-0 rounded-lg p-1.5 text-slate-300 transition-colors hover:bg-ocean-profond hover:text-white"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         )}
       </div>
@@ -210,7 +225,10 @@ function SidebarContent({
 }
 
 export function Layout() {
-  const me = useQuery(api.users.me);
+  const me = useMe();
+  const { signOut } = useAuthActions();
+  // `PortailAuth` garantit qu'on n'arrive ici qu'avec un membre autorisé ; le repli sur
+  // "employe" ne sert qu'au bref instant de rechargement d'une session.
   const role = (me?.role ?? "employe") as Role;
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -219,7 +237,7 @@ export function Layout() {
       {/* Sidebar Desktop Fixe */}
       <aside className="hidden w-64 shrink-0 md:block">
         <div className="sticky top-0 h-screen shadow-md">
-          <SidebarContent role={role} me={me} />
+          <SidebarContent role={role} me={me} signOut={signOut} />
         </div>
       </aside>
 
@@ -230,6 +248,7 @@ export function Layout() {
           <SidebarContent
             role={role}
             me={me}
+            signOut={signOut}
             onItemClick={() => setMobileOpen(false)}
           />
         </SheetContent>
@@ -237,6 +256,14 @@ export function Layout() {
 
       {/* Conteneur Principal avec Header Bar et Contenu */}
       <div className="flex flex-1 flex-col min-w-0">
+        {/* Tant que AUTH_DEV_BYPASS est actif, TOUTE personne disposant du lien est
+            Directeur Général. Le bandeau doit rester visible et déplaisant. */}
+        {me?.modeDev && (
+          <div className="auth-bandeau-dev">
+            Mode développement actif (<code>AUTH_DEV_BYPASS</code>) — toute personne ayant ce lien
+            dispose des droits de Directeur Général. À désactiver avant toute diffusion.
+          </div>
+        )}
         <Header onOpenMobileMenu={() => setMobileOpen(true)} />
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
           <Outlet />
