@@ -25,7 +25,9 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
     // Mot de passe : inscription et connexion par e-mail + mot de passe.
     Password({
       validatePasswordRequirements: (mot: string) => {
-        if (mot.length < 10) throw new Error("Le mot de passe doit contenir au moins 10 caractères.");
+        // 8 caractères : seuil provisoire retenu pour la mise en service. À relever avant
+        // l'ouverture des comptes à l'ensemble du personnel.
+        if (mot.length < 8) throw new Error("Le mot de passe doit contenir au moins 8 caractères.");
         if (!/[a-zA-Z]/.test(mot) || !/[0-9]/.test(mot)) throw new Error("Le mot de passe doit mêler lettres et chiffres.");
       },
     }),

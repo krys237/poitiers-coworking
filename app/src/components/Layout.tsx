@@ -1,7 +1,8 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { useQuery } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { useAuthActions } from "@convex-dev/auth/react";
 import { canAccess, Role } from "../../convex/rbac";
+import { useMe } from "../auth/useMe";
+import "../auth/auth.css";
 
 const NAV: { grp: string; items: { to: string; label: string; perm: string }[] }[] = [
   { grp: "Exploitation", items: [
@@ -17,8 +18,10 @@ const NAV: { grp: string; items: { to: string; label: string; perm: string }[] }
     grp: "Paie",
     items: [
       { to: "/employes", label: "Employés", perm: "/employes" },
-      { to: "/paie/saisie", label: "Récapitulatif salaires", perm: "/paie" },
-      { to: "/paie/liste", label: "Liste des salaires", perm: "/paie" },
+      // `perm` reprend exactement la clé de la route correspondante dans App.tsx :
+      // le menu et le garde d'accès lisent ainsi la même ligne de `NIVEAU_MODULE`.
+      { to: "/paie/saisie", label: "Récapitulatif salaires", perm: "/paie/saisie" },
+      { to: "/paie/liste", label: "Liste des salaires", perm: "/paie/liste" },
       { to: "/paie/bulletins", label: "Bulletins du mois", perm: "/paie/bulletins" },
       { to: "/paie/courrier", label: "Courrier de paie", perm: "/paie/courrier" },
       { to: "/paie/planning", label: "Planning des absences", perm: "/paie/planning" },
@@ -37,7 +40,10 @@ const NAV: { grp: string; items: { to: string; label: string; perm: string }[] }
 ];
 
 export function Layout() {
-  const me = useQuery(api.users.me);
+  const me = useMe();
+  const { signOut } = useAuthActions();
+  // `PortailAuth` garantit qu'on n'arrive ici qu'avec un membre autorisé ; le repli sur
+  // "employe" ne sert qu'au bref instant de rechargement d'une session.
   const role = (me?.role ?? "employe") as Role;
 
   return (
@@ -46,8 +52,16 @@ export function Layout() {
         <div className="brand">POITIERS COWORKING</div>
         <div className="me">
           {me === undefined ? "…" : me === null ? (
-            <span>Non connecté — activer <code>AUTH_DEV_BYPASS</code> et initialiser la démo.</span>
-          ) : (<><b>{me.nom ?? me.email}</b>{me.roleLibelle} · niv. {me.niveau}</>)}
+            <span>Session expirée — rechargez la page.</span>
+          ) : (
+            <div className="auth-moi">
+              <b>{me.nom ?? me.email}</b>
+              <span>{me.roleLibelle} · niv. {me.niveau}</span>
+              <button className="auth-deconnexion" type="button" onClick={() => void signOut()}>
+                Se déconnecter
+              </button>
+            </div>
+          )}
         </div>
         {NAV.map((g) => {
           const items = g.items.filter((i) => canAccess(role, i.perm));
@@ -64,7 +78,17 @@ export function Layout() {
           );
         })}
       </aside>
-      <main className="main"><Outlet /></main>
+      <main className="main">
+        {/* Tant que AUTH_DEV_BYPASS est actif, TOUTE personne disposant du lien est
+            Directeur Général. Le bandeau doit rester visible et déplaisant. */}
+        {me?.modeDev && (
+          <div className="auth-bandeau-dev">
+            Mode développement actif (<code>AUTH_DEV_BYPASS</code>) — toute personne ayant ce lien
+            dispose des droits de Directeur Général. À désactiver avant toute diffusion.
+          </div>
+        )}
+        <Outlet />
+      </main>
     </div>
   );
 }
