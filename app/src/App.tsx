@@ -21,11 +21,16 @@ import { Membres } from "./pages/Membres";
 import { Journal } from "./pages/Journal";
 import { ApiReadme } from "./pages/ApiReadme";
 import { Bareme } from "./pages/Bareme";
+import { Charte } from "./pages/Charte";
 
 export function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Reference visuelle de la charte. Hors de la coquille applicative :
+            elle ne lit aucune donnee et doit rester consultable meme pendant la
+            refonte du Layout. Voir REFONTE-UX.md. */}
+        <Route path="/charte" element={<Charte />} />
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/employes" element={<Employes />} />

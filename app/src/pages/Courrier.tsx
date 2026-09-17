@@ -138,7 +138,7 @@ export function Courrier() {
             </div>
             <div className="lettre-corps">{l.lettre}</div>
           </div>
-          <BulletinCard b={l.bulletin} periode={periode} entreprise={apercu?.entreprise} />
+          <BulletinCard b={l.bulletin} entreprise={apercu?.entreprise} />
         </section>
       ))}
     </>

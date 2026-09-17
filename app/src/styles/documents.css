@@ -1,0 +1,278 @@
+/* ============================================================================
+   Documents imprimables — bulletins, courriers, recapitulatifs
+   ----------------------------------------------------------------------------
+   Ces regles ne servent QUE ce qui sort sur papier. Elles restent en CSS pur
+   et non en utilitaires : une feuille A4 se raisonne en millimetres, et le
+   moteur d'impression doit pouvoir les appliquer sans dependre du JS.
+
+   Regle de mesure : a l'ecran on travaille en px, ici en MM et en PT. Un
+   bulletin doit tomber juste sur une A4 chez le directeur, pas « a peu pres ».
+   ========================================================================= */
+
+:root {
+  --doc-marge: 12mm;
+  --doc-largeur: 186mm; /* A4 (210 mm) moins deux marges de 12 mm */
+  --doc-filet: #8a968d;
+  --doc-filet-fin: #c3cdc4;
+}
+
+/* --- La feuille -----------------------------------------------------------
+   A l'ecran : une feuille posee sur le papier de listing, largeur reelle A4.
+   A l'impression : la page elle-meme, sans ornement. */
+.feuille {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--doc-largeur);
+  margin: 0 auto 18px;
+  padding: 14mm 12mm;
+  background: #fff;
+  border: 1px solid var(--filet);
+  color: var(--encre);
+  font-size: 10.5pt;
+  line-height: 1.45;
+}
+
+.feuille + .feuille {
+  margin-top: 0;
+}
+
+/* En-tete d'un document : raison sociale a gauche, nature de l'acte a droite.
+   Le filet epais sous l'en-tete est le seul trait lourd de la page. */
+.doc-entete {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12mm;
+  padding-bottom: 3mm;
+  margin-bottom: 5mm;
+  border-bottom: 2.5pt solid var(--sceau);
+}
+
+.doc-entete .raison {
+  font-size: 13pt;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--sceau);
+}
+
+.doc-entete .coordonnees {
+  margin-top: 1mm;
+  font-size: 8pt;
+  line-height: 1.4;
+  color: #5b6860;
+}
+
+.doc-entete .nature {
+  text-align: right;
+  font-size: 11pt;
+  font-weight: 700;
+}
+
+.doc-entete .nature .periode {
+  display: block;
+  margin-top: 0.5mm;
+  font-size: 8.5pt;
+  font-weight: 400;
+  color: #5b6860;
+}
+
+/* --- Tableaux de document -------------------------------------------------
+   Bordes sur toutes les cellules : c'est la convention du bulletin de paie,
+   et cela evite qu'une ligne de chiffres se lise de travers sur une photocopie. */
+.doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9pt;
+}
+
+.doc-table th,
+.doc-table td {
+  border: 0.5pt solid var(--doc-filet);
+  padding: 1.2mm 1.8mm;
+  vertical-align: top;
+}
+
+.doc-table thead th {
+  background: var(--bande);
+  font-size: 8pt;
+  font-weight: 700;
+  text-align: left;
+}
+
+.doc-table .r {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.doc-table .c {
+  text-align: center;
+}
+
+.doc-table tr.appuyee td {
+  font-weight: 700;
+  background: #f4f7f2;
+}
+
+/* Bandeau de rubrique a l'interieur d'un document. */
+.doc-bandeau {
+  background: var(--sceau);
+  color: #fff;
+  font-size: 8.5pt;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 1.4mm 2mm;
+}
+
+/* Le montant qui conclut le document : net a payer, total arrete. */
+.doc-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6mm;
+  margin-top: 3mm;
+  padding: 2.5mm 3mm;
+  background: var(--sceau);
+  color: #fff;
+  font-weight: 700;
+}
+
+.doc-total .montant {
+  font-size: 14pt;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cases de bas de page : visa, signature, mentions. */
+.doc-cases {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3mm;
+  margin-top: 4mm;
+}
+
+.doc-case {
+  border: 0.5pt solid var(--doc-filet);
+  padding: 2mm 2.5mm;
+  min-height: 22mm;
+  font-size: 8.5pt;
+}
+
+.doc-case .intitule {
+  font-size: 7.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5b6860;
+  margin-bottom: 1.5mm;
+}
+
+/* Mention d'etat : un document provisoire doit se voir AVANT d'etre signe. */
+.doc-mention {
+  margin-top: 4mm;
+  padding: 1.5mm 2.5mm;
+  text-align: center;
+  font-size: 8.5pt;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border: 0.5pt solid currentColor;
+}
+
+.doc-mention[data-etat="valide"] {
+  color: var(--sceau);
+  background: var(--sceau-clair);
+}
+
+.doc-mention[data-etat="provisoire"] {
+  color: var(--carmin);
+  background: var(--carmin-clair);
+}
+
+/* Filigrane des documents provisoires : present a l'ecran ET a l'impression,
+   pour qu'un brouillon ne circule pas comme un document arrete. */
+.doc-filigrane {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56pt;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--carmin);
+  opacity: 0.07;
+  transform: rotate(-24deg);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.feuille[data-filigrane] {
+  position: relative;
+  overflow: hidden;
+}
+
+.feuille[data-filigrane] > *:not(.doc-filigrane) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Corps d'une lettre : interligne plus genereux, retours a la ligne conserves. */
+.doc-lettre {
+  white-space: pre-line;
+  font-size: 10.5pt;
+  line-height: 1.7;
+  max-width: 68ch;
+}
+
+/* --- Impression ----------------------------------------------------------- */
+@media print {
+  @page {
+    size: A4;
+    margin: var(--doc-marge);
+  }
+
+  body {
+    background: #fff;
+  }
+
+  /* Tout ce qui n'est pas le document disparait. */
+  .sans-impression,
+  .no-print {
+    display: none !important;
+  }
+
+  .feuille {
+    max-width: none;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .feuille:last-of-type {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  /* Une ligne de tableau ne se coupe jamais entre deux pages. */
+  .doc-table tr,
+  .doc-case {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .doc-table thead {
+    display: table-header-group;
+  }
+
+  /* Les aplats doivent sortir a l'imprimante, sinon les bandeaux de rubrique
+     et le net a payer partent en blanc sur blanc. */
+  .doc-bandeau,
+  .doc-total,
+  .doc-table thead th,
+  .doc-mention,
+  .doc-filigrane {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

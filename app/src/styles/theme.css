@@ -1,0 +1,264 @@
+/* ============================================================================
+   POITIERS COWORKING — Charte « Registre »
+   ----------------------------------------------------------------------------
+   Direction : le vernaculaire du metier est le grand livre comptable. Le papier
+   de listing a bandes vertes, l'encre de bureau, le trait double sous les
+   totaux. Le heros de l'interface est LE TABLEAU DE CHIFFRES : c'est la que
+   passent 90 % des heures de travail. Tout le reste se tait.
+
+   La bande alternee n'est pas un ornement : sur le recapitulatif salaires
+   (18 colonnes), c'est elle qui empeche l'oeil de changer de ligne.
+
+   Un seul geste appuye, et il est authentique au metier : le FILET DOUBLE
+   sous les lignes de total — la convention comptable du « total arrete ».
+   ========================================================================= */
+
+@import "tailwindcss";
+
+/* Polices auto-hebergees : pas de CDN. La PWA doit s'ouvrir hors ligne, et la
+   connexion n'est pas garantie sur le terrain.
+   Le mono est limite au latin ; la variable sans expose tous ses sous-ensembles
+   mais le navigateur n'en telecharge aucun hors `unicode-range` (voir le
+   `globIgnores` de vite.config.ts, qui les sort aussi du pre-cache). */
+@import "@fontsource-variable/ibm-plex-sans/index.css";
+@import "@fontsource/ibm-plex-mono/latin-400.css";
+@import "@fontsource/ibm-plex-mono/latin-500.css";
+@import "@fontsource/ibm-plex-mono/latin-600.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* --- Palette « Ocean Breeze » & Métier ------------------------------------ */
+:root {
+  /* Nuances Ocean Breeze */
+  --ocean-nuit:     #03045e;  /* Bleu nuit profond : fond de la sidebar, ancrage */
+  --ocean-profond:  #0077b6;  /* Bleu océan : primaire, boutons clés, items actifs */
+  --ocean-ceruleen: #00b4d8;  /* Bleu céruléen : accents interactifs, puces lumineuses */
+  --ocean-ciel:     #90e0ef;  /* Bleu ciel doux : fonds d'icônes, surfaces d'accent */
+  --ocean-brume:    #caf0f8;  /* Brume givrée : fonds de badges, surbrillance subtile */
+
+  /* Surfaces & Fonds */
+  --papier:         #f6f9fb;  /* Fond canvas principal feutré et reposant */
+  --bande:          #eaf3f8;  /* Lignes alternées des tableaux de chiffres */
+  --encre:          #0b132b;  /* Texte principal : bleu-noir ardoisé dense */
+  --surface:        #ffffff;  /* Surface des cartes */
+
+  /* Déclinaisons de texte & filets */
+  --encre-douce:    #334155;  /* Texte secondaire */
+  --encre-pale:     #64748b;  /* Métadonnées, légendes */
+  --filet:          #e2e8f0;  /* Bordures des cartes et séparateurs */
+  --filet-clair:    #f1f5f9;  /* Filets fins de tableaux et graduations */
+
+  /* Couleurs sémantiques métier */
+  --sceau:          #0077b6;  /* Primaire métier */
+  --sceau-clair:    #caf0f8;
+  --carmin:         #9e2b20;  /* Débit, verrou, clôture, erreur */
+  --carmin-clair:   #fee2e2;
+  --ocre:           #8a5d12;  /* En attente, mois ouvert, vigilance */
+  --ocre-clair:     #fef3c7;
+  --ardoise:        #00b4d8;  /* Information, sélection */
+  --ardoise-clair:  #e0f7fa;
+
+  /* --- Contrat shadcn/ui ------------------------------------------------- */
+  --background: var(--papier);
+  --foreground: var(--encre);
+  --card: var(--surface);
+  --card-foreground: var(--encre);
+  --popover: var(--surface);
+  --popover-foreground: var(--encre);
+  --primary: var(--ocean-profond);
+  --primary-foreground: #ffffff;
+  --secondary: var(--bande);
+  --secondary-foreground: var(--encre);
+  --muted: var(--filet-clair);
+  --muted-foreground: var(--encre-douce);
+  --accent: var(--ocean-brume);
+  --accent-foreground: var(--ocean-profond);
+  --destructive: var(--carmin);
+  --destructive-foreground: #ffffff;
+  --border: var(--filet);
+  --input: var(--filet);
+  --ring: var(--ocean-ceruleen);
+
+  /* Sidebar aux couleurs Ocean Breeze */
+  --sidebar: var(--ocean-nuit);
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-primary: var(--ocean-profond);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #0f167a;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #131d8f;
+  --sidebar-ring: var(--ocean-ceruleen);
+
+  /* Séries de graphiques Ocean Breeze */
+  --chart-1: var(--ocean-profond);
+  --chart-2: var(--ocean-ceruleen);
+  --chart-3: var(--ocean-nuit);
+  --chart-4: var(--ocean-ciel);
+  --chart-5: #15803d;
+
+  /* Rayon moderne */
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Couleurs de la charte Ocean Breeze en utilitaires : bg-ocean-nuit, text-ocean-ceruleen… */
+  --color-ocean-nuit: var(--ocean-nuit);
+  --color-ocean-profond: var(--ocean-profond);
+  --color-ocean-ceruleen: var(--ocean-ceruleen);
+  --color-ocean-ciel: var(--ocean-ciel);
+  --color-ocean-brume: var(--ocean-brume);
+
+  /* Couleurs de la charte en utilitaires : bg-bande, text-carmin, border-filet… */
+  --color-papier: var(--papier);
+  --color-bande: var(--bande);
+  --color-encre: var(--encre);
+  --color-encre-douce: var(--encre-douce);
+  --color-encre-pale: var(--encre-pale);
+  --color-sceau: var(--sceau);
+  --color-sceau-clair: var(--sceau-clair);
+  --color-carmin: var(--carmin);
+  --color-carmin-clair: var(--carmin-clair);
+  --color-ocre: var(--ocre);
+  --color-ocre-clair: var(--ocre-clair);
+  --color-ardoise: var(--ardoise);
+  --color-ardoise-clair: var(--ardoise-clair);
+  --color-filet: var(--filet);
+  --color-filet-clair: var(--filet-clair);
+  --color-surface: var(--surface);
+
+  --font-sans: "IBM Plex Sans Variable", "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+
+  /* Echelle typographique — base 15px, densite back-office */
+  --text-2xs: 0.6875rem;   /* 11px — metadonnees, legendes  */
+  --text-xs: 0.75rem;      /* 12px — libelles de colonne    */
+  --text-sm: 0.8125rem;    /* 13px — contenu de tableau     */
+  --text-base: 0.9375rem;  /* 15px — corps                  */
+  --text-lg: 1.0625rem;    /* 17px — sous-titre             */
+  --text-xl: 1.25rem;      /* 20px — titre de section       */
+  --text-2xl: 1.5rem;      /* 24px — titre de page          */
+  --text-3xl: 1.875rem;    /* 30px — chiffre de tuile       */
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+
+  /* Ombres : une seule, discrete, reservee aux elements FLOTTANTS
+     (menus, dialogues). Jamais sous une carte posee. */
+  --shadow-flottant: 0 8px 24px -8px rgb(21 28 24 / 0.24), 0 2px 6px -2px rgb(21 28 24 / 0.12);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.5;
+    font-feature-settings: "kern", "liga";
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Scrollbars ultra-fines et discrètes */
+  ::-webkit-scrollbar {
+    width: 3.5px;
+    height: 3.5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #0077b6;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+  }
+
+  /* Tous les chiffres s'alignent en colonne, partout, sans exception. */
+  table,
+  input[type="number"],
+  [data-chiffre] {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /* Anneau de focus visible — condition d'acces au clavier. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  ::selection {
+    background: var(--sceau-clair);
+    color: var(--sceau);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* ---- Le geste signature : le filet double du total arrete --------------
+     Convention comptable : un total est « arrete » par un double trait.
+     Applique au <tfoot> des tableaux de synthese. */
+  .filet-double {
+    border-top: 3px double var(--encre);
+  }
+}

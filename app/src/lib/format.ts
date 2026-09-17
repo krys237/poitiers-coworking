@@ -1,5 +1,16 @@
-export const fcfa = (n: number) => `${Math.round(n).toLocaleString("fr-FR")} FCFA`;
-export const num = (n: number) => Math.round(n).toLocaleString("fr-FR");
+// `toLocaleString("fr-FR")` separe les milliers par une espace fine insecable
+// (U+202F). Deux raisons de ne pas la garder :
+//   - en colonne, elle est si etroite que « 285 000 » se lit « 285000 », ce qui
+//     annule le benefice de l'alignement des chiffres ;
+//   - elle n'est pas encodable en Latin-1, donc elle casse la generation des
+//     PDF (cf. le `clean()` de convex/paiePdf.ts et la note de CLAUDE.md).
+// On la remplace par une espace insecable ordinaire (U+00A0) : lisible, et
+// encodable par les polices standard du PDF.
+const espacerMilliers = (n: number) =>
+  Math.round(n).toLocaleString("fr-FR").replace(/ /g, " ");
+
+export const fcfa = (n: number) => `${espacerMilliers(n)} FCFA`;
+export const num = (n: number) => espacerMilliers(n);
 
 const MOIS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 export const libellePeriode = (p: string) => {
