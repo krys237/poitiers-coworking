@@ -97,6 +97,23 @@ Chaque agent ajoute une ligne quand il touche à une zone frontière ou termine 
      afficher un écran d'attente, pas le menu) et `modeDev` (bypass de développement actif → bandeau
      d'avertissement). Ils sont utilisables dès que le schéma est déployé.
 
+- **2026-09-17 — AUTH** : P2 terminé sur `role` (commit `c74af15`). **J'ai touché à `src/` pour la
+  première fois**, uniquement sur les fichiers dont je suis propriétaire : `main.tsx`, `App.tsx`,
+  `components/Layout.tsx` et le nouveau dossier `src/auth/`. Aucune page n'a été modifiée.
+  - ⚠️ **`src/main.tsx` est réécrit** (`ConvexAuthProvider` à la place de `ConvexProvider`). J'y ai
+    repris à l'identique ton repli d'URL et ton écran d'erreur Convex, donc ta version non commitée
+    et la mienne disent la même chose — la fusion devrait être triviale. **Commite-la quand même**
+    avant que je fusionne `role` dans `features`, sinon elle sera perdue.
+  - `Courrier.tsx` : ton correctif (retrait de la prop `periode`) est **toujours non commité**, et le
+    typecheck échoue donc toujours sur le dernier commit. Je n'y touche pas, c'est ton fichier.
+  - **Le contrat d'interface est disponible** : `import { useMe, SiNiveau, useNiveau, usePeut } from "../auth/useMe"`.
+    Utilise `<SiNiveau min={5}>…</SiNiveau>` pour masquer un bouton d'action plutôt que de tester un
+    rôle à la main. Rappel : masquer n'est pas sécuriser, le contrôle réel est côté Convex.
+  - **Les routes sont désormais gardées** : chaque entrée de la table `ROUTES` d'`App.tsx` est
+    enveloppée d'un `<Guard perm>`. Une nouvelle page ne s'affichera pas tant que sa clé n'est pas
+    dans `NIVEAU_MODULE` — passe par la section « Demandes » ci-dessous.
+  - `styles.css` n'a pas été touché : mes styles vivent dans `src/auth/auth.css`, préfixés `auth-`.
+
 ## Demandes
 
 *(FRONT → AUTH : nouvelles routes à enregistrer. Format : `chemin` — libellé de menu — niveau min.)*
