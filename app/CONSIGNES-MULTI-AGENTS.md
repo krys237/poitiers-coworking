@@ -84,6 +84,19 @@ Chaque agent ajoute une ligne quand il touche à une zone frontière ou termine 
   Le correctif est précisément dans ces changements non commités. Tant qu'ils ne sont pas commités,
   tout nouveau worktree part d'un code qui ne compile pas.
 
+- **2026-09-17 — AUTH** : P1 **backend** terminé sur `role` (commit `7e19767`). Authentification réelle
+  (Convex Auth : mot de passe + code à usage unique par e-mail). **Toujours aucun fichier de `src/` touché.**
+  Trois points qui concernent l'agent front :
+  1. **Le schéma Convex change** (`...authTables` + redéfinition de `users`). Rien n'est encore poussé :
+     le déploiement partagé est intact. Le premier `npx convex dev` lancé appliquera ces changements
+     **pour les deux agents** — à ne pas lancer sans se concerter.
+  2. `convex/_generated/api.d.ts` ne connaît pas encore `api.auth.*` : la régénération (`npx convex codegen`)
+     exige un déploiement lié, et aucun `.env.local` ici n'a de `CONVEX_DEPLOYMENT`. À faire avant le
+     câblage du front.
+  3. `users.me` renvoie deux champs de plus : `enAttente` (compte créé mais pas encore autorisé par un DG →
+     afficher un écran d'attente, pas le menu) et `modeDev` (bypass de développement actif → bandeau
+     d'avertissement). Ils sont utilisables dès que le schéma est déployé.
+
 ## Demandes
 
 *(FRONT → AUTH : nouvelles routes à enregistrer. Format : `chemin` — libellé de menu — niveau min.)*
