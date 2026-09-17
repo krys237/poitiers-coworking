@@ -107,8 +107,6 @@ export function Financier() {
     return c;
   }, [draft]);
 
-  const totalMobile = (soldes.poitiers_om ?? 0) + (soldes.poitiers_momo ?? 0) + (soldes.lilas_om ?? 0) + (soldes.lilas_momo ?? 0);
-
   // Historique pour sparkline (du plus ancien au plus récent)
   const chronoHisto = useMemo(() => {
     return [...(histo ?? [])].reverse();
@@ -176,8 +174,9 @@ export function Financier() {
 
       {msg && <div className="note">{msg}</div>}
 
-      {/* Bandeau de 4 KPI cartes synthétiques */}
+      {/* Bandeau de 8 KPI cartes superposées en 2 lignes de 4 */}
       <div className="cockpit-kpis">
+        {/* LIGNE 1 : Recette totale et Caisses Poitiers */}
         <div className="cockpit-kpi highlight">
           <div className="k">
             <span>Recette du jour</span>
@@ -189,7 +188,7 @@ export function Financier() {
 
         <div className="cockpit-kpi">
           <div className="k">
-            <span>Solde F3 Poitiers</span>
+            <span>F3 Poitiers</span>
             <span className="badge">Espèces</span>
           </div>
           <div className="v" style={{ color: (soldes.poitiers_f3 ?? 0) < 0 ? "var(--red)" : undefined }}>
@@ -200,22 +199,69 @@ export function Financier() {
 
         <div className="cockpit-kpi">
           <div className="k">
-            <span>Total Mobile Money</span>
-            <span className="badge">OM + MOMO</span>
+            <span>OM Poitiers</span>
+            <span className="badge" style={{ background: "#fff7ed", color: "#c2410c" }}>Orange Money</span>
           </div>
-          <div className="v">{fcfa(totalMobile)}</div>
-          <div className="subtext">Poitiers &amp; Les Lilas consolidés</div>
+          <div className="v" style={{ color: (soldes.poitiers_om ?? 0) < 0 ? "var(--red)" : undefined }}>
+            {fcfa(soldes.poitiers_om ?? 0)}
+          </div>
+          <div className="subtext">Solde Orange Money</div>
         </div>
 
         <div className="cockpit-kpi">
           <div className="k">
-            <span>Solde Carte Visa</span>
-            <span className="badge">TPE / Banque</span>
+            <span>MOMO Poitiers</span>
+            <span className="badge" style={{ background: "#fefce8", color: "#a16207" }}>MTN MOMO</span>
           </div>
-          <div className="v" style={{ color: (soldes.carte_visa ?? 0) < 0 ? "var(--red)" : undefined }}>
-            {fcfa(soldes.carte_visa ?? 0)}
+          <div className="v" style={{ color: (soldes.poitiers_momo ?? 0) < 0 ? "var(--red)" : undefined }}>
+            {fcfa(soldes.poitiers_momo ?? 0)}
           </div>
-          <div className="subtext">Compte Carte Visa</div>
+          <div className="subtext">Solde MTN Mobile Money</div>
+        </div>
+
+        {/* LIGNE 2 : Caisses Les Lilas et E DR TIM */}
+        <div className="cockpit-kpi">
+          <div className="k">
+            <span>F3 Les Lilas</span>
+            <span className="badge">Espèces</span>
+          </div>
+          <div className="v" style={{ color: (soldes.lilas_f3 ?? 0) < 0 ? "var(--red)" : undefined }}>
+            {fcfa(soldes.lilas_f3 ?? 0)}
+          </div>
+          <div className="subtext">Pharmacie Les Lilas</div>
+        </div>
+
+        <div className="cockpit-kpi">
+          <div className="k">
+            <span>OM Les Lilas</span>
+            <span className="badge" style={{ background: "#fff7ed", color: "#c2410c" }}>Orange Money</span>
+          </div>
+          <div className="v" style={{ color: (soldes.lilas_om ?? 0) < 0 ? "var(--red)" : undefined }}>
+            {fcfa(soldes.lilas_om ?? 0)}
+          </div>
+          <div className="subtext">OM Pharmacie</div>
+        </div>
+
+        <div className="cockpit-kpi">
+          <div className="k">
+            <span>MOMO Les Lilas</span>
+            <span className="badge" style={{ background: "#fefce8", color: "#a16207" }}>MTN MOMO</span>
+          </div>
+          <div className="v" style={{ color: (soldes.lilas_momo ?? 0) < 0 ? "var(--red)" : undefined }}>
+            {fcfa(soldes.lilas_momo ?? 0)}
+          </div>
+          <div className="subtext">MOMO Pharmacie</div>
+        </div>
+
+        <div className="cockpit-kpi">
+          <div className="k">
+            <span>E DR TIM Finance</span>
+            <span className="badge" style={{ background: "#eff6ff", color: "#1d4ed8" }}>Finance</span>
+          </div>
+          <div className="v" style={{ color: (soldes.edrtim_finance ?? 0) < 0 ? "var(--red)" : undefined }}>
+            {fcfa(soldes.edrtim_finance ?? 0)}
+          </div>
+          <div className="subtext">E DR TIM : {fcfa(soldes.edrtim ?? 0)}</div>
         </div>
       </div>
 
@@ -482,21 +528,22 @@ export function Financier() {
             COLONNE DROITE : Poste de Saisie Fluide & Segmenté
             ========================================================= */}
         <div>
-          {/* Sélecteur de caisse horizontal (Onglets clairs) */}
+          {/* Sélecteur de caisses en grille (4 colonnes x 2 lignes, 100% visible sans scroll) */}
           <div className="caisse-nav-wrap">
-            <div className="caisse-nav-scroll">
+            <div className="caisse-nav-grid">
               {BLOCS.map((b) => {
                 const estActif = b.cle === caisseActive;
                 const totalCaisse = b.lignes.filter((l) => l.sens === "entree").reduce((t, l) => t + (draft[b.cle]?.[l.cle] ?? 0), 0);
                 return (
                   <button
                     key={b.cle}
+                    type="button"
                     className={`caisse-nav-btn ${estActif ? "active" : ""}`}
                     onClick={() => setCaisseActive(b.cle)}
                   >
-                    <span>{b.libelle}</span>
+                    <span className="caisse-name">{b.libelle}</span>
                     <span className="pill-badge">
-                      {totalCaisse > 0 ? fcfa(totalCaisse) : "—"}
+                      {totalCaisse > 0 ? fcfa(totalCaisse) : "0 F"}
                     </span>
                   </button>
                 );
