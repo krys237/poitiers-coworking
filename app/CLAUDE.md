@@ -11,7 +11,8 @@ Reconstruction unifiée dérivée de deux plateformes analysées — voir `../CO
 - **Frontend** : React + TypeScript + Vite, en PWA installable.
 - **Backend + base** : **Convex** (réactif). Les requêtes sont des abonnements live → les calculs
   dérivés (bulletins, soldes financiers, totaux) se recomposent automatiquement à chaque écriture.
-- **Auth** : OIDC (OTP e-mail + Google). Le jeton porte le rôle/niveau du membre.
+- **Auth** : **Convex Auth** (mot de passe + code à usage unique par e-mail). La table `users` est
+  à la fois la table d'identité et le registre des rôles — voir « Phase 1 bis » plus bas.
 
 ## Principe directeur
 Combiner la **profondeur d'automatisation de la paie** (barème officiel lu/daté, recalcul temps réel,
@@ -28,7 +29,8 @@ app/
     bareme.ts        # barèmes datés (CNPS/CGI) + job de lecture officielle
     payroll.ts       # requêtes/mutations paie (s'appuient sur lib/paie.ts + bareme)
     employes.ts      # fiches employés + import Excel/CSV (upsert)
-    auth.config.ts   # configuration du fournisseur OIDC
+    auth.ts          # Convex Auth : fournisseurs + callbacks (création/rattachement des membres)
+    auth.config.ts   # déclaration du fournisseur de jetons (le déploiement lui-même)
   src/               # frontend React (coquille + écrans)
 ```
 
@@ -183,6 +185,29 @@ Convex agent skills for common tasks can be installed by running
 - Tests Node (`--experimental-strip-types`) : les libs pures importées par les tests doivent importer leurs dépendances avec
   l'extension `.ts` et `import type` pour les types (`convex/tsconfig.json` a `allowImportingTsExtensions`) ; pas de hook de
   résolution (`module.register` plante à la sortie sous Windows).
+
+## Phase 1 bis — Authentification (Convex Auth)
+- `convex/auth.ts` : `convexAuth({ providers: [Password, ResendOTP], callbacks })`. **Deux fournisseurs** :
+  mot de passe (10 caractères minimum, lettres + chiffres) et code à usage unique par e-mail.
+- `convex/authResendOtp.ts` : code à 6 chiffres tiré de `crypto.getRandomValues` (rejet du biais modulo),
+  valable 10 min, envoyé via l'API HTTP **Resend** (même clé `RESEND_API_KEY` que le courrier de paie).
+  Sans clé : refus net en production, code écrit dans les logs Convex si `AUTH_DEV_BYPASS=true`.
+- **La table `users` EST la table d'identité de Convex Auth** (`schema.ts` : `...authTables` puis
+  redéfinition de `users`). Conséquence : l'`_id` de session est directement l'`_id` du membre, donc
+  `getCurrentUser` se réduit à `ctx.db.get(await getAuthUserId(ctx))`. Les index **`email`** et **`phone`**
+  portent des noms imposés par Convex Auth (`server/implementation/users.js`) — ne pas les renommer.
+- **Une inscription ne donne aucun droit.** `callbacks.createOrUpdateUser` est l'unique porte d'entrée :
+  e-mail pré-provisionné par le DG (`users.creer`, jeton `pending:<email>`) → le compte reprend son rôle et
+  le jeton disparaît ; sinon → membre `role: "employe"`, `isActive: false`, **`enAttente: true`**.
+- `enAttente` distingue « jamais autorisé » de « désactivé » : le premier **obtient une session** (pour
+  afficher un écran d'attente au lieu d'une erreur opaque) mais `requireLevel` le refuse partout ;
+  le second est bloqué dès `callbacks.beforeSessionCreation`. `users.modifier` lève le drapeau à l'activation.
+- `users.me` expose `enAttente` et `modeDev` (bypass de développement actif) pour l'interface.
+- Connexions journalisées (`connexion`, `connexion_attente`, `membre_rattachement`, `membre_autorisation`).
+- **Variables à créer sur le déploiement AVANT le push** (sinon application silencieusement déconnectée) :
+  `JWT_PRIVATE_KEY`, `JWKS` (générées avec `jose`, cf. `.agents/skills/convex-auth`), `SITE_URL`.
+  Ne PAS lancer l'assistant interactif `npx @convex-dev/auth` : il bloque en environnement non interactif.
+- `http.ts` appelle `auth.addHttpRoutes(http)` — sans cela, aucun jeton n'est vérifié.
 
 ## Déploiement du frontend (Vercel)
 Convex n'héberge que le backend ; le frontend React se déploie sur Vercel (`vercel.json` à la racine de `app/`).

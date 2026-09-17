@@ -3,9 +3,14 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { auth } from "./auth";
 import { comparaisonConstante, dateValide, parseEntites, reponseApi, ENTITES } from "./lib/apiSecurite";
 
 const http = httpRouter();
+
+// Routes de Convex Auth (vérification des jetons, callbacks OAuth). Sans cet appel,
+// l'application reste silencieusement déconnectée quoi qu'il arrive côté client.
+auth.addHttpRoutes(http);
 const HEADERS = { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY" };
 const json = (statut: number, corps: unknown) => new Response(JSON.stringify(corps), { status: statut, headers: HEADERS });
 

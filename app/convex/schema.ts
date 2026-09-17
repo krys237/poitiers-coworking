@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { authTables } from "@convex-dev/auth/server";
 
 // Montants: toujours en ENTIERS FCFA (pas de décimales).
 // Périodes de paie: chaîne "YYYY-MM". Dates: chaîne "YYYY-MM-DD".
@@ -18,10 +19,29 @@ const ROLE = v.union(
 const SOCIETE = v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"));
 
 export default defineSchema({
+  // Tables de Convex Auth : authSessions, authAccounts, authRefreshTokens,
+  // authVerificationCodes, authVerifiers, authRateLimits — et `users`, que l'on REDÉFINIT
+  // juste en dessous pour que la table métier existante SOIT la table d'identité.
+  // L'ordre compte : notre définition de `users` écrase celle d'authTables.
+  ...authTables,
+
   // ---- Accès & organisation (Phase 0) ----
   users: defineTable({
-    tokenIdentifier: v.string(),      // identité OIDC
+    // Champs attendus par Convex Auth (tous optionnels côté métier).
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
+
+    // Champs métier. `email` reste OBLIGATOIRE : cette application n'a pas de compte
+    // anonyme, et toute création de membre passe par `auth.createOrUpdateUser`.
     email: v.string(),
+    // Jetons hérités : "dev:dg" (bypass de développement), "demo:*" (jeux de démo),
+    // "pending:<email>" (membre pré-provisionné pas encore connecté). Absent pour un
+    // compte créé par Convex Auth : l'identité est alors l'_id de la ligne elle-même.
+    tokenIdentifier: v.optional(v.string()),
     nom: v.optional(v.string()),
     role: ROLE,
     poste: v.optional(v.string()),
@@ -29,9 +49,16 @@ export default defineSchema({
     codeAcces: v.optional(v.string()),// code personnel optionnel
     societe: v.optional(SOCIETE),
     isActive: v.boolean(),
+    // Distingue « jamais encore autorisé » (inscription spontanée, en attente d'un DG) de
+    // « désactivé » (compte révoqué). Les deux ont isActive: false, mais seul le premier
+    // obtient une session — pour afficher un écran d'attente au lieu d'une erreur opaque.
+    enAttente: v.optional(v.boolean()),
   })
     .index("by_token", ["tokenIdentifier"])
-    .index("by_email", ["email"]),
+    // `email` et `phone` sont les noms d'index EXIGÉS par Convex Auth
+    // (server/implementation/users.js les interroge tels quels) — ne pas renommer.
+    .index("email", ["email"])
+    .index("phone", ["phone"]),
 
   parametresEntreprise: defineTable({ // singleton (une seule ligne)
     nom: v.string(),

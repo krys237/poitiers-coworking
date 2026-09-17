@@ -3,7 +3,11 @@ import { MutationCtx } from "../_generated/server";
 import { Id } from "../_generated/dataModel";
 
 export const ACTIONS = [
+  ["connexion", "Connexion"],
+  ["connexion_attente", "Connexion (compte en attente)"],
   ["membre_creation", "Création de membre"],
+  ["membre_rattachement", "Rattachement d'un compte"],
+  ["membre_autorisation", "Autorisation d'un compte en attente"],
   ["membre_role", "Changement de rôle"],
   ["membre_activation", "Activation / désactivation"],
   ["membre_modification", "Modification de membre"],
