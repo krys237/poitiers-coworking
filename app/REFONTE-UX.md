@@ -340,6 +340,18 @@ npm run test:paie && npm run test:tresorerie && npm run test:fenetre \
 
 ---
 
+## 7 bis. À faire plus tard (relevé au fil des refontes)
+
+- **Tuiles KPI « faites main »** dans `Commandes.tsx`, `Documents.tsx`, `ComptesRendus.tsx` (et le
+  bandeau de `Financier.tsx`) : les remplacer par `<Tuile>` / `<GrilleTuiles>` (`app/tuile.tsx`) pour
+  une seule tuile dans toute la plateforme (celle de `Interventions.tsx` et du récapitulatif salaires).
+- **`legacy.css`** : retirer `.comment` et `.thumb`, orphelins depuis la refonte de `Interventions.tsx`
+  (règle n°7). À faire une fois le travail parallèle sur ce fichier commité.
+- **Récapitulatif salaires** : une fois l'option tranchée en réunion, supprimer les deux onglets non
+  retenus (`src/pages/recap/`) sans toucher au socle `commun.tsx`.
+- **`Montant` (`app/montant.tsx`)** : passer le `zero` par défaut de « — » à « 0 » gris quand toutes les
+  pages seront alignées sur le formalisme des chiffres (skill `poitiers-ui-ux-system` §3).
+
 ## 8. Ou regarder
 
 | Quoi | Ou |
