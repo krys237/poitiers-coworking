@@ -137,22 +137,26 @@ export function CelluleNombre({
   if (lectureSeule) {
     return (
       <span className="tabular-nums" title={libelle}>
-        {valeur === 0 ? <span className="text-encre-pale">—</span> : valeur.toLocaleString("fr-FR")}
+        {valeur === 0 ? <span className="text-encre-pale">0</span> : valeur.toLocaleString("fr-FR")}
       </span>
     );
   }
 
+  // Formalisme de saisie : un zéro n'est jamais tapé « par-dessus ». Le champ est
+  // vide et montre un « 0 » estompé ; au focus la valeur existante est
+  // sélectionnée (le premier chiffre l'écrase) ; effacer tout revient à 0.
   return (
     <input
       type="number"
       inputMode="numeric"
       aria-label={libelle}
       title={libelle}
-      value={valeur}
+      value={valeur === 0 ? "" : valeur}
+      placeholder="0"
       min={min}
       max={max}
       step={pas}
-      onChange={(e) => onChange(Number(e.target.value) || 0)}
+      onChange={(e) => onChange(e.target.value === "" ? 0 : Number(e.target.value) || 0)}
       onFocus={(e) => e.currentTarget.select()}
       style={{ width: largeur }}
       className={cn(
@@ -196,9 +200,11 @@ export function ChampNombre({
             {...props}
             type="number"
             inputMode="numeric"
-            value={valeur}
-            onChange={(e) => onChange(Number(e.target.value) || 0)}
-            className={cn("text-right tabular-nums", unite && "pr-12")}
+            value={valeur === 0 ? "" : valeur}
+            placeholder="0"
+            onChange={(e) => onChange(e.target.value === "" ? 0 : Number(e.target.value) || 0)}
+            onFocus={(e) => e.currentTarget.select()}
+            className={cn("text-right font-mono tabular-nums placeholder:text-encre-pale/70", unite && "pr-12")}
           />
           {unite ? (
             <span

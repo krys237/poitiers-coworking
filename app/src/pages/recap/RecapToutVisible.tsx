@@ -20,7 +20,7 @@ import { SqueletteTableau } from "@/components/app/chargement";
 import { TableVide } from "@/components/ui/table";
 import {
   type Brouillon, type BulletinLigne, type Champ, type FiltreRecap, type RecapPaie, type Valeurs, LIBELLE, SOCIETES, UNITE,
-  BarreFiltre, BarreRecap, EtatLigneBadge, LegendeRecap, PastilleSociete, TuilesRecap, totaux,
+  BarreFiltre, BarreRecap, EtatLigneBadge, LegendeRecap, N, PastilleSociete, TuilesRecap, totaux,
 } from "./commun";
 
 /** Cellule modifiable en place : texte formaté au repos, saisie brute au focus. */
@@ -35,7 +35,8 @@ function CelluleInline({
   if (lectureSeule) {
     return <span className={cn("tabular-nums", className)}>{valeur === 0 ? <span className="text-encre-pale">0</span> : num(valeur)}</span>;
   }
-  const affiche = focus ? brut : decimales ? String(valeur).replace(".", ",") : num(valeur);
+  // Au repos : milliers séparés, 0 = vide (le placeholder « 0 » estompé fait foi).
+  const affiche = focus ? brut : valeur === 0 ? "" : decimales ? String(valeur).replace(".", ",") : num(valeur);
   return (
     <input
       type="text"
@@ -43,7 +44,8 @@ function CelluleInline({
       aria-label={libelle}
       title={libelle}
       value={affiche}
-      onFocus={(e) => { setBrut(decimales ? String(valeur).replace(".", ",") : String(valeur)); setFocus(true); e.currentTarget.select(); }}
+      placeholder="0"
+      onFocus={(e) => { setBrut(valeur === 0 ? "" : decimales ? String(valeur).replace(".", ",") : String(valeur)); setFocus(true); e.currentTarget.select(); }}
       onBlur={() => { setFocus(false); onCommit(); }}
       onChange={(e) => {
         const raw = e.target.value;
@@ -53,7 +55,7 @@ function CelluleInline({
       }}
       onKeyDown={(e) => { if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur(); }}
       className={cn(
-        "h-7 w-full min-w-[3.25rem] rounded-sm border border-transparent bg-transparent px-1.5 text-right font-mono text-[11.5px] tabular-nums",
+        "h-7 w-full min-w-[3.25rem] rounded-sm border border-transparent bg-transparent px-1 text-right font-mono text-[11.5px] tabular-nums placeholder:text-encre-pale/70",
         "border-b-sky-300 [border-bottom-style:dashed] hover:border-filet hover:bg-surface",
         "outline-none focus-visible:border-ocean-ceruleen focus-visible:bg-surface focus-visible:ring-[3px] focus-visible:ring-ring/30",
         modifie && "border-ocre bg-ocre-clair/60 [border-bottom-style:solid]",
@@ -80,7 +82,7 @@ function CellulePopover({
   if (lectureSeule) {
     return (
       <div className="text-right">
-        <span className="font-mono tabular-nums">{num(total)}</span>
+        <span className="font-mono tabular-nums"><N valeur={total} /></span>
         {sousTitre && <div className="text-[10px] leading-none text-encre-pale">{sousTitre}</div>}
       </div>
     );
@@ -99,7 +101,7 @@ function CellulePopover({
           )}
         >
           <span className="inline-flex items-center gap-1 border-b border-dashed border-sky-300 font-mono text-[11.5px] tabular-nums">
-            {num(total)}
+            <N valeur={total} />
             <PencilIcon className="h-2.5 w-2.5 text-encre-pale opacity-0 transition-opacity group-hover/pop:opacity-100" />
           </span>
           {sousTitre && <span className="text-[10px] leading-none text-encre-pale">{sousTitre}</span>}
@@ -137,7 +139,7 @@ function CellulePopover({
 }
 
 const COLONNES = [
-  "w-[178px]", "w-[66px]", "w-[52px]", "w-[74px]", "w-[82px]", "w-[78px]", "w-[78px]", "w-[58px]", "w-[58px]",
+  "w-[164px]", "w-[66px]", "w-[52px]", "w-[74px]", "w-[82px]", "w-[78px]", "w-[78px]", "w-[66px]", "w-[64px]",
   "w-[60px]", "w-[94px]", "w-[46px]", "w-[60px]", "w-[78px]", "w-[70px]", "w-[70px]", "w-[70px]", "w-[32px]",
 ];
 const TH = "px-1.5 py-1.5 text-right text-[10px] font-semibold uppercase leading-tight tracking-wide whitespace-normal align-bottom";
@@ -228,11 +230,11 @@ export function RecapToutVisible({
                       </div>
                     </td>
                     <td className={cn(TD, "text-encre-douce")}>
-                      {num(d?.salaireJournalier ?? 0)}
+                      <N valeur={d?.salaireJournalier ?? 0} />
                       <div className="font-sans text-[10px] leading-none text-encre-pale">brut {num(b.salaireBrut)}</div>
                     </td>
                     <td className={TD}>{cel(b, "joursTravailles")}</td>
-                    <td className={TD}>{num(d?.salaireBase ?? 0)}</td>
+                    <td className={TD}><N valeur={d?.salaireBase ?? 0} /></td>
                     <td className={TD}>
                       <CellulePopover
                         b={b} brouillon={brouillon} lectureSeule={ro} libelle="Primes fixes / congé"
@@ -248,21 +250,21 @@ export function RecapToutVisible({
                         total={(d?.heuresSup ?? 0) + (d?.anciennete ?? 0)}
                       />
                     </td>
-                    <td className={cn(TD, "bg-ocean-brume font-semibold")}>{num(d?.total1 ?? b.brut)}</td>
+                    <td className={cn(TD, "bg-ocean-brume font-semibold")}><N valeur={d?.total1 ?? b.brut} /></td>
                     <td className={TD}>{cel(b, "sanctions")}</td>
                     <td className={TD}>{cel(b, "absences")}</td>
                     <td className={TD}>{cel(b, "dettesSoins")}</td>
                     <td className={TD}>
                       {cel(b, "acompte")}
                       <div className="font-sans text-[10px] leading-none text-encre-pale">
-                        = <b className="font-mono text-encre">{num(d?.acompteImpotsCnps ?? 0)}</b> avec impôts
+                        = <b className="font-mono text-encre"><N valeur={d?.acompteImpotsCnps ?? 0} /></b> avec impôts
                       </div>
                     </td>
                     <td className={TD}>{cel(b, "mutuellePct", true)}</td>
-                    <td className={TD}>{num(d?.mutuelle ?? 0)}</td>
-                    <td className={cn(TD, "bg-ocean-brume font-semibold")}>{num(d?.total2 ?? b.net)}</td>
+                    <td className={TD}><N valeur={d?.mutuelle ?? 0} /></td>
+                    <td className={cn(TD, "bg-ocean-brume font-semibold")}><N valeur={d?.total2 ?? b.net} /></td>
                     {SOCIETES.map((s) => (
-                      <td key={s} className={cn(TD, "font-semibold")}>{b.societe === s ? num(b.net) : <span className="text-encre-pale">—</span>}</td>
+                      <td key={s} className={cn(TD, "font-semibold")}>{b.societe === s ? <N valeur={b.net} /> : <span className="text-encre-pale">—</span>}</td>
                     ))}
                     <td className={cn(TD, "px-1 text-center")}>
                       <Link
@@ -288,16 +290,16 @@ export function RecapToutVisible({
                     TOTAL · {t.effectif}{filtre.recherche ? ` / ${filtre.total}` : ""} employés
                   </td>
                   <td className={TD} /><td className={TD} />
-                  <td className={TD}>{num(t.salaireBase)}</td>
-                  <td className={TD}>{num(t.primes)}</td>
-                  <td className={TD}>{num(t.heuresSupAnciennete)}</td>
-                  <td className={cn(TD, "bg-ocean-brume")}>{num(t.total1)}</td>
+                  <td className={TD}><N valeur={t.salaireBase} /></td>
+                  <td className={TD}><N valeur={t.primes} /></td>
+                  <td className={TD}><N valeur={t.heuresSupAnciennete} /></td>
+                  <td className={cn(TD, "bg-ocean-brume")}><N valeur={t.total1} /></td>
                   <td className={TD} /><td className={TD} /><td className={TD} />
-                  <td className={TD}>{num(t.acompteImpotsCnps)}</td>
+                  <td className={TD}><N valeur={t.acompteImpotsCnps} /></td>
                   <td className={TD} />
-                  <td className={TD}>{num(t.mutuelle)}</td>
-                  <td className={cn(TD, "bg-ocean-brume")}>{num(t.total2)}</td>
-                  {SOCIETES.map((s) => <td key={s} className={TD}>{num(t.netSociete[s])}</td>)}
+                  <td className={TD}><N valeur={t.mutuelle} /></td>
+                  <td className={cn(TD, "bg-ocean-brume")}><N valeur={t.total2} /></td>
+                  {SOCIETES.map((s) => <td key={s} className={TD}><N valeur={t.netSociete[s]} /></td>)}
                   <td className={TD} />
                 </tr>
               </tfoot>

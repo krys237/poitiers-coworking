@@ -18,7 +18,7 @@ import { Montant } from "@/components/app/montant";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, TableVide } from "@/components/ui/table";
 import {
   type Brouillon, type BulletinLigne, type Champ, type FiltreRecap, type RecapPaie, type Valeurs, LIBELLE, UNITE,
-  BarreFiltre, BarreRecap, LegendeRecap, PastilleSociete, TuilesRecap, apercuBulletin, baremeClient, totaux, validerValeurs,
+  BarreFiltre, BarreRecap, LegendeRecap, N, PastilleSociete, TuilesRecap, apercuBulletin, baremeClient, totaux, validerValeurs,
 } from "./commun";
 
 const GROUPES: { titre: string; champs: Champ[]; colonnes: string }[] = [
@@ -108,7 +108,7 @@ function FicheSaisie({
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
             <div><dt className="text-encre-pale">Salaire de base</dt><dd className="font-mono font-semibold tabular-nums">{apercu ? num(apercu.details.salaireBase) : "…"}</dd></div>
             <div><dt className="text-encre-pale">Total 1</dt><dd className="font-mono font-semibold tabular-nums">{apercu ? num(apercu.details.total1) : "…"}</dd></div>
-            <div><dt className="text-encre-pale">Impôts &amp; CNPS + acompte</dt><dd className="font-mono font-semibold tabular-nums text-carmin">{apercu ? `−${num(apercu.details.acompteImpotsCnps)}` : "…"}</dd></div>
+            <div><dt className="text-encre-pale">Impôts &amp; CNPS + acompte</dt><dd className="font-mono font-semibold tabular-nums text-carmin">{apercu ? <N valeur={-apercu.details.acompteImpotsCnps} /> : "…"}</dd></div>
             <div><dt className="text-encre-pale">Net à payer · Total 2</dt><dd className="font-mono text-base font-semibold tabular-nums text-ocean-profond">{apercu ? <Montant valeur={apercu.net} /> : "…"}</dd></div>
           </dl>
         </div>
@@ -192,10 +192,10 @@ export function RecapSynthese({
                         </div>
                       </TableCell>
                       <TableCell numerique className="font-mono text-xs">{brouillon.val(id, "joursTravailles")}</TableCell>
-                      <TableCell numerique className="font-mono text-xs">{num(d?.salaireBase ?? 0)}</TableCell>
-                      <TableCell numerique className="bg-ocean-brume font-mono text-xs font-semibold">{num(d?.total1 ?? b.brut)}</TableCell>
-                      <TableCell numerique className="font-mono text-xs text-carmin">−{num(retenues(b))}</TableCell>
-                      <TableCell numerique className="bg-ocean-brume font-mono text-xs font-semibold">{num(d?.total2 ?? b.net)}</TableCell>
+                      <TableCell numerique className="font-mono text-xs"><N valeur={d?.salaireBase ?? 0} /></TableCell>
+                      <TableCell numerique className="bg-ocean-brume font-mono text-xs font-semibold"><N valeur={d?.total1 ?? b.brut} /></TableCell>
+                      <TableCell numerique className="font-mono text-xs text-carmin"><N valeur={-retenues(b)} /></TableCell>
+                      <TableCell numerique className="bg-ocean-brume font-mono text-xs font-semibold"><N valeur={d?.total2 ?? b.net} /></TableCell>
                       <TableCell><PastilleSociete societe={b.societe} /></TableCell>
                       <TableCell className="text-ocean-profond"><ChevronRightIcon className={cn("h-4 w-4 transition-transform", active && "rotate-90")} /></TableCell>
                     </TableRow>
@@ -210,10 +210,10 @@ export function RecapSynthese({
                   <TableRow>
                     <TableCell>TOTAL · {t.effectif}{filtre.recherche ? ` / ${filtre.total}` : ""} employés</TableCell>
                     <TableCell />
-                    <TableCell numerique className="font-mono text-xs">{num(t.salaireBase)}</TableCell>
-                    <TableCell numerique className="bg-ocean-brume font-mono text-xs">{num(t.total1)}</TableCell>
-                    <TableCell numerique className="font-mono text-xs text-carmin">−{num(t.retenues)}</TableCell>
-                    <TableCell numerique className="bg-ocean-brume font-mono text-xs">{num(t.total2)}</TableCell>
+                    <TableCell numerique className="font-mono text-xs"><N valeur={t.salaireBase} /></TableCell>
+                    <TableCell numerique className="bg-ocean-brume font-mono text-xs"><N valeur={t.total1} /></TableCell>
+                    <TableCell numerique className="font-mono text-xs text-carmin"><N valeur={-t.retenues} /></TableCell>
+                    <TableCell numerique className="bg-ocean-brume font-mono text-xs"><N valeur={t.total2} /></TableCell>
                     <TableCell /><TableCell />
                   </TableRow>
                 </TableFooter>

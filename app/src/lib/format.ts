@@ -12,6 +12,14 @@ const espacerMilliers = (n: number) =>
 export const fcfa = (n: number) => `${espacerMilliers(n)} FCFA`;
 export const num = (n: number) => espacerMilliers(n);
 
+// Formalisme des chiffres (skill poitiers-ui-ux-system §3) :
+//   - décimales à la virgule, jamais de zéro décimal inutile : « 2,5 % », « 4 % » ;
+//   - l'unité est séparée par une espace insécable, elle ne se détache pas du nombre.
+export const pct = (n: number, decimales = 1) =>
+  `${n.toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: decimales })} %`;
+export const jours = (n: number) =>
+  `${n.toLocaleString("fr-FR", { minimumFractionDigits: 0, maximumFractionDigits: 1 })} j`;
+
 const MOIS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
 export const libellePeriode = (p: string) => {
   const [y, m] = p.split("-").map(Number);

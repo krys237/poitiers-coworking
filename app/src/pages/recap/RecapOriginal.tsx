@@ -35,12 +35,17 @@ function Num({
     <input
       type="number"
       step={step}
-      value={value}
+      value={value === 0 ? "" : value}
+      placeholder="0"
+      onFocus={(e) => e.target.select()}
       readOnly={readOnly}
       disabled={readOnly}
       aria-label={label}
       title={label}
-      onChange={(ev) => onChange(Number(ev.target.value) || 0)}
+      onChange={(ev) => {
+        const val = ev.target.value;
+        onChange(val === "" ? 0 : Number(val) || 0);
+      }}
       onBlur={onBlur}
       className="w-24 rounded border border-border bg-background px-1 py-0.5 text-right text-xs tabular-nums outline-none focus:border-ring disabled:cursor-not-allowed disabled:opacity-60"
     />

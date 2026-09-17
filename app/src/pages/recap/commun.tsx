@@ -384,18 +384,17 @@ export function TuilesRecap({ recap, periode }: { recap: RecapPaie; periode: str
       />
       <Tuile
         libelle="Masse brute · Total 1"
-        valeur={charge ? undefined : <Montant valeur={t.total1} />}
+        valeur={charge ? undefined : <Montant valeur={t.total1} zero="0" />}
         note="base + primes + congés + HS + ancienneté"
       />
       <Tuile
         libelle="Retenues du mois"
-        valeur={charge ? undefined : <Montant valeur={-t.retenues} signe />}
+        valeur={charge ? undefined : <Montant valeur={-t.retenues} signe zero="0" />}
         note="impôts & CNPS, acomptes, mutuelle, sanctions"
-        ton="alerte"
       />
       <Tuile
         libelle="Net à payer · Total 2"
-        valeur={charge ? undefined : <Montant valeur={t.net} gras />}
+        valeur={charge ? undefined : <Montant valeur={t.net} gras zero="0" />}
         note={
           <span className="font-mono tabular-nums">
             SESAME {num(t.netSociete.SESAME)} · SOFINA {num(t.netSociete.SOFINA)} · SGC {num(t.netSociete.SGC)}
@@ -416,6 +415,13 @@ export function LegendeRecap({ className }: { className?: string }) {
       <span>Journalier = brut ÷ 30 · transport exonéré de cotisations</span>
     </div>
   );
+}
+
+/** Nombre calculé dans une cellule : milliers séparés, zéro réel en gris pâle (formalisme des chiffres). */
+export function N({ valeur }: { valeur: number | undefined }) {
+  const v = valeur ?? 0;
+  if (v === 0) return <span className="text-encre-pale">0</span>;
+  return <>{v < 0 ? "−" : ""}{num(Math.abs(v))}</>;
 }
 
 /** Pastille société (capsule douce, sans point de couleur — charte §4). */
