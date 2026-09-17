@@ -455,7 +455,7 @@ export function EtatLigneBadge({ etat }: { etat: EtatLigne | undefined }) {
 export const LIGNES_CHOIX = [5, 10, 15, 20, 30] as const;
 export type LignesVisibles = (typeof LIGNES_CHOIX)[number] | 0; // 0 = toutes
 
-const sansAccents = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const sansAccents = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 /**
  * Recherche par nom / fonction / matricule et nombre de lignes visibles.
