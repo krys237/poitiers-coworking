@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap">
+  <style>
+    body { margin: 0; font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; color: #0b132b; background: #f6f9fb; font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+    a { color: #0077b6; text-decoration: none; } a:hover { color: #03045e; }
+    * { box-sizing: border-box; }
+    .mono { font-family: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+    table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+    th { font-weight: 600; font-size: 10px; line-height: 1.2; letter-spacing: .01em; text-transform: uppercase; padding: 7px 8px; text-align: right; vertical-align: bottom; white-space: nowrap; }
+    th.l, td.l { text-align: left; }
+    td { padding: 0 6px; height: 40px; font-size: 11.5px; text-align: right; white-space: nowrap; border-bottom: 1px solid #f1f5f9; font-family: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace; }
+    td.l { font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; }
+    tbody tr:nth-child(even) td { background: #eaf3f8; }
+    tbody tr:hover td { background: #caf0f8; }
+    td.t1, th.t1 { background: #caf0f8; font-weight: 600; }
+    td.soc { font-weight: 600; }
+    .ed { position: relative; display: inline-block; min-width: 44px; padding: 3px 6px; border-radius: 4px; border: 1px solid transparent; border-bottom: 1px dashed #7dd3fc; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+    .ed.hov::after, .ed:hover::after { content: ""; position: absolute; right: 5px; top: 50%; width: 9px; height: 9px; margin-top: -5px; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2364748b" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>') no-repeat center / contain; opacity: .55; }
+    .ed.hov, .ed:hover { border: 1px solid #e2e8f0; border-radius: 4px; background: #ffffff; padding-right: 18px; }
+    .ed.on { border: 1px solid #00b4d8; border-radius: 4px; background: #ffffff; box-shadow: 0 0 0 3px rgba(0,180,216,.25); }
+    .ed.on::after { display: none; }
+    .ed.mod { border: 1px solid #8a5d12; border-radius: 4px; background: #fef3c7; }
+    .ed.ro { border-bottom-color: transparent; color: #334155; } .ed.ro::after { display: none; }
+    tfoot td { border-top: 4px double #0b132b; border-bottom: 0; font-weight: 600; background: #ffffff; height: 42px; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; border: 1px solid; padding: 3px 10px; font-size: 10px; font-weight: 600; letter-spacing: .04em; line-height: 1.2; white-space: nowrap; font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid #e2e8f0; background: #ffffff; color: #0b132b; font-size: 13px; font-weight: 500; white-space: nowrap; font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+    .btn.pri { background: #0077b6; border-color: #0077b6; color: #fff; font-weight: 600; }
+    .btn.sm { height: 30px; padding: 0 10px; font-size: 12px; }
+    .btn.ghost { border-color: transparent; background: transparent; color: #334155; }
+    .nav { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px; border-radius: 10px; font-size: 12px; font-weight: 500; color: #475569; }
+    .nav.on { background: linear-gradient(90deg, #2563eb, #0077b6); color: #fff; font-weight: 600; }
+    .kpi { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 12px; border: 1px solid #e2e8f0; background: #ffffff; }
+    .kpi .k { font-size: 11px; font-weight: 600; color: #334155; }
+    .kpi .v { font-family: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 22px; font-weight: 600; line-height: 1.1; letter-spacing: -.01em; }
+    .kpi .n { font-size: 11px; color: #64748b; }
+    .lbl { display: block; font-size: 11px; font-weight: 600; color: #334155; margin-bottom: 3px; white-space: nowrap; }
+    .inp { display: flex; align-items: center; justify-content: space-between; height: var(--h, 36px); border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff; padding: 0 10px; font-family: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 13px; }
+    .inp .u { font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 10px; color: #64748b; font-weight: 600; }
+    .inp.err { border-color: #9e2b20; }
+    .h2 { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #0077b6; }
+  </style>
+</helmet>
+<div style="display:flex; align-items:center; justify-content:center; width:900px; height:720px; background:rgba(11,19,43,.45);">
+  <div style="width:720px; border-radius:12px; background:#ffffff; box-shadow:0 8px 24px -8px rgba(21,28,24,.24), 0 2px 6px -2px rgba(21,28,24,.12); overflow:hidden;">
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; padding:20px 24px 14px;">
+      <div><div style="font-size:18px; font-weight:600;">Saisie du mois — ACHALE Roderick Essoh</div><div style="font-size:13px; color:#334155; margin-top:2px;">Éléments variables de septembre 2026. Le récapitulatif et le bulletin se recalculent à l'enregistrement.</div></div>
+      <span style="color:#64748b;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></span>
+    </div>
+    <div style="padding:0 24px 20px; display:flex; flex-direction:column; gap:14px;">
+      <div><div class="h2" style="margin-bottom:8px;">Temps de travail</div><div style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px;"><label style="display:block; width:100%;"><span class="lbl">Jours travaillés</span><span class="inp" style=""><span>30</span><span class="u">j</span></span></label><label style="display:block; width:100%;"><span class="lbl">Congés pris</span><span class="inp" style="background:#f1f5f9; color:#334155;"><span>2</span><span class="u">j</span></span></label><label style="display:block; width:100%;"><span class="lbl">Absences</span><span class="inp" style=""><span>0</span><span class="u">FCFA</span></span></label></div>
+        <div style="font-size:11px; color:#64748b; margin-top:6px;">Congés pris et jours travaillés viennent du planning des absences ; ils se modifient là-bas.</div></div>
+      <div><div class="h2" style="margin-bottom:8px;">Gains</div><div style="display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px;"><label style="display:block; width:100%;"><span class="lbl">Primes fixes</span><span class="inp" style=""><span>15 000</span><span class="u">FCFA</span></span></label><label style="display:block; width:100%;"><span class="lbl">Prime transport</span><span class="inp" style=""><span>10 000</span><span class="u">FCFA</span></span></label><label style="display:block; width:100%;"><span class="lbl">Prime assiduité</span><span class="inp" style=""><span>5 000</span><span class="u">FCFA</span></span></label><label style="display:block; width:100%;"><span class="lbl">Ind. logement</span><span class="inp" style=""><span>0</span><span class="u">FCFA</span></span></label><label style="display:block; width:100%;"><span class="lbl">Heures supplémentaires</span><span class="inp" style=""><span>12 000</span><span class="u">FCFA</span></span></label><label style="display:block; width:100%;"><span class="lbl">Ancienneté</span><span class="inp" style=""><span>6 000</span><span class="u">FCFA</span></span></label></div></div>
+      <div><div class="h2" style="margin-bottom:8px;">Retenues</div><div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:12px;"><label style="display:block; width:100%;"><span class="lbl">Sanctions</span><span class="inp" style=""><span>0</span><span class="u">FCFA</span></span></label><label style="display:block; width:100%;"><span class="lbl">Dettes de soins</span><span class="inp" style=""><span>0</span><span class="u">FCFA</span></span></label><label style="display:block; width:100%;"><span class="lbl">Acompte</span><span class="inp err" style=""><span>-5 000</span><span class="u">FCFA</span></span><span style="display:block; font-size:10px; color:#9e2b20; font-weight:600; margin-top:3px;">Montant négatif interdit.</span></label><label style="display:block; width:100%;"><span class="lbl">Mutuelle</span><span class="inp" style=""><span>2,5</span><span class="u">%</span></span></label></div></div>
+      <div style="display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:8px; border-radius:10px; border:1px solid #e2e8f0; background:#f6f9fb; padding:12px 14px;">
+        <div><span style="display:block; font-size:11px; color:#64748b;">Salaire de base</span><span class="mono" style="font-weight:600;">195 930</span></div>
+        <div><span style="display:block; font-size:11px; color:#64748b;">Total 1</span><span class="mono" style="font-weight:600;">256 992</span></div>
+        <div><span style="display:block; font-size:11px; color:#64748b;">Mutuelle</span><span class="mono" style="font-weight:600;">6 425</span></div>
+        <div><span style="display:block; font-size:11px; color:#64748b;">Net à payer</span><span class="mono" style="font-weight:600; color:#0077b6;">212 723 FCFA</span></div>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 24px; border-top:1px solid #e2e8f0; background:#f6f9fb;">
+      <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#334155;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>Ctrl + Entrée pour enregistrer · Échap pour annuler</span>
+      <div style="display:flex; gap:8px;"><span class="btn">Annuler</span><span class="btn pri"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Enregistrer la saisie</span></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

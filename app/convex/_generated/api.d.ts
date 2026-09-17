@@ -10,6 +10,8 @@
 
 import type * as archives from "../archives.js";
 import type * as audit from "../audit.js";
+import type * as auth from "../auth.js";
+import type * as authResendOtp from "../authResendOtp.js";
 import type * as bareme from "../bareme.js";
 import type * as commandes from "../commandes.js";
 import type * as comptesRendus from "../comptesRendus.js";
@@ -56,6 +58,8 @@ import type {
 declare const fullApi: ApiFromModules<{
   archives: typeof archives;
   audit: typeof audit;
+  auth: typeof auth;
+  authResendOtp: typeof authResendOtp;
   bareme: typeof bareme;
   commandes: typeof commandes;
   comptesRendus: typeof comptesRendus;

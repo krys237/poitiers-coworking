@@ -1,0 +1,63 @@
+{
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "title": "Option A — Tout visible (rail + densité registre)",
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900
+    },
+    {
+      "file": "EtatsCellule.dc.html",
+      "title": "Option A — États d'une cellule éditable",
+      "x": 0,
+      "y": 1040,
+      "w": 1180,
+      "h": 300
+    },
+    {
+      "file": "OptionB.dc.html",
+      "title": "Option B — Groupes de colonnes repliables",
+      "x": 1560,
+      "y": 0,
+      "w": 1440,
+      "h": 900
+    },
+    {
+      "file": "SaisieDuMois.dc.html",
+      "title": "Options A et B — Dialogue « Saisie du mois »",
+      "x": 1560,
+      "y": 1040,
+      "w": 900,
+      "h": 720
+    },
+    {
+      "file": "OptionC.dc.html",
+      "title": "Option C — Synthèse 8 colonnes + fiche latérale",
+      "x": 3120,
+      "y": 0,
+      "w": 1440,
+      "h": 900
+    }
+  ],
+  "annotations": [
+    {
+      "id": "brief",
+      "x": 0,
+      "y": -230,
+      "w": 620,
+      "text": "Récapitulatif salaires — 3 façons de tenir 18 colonnes\n\nContrainte : toutes les colonnes visibles d'un coup si possible ; sinon une navigation simple et une modification sans ambiguïté.\n\nA · Tout visible : sidebar repliée en rail (64 px) + densité « registre » → les 18 colonnes tiennent en 1336 px, sans défilement horizontal à 1440. Édition directe dans la cellule (crayon), les cellules composées (primes, HS/anc.) s'ouvrent en mini-fenêtre.\n\nB · Groupes repliables : sidebar complète ; Base / Gains / Retenues / Net se replient sur leur total. Édition par le dialogue « Saisie du mois ». Tout déplier = défilement horizontal, colonne des noms figée.\n\nC · Synthèse + fiche : 8 colonnes de lecture, la ligne s'ouvre dans un volet latéral avec les 13 champs groupés et l'aperçu en direct. Le plus simple à lire, un clic de plus pour saisir."
+    },
+    {
+      "id": "a-note",
+      "x": 1240,
+      "y": 1040,
+      "w": 200,
+      "text": "Commun aux 3 options :\n· barre de contrôle 50 px (période, statut, taux, actions)\n· 4 tuiles KPI fines\n· pied de tableau à filet double\n· clôture par BoutonConfirmation\n· toasts sonner"
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

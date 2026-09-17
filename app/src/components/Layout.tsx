@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { canAccess, Role } from "../../convex/rbac";
@@ -29,9 +29,26 @@ import {
   Code2,
   Settings,
   LogOut,
+  PanelLeftOpen,
 } from "lucide-react";
 import { useMe } from "../auth/useMe";
 import "../auth/auth.css";
+
+// Mode « rail » : la barre latérale se replie en une colonne d'icônes de 64 px.
+// Un écran très large (le récapitulatif salaires et ses 18 colonnes) le demande
+// le temps où il est affiché ; tout est rétabli quand on le quitte.
+const RailContext = createContext<{ rail: boolean; setRail: (rail: boolean) => void }>({
+  rail: false,
+  setRail: () => {},
+});
+
+export function useRailLateral(actif: boolean) {
+  const { setRail } = useContext(RailContext);
+  useEffect(() => {
+    setRail(actif);
+    return () => setRail(false);
+  }, [actif, setRail]);
+}
 
 type NavItem = {
   to: string;
@@ -224,6 +241,84 @@ function SidebarContent({
   );
 }
 
+/** Barre latérale repliée : mêmes entrées, même filtrage d'accès, icônes seules. */
+function RailLateral({
+  role,
+  me,
+  signOut,
+  onDeplier,
+}: {
+  role: Role;
+  me: any;
+  signOut: () => Promise<unknown>;
+  onDeplier: () => void;
+}) {
+  const items = NAV.flatMap((g) => g.items).filter((i) => canAccess(role, i.perm));
+  return (
+    <div className="relative flex h-full flex-col justify-between overflow-hidden border-r border-slate-200/80 bg-white">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-[200px] bg-gradient-to-b from-[#1e69ff] via-[#155dfc] via-[40%] via-[#0077b6] via-[62%] via-[#38bdf8]/25 via-[84%] to-white"
+        aria-hidden="true"
+      />
+      <div className="relative z-10 flex flex-col items-center gap-1.5 px-3 pt-3.5">
+        <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-md ring-1 ring-black/5">
+          <img src={logoPolyclinique} alt="Polyclinique de Poitiers" className="h-6 w-auto object-contain" />
+        </div>
+        <nav className="flex flex-col gap-1" aria-label="Navigation principale (repliée)">
+          {items.map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === "/"}
+                title={item.label}
+                aria-label={item.label}
+                className={({ isActive }) =>
+                  cn(
+                    "flex h-10 w-10 items-center justify-center rounded-xl transition-colors",
+                    isActive
+                      ? "!bg-gradient-to-r !from-blue-600 !to-[#0077b6] !text-white shadow-sm"
+                      : "text-slate-500 hover:bg-slate-50 hover:text-blue-600"
+                  )
+                }
+              >
+                <Icon className="h-[18px] w-[18px]" />
+              </NavLink>
+            );
+          })}
+        </nav>
+      </div>
+      <div className="relative z-10 flex flex-col items-center gap-2 border-t border-ocean-profond/40 bg-ocean-nuit py-3">
+        <button
+          type="button"
+          onClick={onDeplier}
+          title="Déplier la barre latérale"
+          aria-label="Déplier la barre latérale"
+          className="rounded-lg p-1.5 text-slate-300 transition-colors hover:bg-ocean-profond hover:text-white"
+        >
+          <PanelLeftOpen className="h-4 w-4" />
+        </button>
+        <div
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-ocean-profond text-xs font-bold text-white shadow-sm ring-2 ring-ocean-ceruleen/40"
+          title={me?.nom ?? me?.email ?? ""}
+        >
+          {me?.nom ? me.nom.charAt(0).toUpperCase() : "U"}
+        </div>
+        <button
+          type="button"
+          onClick={() => void signOut()}
+          title="Se déconnecter"
+          aria-label="Se déconnecter"
+          className="rounded-lg p-1.5 text-slate-300 transition-colors hover:bg-ocean-profond hover:text-white"
+        >
+          <LogOut className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function Layout() {
   const me = useMe();
   const { signOut } = useAuthActions();
@@ -231,13 +326,31 @@ export function Layout() {
   // "employe" ne sert qu'au bref instant de rechargement d'une session.
   const role = (me?.role ?? "employe") as Role;
   const [mobileOpen, setMobileOpen] = useState(false);
+  // Rail demandé par l'écran courant (useRailLateral) ; « déplier » l'annule jusqu'au
+  // prochain changement d'écran.
+  const [railDemande, setRailDemande] = useState(false);
+  const [railForceOuvert, setRailForceOuvert] = useState(false);
+  const rail = railDemande && !railForceOuvert;
 
   return (
+    <RailContext.Provider
+      value={{
+        rail,
+        setRail: (r) => {
+          setRailDemande(r);
+          setRailForceOuvert(false);
+        },
+      }}
+    >
     <div className="flex min-h-screen bg-papier text-encre">
-      {/* Sidebar Desktop Fixe */}
-      <aside className="hidden w-64 shrink-0 md:block">
+      {/* Sidebar Desktop Fixe (ou rail replié) */}
+      <aside className={cn("hidden shrink-0 md:block", rail ? "w-16" : "w-64")}>
         <div className="sticky top-0 h-screen shadow-md">
-          <SidebarContent role={role} me={me} signOut={signOut} />
+          {rail ? (
+            <RailLateral role={role} me={me} signOut={signOut} onDeplier={() => setRailForceOuvert(true)} />
+          ) : (
+            <SidebarContent role={role} me={me} signOut={signOut} />
+          )}
         </div>
       </aside>
 
@@ -265,10 +378,11 @@ export function Layout() {
           </div>
         )}
         <Header onOpenMobileMenu={() => setMobileOpen(true)} />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+        <main className={cn("flex-1 p-4", rail ? "sm:p-5" : "sm:p-6 lg:p-8")}>
           <Outlet />
         </main>
       </div>
     </div>
+    </RailContext.Provider>
   );
 }
