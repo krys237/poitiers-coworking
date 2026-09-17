@@ -199,7 +199,7 @@ export function Interventions() {
                   <TableHead className={cn(sel && "hidden 2xl:table-cell")}>Demandeur</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead numerique className={cn(sel && "hidden 2xl:table-cell")}>Photos</TableHead>
-                  <TableHead numerique>Chiffrage</TableHead>
+                  <TableHead numerique>Chiffrage (FCFA)</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead aria-label="Ouvrir" />
                 </TableRow>
