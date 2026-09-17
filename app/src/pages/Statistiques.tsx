@@ -1,26 +1,86 @@
-import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+/**
+ * Statistiques & primes — refonte (charte poitiers-ui-ux-system).
+ *
+ * Le modèle métier ne change pas : une caisse mensuelle (intervalles × 11 postes,
+ * total espèces et chiffre d'affaires calculés) et des primes médecins en six
+ * catégories sur le même schéma (actes × montant unitaire).
+ *
+ * Ce qui change : deux onglets au lieu de huit (Caisse du mois · Primes
+ * médecins), un seul tableau de primes filtré par catégorie avec les totaux
+ * dans les puces, la saisie en dialogue (plus de formulaire permanent), les
+ * graphes à côté des chiffres, la suppression confirmée.
+ */
+import * as React from "react";
+import { useMutation, useQuery } from "convex/react";
+import { toast } from "sonner";
+import { Columns3Icon, DownloadIcon, PencilIcon, PlusIcon, SearchIcon, Trash2Icon, UploadIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
-import { PeriodePicker } from "../components/PeriodePicker";
-import { Barres } from "../components/Barres";
-import { POSTES_ESPECES, LIBELLES_CAISSE, LIGNE_VIDE, CATEGORIES_PRIMES, LIBELLE_CATEGORIE, montantTotalPrime, parseCsvCaisse, exportCsvCaisse, parseCsvPrimes, exportCsvPrimes } from "../../convex/lib/stats";
-import { fcfa, num, libellePeriode, periodeCourante, messageErreur } from "../lib/format";
+import {
+  CATEGORIES_PRIMES, LIBELLES_CAISSE, LIBELLE_CATEGORIE, POSTES_ESPECES, chiffreAffaires, exportCsvCaisse, exportCsvPrimes,
+  montantTotalPrime, parseCsvCaisse, parseCsvPrimes, totalEspeces, type CategoriePrime, type LigneCaisse,
+} from "../../convex/lib/stats";
+import { fcfa, libellePeriode, messageErreur, num, periodeCourante } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { PageEnTete } from "@/components/app/en-tete";
+import { GrilleTuiles, Tuile } from "@/components/app/tuile";
+import { Montant } from "@/components/app/montant";
+import { Barres } from "@/components/app/barres";
+import { BoutonConfirmation } from "@/components/app/bouton-action";
+import { Champ, ChampNombre } from "@/components/app/champs";
+import { SqueletteTableau } from "@/components/app/chargement";
+import { SelecteurPeriode } from "@/components/app/selecteur-periode";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Flag } from "@/components/ui/flag";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, TableVide } from "@/components/ui/table";
 
-type Onglet = "caisse" | "graphes" | (typeof CATEGORIES_PRIMES)[number][0];
-const COLS = [...POSTES_ESPECES, "assurance", "tepScan", "sortiesDuJour"] as const;
-const LIBELLE_COURT: Record<string, string> = { externes_labo_radio: "Externes", interpretes_scanner: "Int. Scanner", interpretes_irm: "Int. IRM", internes_examens: "Internes", prescripteurs_scanner: "Presc. Scanner", prescripteurs_irm: "Presc. IRM" };
-const PRIME_VIDE = { designation: "", dateDebut: "", dateFin: "", actes: 0, montantUnitaire: 0, notes: "" };
+// --- Vocabulaire ----------------------------------------------------------------
+
+type Poste = (typeof POSTES_ESPECES)[number];
+const AUTRES = ["assurance", "tepScan"] as const;
+const COLS = [...POSTES_ESPECES, ...AUTRES, "sortiesDuJour"] as const;
+type Col = (typeof COLS)[number];
+
+const LIBELLE_COURT: Record<CategoriePrime, string> = {
+  externes_labo_radio: "Externes", interpretes_scanner: "Interp. scanner", interpretes_irm: "Interp. IRM",
+  internes_examens: "Internes", prescripteurs_scanner: "Presc. scanner", prescripteurs_irm: "Presc. IRM",
+};
+
+type FormCaisse = LigneCaisse & { ligneId: string | null };
+const CAISSE_VIDE = (): FormCaisse => ({
+  ligneId: null, dateDebut: "", dateFin: "", horaires: "",
+  caissePP: 0, scanner: 0, quantiferon: 0, tenofovir: 0, greenEnergy: 0, esthetique: 0, therapieVie: 0, therapieSommeil: 0,
+  assurance: 0, tepScan: 0, sortiesDuJour: 0,
+});
+type FormPrime = { primeId: string | null; categorie: CategoriePrime; designation: string; dateDebut: string; dateFin: string; actes: number; montantUnitaire: number; notes: string };
+const PRIME_VIDE = (categorie: CategoriePrime): FormPrime => ({ primeId: null, categorie, designation: "", dateDebut: "", dateFin: "", actes: 0, montantUnitaire: 0, notes: "" });
+
+const fmtDate = (s?: string) => (s ? new Date(s + "T00:00:00").toLocaleDateString("fr-FR") : "—");
+const sansAccents = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const N = ({ v }: { v: number | undefined }) => (v ? <>{num(v)}</> : <span className="text-encre-pale">0</span>);
 
 function telecharger(nom: string, contenu: string) {
   const url = URL.createObjectURL(new Blob([contenu], { type: "text/csv;charset=utf-8" }));
-  const a = document.createElement("a"); a.href = url; a.download = nom; a.click(); URL.revokeObjectURL(url);
+  const a = document.createElement("a");
+  a.href = url; a.download = nom; a.click();
+  URL.revokeObjectURL(url);
 }
 
+// --- Page -------------------------------------------------------------------------
+
 export function Statistiques() {
-  const [periode, setPeriode] = useState(periodeCourante());
-  const [onglet, setOnglet] = useState<Onglet>("caisse");
+  const [periode, setPeriode] = React.useState(periodeCourante());
+  const [onglet, setOnglet] = React.useState<"caisse" | "primes">("caisse");
+  const [categorie, setCategorie] = React.useState<CategoriePrime | "toutes">("toutes");
+  const [recherche, setRecherche] = React.useState("");
+  // Les 8 postes espèces sont repliés par défaut : on lit d'abord les totaux, le détail est à un clic.
+  const [detailPostes, setDetailPostes] = React.useState(false);
+
   const caisse = useQuery(api.stats.caisse, { periode });
-  const primes = useQuery(api.stats.primes, onglet !== "caisse" && onglet !== "graphes" ? { periode, categorie: onglet } : { periode });
+  const primes = useQuery(api.stats.primes, { periode });
   const graphes = useQuery(api.stats.graphes, { periode });
   const enregistrerLigne = useMutation(api.stats.enregistrerLigne);
   const supprimerLigne = useMutation(api.stats.supprimerLigne);
@@ -29,126 +89,429 @@ export function Statistiques() {
   const supprimerPrime = useMutation(api.stats.supprimerPrime);
   const importerPrimes = useMutation(api.stats.importerPrimes);
 
-  const [fc, setFc] = useState<any>({ ...LIGNE_VIDE, ligneId: null });
-  const [fp, setFp] = useState<any>({ ...PRIME_VIDE, primeId: null });
-  const [msg, setMsg] = useState<string | null>(null);
-  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [formCaisse, setFormCaisse] = React.useState<FormCaisse | null>(null);
+  const [formPrime, setFormPrime] = React.useState<FormPrime | null>(null);
+  const [importPrimes, setImportPrimes] = React.useState<{ fichier: File; categorie: CategoriePrime } | null>(null);
+  const fichierRef = React.useRef<HTMLInputElement>(null);
 
-  const sauverCaisse = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const t = (caisse?.totaux ?? {}) as Record<string, number>;
+  const categorieCourante: CategoriePrime = categorie === "toutes" ? CATEGORIES_PRIMES[0][0] : categorie;
+  const q = sansAccents(recherche.trim());
+  const primesVisibles = ((primes?.lignes ?? []) as any[]).filter(
+    (p) => (categorie === "toutes" || p.categorie === categorie) && (!q || sansAccents(`${p.designation} ${p.notes ?? ""}`).includes(q))
+  );
+  const totalVisible = primesVisibles.reduce((s, p) => s + p.montant, 0);
+  const actesVisibles = primesVisibles.reduce((s, p) => s + (p.actes ?? 0), 0);
+
+  // --- Import / export CSV (l'onglet courant décide) ---
+  const surFichier = async (file: File) => {
+    const texte = await file.text();
+    if (onglet === "caisse") {
+      const lignes = parseCsvCaisse(texte);
+      if (!lignes.length) { toast.error("Aucune ligne de caisse reconnue dans ce fichier."); return; }
+      try {
+        const r = await importerCaisse({ periode, lignes: lignes.map((x) => ({ ...x, horaires: x.horaires || undefined })) });
+        toast.success(`${r.importees} ligne(s) de caisse importée(s)`, { description: libellePeriode(periode) });
+      } catch (e) { toast.error("Import refusé", { description: messageErreur(e) }); }
+    } else {
+      setImportPrimes({ fichier: file, categorie: categorieCourante });
+    }
+  };
+  const confirmerImportPrimes = async () => {
+    if (!importPrimes) return;
+    const lignes = parseCsvPrimes(await importPrimes.fichier.text());
+    if (!lignes.length) { toast.error("Aucune prime reconnue dans ce fichier."); setImportPrimes(null); return; }
     try {
-      const { ligneId, ...l } = fc;
-      const nums = Object.fromEntries(COLS.map((k) => [k, Number(l[k]) || 0]));
-      await enregistrerLigne({ ligneId: ligneId ?? undefined, periode, dateDebut: l.dateDebut, dateFin: l.dateFin, horaires: l.horaires || undefined, ...(nums as any) });
-      setMsg(ligneId ? "Ligne mise à jour." : "Ligne ajoutée — totaux recalculés."); setFc({ ...LIGNE_VIDE, ligneId: null });
-    } catch (err) { setMsg(`Erreur : ${messageErreur(err)}`); }
+      const r = await importerPrimes({ periode, categorie: importPrimes.categorie, lignes });
+      toast.success(`${r.importees} prime(s) importée(s)`, { description: LIBELLE_CATEGORIE[importPrimes.categorie] });
+      setImportPrimes(null);
+    } catch (e) { toast.error("Import refusé", { description: messageErreur(e) }); }
   };
-  const sauverPrime = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (onglet === "caisse" || onglet === "graphes") return;
-    try {
-      const { primeId, ...p } = fp;
-      await enregistrerPrime({ primeId: primeId ?? undefined, periode, categorie: onglet, designation: p.designation, dateDebut: p.dateDebut || undefined, dateFin: p.dateFin || undefined, actes: Number(p.actes) || 0, montantUnitaire: Number(p.montantUnitaire) || 0, notes: p.notes || undefined });
-      setMsg(primeId ? "Prime mise à jour." : `Prime ajoutée — montant ${fcfa(montantTotalPrime(Number(p.actes), Number(p.montantUnitaire)))}.`); setFp({ ...PRIME_VIDE, primeId: null });
-    } catch (err) { setMsg(`Erreur : ${messageErreur(err)}`); }
+  const exporter = () => {
+    if (onglet === "caisse") telecharger(`caisse-${periode}.csv`, exportCsvCaisse((caisse?.lignes ?? []) as any));
+    else telecharger(`primes-${categorie}-${periode}.csv`, exportCsvPrimes(primesVisibles.map((l) => ({ ...l, actes: l.actes ?? 0, montantUnitaire: l.montantUnitaire ?? 0 }))));
   };
-  const supprimer = async (id: string, prime: boolean) => {
-    if (confirmId !== id) { setConfirmId(id); return; }
-    prime ? await supprimerPrime({ primeId: id as any }) : await supprimerLigne({ ligneId: id as any });
-    setConfirmId(null); setMsg("Ligne supprimée.");
-  };
+  const exportVide = onglet === "caisse" ? !(caisse?.lignes.length) : primesVisibles.length === 0;
 
-  const importCsv = async (file: File) => {
-    const t = await file.text();
-    if (onglet === "caisse") { const l = parseCsvCaisse(t); if (!l.length) { setMsg("Aucune ligne reconnue."); return; } const r = await importerCaisse({ periode, lignes: l.map((x) => ({ ...x, horaires: x.horaires || undefined })) }); setMsg(`${r.importees} ligne(s) de caisse importée(s).`); }
-    else if (onglet !== "graphes") { const l = parseCsvPrimes(t); if (!l.length) { setMsg("Aucune ligne reconnue."); return; } const r = await importerPrimes({ periode, categorie: onglet, lignes: l }); setMsg(`${r.importees} prime(s) importée(s).`); }
-  };
-
-  const t = caisse?.totaux ?? {};
   return (
-    <>
-      <h1>Statistiques &amp; primes</h1>
-      <p className="sub">Tableau de caisse mensuel (total espèces et chiffre d'affaires calculés) et primes des médecins par catégorie (montant = actes × unitaire). Import / export CSV dans chaque onglet.</p>
-      <div className="bar">
-        <PeriodePicker value={periode} onChange={setPeriode} /><b>{libellePeriode(periode)}</b>
-        <span className="grow" />
-        {onglet !== "graphes" && <label className="btn">Importer CSV<input type="file" accept=".csv,text/csv" hidden onChange={(e) => e.target.files?.[0] && importCsv(e.target.files[0])} /></label>}
-        {onglet === "caisse" && <button className="btn" disabled={!caisse?.lignes.length} onClick={() => telecharger(`caisse-${periode}.csv`, exportCsvCaisse(caisse!.lignes))}>Exporter CSV</button>}
-        {onglet !== "caisse" && onglet !== "graphes" && <button className="btn" disabled={!primes?.lignes.length} onClick={() => telecharger(`primes-${onglet}-${periode}.csv`, exportCsvPrimes(primes!.lignes.map((l: any) => ({ ...l, actes: l.actes ?? 0, montantUnitaire: l.montantUnitaire ?? 0 }))))}>Exporter CSV</button>}
+    <div className="space-y-4">
+      <PageEnTete
+        titre="Statistiques & primes"
+        description="Caisse mensuelle (total espèces et chiffre d'affaires calculés) et primes des médecins par catégorie (montant = actes × unitaire)."
+        statut={<Flag variant="finance" size="xs">Niveau 3+</Flag>}
+        actions={
+          <>
+            <input ref={fichierRef} type="file" accept=".csv,text/csv" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void surFichier(f); e.target.value = ""; }} />
+            <Button variant="outline" size="sm" onClick={() => fichierRef.current?.click()}><UploadIcon /> Importer CSV</Button>
+            <Button variant="outline" size="sm" onClick={exporter} disabled={exportVide}><DownloadIcon /> Exporter CSV</Button>
+            {onglet === "caisse" ? (
+              <Button size="sm" onClick={() => setFormCaisse(CAISSE_VIDE())}><PlusIcon /> Ajouter un intervalle</Button>
+            ) : (
+              <Button size="sm" onClick={() => setFormPrime(PRIME_VIDE(categorieCourante))}><PlusIcon /> Ajouter une prime</Button>
+            )}
+          </>
+        }
+      />
+
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-filet bg-surface px-3 py-2 shadow-xs print:hidden">
+        <SelecteurPeriode valeur={periode} onChange={setPeriode} />
+        <span className="text-sm font-semibold">{libellePeriode(periode)}</span>
+        <span className="flex-1" />
+        {onglet === "caisse" && (
+          <button
+            type="button"
+            aria-pressed={detailPostes}
+            onClick={() => setDetailPostes((v) => !v)}
+            className={cn(
+              "inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors",
+              detailPostes ? "border-ocean-profond bg-ocean-profond text-white" : "border-filet bg-surface text-encre-douce hover:text-encre"
+            )}
+          >
+            <Columns3Icon className="h-3.5 w-3.5" />
+            {detailPostes ? "Masquer les 8 postes espèces" : "Détail des 8 postes espèces"}
+          </button>
+        )}
+        <Tabs value={onglet} onValueChange={(v) => setOnglet(v as "caisse" | "primes")}>
+          <TabsList>
+            <TabsTrigger value="caisse">Caisse du mois</TabsTrigger>
+            <TabsTrigger value="primes">Primes médecins</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
-      <div className="tabs" style={{ marginBottom: 14 }}>
-        <button className={`tab ${onglet === "caisse" ? "active" : ""}`} onClick={() => setOnglet("caisse")}>Tableau statistique</button>
-        {CATEGORIES_PRIMES.map(([k, l]) => <button key={k} className={`tab ${onglet === k ? "active" : ""}`} onClick={() => setOnglet(k)}>{l}</button>)}
-        <button className={`tab ${onglet === "graphes" ? "active" : ""}`} onClick={() => setOnglet("graphes")}>Graphes</button>
-      </div>
-      {msg && <div className="note">{msg}</div>}
 
-      {onglet === "caisse" && (<>
-        <div className="cards">
-          <div className="card"><div className="k">Total espèces</div><div className="v">{caisse ? fcfa(t.totalEspeces) : "…"}</div></div>
-          <div className="card"><div className="k">Assurance + TEP scan</div><div className="v">{caisse ? fcfa((t.assurance ?? 0) + (t.tepScan ?? 0)) : "…"}</div></div>
-          <div className="card"><div className="k">Chiffre d'affaires</div><div className="v" style={{ color: "var(--green)" }}>{caisse ? fcfa(t.chiffreAffaires) : "…"}</div></div>
-          <div className="card"><div className="k">Sorties du jour (cumul)</div><div className="v" style={{ color: "var(--red)" }}>{caisse ? fcfa(t.sortiesDuJour) : "…"}</div></div>
-        </div>
-        <form className="form" onSubmit={sauverCaisse}>
-          <label>Du<input type="date" value={fc.dateDebut} onChange={(e) => setFc({ ...fc, dateDebut: e.target.value })} required /></label>
-          <label>Au<input type="date" value={fc.dateFin} onChange={(e) => setFc({ ...fc, dateFin: e.target.value })} required /></label>
-          <label>Horaires<input value={fc.horaires ?? ""} onChange={(e) => setFc({ ...fc, horaires: e.target.value })} placeholder="8h–18h" /></label>
-          {COLS.map((k) => <label key={k}>{LIBELLES_CAISSE[k]}<input type="number" min={0} value={fc[k]} onChange={(e) => setFc({ ...fc, [k]: e.target.value })} /></label>)}
-          <label>&nbsp;<span style={{ display: "flex", gap: 6 }}><button className="btn primary" type="submit">{fc.ligneId ? "Mettre à jour" : "Ajouter la ligne"}</button>{fc.ligneId && <button type="button" className="btn" onClick={() => setFc({ ...LIGNE_VIDE, ligneId: null })}>Annuler</button>}</span></label>
-        </form>
-        <div className="tbl-wrap"><table className="grid">
-          <thead><tr><th>Intervalle</th><th>Horaires</th>{COLS.map((k) => <th key={k} className="num">{LIBELLES_CAISSE[k]}</th>)}<th className="num">Total espèces</th><th className="num">Chiffre d'aff.</th><th></th></tr></thead>
-          <tbody>
-            {(caisse?.lignes ?? []).map((l: any) => (
-              <tr key={String(l._id)}>
-                <td>{l.dateDebut} → {l.dateFin}</td><td>{l.horaires ?? "—"}</td>
-                {COLS.map((k) => <td key={k} className="num">{l[k] ? num(l[k]) : "—"}</td>)}
-                <td className="num"><b>{num(l.totalEspeces)}</b></td><td className="num"><b style={{ color: "var(--green)" }}>{num(l.chiffreAffaires)}</b></td>
-                <td style={{ whiteSpace: "nowrap" }}><button className="btn" onClick={() => setFc({ ...l, ligneId: String(l._id) })}>Modifier</button> <button className={`btn ${confirmId === String(l._id) ? "primary" : ""}`} onClick={() => supprimer(String(l._id), false)} onBlur={() => setConfirmId(null)}>{confirmId === String(l._id) ? "Confirmer" : "Supprimer"}</button></td>
-              </tr>
-            ))}
-            {caisse && caisse.lignes.length > 0 && <tr><td><b>TOTAL GÉNÉRAL</b></td><td></td>{COLS.map((k) => <td key={k} className="num"><b>{num(t[k] ?? 0)}</b></td>)}<td className="num"><b>{num(t.totalEspeces)}</b></td><td className="num"><b>{num(t.chiffreAffaires)}</b></td><td></td></tr>}
-            {caisse && caisse.lignes.length === 0 && <tr><td colSpan={COLS.length + 5}>Aucune ligne pour ce mois.</td></tr>}
-          </tbody>
-        </table></div>
-      </>)}
+      <GrilleTuiles>
+        <Tuile libelle="Chiffre d'affaires" valeur={caisse ? <Montant valeur={t.chiffreAffaires} zero="0" /> : undefined} note="espèces + assurance + TEP scan" vedette />
+        <Tuile libelle="Total espèces" valeur={caisse ? <Montant valeur={t.totalEspeces} zero="0" /> : undefined} note={`${POSTES_ESPECES.length} postes encaissés`} />
+        <Tuile libelle="Assurance + TEP scan" valeur={caisse ? <Montant valeur={(t.assurance ?? 0) + (t.tepScan ?? 0)} zero="0" /> : undefined} note={caisse ? `sorties du jour : ${num(t.sortiesDuJour ?? 0)}` : undefined} />
+        <Tuile libelle="Primes médecins" valeur={primes ? <Montant valeur={primes.total} zero="0" /> : undefined} note={primes ? `${primes.lignes.length} ligne(s) · ${CATEGORIES_PRIMES.length} catégories` : undefined} />
+      </GrilleTuiles>
 
-      {onglet !== "caisse" && onglet !== "graphes" && (<>
-        <div className="cards">
-          <div className="card"><div className="k">{LIBELLE_CATEGORIE[onglet]}</div><div className="v">{primes ? fcfa(primes.total) : "…"}</div></div>
-          <div className="card"><div className="k">Médecins</div><div className="v">{primes ? primes.lignes.length : "…"}</div></div>
-          <div className="card"><div className="k">Actes</div><div className="v">{primes ? primes.lignes.reduce((s: number, l: any) => s + (l.actes ?? 0), 0) : "…"}</div></div>
-        </div>
-        <form className="form" onSubmit={sauverPrime}>
-          <label>Médecin<input value={fp.designation} onChange={(e) => setFp({ ...fp, designation: e.target.value })} placeholder="Dr. Nom Prénom" required /></label>
-          <label>Date début<input type="date" value={fp.dateDebut ?? ""} onChange={(e) => setFp({ ...fp, dateDebut: e.target.value })} /></label>
-          <label>Date fin<input type="date" value={fp.dateFin ?? ""} onChange={(e) => setFp({ ...fp, dateFin: e.target.value })} /></label>
-          <label>Actes<input type="number" min={0} value={fp.actes} onChange={(e) => setFp({ ...fp, actes: e.target.value })} /></label>
-          <label>Montant unitaire (FCFA)<input type="number" min={0} value={fp.montantUnitaire} onChange={(e) => setFp({ ...fp, montantUnitaire: e.target.value })} /></label>
-          <label>Montant total<input value={fcfa(montantTotalPrime(Number(fp.actes), Number(fp.montantUnitaire)))} readOnly /></label>
-          <label>Notes<input value={fp.notes ?? ""} onChange={(e) => setFp({ ...fp, notes: e.target.value })} placeholder="Remarques…" /></label>
-          <label>&nbsp;<span style={{ display: "flex", gap: 6 }}><button className="btn primary" type="submit">{fp.primeId ? "Mettre à jour" : "Ajouter"}</button>{fp.primeId && <button type="button" className="btn" onClick={() => setFp({ ...PRIME_VIDE, primeId: null })}>Annuler</button>}</span></label>
-        </form>
-        <div className="tbl-wrap"><table className="grid">
-          <thead><tr><th>Médecin</th><th>Date début</th><th>Date fin</th><th className="num">Actes</th><th className="num">Montant unit.</th><th className="num">Montant total</th><th>Notes</th><th></th></tr></thead>
-          <tbody>
-            {(primes?.lignes ?? []).map((l: any) => (
-              <tr key={String(l._id)}><td><b>{l.designation}</b></td><td>{l.dateDebut ?? "—"}</td><td>{l.dateFin ?? "—"}</td><td className="num">{l.actes ?? 0}</td><td className="num">{num(l.montantUnitaire ?? 0)}</td><td className="num"><b>{num(l.montant)}</b></td><td>{l.notes ?? "—"}</td>
-                <td style={{ whiteSpace: "nowrap" }}><button className="btn" onClick={() => setFp({ ...l, primeId: String(l._id), actes: l.actes ?? 0, montantUnitaire: l.montantUnitaire ?? 0 })}>Modifier</button> <button className={`btn ${confirmId === String(l._id) ? "primary" : ""}`} onClick={() => supprimer(String(l._id), true)} onBlur={() => setConfirmId(null)}>{confirmId === String(l._id) ? "Confirmer" : "Supprimer"}</button></td></tr>
-            ))}
-            {primes && primes.lignes.length > 0 && <tr><td><b>TOTAL GÉNÉRAL</b></td><td></td><td></td><td className="num"><b>{primes.lignes.reduce((s: number, l: any) => s + (l.actes ?? 0), 0)}</b></td><td></td><td className="num"><b>{num(primes.total)}</b></td><td></td><td></td></tr>}
-            {primes && primes.lignes.length === 0 && <tr><td colSpan={8}>Aucune prime dans cette catégorie pour ce mois.</td></tr>}
-          </tbody>
-        </table></div>
-      </>)}
+      <Tabs value={onglet} onValueChange={(v) => setOnglet(v as "caisse" | "primes")}>
+        {/* ------------------------------------------------------------- Caisse */}
+        <TabsContent value="caisse" className="flex flex-col gap-3.5 lg:flex-row lg:items-start">
+          <div className="min-w-0 flex-1">
+            {caisse === undefined ? (
+              <SqueletteTableau colonnes={8} lignes={4} />
+            ) : (
+              <Table classNameConteneur="rounded-xl">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead rowSpan={2} className="align-bottom">Intervalle</TableHead>
+                    <TableHead rowSpan={2} className="align-bottom">Horaires</TableHead>
+                    {detailPostes && <TableHead colSpan={POSTES_ESPECES.length} className="border-l border-white/15 text-center">Espèces — détail des postes</TableHead>}
+                    <TableHead rowSpan={2} numerique className="border-l border-white/15 bg-ocean-nuit align-bottom">Total espèces</TableHead>
+                    <TableHead colSpan={2} className="border-l border-white/15 text-center">Autres recettes</TableHead>
+                    <TableHead rowSpan={2} numerique className="border-l border-white/15 align-bottom">Sorties du jour</TableHead>
+                    <TableHead rowSpan={2} numerique className="border-l border-white/15 bg-ocean-nuit align-bottom">Chiffre d'affaires</TableHead>
+                    <TableHead rowSpan={2} aria-label="Actions" />
+                  </TableRow>
+                  <TableRow>
+                    {detailPostes && POSTES_ESPECES.map((k, i) => <TableHead key={k} numerique className={cn("text-2xs", i === 0 && "border-l border-white/15")}>{LIBELLES_CAISSE[k]}</TableHead>)}
+                    {AUTRES.map((k, i) => <TableHead key={k} numerique className={cn("text-2xs", i === 0 && "border-l border-white/15")}>{LIBELLES_CAISSE[k]}</TableHead>)}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(caisse.lignes as any[]).map((l) => (
+                    <TableRow key={String(l._id)} className="cursor-pointer" onClick={() => setFormCaisse({ ...CAISSE_VIDE(), ...l, horaires: l.horaires ?? "", ligneId: String(l._id) })}>
+                      <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums">{fmtDate(l.dateDebut)} → {fmtDate(l.dateFin)}</TableCell>
+                      <TableCell className="whitespace-nowrap text-xs">{l.horaires || <span className="text-encre-pale">—</span>}</TableCell>
+                      {detailPostes && POSTES_ESPECES.map((k) => <TableCell key={k} numerique className="font-mono text-xs"><N v={l[k]} /></TableCell>)}
+                      <TableCell numerique className="bg-ocean-brume font-mono text-xs font-semibold"><N v={l.totalEspeces} /></TableCell>
+                      {AUTRES.map((k) => <TableCell key={k} numerique className="font-mono text-xs"><N v={l[k]} /></TableCell>)}
+                      <TableCell numerique className="font-mono text-xs text-carmin">{l.sortiesDuJour ? `−${num(l.sortiesDuJour)}` : <span className="text-encre-pale">0</span>}</TableCell>
+                      <TableCell numerique className="bg-ocean-brume font-mono text-xs font-semibold"><N v={l.chiffreAffaires} /></TableCell>
+                      <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-0.5">
+                          <Button variant="ghost" size="icon-sm" aria-label="Modifier l'intervalle" onClick={() => setFormCaisse({ ...CAISSE_VIDE(), ...l, horaires: l.horaires ?? "", ligneId: String(l._id) })}><PencilIcon /></Button>
+                          <BoutonConfirmation
+                            variant="ghost" size="icon-sm" className="text-encre-pale hover:bg-carmin-clair hover:text-carmin"
+                            libelle={<Trash2Icon className="h-3.5 w-3.5" />}
+                            titre="Supprimer cet intervalle ?"
+                            consequence={`La ligne du ${fmtDate(l.dateDebut)} au ${fmtDate(l.dateFin)} (CA ${fcfa(l.chiffreAffaires)}) sera retirée et les totaux du mois recalculés.`}
+                            confirmer="Supprimer"
+                            onConfirmer={() => supprimerLigne({ ligneId: l._id })}
+                            succes="Intervalle supprimé"
+                          />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {caisse.lignes.length === 0 && <TableVide colonnes={(detailPostes ? POSTES_ESPECES.length : 0) + 8}>Aucun intervalle saisi pour {libellePeriode(periode)}. Ajoutez le premier ou importez un CSV.</TableVide>}
+                </TableBody>
+                {caisse.lignes.length > 0 && (
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell colSpan={2}>TOTAL · {caisse.lignes.length} intervalle(s)</TableCell>
+                      {detailPostes && POSTES_ESPECES.map((k) => <TableCell key={k} numerique className="font-mono text-xs"><N v={t[k]} /></TableCell>)}
+                      <TableCell numerique className="bg-ocean-brume font-mono text-xs"><N v={t.totalEspeces} /></TableCell>
+                      {AUTRES.map((k) => <TableCell key={k} numerique className="font-mono text-xs"><N v={t[k]} /></TableCell>)}
+                      <TableCell numerique className="font-mono text-xs text-carmin">{t.sortiesDuJour ? `−${num(t.sortiesDuJour)}` : <span className="text-encre-pale">0</span>}</TableCell>
+                      <TableCell numerique className="bg-ocean-brume font-mono text-xs"><N v={t.chiffreAffaires} /></TableCell>
+                      <TableCell />
+                    </TableRow>
+                  </TableFooter>
+                )}
+              </Table>
+            )}
+          </div>
+          <aside className="w-full rounded-xl border border-filet bg-surface p-4 lg:w-80 lg:shrink-0">
+            {graphes ? (
+              <Barres
+                titre="Chiffre d'affaires — 6 derniers mois"
+                donnees={graphes.caParMois.map((m: any) => ({ cle: m.periode, libelle: `${libellePeriode(m.periode).slice(0, 3)} ${m.periode.slice(2, 4)}`, valeur: m.chiffreAffaires }))}
+                cleActive={periode}
+                format={num}
+              />
+            ) : <SqueletteTableau colonnes={1} lignes={4} />}
+          </aside>
+        </TabsContent>
 
-      {onglet === "graphes" && graphes && (<>
-        <h3>Chiffre d'affaires — 6 derniers mois</h3>
-        <Barres data={graphes.caParMois.map((m: any) => ({ key: m.periode, label: `${libellePeriode(m.periode).slice(0, 3)} ${m.periode.slice(2, 4)}`, value: m.chiffreAffaires }))} format={fcfa} />
-        <h3 style={{ marginTop: 26 }}>Primes par catégorie — {libellePeriode(periode)}</h3>
-        <Barres data={graphes.primesParCategorie.map((c: any) => ({ key: c.categorie, label: LIBELLE_COURT[c.categorie] ?? c.libelle, value: c.montant }))} couleur="var(--violet, #6a4a9c)" format={fcfa} />
-      </>)}
-    </>
+        {/* ------------------------------------------------------------- Primes */}
+        <TabsContent value="primes" className="flex flex-col gap-3.5">
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-filet bg-surface px-3 py-2 shadow-xs print:hidden">
+            <div role="tablist" aria-label="Catégorie de prime" className="flex flex-wrap items-center gap-1 rounded-xl border border-filet bg-slate-100/80 p-1">
+              {([["toutes", "Toutes"], ...CATEGORIES_PRIMES.map(([k]) => [k, LIBELLE_COURT[k]])] as [CategoriePrime | "toutes", string][]).map(([k, libelle]) => {
+                const actif = categorie === k;
+                const montant = k === "toutes" ? primes?.total ?? 0 : primes?.parCategorie?.[k] ?? 0;
+                return (
+                  <button
+                    key={k}
+                    role="tab"
+                    aria-selected={actif}
+                    title={k === "toutes" ? "Toutes les catégories" : LIBELLE_CATEGORIE[k]}
+                    onClick={() => setCategorie(k)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors",
+                      actif ? "bg-ocean-profond text-white shadow-xs" : "text-encre-douce hover:bg-white hover:text-encre"
+                    )}
+                  >
+                    {libelle}
+                    <span className={cn("font-mono text-[10px] tabular-nums", actif ? "text-white/80" : montant ? "text-encre-pale" : "text-encre-pale/50")}>{num(montant)}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <span className="flex-1" />
+            <div className="relative w-56">
+              <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-encre-pale" aria-hidden="true" />
+              <Input type="search" value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Médecin, note…" aria-label="Rechercher un médecin" className="h-8 pl-8" />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3.5 lg:flex-row lg:items-start">
+            <div className="min-w-0 flex-1">
+              {primes === undefined ? (
+                <SqueletteTableau colonnes={7} lignes={5} />
+              ) : (
+                <Table classNameConteneur="rounded-xl">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Médecin</TableHead>
+                      <TableHead>Catégorie</TableHead>
+                      <TableHead>Période</TableHead>
+                      <TableHead numerique>Actes</TableHead>
+                      <TableHead numerique>Unitaire (FCFA)</TableHead>
+                      <TableHead numerique className="bg-ocean-nuit">Montant (FCFA)</TableHead>
+                      <TableHead>Notes</TableHead>
+                      <TableHead aria-label="Actions" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {primesVisibles.map((p) => (
+                      <TableRow key={String(p._id)} className="cursor-pointer" onClick={() => setFormPrime({ primeId: String(p._id), categorie: p.categorie, designation: p.designation, dateDebut: p.dateDebut ?? "", dateFin: p.dateFin ?? "", actes: p.actes ?? 0, montantUnitaire: p.montantUnitaire ?? 0, notes: p.notes ?? "" })}>
+                        <TableCell className="whitespace-nowrap text-[13px] font-semibold">{p.designation}</TableCell>
+                        <TableCell><Flag variant="neutre" size="xs" title={LIBELLE_CATEGORIE[p.categorie]}>{LIBELLE_COURT[p.categorie as CategoriePrime]}</Flag></TableCell>
+                        <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums">{p.dateDebut || p.dateFin ? `${fmtDate(p.dateDebut)} → ${fmtDate(p.dateFin)}` : <span className="text-encre-pale">—</span>}</TableCell>
+                        <TableCell numerique className="font-mono text-xs"><N v={p.actes} /></TableCell>
+                        <TableCell numerique className="font-mono text-xs"><N v={p.montantUnitaire} /></TableCell>
+                        <TableCell numerique className="bg-ocean-brume font-mono text-xs font-semibold"><N v={p.montant} /></TableCell>
+                        <TableCell className="max-w-[16rem] truncate text-xs text-encre-douce" title={p.notes}>{p.notes || <span className="text-encre-pale">—</span>}</TableCell>
+                        <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-0.5">
+                            <Button variant="ghost" size="icon-sm" aria-label={`Modifier la prime de ${p.designation}`} onClick={() => setFormPrime({ primeId: String(p._id), categorie: p.categorie, designation: p.designation, dateDebut: p.dateDebut ?? "", dateFin: p.dateFin ?? "", actes: p.actes ?? 0, montantUnitaire: p.montantUnitaire ?? 0, notes: p.notes ?? "" })}><PencilIcon /></Button>
+                            <BoutonConfirmation
+                              variant="ghost" size="icon-sm" className="text-encre-pale hover:bg-carmin-clair hover:text-carmin"
+                              libelle={<Trash2Icon className="h-3.5 w-3.5" />}
+                              titre={`Supprimer la prime de ${p.designation} ?`}
+                              consequence={`${fcfa(p.montant)} (${LIBELLE_CATEGORIE[p.categorie]}) seront retirés du total de ${libellePeriode(periode)}.`}
+                              confirmer="Supprimer"
+                              onConfirmer={() => supprimerPrime({ primeId: p._id })}
+                              succes="Prime supprimée"
+                            />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {primesVisibles.length === 0 && (
+                      <TableVide colonnes={8}>
+                        {q ? "Aucun médecin ne correspond à la recherche." : categorie === "toutes" ? `Aucune prime saisie pour ${libellePeriode(periode)}.` : `Aucune prime « ${LIBELLE_CATEGORIE[categorie]} » ce mois — ajoutez-en une ou importez un CSV.`}
+                      </TableVide>
+                    )}
+                  </TableBody>
+                  {primesVisibles.length > 0 && (
+                    <TableFooter>
+                      <TableRow>
+                        <TableCell colSpan={3}>TOTAL · {primesVisibles.length} ligne(s){categorie !== "toutes" ? ` · ${LIBELLE_COURT[categorie]}` : ""}</TableCell>
+                        <TableCell numerique className="font-mono text-xs"><N v={actesVisibles} /></TableCell>
+                        <TableCell />
+                        <TableCell numerique className="bg-ocean-brume font-mono text-xs"><N v={totalVisible} /></TableCell>
+                        <TableCell colSpan={2} />
+                      </TableRow>
+                    </TableFooter>
+                  )}
+                </Table>
+              )}
+            </div>
+            <aside className="w-full rounded-xl border border-filet bg-surface p-4 lg:w-[26rem] lg:shrink-0">
+              {graphes ? (
+                <Barres
+                  titre={`Primes par catégorie — ${libellePeriode(periode)}`}
+                  donnees={graphes.primesParCategorie.map((c: any) => ({ cle: c.categorie, libelle: LIBELLE_COURT[c.categorie as CategoriePrime] ?? c.libelle, valeur: c.montant }))}
+                  cleActive={categorie === "toutes" ? undefined : categorie}
+                  couleur="var(--chart-2)"
+                  format={num}
+                />
+              ) : <SqueletteTableau colonnes={1} lignes={4} />}
+            </aside>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* ------------------------------------------------- Dialogue : intervalle de caisse */}
+      <Dialog open={formCaisse !== null} onOpenChange={(o) => { if (!o) setFormCaisse(null); }}>
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
+          {formCaisse && (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const { ligneId, ...l } = formCaisse;
+                try {
+                  await enregistrerLigne({ ligneId: (ligneId ?? undefined) as any, periode, dateDebut: l.dateDebut, dateFin: l.dateFin, horaires: l.horaires || undefined, ...Object.fromEntries(COLS.map((k) => [k, Number(l[k]) || 0])) } as any);
+                  toast.success(ligneId ? "Intervalle mis à jour" : "Intervalle ajouté", { description: `CA ${fcfa(chiffreAffaires(l))} — totaux du mois recalculés` });
+                  setFormCaisse(null);
+                } catch (err) { toast.error("Enregistrement refusé", { description: messageErreur(err) }); }
+              }}
+            >
+              <DialogHeader>
+                <DialogTitle>{formCaisse.ligneId ? "Modifier l'intervalle" : "Nouvel intervalle de caisse"}</DialogTitle>
+                <DialogDescription>{libellePeriode(periode)} · total espèces et chiffre d'affaires se calculent pendant la saisie.</DialogDescription>
+              </DialogHeader>
+              <div className="mt-4 flex flex-col gap-4">
+                <div className="grid grid-cols-3 gap-3">
+                  <Champ libelle="Du" requis>{(a) => <Input {...a} type="date" required value={formCaisse.dateDebut} onChange={(e) => setFormCaisse({ ...formCaisse, dateDebut: e.target.value })} />}</Champ>
+                  <Champ libelle="Au" requis>{(a) => <Input {...a} type="date" required value={formCaisse.dateFin} onChange={(e) => setFormCaisse({ ...formCaisse, dateFin: e.target.value })} />}</Champ>
+                  <Champ libelle="Horaires">{(a) => <Input {...a} placeholder="8h–18h" value={formCaisse.horaires ?? ""} onChange={(e) => setFormCaisse({ ...formCaisse, horaires: e.target.value })} />}</Champ>
+                </div>
+                <section>
+                  <h3 className="mb-2 text-2xs font-bold uppercase tracking-[0.08em] text-ocean-profond">Espèces</h3>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {POSTES_ESPECES.map((k) => <ChampNombre key={k} libelle={LIBELLES_CAISSE[k]} unite="FCFA" min={0} step={1000} valeur={formCaisse[k as Poste]} onChange={(n) => setFormCaisse({ ...formCaisse, [k]: n })} />)}
+                  </div>
+                </section>
+                <section>
+                  <h3 className="mb-2 text-2xs font-bold uppercase tracking-[0.08em] text-ocean-profond">Autres recettes & sorties</h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    {(["assurance", "tepScan", "sortiesDuJour"] as Col[]).map((k) => <ChampNombre key={k} libelle={LIBELLES_CAISSE[k]} unite="FCFA" min={0} step={1000} valeur={formCaisse[k]} onChange={(n) => setFormCaisse({ ...formCaisse, [k]: n })} />)}
+                  </div>
+                </section>
+                <div className="grid grid-cols-2 gap-3 rounded-lg border border-filet bg-papier px-4 py-3 text-xs sm:grid-cols-3">
+                  <div><span className="block text-encre-pale">Total espèces</span><span className="font-mono text-base font-semibold tabular-nums">{num(totalEspeces(formCaisse))}</span></div>
+                  <div><span className="block text-encre-pale">Chiffre d'affaires</span><span className="font-mono text-base font-semibold tabular-nums text-ocean-profond">{num(chiffreAffaires(formCaisse))} <span className="text-2xs font-normal text-encre-douce">FCFA</span></span></div>
+                  <div><span className="block text-encre-pale">Sorties du jour</span><span className="font-mono text-base font-semibold tabular-nums text-carmin">{formCaisse.sortiesDuJour ? `−${num(formCaisse.sortiesDuJour)}` : "0"}</span></div>
+                </div>
+              </div>
+              <DialogFooter className="mt-5">
+                <Button type="button" variant="outline" onClick={() => setFormCaisse(null)}>Annuler</Button>
+                <Button type="submit">{formCaisse.ligneId ? "Mettre à jour" : "Ajouter l'intervalle"}</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ------------------------------------------------- Dialogue : prime médecin */}
+      <Dialog open={formPrime !== null} onOpenChange={(o) => { if (!o) setFormPrime(null); }}>
+        <DialogContent className="sm:max-w-xl">
+          {formPrime && (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!formPrime.designation.trim()) { toast.error("Le nom du médecin est requis."); return; }
+                const { primeId, ...p } = formPrime;
+                try {
+                  await enregistrerPrime({ primeId: (primeId ?? undefined) as any, periode, categorie: p.categorie, designation: p.designation, dateDebut: p.dateDebut || undefined, dateFin: p.dateFin || undefined, actes: Number(p.actes) || 0, montantUnitaire: Number(p.montantUnitaire) || 0, notes: p.notes || undefined });
+                  toast.success(primeId ? "Prime mise à jour" : "Prime ajoutée", { description: `${p.designation} · ${fcfa(montantTotalPrime(p.actes, p.montantUnitaire))} · ${LIBELLE_CATEGORIE[p.categorie]}` });
+                  setFormPrime(null);
+                  if (categorie !== "toutes" && categorie !== p.categorie) setCategorie(p.categorie);
+                } catch (err) { toast.error("Enregistrement refusé", { description: messageErreur(err) }); }
+              }}
+            >
+              <DialogHeader>
+                <DialogTitle>{formPrime.primeId ? "Modifier la prime" : "Nouvelle prime médecin"}</DialogTitle>
+                <DialogDescription>{libellePeriode(periode)} · montant = actes × montant unitaire.</DialogDescription>
+              </DialogHeader>
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="col-span-2 sm:col-span-1">
+                  <Champ libelle="Médecin" requis>{(a) => <Input {...a} required placeholder="Dr Nom Prénom" value={formPrime.designation} onChange={(e) => setFormPrime({ ...formPrime, designation: e.target.value })} />}</Champ>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <Champ libelle="Catégorie" requis>
+                    {(a) => (
+                      <Select value={formPrime.categorie} onValueChange={(v) => setFormPrime({ ...formPrime, categorie: v as CategoriePrime })}>
+                        <SelectTrigger id={a.id} className="w-full" aria-label="Catégorie"><SelectValue /></SelectTrigger>
+                        <SelectContent>{CATEGORIES_PRIMES.map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
+                      </Select>
+                    )}
+                  </Champ>
+                </div>
+                <Champ libelle="Date début">{(a) => <Input {...a} type="date" value={formPrime.dateDebut} onChange={(e) => setFormPrime({ ...formPrime, dateDebut: e.target.value })} />}</Champ>
+                <Champ libelle="Date fin">{(a) => <Input {...a} type="date" value={formPrime.dateFin} onChange={(e) => setFormPrime({ ...formPrime, dateFin: e.target.value })} />}</Champ>
+                <ChampNombre libelle="Actes" unite="actes" min={0} step={1} valeur={formPrime.actes} onChange={(n) => setFormPrime({ ...formPrime, actes: n })} />
+                <ChampNombre libelle="Montant unitaire" unite="FCFA" min={0} step={1000} valeur={formPrime.montantUnitaire} onChange={(n) => setFormPrime({ ...formPrime, montantUnitaire: n })} />
+                <div className="col-span-2">
+                  <Champ libelle="Notes">{(a) => <Input {...a} placeholder="Remarques…" value={formPrime.notes} onChange={(e) => setFormPrime({ ...formPrime, notes: e.target.value })} />}</Champ>
+                </div>
+                <div className="col-span-2 flex items-baseline justify-between rounded-lg border border-filet bg-papier px-4 py-3 text-xs">
+                  <span className="text-encre-douce">Montant total <span className="text-encre-pale">= {num(formPrime.actes)} × {num(formPrime.montantUnitaire)}</span></span>
+                  <span className="font-mono text-lg font-semibold tabular-nums text-ocean-profond">{num(montantTotalPrime(formPrime.actes, formPrime.montantUnitaire))} <span className="text-2xs font-normal text-encre-douce">FCFA</span></span>
+                </div>
+              </div>
+              <DialogFooter className="mt-5">
+                <Button type="button" variant="outline" onClick={() => setFormPrime(null)}>Annuler</Button>
+                <Button type="submit">{formPrime.primeId ? "Mettre à jour" : "Ajouter la prime"}</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ------------------------------------------------- Dialogue : import CSV de primes */}
+      <Dialog open={importPrimes !== null} onOpenChange={(o) => { if (!o) setImportPrimes(null); }}>
+        <DialogContent className="sm:max-w-md">
+          {importPrimes && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Importer des primes</DialogTitle>
+                <DialogDescription>Fichier « {importPrimes.fichier.name} » · toutes les lignes iront dans la catégorie choisie, pour {libellePeriode(periode)}.</DialogDescription>
+              </DialogHeader>
+              <div className="mt-2">
+                <Champ libelle="Catégorie" requis>
+                  {(a) => (
+                    <Select value={importPrimes.categorie} onValueChange={(v) => setImportPrimes({ ...importPrimes, categorie: v as CategoriePrime })}>
+                      <SelectTrigger id={a.id} className="w-full" aria-label="Catégorie"><SelectValue /></SelectTrigger>
+                      <SelectContent>{CATEGORIES_PRIMES.map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
+                    </Select>
+                  )}
+                </Champ>
+              </div>
+              <DialogFooter className="mt-4">
+                <Button variant="outline" onClick={() => setImportPrimes(null)}>Annuler</Button>
+                <Button onClick={confirmerImportPrimes}><UploadIcon /> Importer</Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
