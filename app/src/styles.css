@@ -163,9 +163,19 @@ table.grid.recap td { font-size: 12px; }
 }
 .cockpit-kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
   margin-bottom: 22px;
+}
+@media (max-width: 1000px) {
+  .cockpit-kpis {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 580px) {
+  .cockpit-kpis {
+    grid-template-columns: 1fr;
+  }
 }
 .cockpit-kpi {
   background: var(--card);
@@ -375,54 +385,67 @@ table.grid.recap td { font-size: 12px; }
   font-variant-numeric: tabular-nums;
 }
 
-/* Caisse Tabs navigation (Right Column) */
+/* Caisse Tabs navigation (Right Column - 2 rows of 4 columns, no scroll) */
 .caisse-nav-wrap {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 8px 10px;
+  padding: 10px;
   margin-bottom: 16px;
   box-shadow: 0 1px 3px rgba(15, 42, 68, 0.04);
 }
-.caisse-nav-scroll {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding: 2px 0;
-  scrollbar-width: thin;
+.caisse-nav-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+@media (max-width: 950px) {
+  .caisse-nav-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 .caisse-nav-btn {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 8px 10px;
   border-radius: 8px;
-  border: 1px solid transparent;
-  background: transparent;
+  border: 1px solid var(--line);
+  background: var(--paper);
   color: var(--ink-soft);
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
   cursor: pointer;
   transition: all 0.15s ease;
+  text-align: left;
+  min-height: 52px;
 }
 .caisse-nav-btn:hover {
   background: var(--card-2);
   color: var(--ink);
+  border-color: #bcc9b9;
 }
 .caisse-nav-btn.active {
   background: var(--navy);
+  border-color: var(--navy);
   color: #fff;
-  box-shadow: 0 2px 8px rgba(15, 42, 68, 0.15);
+  box-shadow: 0 2px 8px rgba(15, 42, 68, 0.18);
+}
+.caisse-nav-btn .caisse-name {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
 }
 .caisse-nav-btn .pill-badge {
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 600;
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: 4px;
   background: rgba(0, 0, 0, 0.06);
+  color: var(--ink);
 }
 .caisse-nav-btn.active .pill-badge {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.22);
   color: #fff;
 }
 
