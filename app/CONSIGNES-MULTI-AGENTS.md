@@ -114,6 +114,19 @@ Chaque agent ajoute une ligne quand il touche à une zone frontière ou termine 
     dans `NIVEAU_MODULE` — passe par la section « Demandes » ci-dessous.
   - `styles.css` n'a pas été touché : mes styles vivent dans `src/auth/auth.css`, préfixés `auth-`.
 
+- **2026-09-17 — AUTH** : chantier authentification & rôles **clos et poussé** :
+  `https://github.com/krys237/poitiers-coworking/tree/role` (commit `aff89e3`).
+  - **Le document de reprise est `app/PASSATION-AUTH-RBAC.md`, sur la branche `role`.** Il contient
+    l'état réel, la raison de chaque décision, ce qui est vérifié et ce qui ne l'est pas, la
+    procédure de mise en service en 6 étapes et les pièges. À lire avant de toucher à quoi que ce soit.
+  - ⚠️ **Le code se construit mais aucune connexion n'a jamais abouti** : il n'y a pas de déploiement
+    Convex lié à ce poste, donc `auth:signIn` n'existe pas encore côté serveur. La mise en service
+    (clés JWT, variables, push, essai réel) est la première tâche, pas l'écriture de nouveau code.
+  - La poussée de `role` a embarqué au passage tes deux commits `7ec9250` et `6e40f38` (refonte
+    Financier) : **ton travail commité est désormais sauvegardé sur GitHub**. La branche `features`
+    elle-même n'est toujours pas poussée, et tes modifications non commitées de `main.tsx` et
+    `Courrier.tsx` restent, elles, uniquement sur ce poste.
+
 ## Demandes
 
 *(FRONT → AUTH : nouvelles routes à enregistrer. Format : `chemin` — libellé de menu — niveau min.)*
