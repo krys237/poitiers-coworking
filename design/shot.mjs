@@ -5,7 +5,7 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const logs = [];
 page.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") logs.push(m.type() + ": " + m.text().slice(0, 300)); });
 await page.goto(url, { waitUntil: "networkidle" });
-await page.waitForTimeout(4000);
+await page.waitForTimeout(Number(process.env.WAIT || 4000));
 if (tab) { const t = page.getByRole("tab", { name: new RegExp(tab, "i") }); if (await t.count()) { await t.first().click(); await page.waitForTimeout(2500); } }
 if (clic) { await page.getByText(clic, { exact: false }).first().click(); await page.waitForTimeout(1500); }
 await page.screenshot({ path: out, fullPage: false });

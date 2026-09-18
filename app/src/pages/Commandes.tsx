@@ -825,7 +825,7 @@ export function Commandes() {
                             setSel(estSelectionne ? null : id);
                           }
                         }}
-                        className={cn("cursor-pointer", estSelectionne && "shadow-[inset_3px_0_0_var(--ocean-ceruleen)]")}
+                        className={"cursor-pointer"}
                       >
                         <TableCell className="whitespace-nowrap font-mono text-xs font-semibold text-ocean-profond">
                           {c.reference}
