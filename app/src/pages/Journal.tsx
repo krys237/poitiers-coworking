@@ -14,6 +14,7 @@
  */
 import * as React from "react";
 import { useQuery } from "convex/react";
+import { useSearchParams } from "react-router-dom";
 import { DownloadIcon, ScrollTextIcon, SearchIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { ACTIONS_LIBELLES, FAMILLES, type FamilleJournal } from "../../convex/lib/journalFamilles";
@@ -63,9 +64,12 @@ function telecharger(nom: string, contenu: string) {
 // --- Page -------------------------------------------------------------------------
 
 export function Journal() {
+  // `?action=api_financial` (depuis la fiche API) pré-filtre le journal.
+  const [params] = useSearchParams();
+  const actionInitiale = params.get("action");
   const [fenetre, setFenetre] = React.useState<Fenetre>("30j");
-  const [famille, setFamille] = React.useState<FamilleJournal | typeof TOUS>(TOUS);
-  const [action, setAction] = React.useState<string>(TOUS);
+  const [famille, setFamille] = React.useState<FamilleJournal | typeof TOUS>(actionInitiale ? familleDe(actionInitiale) : TOUS);
+  const [action, setAction] = React.useState<string>(actionInitiale ?? TOUS);
   const [auteur, setAuteur] = React.useState<string>(TOUS);
   const [q, setQ] = React.useState("");
   const [ouvert, setOuvert] = React.useState<Evenement | null>(null);
