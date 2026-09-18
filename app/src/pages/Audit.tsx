@@ -59,12 +59,14 @@ const LIBELLE_COURT: Record<Cat, string> = {
 };
 
 type Ligne = { ligneId: string | null; categorie: Cat; designation: string; dateDebut: string; dateFin: string; montant: number; notes: string };
+/** « Sep 26 » : assez court pour 24 barres. */
+const libelleMoisCourt = (p: string) => `${libellePeriode(p).slice(0, 3)} ${p.slice(2, 4)}`;
 const fmtDate = (s?: string) => (s ? new Date(s + "T00:00:00").toLocaleDateString("fr-FR") : "");
 const fmtDateHeure = (s?: string) => (s ? new Date(s).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }) : "—");
 const sansAccents = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const N = ({ v }: { v: number | undefined }) => (v ? <>{v < 0 ? "−" : ""}{num(Math.abs(v))}</> : <span className="text-encre-pale">0</span>);
 const Delta = ({ v, p }: { v: number; p: number | null }) =>
-  v ? <span className={cn("font-mono text-xs tabular-nums", v < 0 ? "text-carmin" : "text-emerald-700")}>{v < 0 ? "−" : "+"}{num(Math.abs(v))}{p !== null ? <span className="ml-1 text-2xs text-encre-pale">({p > 0 ? "+" : ""}{fmtPct(p)})</span> : null}</span> : <span className="text-encre-pale">—</span>;
+  v ? <span className={cn("whitespace-nowrap font-mono text-xs tabular-nums", v < 0 ? "text-carmin" : "text-emerald-700")}>{v < 0 ? "−" : "+"}{num(Math.abs(v))}{p !== null ? <span className="ml-1 text-2xs text-encre-pale">({p > 0 ? "+" : ""}{fmtPct(p)})</span> : null}</span> : <span className="text-encre-pale">—</span>;
 
 function telecharger(nom: string, contenu: string) {
   const a = document.createElement("a");
@@ -88,8 +90,11 @@ export function Audit() {
   const resume = useQuery(api.audit.resume, { periode });
   const toutes = useQuery(api.audit.lignesDuMois, { periode });
   const rapport = useQuery(api.audit.rapport, categorie !== "toutes" ? { periode, categorie } : "skip");
-  const salaires = useQuery(api.audit.totalSalaires, onglet === "salaires" ? { periode } : "skip");
-  const graphes = useQuery(api.audit.graphes, { periode });
+  // Un audit court souvent sur l'année : horizon des séries, mémorisé.
+  const [horizon, setHorizon] = React.useState<6 | 12 | 24>(() => { try { const h = Number(window.localStorage.getItem("audit:horizon")); return h === 12 || h === 24 ? h : 6; } catch { return 6; } });
+  const changerHorizon = (h: 6 | 12 | 24) => { setHorizon(h); try { window.localStorage.setItem("audit:horizon", String(h)); } catch { /* ignoré */ } };
+  const salaires = useQuery(api.audit.totalSalaires, onglet === "salaires" ? { periode, mois: horizon } : "skip");
+  const graphes = useQuery(api.audit.graphes, { periode, mois: horizon });
   const enregistrer = useMutation(api.audit.enregistrerLigne);
   const supprimer = useMutation(api.audit.supprimerLigne);
   const importer = useMutation(api.audit.importerLignes);
@@ -138,6 +143,15 @@ export function Audit() {
         <SelecteurPeriode valeur={periode} onChange={setPeriode} />
         <span className="text-sm font-semibold">{libellePeriode(periode)}</span>
         <span className="flex-1" />
+        {onglet !== "lignes" && (
+          <label className="flex items-center gap-2 text-xs text-encre-douce">
+            Horizon
+            <Select value={String(horizon)} onValueChange={(v) => changerHorizon(Number(v) as 6 | 12 | 24)}>
+              <SelectTrigger size="sm" className="w-[6.5rem]" aria-label="Horizon des séries"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="6">6 mois</SelectItem><SelectItem value="12">12 mois</SelectItem><SelectItem value="24">24 mois</SelectItem></SelectContent>
+            </Select>
+          </label>
+        )}
         {onglet === "lignes" && (
           <>
             <SelecteurLignes valeur={lignesVisibles.lignes} onChange={lignesVisibles.setLignes} />
@@ -212,12 +226,25 @@ export function Audit() {
               </Table>
             )}
           </div>
-          <aside className="w-full rounded-xl border border-filet bg-surface p-4 lg:w-[26rem] lg:shrink-0">
+          <aside className="flex w-full flex-col gap-3 lg:w-[26rem] lg:shrink-0">
             {graphes ? (
-              graphes.parCategorie.length ? (
-                <Barres titre={`Montants audités par catégorie — ${libellePeriode(periode)}`} donnees={graphes.parCategorie.map((c: any) => ({ cle: c.key, libelle: LIBELLE_COURT[c.key as Cat] ?? c.label, valeur: c.value }))} format={num} />
-              ) : <p className="text-xs text-encre-pale">Aucune ligne d'audit ce mois.</p>
-            ) : <SqueletteTableau colonnes={1} lignes={4} />}
+              <>
+                <Barres
+                  titre={`Total audité par mois — ${graphes.horizon} derniers mois`}
+                  donnees={graphes.audit.map((m: any) => ({ cle: m.key, libelle: libelleMoisCourt(m.key), valeur: m.value }))}
+                  cleActive={periode}
+                  format={num}
+                  className="rounded-xl"
+                />
+                <Barres
+                  orientation="horizontale"
+                  titre={`Par catégorie — ${libellePeriode(periode)}`}
+                  donnees={[...graphes.parCategorie].sort((a: any, b: any) => b.value - a.value).map((c: any) => ({ cle: c.key, libelle: LIBELLE_COURT[c.key as Cat] ?? c.label, valeur: c.value }))}
+                  format={num}
+                  className="rounded-xl"
+                />
+              </>
+            ) : <SqueletteTableau colonnes={1} lignes={6} />}
           </aside>
         </div>
       )}
@@ -371,7 +398,7 @@ export function Audit() {
           </div>
           <aside className="w-full rounded-xl border border-filet bg-surface p-4 lg:w-[22rem] lg:shrink-0">
             {graphes ? (
-              <Barres titre="Net versé par mois — 6 derniers mois" donnees={graphes.salaires.map((s: any) => ({ cle: s.key, libelle: `${libellePeriode(s.label).slice(0, 3)} ${String(s.label).slice(2, 4)}`, valeur: s.value }))} cleActive={periode} format={num} couleur="var(--chart-3)" />
+              <Barres titre={`Net versé par mois — ${graphes.horizon} derniers mois`} donnees={graphes.salaires.map((s: any) => ({ cle: s.key, libelle: libelleMoisCourt(s.key), valeur: s.value }))} cleActive={periode} format={num} couleur="var(--chart-3)" className="rounded-xl" />
             ) : <SqueletteTableau colonnes={1} lignes={4} />}
           </aside>
         </div>

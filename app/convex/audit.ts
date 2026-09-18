@@ -129,18 +129,22 @@ export const totalSalaires = query({
 });
 
 export const graphes = query({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => {
+  args: { periode: v.string(), mois: v.optional(v.number()) },
+  handler: async (ctx, { periode, mois }) => {
     await requireAudit(ctx);
+    // Un audit court souvent sur l'année : l'horizon est choisi par l'écran (6, 12 ou 24 mois).
+    const horizon = Math.min(24, Math.max(1, mois ?? 6));
     const rows = await ctx.db.query("primesMedecins").withIndex("by_contexte_periode", (q) => q.eq("contexte", "audit").eq("periode", periode)).collect();
     const t: Record<string, number> = {};
     for (const r of rows) t[r.categorie] = (t[r.categorie] ?? 0) + r.montant;
-    const parCategorie = CATEGORIES_AUDIT.filter(([cle]) => t[cle]).map(([cle, libelle]) => ({ key: cle, label: libelle, value: t[cle] }));
-    const salaires = [];
-    for (const p of derniersMois(periode, 6)) {
+    const parCategorie = CATEGORIES_AUDIT.map(([cle, libelle]) => ({ key: cle, label: libelle, value: t[cle] ?? 0 }));
+    const salaires = [], audit = [];
+    for (const p of derniersMois(periode, horizon)) {
       const r = await bulletinsPourPeriode(ctx, p);
       salaires.push({ key: p, label: p, value: r.bulletins.reduce((s, b) => s + b.net, 0) });
+      const lignes = await ctx.db.query("primesMedecins").withIndex("by_contexte_periode", (q) => q.eq("contexte", "audit").eq("periode", p)).collect();
+      audit.push({ key: p, label: p, value: lignes.reduce((s, l) => s + l.montant, 0) });
     }
-    return { parCategorie, salaires };
+    return { parCategorie, salaires, audit, horizon };
   },
 });
