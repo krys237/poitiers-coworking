@@ -159,3 +159,15 @@ Principe hérité de la plateforme d'origine : **l'utilisateur qui a n élément
 * Entrée valide ; le focus revient au premier champ ; la ligne apparaît immédiatement dans le tableau (réactivité Convex) ; toast discret.
 * Les champs pré-remplis par le contexte (catégorie filtrée, période, date du jour) ne se retapent pas.
 * Modifier une ligne existante se fait **sur la ligne** (clic → dialogue ou édition en place), jamais en re-remplissant la ligne de saisie du haut.
+
+---
+
+## 8. Tableaux : défilement intégré & lignes visibles (adopté le 18/09/2026)
+
+C'est un ERP : toute liste devient kilométrique. **Un tableau ne fait jamais défiler la page.**
+
+* Le tableau défile **seul** : `<Table hauteurMax={…}>` (conteneur `overflow: auto`), en-tête (`TableHeader`) et pied (`TableFooter`) **collants**.
+* L'utilisateur choisit le nombre de lignes visibles avant défilement : `<SelecteurLignes>` + `useLignesVisibles(cle)` (`app/lignes-visibles.tsx`), choix 5 · 10 · 15 · 20 · 30 · 50 · Toutes, **mémorisé par écran**. Le sélecteur se place dans la barre de filtres du tableau, à droite.
+* `hauteurMax(hauteurLigne, enTete, pied)` se calcule avec la hauteur réelle des lignes de l'écran (≈ 49 px pour une ligne à deux niveaux de texte, 40 px en densité registre).
+* Un tableau large défile horizontalement **dans son conteneur** (jamais la page), avec sa première colonne figée quand elle identifie la ligne (nom, référence).
+* Recherche et filtres agissent sur les lignes **avant** la limite de hauteur : on filtre d'abord, on défile ensuite.

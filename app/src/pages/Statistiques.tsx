@@ -29,6 +29,7 @@ import { Barres } from "@/components/app/barres";
 import { BoutonConfirmation } from "@/components/app/bouton-action";
 import { CelluleNombre, Champ, ChampNombre } from "@/components/app/champs";
 import { BoutonPersistance, useSaisiePersistante } from "@/components/app/saisie-persistante";
+import { SelecteurLignes, useLignesVisibles } from "@/components/app/lignes-visibles";
 import { SqueletteTableau } from "@/components/app/chargement";
 import { SelecteurPeriode } from "@/components/app/selecteur-periode";
 import { Button } from "@/components/ui/button";
@@ -80,6 +81,8 @@ export function Statistiques() {
   const [recherche, setRecherche] = React.useState("");
   // Les 8 postes espèces sont repliés par défaut : on lit d'abord les totaux, le détail est à un clic.
   const [detailPostes, setDetailPostes] = React.useState(false);
+  const lignesCaisse = useLignesVisibles("statistiques:caisse", 10);
+  const lignesPrimes = useLignesVisibles("statistiques:primes", 15);
   // Saisie en série (skill §7) : ligne de saisie permanente en tête du tableau.
   // Primes : activée par défaut (n médecins × 6 catégories chaque mois).
   // Caisse : au choix, et elle affiche les 8 postes puisqu'on les saisit.
@@ -169,6 +172,7 @@ export function Statistiques() {
         <SelecteurPeriode valeur={periode} onChange={setPeriode} />
         <span className="text-sm font-semibold">{libellePeriode(periode)}</span>
         <span className="flex-1" />
+        {onglet === "caisse" && <SelecteurLignes valeur={lignesCaisse.lignes} onChange={lignesCaisse.setLignes} />}
         {onglet === "caisse" && <BoutonPersistance actif={persistCaisse} onChange={setPersistCaisse} />}
         {onglet === "caisse" && (
           <button
@@ -206,7 +210,7 @@ export function Statistiques() {
             {caisse === undefined ? (
               <SqueletteTableau colonnes={8} lignes={4} />
             ) : (
-              <Table classNameConteneur="rounded-xl">
+              <Table classNameConteneur="rounded-xl" hauteurMax={lignesCaisse.hauteurMax(49, 84, 44)}>
                 <TableHeader>
                   <TableRow>
                     <TableHead rowSpan={2} className="align-bottom">Intervalle</TableHead>
@@ -314,6 +318,7 @@ export function Statistiques() {
               })}
             </div>
             <span className="flex-1" />
+            <SelecteurLignes valeur={lignesPrimes.lignes} onChange={lignesPrimes.setLignes} />
             <BoutonPersistance actif={persistPrimes} onChange={setPersistPrimes} />
             <div className="relative w-56">
               <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-encre-pale" aria-hidden="true" />
@@ -326,7 +331,7 @@ export function Statistiques() {
               {primes === undefined ? (
                 <SqueletteTableau colonnes={7} lignes={5} />
               ) : (
-                <Table classNameConteneur="rounded-xl">
+                <Table classNameConteneur="rounded-xl" hauteurMax={lignesPrimes.hauteurMax(49, 40, 44)}>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Médecin</TableHead>

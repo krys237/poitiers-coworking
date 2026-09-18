@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Flag, FlagVariant } from "@/components/ui/flag";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SelecteurLignes, useLignesVisibles } from "@/components/app/lignes-visibles";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -71,6 +72,7 @@ export function ComptesRendus() {
   const [jourSup, setJourSup] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [vueOngletSuperviseur, setVueOngletSuperviseur] = useState<"tableau" | "feed">("tableau");
+  const lignesVisibles = useLignesVisibles("comptes-rendus:supervision");
 
   const sup = useQuery(
     api.comptesRendus.vueSuperviseur,
@@ -692,14 +694,17 @@ export function ComptesRendus() {
               </button>
             </div>
 
-            <span className="text-2xs text-slate-500 font-mono hidden sm:inline">
-              {sup?.date ? fmtDateLongue(sup.date) : ""}
-            </span>
+            <div className="flex items-center gap-3">
+              {vueOngletSuperviseur === "tableau" && <SelecteurLignes valeur={lignesVisibles.lignes} onChange={lignesVisibles.setLignes} />}
+              <span className="text-2xs text-slate-500 font-mono hidden sm:inline">
+                {sup?.date ? fmtDateLongue(sup.date) : ""}
+              </span>
+            </div>
           </div>
 
           {/* Vue A : Tableau de présence et statut par membre */}
           {vueOngletSuperviseur === "tableau" ? (
-            <Table classNameConteneur="rounded-xl">
+            <Table classNameConteneur="rounded-xl" hauteurMax={lignesVisibles.hauteurMax(49)}>
               <TableHeader>
                 <TableRow>
                   <TableHead>Membre</TableHead>

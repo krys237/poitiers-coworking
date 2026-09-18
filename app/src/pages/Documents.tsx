@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Flag } from "@/components/ui/flag";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SelecteurLignes, useLignesVisibles } from "@/components/app/lignes-visibles";
 import { BoutonConfirmation } from "@/components/app/bouton-action";
 import { cn } from "@/lib/utils";
 import {
@@ -160,6 +161,7 @@ export function Documents() {
   const [demandeCode, setDemandeCode] = useState<string | null>(null);
   const [erreurs, setErreurs] = useState<Record<string, string>>({});
   const [dragOver, setDragOver] = useState(false);
+  const lignesVisibles = useLignesVisibles("documents");
   // Vue « tableau » (dense, même grammaire que Interventions) ou « cartes ».
   const [vue, setVue] = useState<"tableau" | "cartes">(() => {
     try { return window.localStorage.getItem("documents:vue") === "cartes" ? "cartes" : "tableau"; } catch { return "tableau"; }
@@ -754,6 +756,7 @@ export function Documents() {
               {docs.length} document{docs.length > 1 ? "s" : ""} affiché{docs.length > 1 ? "s" : ""}
               {categorieFiltre && ` (sur ${tousDocs.length})`}
             </Flag>
+            {vue === "tableau" && <SelecteurLignes valeur={lignesVisibles.lignes} onChange={lignesVisibles.setLignes} />}
           </div>
         </div>
 
@@ -857,7 +860,7 @@ export function Documents() {
           </div>
         </Card>
       ) : vue === "tableau" ? (
-        <Table classNameConteneur="rounded-xl">
+        <Table classNameConteneur="rounded-xl" hauteurMax={lignesVisibles.hauteurMax(57)}>
           <TableHeader>
             <TableRow>
               <TableHead>Document</TableHead>

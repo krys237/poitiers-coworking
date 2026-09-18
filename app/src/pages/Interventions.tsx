@@ -28,6 +28,7 @@ import { BoutonConfirmation } from "@/components/app/bouton-action";
 import { Champ, ChampNombre, GrilleFormulaire } from "@/components/app/champs";
 import { SqueletteTableau } from "@/components/app/chargement";
 import { EtatVide } from "@/components/app/etat-vide";
+import { SelecteurLignes, useLignesVisibles } from "@/components/app/lignes-visibles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -77,7 +78,7 @@ export function Interventions() {
   const [statut, setStatut] = React.useState<Statut | "toutes">("toutes");
   const [priorite, setPriorite] = React.useState<Priorite | "">("");
   const [recherche, setRecherche] = React.useState("");
-  const [lignesVisibles, setLignesVisibles] = React.useState<number>(10);
+  const lignesVisibles = useLignesVisibles("interventions");
   const [sel, setSel] = React.useState<string | null>(null);
   const [ouvrirCreation, setOuvrirCreation] = React.useState(false);
 
@@ -165,16 +166,7 @@ export function Interventions() {
             className="h-8 pl-8"
           />
         </div>
-        <label className="flex items-center gap-2 text-xs text-encre-douce">
-          Lignes
-          <Select value={String(lignesVisibles)} onValueChange={(v) => setLignesVisibles(Number(v))}>
-            <SelectTrigger size="sm" className="w-[5.5rem]" aria-label="Nombre de lignes visibles"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {[5, 10, 20, 50].map((n) => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
-              <SelectItem value="0">Toutes</SelectItem>
-            </SelectContent>
-          </Select>
-        </label>
+        <SelecteurLignes valeur={lignesVisibles.lignes} onChange={lignesVisibles.setLignes} />
       </div>
 
       <div className="flex flex-col gap-3.5 lg:flex-row lg:items-start">
@@ -190,7 +182,7 @@ export function Interventions() {
               Déposez la première demande : titre, priorité, lieu, matériel chiffré et photos. La direction la validera ici même.
             </EtatVide>
           ) : (
-            <Table classNameConteneur="rounded-xl" hauteurMax={lignesVisibles ? `${lignesVisibles * 49 + 42}px` : undefined}>
+            <Table classNameConteneur="rounded-xl" hauteurMax={lignesVisibles.hauteurMax(49)}>
               <TableHeader>
                 <TableRow>
                   <TableHead>Référence</TableHead>

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Flag, FlagVariant } from "@/components/ui/flag";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SelecteurLignes, useLignesVisibles } from "@/components/app/lignes-visibles";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -82,6 +83,7 @@ export function Commandes() {
   const commenter = useMutation(api.commandes.commenter);
 
   const [recherche, setRecherche] = useState("");
+  const lignesVisibles = useLignesVisibles("commandes");
   const [ouvrirForm, setOuvrirForm] = useState(false);
   const [enCreation, setEnCreation] = useState(false);
   const [enTransition, setEnTransition] = useState(false);
@@ -461,6 +463,7 @@ export function Commandes() {
             </button>
           </div>
 
+          <SelecteurLignes valeur={lignesVisibles.lignes} onChange={lignesVisibles.setLignes} className="ml-auto" />
           {/* Barre de recherche temps réel */}
           <div className="relative w-full sm:w-80">
             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -791,7 +794,8 @@ export function Commandes() {
               : `Aucune commande de type ${type === "medicale" ? "médicaments" : "fournitures"} enregistrée pour l'instant.`}
           </div>
         ) : (
-          <Table classNameConteneur="rounded-xl">
+          // Une fiche dépliée occupe plusieurs « lignes » : la hauteur choisie reste indicative.
+          <Table classNameConteneur="rounded-xl" hauteurMax={lignesVisibles.hauteurMax(49)}>
               <TableHeader>
                 <TableRow>
                   <TableHead>Référence</TableHead>
