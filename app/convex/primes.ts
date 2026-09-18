@@ -51,6 +51,23 @@ export const ajouter = mutation({
   },
 });
 
+// Modification d'une ligne existante (même contrôles qu'à l'ajout ; le mois doit être ouvert).
+export const modifier = mutation({
+  args: { ligneId: v.id("primesCharges"), employeId: v.optional(v.id("employes")), libelle: v.optional(v.string()), montant: v.optional(v.number()), type: v.optional(TYPE), date: v.optional(v.string()) },
+  handler: async (ctx, { ligneId, ...patch }) => {
+    await requireLevel(ctx, 4);
+    const l = await ctx.db.get(ligneId);
+    if (!l) throw new Error("Ligne introuvable.");
+    await verifierOuvert(ctx, l.periode);
+    const libelle = patch.libelle?.trim();
+    if (patch.libelle !== undefined && !libelle) throw new Error("Libellé requis.");
+    if (patch.montant !== undefined && !(patch.montant > 0)) throw new Error("Le montant doit être strictement positif.");
+    if (patch.date !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(patch.date)) throw new Error("Date au format AAAA-MM-JJ.");
+    const propre = Object.fromEntries(Object.entries({ ...patch, libelle, montant: patch.montant === undefined ? undefined : Math.round(patch.montant) }).filter(([, x]) => x !== undefined));
+    await ctx.db.patch(ligneId, propre);
+  },
+});
+
 export const supprimer = mutation({
   args: { ligneId: v.id("primesCharges") },
   handler: async (ctx, { ligneId }) => {

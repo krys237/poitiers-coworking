@@ -67,7 +67,7 @@ const NAV: { grp: string; items: NavItem[] }[] = [
       { to: "/comptes-rendus", label: "Comptes rendus", perm: "/comptes-rendus", icon: ClipboardCheck },
       { to: "/commandes", label: "Commandes", perm: "/commandes", icon: ShoppingBag },
       { to: "/interventions", label: "Interventions", perm: "/interventions", icon: Wrench },
-      { to: "/statistiques", label: "Statistiques & primes", perm: "/statistiques", icon: TrendingUp },
+      { to: "/statistiques", label: "Caisse & primes médecins", perm: "/statistiques", icon: TrendingUp },
     ],
   },
   {
@@ -81,7 +81,7 @@ const NAV: { grp: string; items: NavItem[] }[] = [
       { to: "/paie/bulletins", label: "Bulletins du mois", perm: "/paie/bulletins", icon: FileCheck2 },
       { to: "/paie/courrier", label: "Courrier de paie", perm: "/paie/courrier", icon: Mail },
       { to: "/paie/planning", label: "Planning des absences", perm: "/paie/planning", icon: CalendarDays },
-      { to: "/paie/primes", label: "Primes & charges", perm: "/paie/primes", icon: Receipt },
+      { to: "/paie/primes", label: "Primes & retenues (paie)", perm: "/paie/primes", icon: Receipt },
       { to: "/paie/archives", label: "Archives", perm: "/paie/archives", icon: Archive },
     ],
   },
