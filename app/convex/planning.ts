@@ -81,6 +81,31 @@ export const ajouterAbsence = mutation({
   },
 });
 
+// Modification d'une absence : mêmes contrôles qu'à l'ajout ; la paie est recalée
+// pour les mois touchés AVANT et APRÈS (une absence déplacée d'un mois à l'autre).
+export const modifierAbsence = mutation({
+  args: {
+    absenceId: v.id("absences"), type: v.optional(TYPE), dateDebut: v.optional(v.string()), dateFin: v.optional(v.string()),
+    paye: v.optional(v.boolean()), motif: v.optional(v.string()),
+  },
+  handler: async (ctx, { absenceId, ...patch }) => {
+    await requireLevel(ctx, 4);
+    const ev = await ctx.db.get(absenceId);
+    if (!ev) throw new Error("Absence introuvable.");
+    const dateDebut = patch.dateDebut ?? ev.dateDebut, dateFin = patch.dateFin ?? ev.dateFin;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateDebut) || !/^\d{4}-\d{2}-\d{2}$/.test(dateFin)) throw new Error("Dates au format AAAA-MM-JJ.");
+    if (dateFin < dateDebut) throw new Error("La date de fin précède la date de début.");
+    const type = patch.type ?? ev.type;
+    await ctx.db.patch(absenceId, {
+      type, dateDebut, dateFin, jours: joursCalendaires(dateDebut, dateFin),
+      paye: patch.paye ?? (patch.type ? PAYE_PAR_DEFAUT[type as TypeAbsence] : ev.paye),
+      motif: patch.motif === undefined ? ev.motif : patch.motif || undefined,
+    });
+    const periodes = [...new Set([...periodesTouchees(ev), ...periodesTouchees({ dateDebut, dateFin })])];
+    return { periodes: await appliquerAuxSaisies(ctx, ev.employeId, periodes) };
+  },
+});
+
 export const supprimerAbsence = mutation({
   args: { absenceId: v.id("absences") },
   handler: async (ctx, { absenceId }) => {
