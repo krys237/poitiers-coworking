@@ -1,10 +1,10 @@
 /**
- * Fiche employé du récapitulatif (reprise du modèle du directeur) : identité,
- * société, brut de référence, date d'entrée, congés initiaux — en création
- * comme en modification — et le retrait de l'effectif, confirmé.
+ * Fiche employé (reprise du modèle du directeur) : identité, société, brut de
+ * référence, date d'entrée, congés initiaux — en création comme en modification —
+ * et le retrait de l'effectif (ou sa réactivation), confirmés.
  *
- * Le nom et le matricule ne se modifient pas ici (identité de paie) ; ils se
- * saisissent à la création.
+ * Partagée par l'écran Employés et le récapitulatif salaires. Le nom et le
+ * matricule ne se modifient pas (identité de paie) ; ils se saisissent à la création.
  */
 import * as React from "react";
 import { toast } from "sonner";
@@ -16,35 +16,44 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Champ, ChampNombre } from "@/components/app/champs";
 import { BoutonConfirmation } from "@/components/app/bouton-action";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { type BulletinLigne, type RecapPaie, type Societe, SOCIETES } from "./commun";
 
-type Fiche = {
-  matricule: string; nom: string; fonction: string; adresse: string; cnps: string; niu: string; email: string;
-  societe: Societe; salaireBrut: number; dateDebut: string; congesInitial: number;
+export const SOCIETES = ["SESAME", "SOFINA", "SGC"] as const;
+export type Societe = (typeof SOCIETES)[number];
+
+/** Ce que la fiche lit et écrit. `employeId` absent = création. */
+export type EmployeFiche = {
+  employeId?: string;
+  matricule: string; nom: string; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string;
+  societe: Societe; salaireBrut: number; dateDebut?: string; congesInitial?: number; actif?: boolean;
 };
+type Champs = Required<Omit<EmployeFiche, "employeId" | "actif">>;
 
-const depuis = (b?: BulletinLigne): Fiche => ({
-  matricule: b?.matricule ?? "", nom: b?.nom ?? "", fonction: b?.fonction ?? "", adresse: b?.adresse ?? "",
-  cnps: b?.cnps ?? "", niu: b?.niu ?? "", email: b?.email ?? "", societe: (b?.societe ?? "SGC") as Societe,
-  salaireBrut: b?.salaireBrut ?? 0, dateDebut: b?.dateDebut ?? "", congesInitial: 0,
+export type CreerEmploye = (a: { matricule: string; nom: string; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; societe: Societe; salaireBrut: number; dateDebut?: string; congesInitial?: number }) => Promise<unknown>;
+export type ModifierEmploye = (a: { employeId: any; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; societe?: Societe; salaireBrut?: number; dateDebut?: string; congesInitial?: number; actif?: boolean }) => Promise<unknown>;
+
+const depuis = (e?: EmployeFiche): Champs => ({
+  matricule: e?.matricule ?? "", nom: e?.nom ?? "", fonction: e?.fonction ?? "", adresse: e?.adresse ?? "", cnps: e?.cnps ?? "",
+  niu: e?.niu ?? "", email: e?.email ?? "", societe: e?.societe ?? "SGC", salaireBrut: e?.salaireBrut ?? 0,
+  dateDebut: e?.dateDebut ?? "", congesInitial: e?.congesInitial ?? 0,
 });
 
 export function FicheEmploye({
-  b, recap, disabled, declencheur,
+  employe, creer, modifier, disabled, declencheur, onEnregistre,
 }: {
-  /** Absent = création d'un nouvel employé. */
-  b?: BulletinLigne;
-  recap: RecapPaie;
+  employe?: EmployeFiche;
+  creer: CreerEmploye;
+  modifier: ModifierEmploye;
   disabled?: boolean;
   declencheur?: React.ReactNode;
+  onEnregistre?: (id?: string) => void;
 }) {
-  const creation = !b;
+  const creation = !employe?.employeId;
   const [open, setOpen] = React.useState(false);
-  const [f, setF] = React.useState<Fiche>(() => depuis(b));
+  const [f, setF] = React.useState<Champs>(() => depuis(employe));
   const [enCours, setEnCours] = React.useState(false);
-  React.useEffect(() => { if (open) setF(depuis(b)); }, [open, b]);
+  React.useEffect(() => { if (open) setF(depuis(employe)); }, [open, employe]);
 
-  const texte = (cle: keyof Fiche, libelle: string, placeholder?: string, requis?: boolean, type = "text") => (
+  const texte = (cle: keyof Champs, libelle: string, placeholder?: string, requis?: boolean, type = "text") => (
     <Champ libelle={libelle} requis={requis}>
       {(a) => <Input {...a} type={type} required={requis} placeholder={placeholder} value={f[cle] as string} onChange={(e) => setF({ ...f, [cle]: e.target.value })} />}
     </Champ>
@@ -58,14 +67,17 @@ export function FicheEmploye({
     const commun = {
       fonction: f.fonction || undefined, adresse: f.adresse || undefined, cnps: f.cnps || undefined, niu: f.niu || undefined,
       email: f.email || undefined, societe: f.societe, salaireBrut: Math.round(f.salaireBrut), dateDebut: f.dateDebut || undefined,
+      congesInitial: f.congesInitial || undefined,
     };
     try {
       if (creation) {
-        await recap.creerEmploye({ matricule: f.matricule.trim(), nom: f.nom.trim().toUpperCase(), ...commun, congesInitial: f.congesInitial || undefined });
+        const id = await creer({ matricule: f.matricule.trim(), nom: f.nom.trim().toUpperCase(), ...commun });
         toast.success(`${f.nom.trim().toUpperCase()} ajouté à l'effectif`, { description: `${f.matricule} · ${f.societe}` });
+        onEnregistre?.(typeof id === "string" ? id : undefined);
       } else {
-        await recap.modifierEmploye({ employeId: b!.employeId, ...commun, congesInitial: f.congesInitial || undefined });
-        toast.success(`Fiche de ${b!.nom} enregistrée`);
+        await modifier({ employeId: employe!.employeId, ...commun });
+        toast.success(`Fiche de ${employe!.nom} enregistrée`);
+        onEnregistre?.(employe!.employeId);
       }
       setOpen(false);
     } catch (err) {
@@ -85,11 +97,11 @@ export function FicheEmploye({
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
         <form onSubmit={enregistrer}>
           <DialogHeader>
-            <DialogTitle>{creation ? "Nouvel employé" : `Fiche employé — ${b!.nom}`}</DialogTitle>
+            <DialogTitle>{creation ? "Nouvel employé" : `Fiche employé — ${employe!.nom}`}</DialogTitle>
             <DialogDescription>
               {creation
                 ? "La fiche crée l'identité de paie ; le récapitulatif du mois se recalcule aussitôt."
-                : `Matricule ${b!.matricule}. Le brut de référence alimente le salaire journalier (brut ÷ 30).`}
+                : `Matricule ${employe!.matricule}. Le brut de référence alimente le salaire journalier (brut ÷ 30).`}
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -118,17 +130,26 @@ export function FicheEmploye({
           </div>
           <DialogFooter className="mt-5 sm:justify-between">
             {!creation ? (
-              <BoutonConfirmation
-                variant="ghost"
-                size="sm"
-                className="text-carmin hover:bg-carmin-clair hover:text-carmin"
-                libelle="Retirer de l'effectif"
-                titre={`Retirer ${b!.nom} de l'effectif ?`}
-                consequence="La fiche est conservée (historique de paie, archives) mais l'employé disparaît du récapitulatif des mois ouverts. Réactivable depuis l'écran Employés."
-                confirmer="Retirer"
-                onConfirmer={async () => { await recap.modifierEmploye({ employeId: b!.employeId, actif: false }); setOpen(false); }}
-                succes={`${b!.nom} retiré de l'effectif`}
-              />
+              employe!.actif === false ? (
+                <Button
+                  type="button" variant="outline" size="sm"
+                  onClick={async () => { await modifier({ employeId: employe!.employeId, actif: true }); toast.success(`${employe!.nom} réintégré à l'effectif`); setOpen(false); }}
+                >
+                  Réintégrer à l'effectif
+                </Button>
+              ) : (
+                <BoutonConfirmation
+                  variant="ghost"
+                  size="sm"
+                  className="text-carmin hover:bg-carmin-clair hover:text-carmin"
+                  libelle="Retirer de l'effectif"
+                  titre={`Retirer ${employe!.nom} de l'effectif ?`}
+                  consequence="La fiche est conservée (historique de paie, archives) mais l'employé disparaît du récapitulatif des mois ouverts. Réintégrable depuis sa fiche."
+                  confirmer="Retirer"
+                  onConfirmer={async () => { await modifier({ employeId: employe!.employeId, actif: false }); setOpen(false); }}
+                  succes={`${employe!.nom} retiré de l'effectif`}
+                />
+              )
             ) : <span />}
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={enCours}>Annuler</Button>

@@ -31,6 +31,7 @@ import { StatutMois } from "@/components/app/statut";
 import { BoutonConfirmation } from "@/components/app/bouton-action";
 import { GrilleTuiles, Tuile } from "@/components/app/tuile";
 import { Montant } from "@/components/app/montant";
+import type { EmployeFiche } from "@/components/app/fiche-employe";
 
 // --- Champs de saisie du mois -------------------------------------------------
 
@@ -431,6 +432,14 @@ export function N({ valeur }: { valeur: number | undefined }) {
   const v = valeur ?? 0;
   if (v === 0) return <span className="text-encre-pale">0</span>;
   return <>{v < 0 ? "−" : ""}{num(Math.abs(v))}</>;
+}
+
+/** Vue « fiche employé » d'une ligne du récapitulatif (composant partagé app/fiche-employe.tsx). */
+export function ficheDe(b: BulletinLigne): EmployeFiche {
+  return {
+    employeId: String(b.employeId), matricule: b.matricule, nom: b.nom, fonction: b.fonction, adresse: b.adresse, cnps: b.cnps,
+    niu: b.niu, email: b.email, societe: b.societe, salaireBrut: b.salaireBrut, dateDebut: b.dateDebut, actif: true,
+  };
 }
 
 /** Pastille société (capsule douce, sans point de couleur — charte §4). */

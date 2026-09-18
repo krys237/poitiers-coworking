@@ -9,7 +9,7 @@ import * as React from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { CheckIcon, ChevronRightIcon, FileCheck2Icon, UserRoundPenIcon, XIcon } from "lucide-react";
-import { FicheEmploye } from "./fiche-employe";
+import { FicheEmploye } from "@/components/app/fiche-employe";
 import { libellePeriode, num } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import { Montant } from "@/components/app/montant";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, TableVide } from "@/components/ui/table";
 import {
   type Brouillon, type BulletinLigne, type Champ, type FiltreRecap, type RecapPaie, type Valeurs, LIBELLE, UNITE,
-  BarreFiltre, BarreRecap, LegendeRecap, N, PastilleSociete, TuilesRecap, apercuBulletin, baremeClient, totaux, validerValeurs,
+  BarreFiltre, BarreRecap, LegendeRecap, N, PastilleSociete, TuilesRecap, apercuBulletin, baremeClient, ficheDe, totaux, validerValeurs,
 } from "./commun";
 
 const GROUPES: { titre: string; champs: Champ[]; colonnes: string }[] = [
@@ -70,8 +70,9 @@ function FicheSaisie({
         </div>
         <div className="flex items-center gap-1">
           <FicheEmploye
-            b={b}
-            recap={recap}
+            employe={ficheDe(b)}
+            creer={recap.creerEmploye as any}
+            modifier={recap.modifierEmploye as any}
             disabled={cloture}
             declencheur={<Button variant="ghost" size="icon-sm" aria-label={`Fiche employé — ${b.nom}`} title="Fiche employé (fonction, société, brut, CNPS…)"><UserRoundPenIcon /></Button>}
           />

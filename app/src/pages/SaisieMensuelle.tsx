@@ -17,7 +17,7 @@ import { periodeCourante } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { BoutonPersistance, useSaisiePersistante } from "@/components/app/saisie-persistante";
 import { useBrouillon, useFiltreRecap, useRecapPaie } from "./recap/commun";
-import { FicheEmploye } from "./recap/fiche-employe";
+import { FicheEmploye } from "@/components/app/fiche-employe";
 import { RecapToutVisible } from "./recap/RecapToutVisible";
 import { RecapSynthese } from "./recap/RecapSynthese";
 
@@ -30,7 +30,7 @@ export function SaisieMensuelle() {
 
   const actions = (
     <>
-      <FicheEmploye recap={recap} disabled={recap.cloture} />
+      <FicheEmploye creer={recap.creerEmploye as any} modifier={recap.modifierEmploye as any} disabled={recap.cloture} />
       <Button variant="outline" size="sm" asChild>
         <Link to="/employes" title="Fiches complètes, import CSV / Excel, réactivation"><UsersIcon /> Employés</Link>
       </Button>

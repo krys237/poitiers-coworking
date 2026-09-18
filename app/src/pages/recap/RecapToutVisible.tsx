@@ -10,7 +10,7 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import { FileCheck2Icon, PencilIcon, UserRoundPenIcon } from "lucide-react";
-import { FicheEmploye } from "./fiche-employe";
+import { FicheEmploye } from "@/components/app/fiche-employe";
 import { num } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useRailLateral } from "@/components/Layout";
@@ -21,7 +21,7 @@ import { SqueletteTableau } from "@/components/app/chargement";
 import { TableVide } from "@/components/ui/table";
 import {
   type Brouillon, type BulletinLigne, type Champ, type FiltreRecap, type RecapPaie, type Valeurs, LIBELLE, SOCIETES, UNITE,
-  BarreFiltre, BarreRecap, EtatLigneBadge, LegendeRecap, N, PastilleSociete, TuilesRecap, totaux,
+  BarreFiltre, BarreRecap, EtatLigneBadge, LegendeRecap, N, PastilleSociete, TuilesRecap, ficheDe, totaux,
 } from "./commun";
 
 /** Cellule modifiable en place : texte formaté au repos, saisie brute au focus. */
@@ -225,8 +225,9 @@ export function RecapToutVisible({
                         <span className="flex items-center gap-1">
                           <span className="truncate text-[13px] font-semibold" title={b.nom}>{b.nom}</span>
                           <FicheEmploye
-                            b={b}
-                            recap={recap}
+                            employe={ficheDe(b)}
+                            creer={recap.creerEmploye as any}
+                            modifier={recap.modifierEmploye as any}
                             disabled={ro}
                             declencheur={
                               <button type="button" aria-label={`Fiche employé — ${b.nom}`} title="Fiche employé" className="shrink-0 rounded-sm p-0.5 text-encre-pale hover:bg-surface hover:text-ocean-profond">
