@@ -1,26 +1,13 @@
 // Journal d'activité (table `journalActivite`) : qui a fait quoi, quand — rôles, clôtures, API, barème.
 import { MutationCtx } from "../_generated/server";
 import { Id } from "../_generated/dataModel";
+import { ACTIONS_LIBELLES } from "./journalFamilles";
 
-export const ACTIONS = [
-  ["connexion", "Connexion"],
-  ["connexion_attente", "Connexion (compte en attente)"],
-  ["membre_creation", "Création de membre"],
-  ["membre_rattachement", "Rattachement d'un compte"],
-  ["membre_autorisation", "Autorisation d'un compte en attente"],
-  ["membre_role", "Changement de rôle"],
-  ["membre_activation", "Activation / désactivation"],
-  ["membre_modification", "Modification de membre"],
-  ["cloture_paie", "Clôture de paie"],
-  ["cloture_financier", "Clôture financière"],
-  ["api_financial", "Appel API financière"],
-  ["bareme_controle", "Contrôle du barème"],
-  ["bareme_version", "Nouvelle version du barème"],
-  ["audit_rapport", "Rapport d'audit"],
-  ["verrous_purge", "Purge des verrous"],
-] as const;
+export const ACTIONS = ACTIONS_LIBELLES;
 export type ActionJournal = typeof ACTIONS[number][0];
 export const LIBELLE_ACTION: Record<string, string> = Object.fromEntries(ACTIONS);
+
+export { FAMILLES, FAMILLE_ACTION, type FamilleJournal } from "./journalFamilles";
 
 export interface Evenement {
   auteurId?: Id<"users">; auteurNom?: string; action: ActionJournal;

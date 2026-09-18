@@ -5,15 +5,15 @@ import { ACTIONS, LIBELLE_ACTION } from "./lib/journal";
 
 const jours = (n: number) => new Date(Date.now() - n * 86400000).toISOString();
 
-// 200 derniers événements (DG), filtrables par action.
+// Derniers événements (DG), filtrables par action et par date de début (ISO) ; 500 au plus.
 export const liste = query({
-  args: { action: v.optional(v.string()), limite: v.optional(v.number()) },
-  handler: async (ctx, { action, limite }) => {
+  args: { action: v.optional(v.string()), depuis: v.optional(v.string()), limite: v.optional(v.number()) },
+  handler: async (ctx, { action, depuis, limite }) => {
     await requireLevel(ctx, 7);
     const n = Math.min(500, limite ?? 200);
     const rows = action
-      ? await ctx.db.query("journalActivite").withIndex("by_action", (q) => q.eq("action", action)).order("desc").take(n)
-      : await ctx.db.query("journalActivite").withIndex("by_date").order("desc").take(n);
+      ? await ctx.db.query("journalActivite").withIndex("by_action", (q) => (depuis ? q.eq("action", action).gte("date", depuis) : q.eq("action", action))).order("desc").take(n)
+      : await ctx.db.query("journalActivite").withIndex("by_date", (q) => (depuis ? q.gte("date", depuis) : q)).order("desc").take(n);
     return rows.map((r) => ({ ...r, actionLibelle: LIBELLE_ACTION[r.action] ?? r.action }));
   },
 });
