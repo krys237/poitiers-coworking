@@ -33,6 +33,7 @@ import type * as lib_commandes from "../lib/commandes.js";
 import type * as lib_courrier from "../lib/courrier.js";
 import type * as lib_fenetre from "../lib/fenetre.js";
 import type * as lib_journal from "../lib/journal.js";
+import type * as lib_journalFamilles from "../lib/journalFamilles.js";
 import type * as lib_paie from "../lib/paie.js";
 import type * as lib_periode from "../lib/periode.js";
 import type * as lib_stats from "../lib/stats.js";
@@ -81,6 +82,7 @@ declare const fullApi: ApiFromModules<{
   "lib/courrier": typeof lib_courrier;
   "lib/fenetre": typeof lib_fenetre;
   "lib/journal": typeof lib_journal;
+  "lib/journalFamilles": typeof lib_journalFamilles;
   "lib/paie": typeof lib_paie;
   "lib/periode": typeof lib_periode;
   "lib/stats": typeof lib_stats;
