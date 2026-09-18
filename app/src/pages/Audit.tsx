@@ -173,14 +173,14 @@ export function Audit() {
       <GrilleTuiles>
         <Tuile libelle="Total audité ce mois" valeur={resume ? <Montant valeur={resume.total} zero="0" /> : undefined} note="somme des 14 catégories" vedette />
         <Tuile libelle={resume ? `Mois précédent · ${libellePeriode(resume.precedent)}` : "Mois précédent"} valeur={resume ? <Montant valeur={resume.totalPrecedent} zero="0" /> : undefined} note="même périmètre" />
-        <Tuile libelle="Variation" valeur={resume ? <Montant valeur={resume.total - resume.totalPrecedent} signe zero="0" /> : undefined} note="ce mois − mois précédent" />
+        <Tuile libelle="Variation" valeur={resume ? <Montant valeur={resume.total - resume.totalPrecedent} signe zero="0" /> : undefined} note={resume ? <>ce mois − mois précédent · sur un an : <Delta v={resume.total - resume.totalAnPrecedent} p={resume.totalAnPrecedent ? Math.round(((resume.total - resume.totalAnPrecedent) / resume.totalAnPrecedent) * 1000) / 10 : null} /></> : "ce mois − mois précédent"} />
         <Tuile libelle="Rapports rédigés" valeur={resume ? `${rapportsRediges} / ${CATEGORIES_AUDIT.length}` : undefined} note="un rapport par catégorie et par mois" />
       </GrilleTuiles>
 
       {/* ------------------------------------------------------------ Synthèse */}
       {onglet === "synthese" && (
-        <div className="flex flex-col gap-3.5 lg:flex-row lg:items-start">
-          <div className="min-w-0 flex-1">
+        <div className="flex flex-col gap-3.5">
+          <div className="min-w-0">
             {resume === undefined ? (
               <SqueletteTableau colonnes={5} lignes={8} />
             ) : (
@@ -191,6 +191,8 @@ export function Audit() {
                     <TableHead numerique>Ce mois (FCFA)</TableHead>
                     <TableHead numerique>Mois précédent</TableHead>
                     <TableHead numerique>Variation</TableHead>
+                    <TableHead numerique className="border-l border-white/15" title="Même mois de l'année précédente">Il y a un an{resume ? ` · ${libelleMoisCourt(resume.anPrecedent)}` : ""}</TableHead>
+                    <TableHead numerique>Variation / an</TableHead>
                     <TableHead>Rapport</TableHead>
                     <TableHead aria-label="Ouvrir" />
                   </TableRow>
@@ -199,14 +201,16 @@ export function Audit() {
                   {(["Primes médecins", "Paie & administratif"] as const).map((fam) => (
                     <React.Fragment key={fam}>
                       <TableRow className="bg-bande hover:bg-bande">
-                        <TableCell colSpan={6} className="py-1.5 text-2xs font-bold uppercase tracking-[0.08em] text-ocean-profond">{fam}</TableCell>
+                        <TableCell colSpan={8} className="py-1.5 text-2xs font-bold uppercase tracking-[0.08em] text-ocean-profond">{fam}</TableCell>
                       </TableRow>
                       {resume.categories.filter((c: any) => FAMILLE[c.cle as Cat] === fam).map((c: any) => (
                         <TableRow key={c.cle} className="cursor-pointer" onClick={() => ouvrirCategorie(c.cle)}>
-                          <TableCell className="text-[13px] font-semibold">{c.libelle}</TableCell>
+                          <TableCell className="whitespace-nowrap text-[13px] font-semibold">{c.libelle}</TableCell>
                           <TableCell numerique className="bg-ocean-brume font-mono text-xs font-semibold"><N v={c.total} /></TableCell>
                           <TableCell numerique className="font-mono text-xs"><N v={c.precedent} /></TableCell>
                           <TableCell numerique><Delta v={c.delta} p={c.pct} /></TableCell>
+                          <TableCell numerique className="border-l border-filet font-mono text-xs"><N v={c.anPrecedent} /></TableCell>
+                          <TableCell numerique><Delta v={c.variationAn.delta} p={c.variationAn.pct} /></TableCell>
                           <TableCell>{c.rapport ? <Flag variant="renseigne" size="xs" icon={<CheckIcon className="h-2.5 w-2.5" />}>rédigé</Flag> : <Flag variant="a-renseigner" size="xs">à rédiger</Flag>}</TableCell>
                           <TableCell className="text-right"><Button variant="ghost" size="sm" className="h-7 text-2xs" onClick={(e) => { e.stopPropagation(); ouvrirCategorie(c.cle); }}>Ouvrir</Button></TableCell>
                         </TableRow>
@@ -220,13 +224,15 @@ export function Audit() {
                     <TableCell numerique className="bg-ocean-brume font-mono text-xs"><N v={resume.total} /></TableCell>
                     <TableCell numerique className="font-mono text-xs"><N v={resume.totalPrecedent} /></TableCell>
                     <TableCell numerique><Delta v={resume.total - resume.totalPrecedent} p={resume.totalPrecedent ? Math.round(((resume.total - resume.totalPrecedent) / resume.totalPrecedent) * 1000) / 10 : null} /></TableCell>
+                    <TableCell numerique className="border-l border-filet font-mono text-xs"><N v={resume.totalAnPrecedent} /></TableCell>
+                    <TableCell numerique><Delta v={resume.total - resume.totalAnPrecedent} p={resume.totalAnPrecedent ? Math.round(((resume.total - resume.totalAnPrecedent) / resume.totalAnPrecedent) * 1000) / 10 : null} /></TableCell>
                     <TableCell colSpan={2} className="text-xs font-normal text-encre-douce">{rapportsRediges} / {CATEGORIES_AUDIT.length} rapports</TableCell>
                   </TableRow>
                 </TableFooter>
               </Table>
             )}
           </div>
-          <aside className="flex w-full flex-col gap-3 lg:w-[26rem] lg:shrink-0">
+          <aside className="grid w-full gap-3.5 lg:grid-cols-2">
             {graphes ? (
               <>
                 <Barres
@@ -244,7 +250,7 @@ export function Audit() {
                   className="rounded-xl"
                 />
               </>
-            ) : <SqueletteTableau colonnes={1} lignes={6} />}
+            ) : <SqueletteTableau colonnes={2} lignes={6} />}
           </aside>
         </div>
       )}

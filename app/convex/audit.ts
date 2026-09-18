@@ -100,13 +100,19 @@ export const resume = query({
       for (const r of rows) t[r.categorie] = (t[r.categorie] ?? 0) + r.montant;
       return t;
     };
-    const [cur, prev] = [await somme(periode), await somme(prec)];
+    // Même mois de l'année précédente : la comparaison qui compte pour un audit annuel.
+    const anPrec = `${Number(periode.slice(0, 4)) - 1}${periode.slice(4)}`;
+    const [cur, prev, an] = [await somme(periode), await somme(prec), await somme(anPrec)];
     const rapports = await ctx.db.query("rapportsAudit").collect();
     const avecRapport = new Set(rapports.filter((r) => r.periode === periode).map((r) => r.categorie));
+    const somme1 = (t: Record<string, number>) => Object.values(t).reduce((a, b) => a + b, 0);
     return {
-      periode, precedent: prec,
-      categories: CATEGORIES_AUDIT.map(([cle, libelle]) => ({ cle, libelle, total: cur[cle] ?? 0, precedent: prev[cle] ?? 0, ...variation(prev[cle] ?? 0, cur[cle] ?? 0), rapport: avecRapport.has(cle) })),
-      total: Object.values(cur).reduce((a, b) => a + b, 0), totalPrecedent: Object.values(prev).reduce((a, b) => a + b, 0),
+      periode, precedent: prec, anPrecedent: anPrec,
+      categories: CATEGORIES_AUDIT.map(([cle, libelle]) => ({
+        cle, libelle, total: cur[cle] ?? 0, precedent: prev[cle] ?? 0, ...variation(prev[cle] ?? 0, cur[cle] ?? 0),
+        anPrecedent: an[cle] ?? 0, variationAn: variation(an[cle] ?? 0, cur[cle] ?? 0), rapport: avecRapport.has(cle),
+      })),
+      total: somme1(cur), totalPrecedent: somme1(prev), totalAnPrecedent: somme1(an),
     };
   },
 });

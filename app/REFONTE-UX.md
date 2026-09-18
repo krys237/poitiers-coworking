@@ -351,6 +351,14 @@ npm run test:paie && npm run test:tresorerie && npm run test:fenetre \
   retenus (`src/pages/recap/`) sans toucher au socle `commun.tsx`.
 - **`Montant` (`app/montant.tsx`)** : passer le `zero` par défaut de « — » à « 0 » gris quand toutes les
   pages seront alignées sur le formalisme des chiffres (skill `poitiers-ui-ux-system` §3).
+- **Graphes sur longue période** (relevé le 18/09/2026, audit) : l'horizon des séries est plafonné à
+  **24 mois** (`audit.graphes`, `audit.totalSalaires`) parce que chaque mois est **recalculé** à l'appel
+  (bulletins + lignes d'audit). Pour aller au-delà — audit pluriannuel, comparaison N / N−1 / N−2 sur
+  36 mois — prévoir : (1) un cumul mensuel **stocké** (table `agregatsMensuels` alimentée à la clôture et
+  par un cron, ou à la volée par mutation) plutôt qu'un recalcul ; (2) dans `Barres`, une **agrégation
+  par trimestre / année** au-delà de 24 points et un axe temporel avec repères d'année ; (3) la
+  comparaison « même mois de l'année précédente » de la synthèse d'audit étendue en série
+  (courbe N vs N−1) ; (4) un export CSV / PDF des séries pour le dossier d'audit.
 
 ## 8. Ou regarder
 
