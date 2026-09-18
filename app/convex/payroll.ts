@@ -60,6 +60,14 @@ export const saisirMois = mutation({
     await requireLevel(ctx, 4);
     const clos = await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
     if (clos) throw new Error(`Le mois ${periode} est clôturé : saisie en lecture seule.`);
+    // Bornes de saisie : une case de tableau n'a pas de garde-fou, le serveur en a un.
+    if (valeurs.joursTravailles < 0 || valeurs.joursTravailles > 31) throw new Error("Jours travaillés : entre 0 et 31.");
+    if (valeurs.mutuellePct < 0 || valeurs.mutuellePct > 100) throw new Error("Mutuelle : pourcentage entre 0 et 100.");
+    for (const [k, x] of Object.entries(valeurs)) {
+      if (typeof x !== "number" || !Number.isFinite(x)) throw new Error(`Valeur invalide pour ${k}.`);
+      if (x < 0) throw new Error(`Montant négatif interdit (${k}).`);
+      if (k !== "joursTravailles" && k !== "mutuellePct" && k !== "absencesJours" && x > 100_000_000) throw new Error(`Montant invraisemblable pour ${k} (> 100 000 000 FCFA).`);
+    }
     const existant = await ctx.db.query("saisiesMensuelles")
       .withIndex("by_employe_periode", (q) => q.eq("employeId", employeId).eq("periode", periode)).unique();
     const v2 = { ...valeurs, primeAssiduite: valeurs.primeAssiduite ?? 0, indemniteLogement: valeurs.indemniteLogement ?? 0, absences: valeurs.absences ?? 0 };

@@ -1,68 +1,46 @@
 /**
- * Récapitulatif salaires — trois présentations du même écran, à trancher en
- * réunion de validation (septembre 2026) :
+ * Récapitulatif salaires.
  *
- *   1. « Modèle original »  : le récapitulatif du directeur, tel quel.
- *   2. « Option A »         : 18 colonnes visibles d'un coup, saisie en cellule.
- *   3. « Option C »         : synthèse à 8 colonnes + fiche de saisie latérale.
+ * Deux présentations du même écran, au choix de l'utilisateur (skill §7) :
+ *  - par défaut, la synthèse à 8 colonnes avec le volet de saisie latéral
+ *    (lecture confortable, un employé à la fois) ;
+ *  - « Rendre les champs persistants » : la grille des 18 colonnes en saisie
+ *    directe, barre latérale repliée (saisie du mois entier sans un clic).
  *
- * Les trois partagent les données, le brouillon à enregistrement automatique
- * et le moteur de calcul (`pages/recap/commun.tsx`). Une fois l'option retenue,
- * les deux autres se suppriment sans toucher au socle.
+ * Les deux partagent les données, le brouillon à enregistrement automatique
+ * et le moteur de calcul (`pages/recap/commun.tsx`).
  */
 import * as React from "react";
+import { Link } from "react-router-dom";
+import { UsersIcon } from "lucide-react";
 import { periodeCourante } from "@/lib/format";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { BoutonPersistance, useSaisiePersistante } from "@/components/app/saisie-persistante";
 import { useBrouillon, useFiltreRecap, useRecapPaie } from "./recap/commun";
-import { RecapOriginal } from "./recap/RecapOriginal";
+import { FicheEmploye } from "./recap/fiche-employe";
 import { RecapToutVisible } from "./recap/RecapToutVisible";
 import { RecapSynthese } from "./recap/RecapSynthese";
 
-type Onglet = "original" | "a" | "c";
-const CLE_ONGLET = "recap-salaires:onglet";
-
-function ongletInitial(): Onglet {
-  try {
-    const v = window.localStorage.getItem(CLE_ONGLET);
-    if (v === "original" || v === "a" || v === "c") return v;
-  } catch { /* stockage indisponible : onglet par défaut */ }
-  return "original";
-}
-
 export function SaisieMensuelle() {
   const [periode, setPeriode] = React.useState(periodeCourante());
-  const [onglet, setOnglet] = React.useState<Onglet>(ongletInitial);
+  const [persistant, setPersistant] = useSaisiePersistante("recap-salaires");
   const recap = useRecapPaie(periode);
   const brouillon = useBrouillon(recap, periode);
   const filtre = useFiltreRecap(recap.bulletins);
 
-  const changerOnglet = (v: string) => {
-    setOnglet(v as Onglet);
-    try { window.localStorage.setItem(CLE_ONGLET, v); } catch { /* ignoré */ }
-  };
+  const actions = (
+    <>
+      <FicheEmploye recap={recap} disabled={recap.cloture} />
+      <Button variant="outline" size="sm" asChild>
+        <Link to="/employes" title="Fiches complètes, import CSV / Excel, réactivation"><UsersIcon /> Employés</Link>
+      </Button>
+      <BoutonPersistance actif={persistant} onChange={setPersistant} />
+    </>
+  );
 
-  return (
-    <Tabs value={onglet} onValueChange={changerOnglet} className="gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <TabsList variant="line">
-          <TabsTrigger value="original">Modèle original</TabsTrigger>
-          <TabsTrigger value="a">Option A — Tout visible</TabsTrigger>
-          <TabsTrigger value="c">Option C — Synthèse + fiche</TabsTrigger>
-        </TabsList>
-        <span className="text-2xs text-encre-pale">
-          Trois présentations du même récapitulatif — à trancher en réunion de validation.
-        </span>
-      </div>
-
-      <TabsContent value="original">
-        <RecapOriginal periode={periode} onPeriode={setPeriode} recap={recap} brouillon={brouillon} />
-      </TabsContent>
-      <TabsContent value="a">
-        <RecapToutVisible periode={periode} onPeriode={setPeriode} recap={recap} brouillon={brouillon} filtre={filtre} actif={onglet === "a"} />
-      </TabsContent>
-      <TabsContent value="c">
-        <RecapSynthese periode={periode} onPeriode={setPeriode} recap={recap} brouillon={brouillon} filtre={filtre} />
-      </TabsContent>
-    </Tabs>
+  return persistant ? (
+    <RecapToutVisible periode={periode} onPeriode={setPeriode} recap={recap} brouillon={brouillon} filtre={filtre} actif actions={actions} />
+  ) : (
+    <RecapSynthese periode={periode} onPeriode={setPeriode} recap={recap} brouillon={brouillon} filtre={filtre} actions={actions} />
   );
 }

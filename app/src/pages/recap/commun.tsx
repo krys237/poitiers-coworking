@@ -89,11 +89,12 @@ export function useRecapPaie(periode: string) {
   const saisir = useMutation(api.payroll.saisirMois);
   const generer = useMutation(api.payroll.genererEtCloturer);
   const modifierEmploye = useMutation(api.employes.modifier);
+  const creerEmploye = useMutation(api.employes.creer);
 
   const cloture = paie?.cloture ?? false;
   const bulletins: BulletinLigne[] = (paie?.bulletins ?? []) as BulletinLigne[];
 
-  return { paie, saisies, bareme, saisir, generer, modifierEmploye, cloture, bulletins };
+  return { paie, saisies, bareme, saisir, generer, modifierEmploye, creerEmploye, cloture, bulletins };
 }
 
 export type RecapPaie = ReturnType<typeof useRecapPaie>;
@@ -175,6 +176,10 @@ export function useBrouillon(recap: RecapPaie, periode: string) {
   const set = React.useCallback(
     (id: string, c: Champ, v: number, auto = true) => {
       if (cloture) return;
+      // Mêmes bornes que le serveur, appliquées à la frappe : pas de 445 654 688 % de mutuelle.
+      if (c === "mutuellePct") v = Math.min(100, Math.max(0, v));
+      else if (c === "joursTravailles") v = Math.min(31, Math.max(0, v));
+      else v = Math.max(0, v);
       setBrouillon((b) => ({ ...b, [id]: { ...b[id], [c]: v } }));
       setEtats((e) => ({ ...e, [id]: "modifie" }));
       if (auto) {
@@ -333,11 +338,14 @@ export function BarreRecap({
   onPeriode,
   recap,
   tauxLong,
+  actions,
 }: {
   periode: string;
   onPeriode: (p: string) => void;
   recap: RecapPaie;
   tauxLong?: boolean;
+  /** Actions propres à l'écran (fiche employé, champs persistants…), à gauche de « Imprimer ». */
+  actions?: React.ReactNode;
 }) {
   const { cloture, bulletins, generer, paie, bareme } = recap;
   return (
@@ -347,6 +355,7 @@ export function BarreRecap({
       <span className="hidden h-6 w-px bg-filet sm:block" aria-hidden="true" />
       <TauxDuMois bareme={bareme} periode={periode} long={tauxLong} />
       <span className="flex-1" />
+      {actions}
       <Button variant="outline" size="sm" onClick={() => window.print()}>
         <PrinterIcon />
         Imprimer

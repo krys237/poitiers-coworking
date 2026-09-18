@@ -216,7 +216,7 @@ export function Interventions() {
                       aria-selected={active}
                       onClick={() => setSel(active ? null : id)}
                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSel(active ? null : id); } }}
-                      className={cn("cursor-pointer", active && "shadow-[inset_3px_0_0_var(--ocean-ceruleen)]")}
+                      className={"cursor-pointer"}
                     >
                       <TableCell className="whitespace-nowrap font-mono text-xs font-semibold text-ocean-profond">{i.reference}</TableCell>
                       <TableCell className="leading-tight">

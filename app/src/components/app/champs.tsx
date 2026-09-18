@@ -98,6 +98,41 @@ export function GrilleFormulaire({
   );
 }
 
+
+/**
+ * Saisie numérique conforme au formalisme des chiffres (skill poitiers-ui-ux-system §3) :
+ *  - au repos, milliers séparés (« 1 250 000 ») ; au focus, valeur brute à taper ;
+ *  - 0 = champ vide, le placeholder « 0 » estompé fait foi ;
+ *  - sélection automatique au focus, effacer tout = 0, virgule ou point acceptés.
+ * `type="text"` + `inputMode="decimal"` : un `type="number"` ne sait pas afficher
+ * de séparateur de milliers.
+ */
+export function useSaisieNombre(valeur: number, onChange: (v: number) => void, decimales = false) {
+  const [focus, setFocus] = React.useState(false);
+  const [brut, setBrut] = React.useState("");
+  const texte = (v: number) => (decimales ? String(v).replace(".", ",") : String(v));
+  const affiche = focus ? brut : valeur === 0 ? "" : decimales ? texte(valeur) : valeur.toLocaleString("fr-FR").replace(/\u202f/g, "\u00a0");
+  return {
+    value: affiche,
+    placeholder: "0",
+    type: "text" as const,
+    inputMode: "decimal" as const,
+    onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
+      setBrut(valeur === 0 ? "" : texte(valeur));
+      setFocus(true);
+      e.currentTarget.select();
+    },
+    onBlur: () => setFocus(false),
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      const raw = e.target.value;
+      setBrut(raw);
+      const n = Number(raw.replace(/[\s\u00a0\u202f]/g, "").replace(",", "."));
+      if (raw === "" || raw === "-") onChange(0);
+      else if (!Number.isNaN(n)) onChange(n);
+    },
+  };
+}
+
 /**
  * Cellule de saisie numerique dans un tableau.
  *
@@ -121,6 +156,7 @@ export function CelluleNombre({
   min,
   max,
   pas,
+  decimales,
   className,
 }: {
   libelle: string;
@@ -132,8 +168,11 @@ export function CelluleNombre({
   min?: number;
   max?: number;
   pas?: number;
+  /** Pourcentages : virgule décimale acceptée. */
+  decimales?: boolean;
   className?: string;
 }) {
+  const saisie = useSaisieNombre(valeur, onChange, decimales);
   if (lectureSeule) {
     return (
       <span className="tabular-nums" title={libelle}>
@@ -141,26 +180,17 @@ export function CelluleNombre({
       </span>
     );
   }
-
-  // Formalisme de saisie : un zéro n'est jamais tapé « par-dessus ». Le champ est
-  // vide et montre un « 0 » estompé ; au focus la valeur existante est
-  // sélectionnée (le premier chiffre l'écrase) ; effacer tout revient à 0.
   return (
     <input
-      type="number"
-      inputMode="numeric"
+      {...saisie}
       aria-label={libelle}
       title={libelle}
-      value={valeur === 0 ? "" : valeur}
-      placeholder="0"
       min={min}
       max={max}
       step={pas}
-      onChange={(e) => onChange(e.target.value === "" ? 0 : Number(e.target.value) || 0)}
-      onFocus={(e) => e.currentTarget.select()}
       style={{ width: largeur }}
       className={cn(
-        "h-7 rounded-sm border bg-surface px-1.5 text-right text-sm tabular-nums",
+        "h-7 rounded-sm border bg-surface px-1.5 text-right font-mono text-sm tabular-nums placeholder:text-encre-pale/70",
         "outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
         modifie ? "border-ocre bg-ocre-clair/50" : "border-filet",
         className
@@ -180,6 +210,8 @@ export function ChampNombre({
   unite,
   valeur,
   onChange,
+  decimales,
+  className,
   ...props
 }: {
   libelle: React.ReactNode;
@@ -190,7 +222,10 @@ export function ChampNombre({
   unite?: string;
   valeur: number;
   onChange: (valeur: number) => void;
+  /** Pourcentages : virgule décimale acceptée. */
+  decimales?: boolean;
 } & Omit<React.ComponentProps<"input">, "value" | "onChange" | "type">) {
+  const saisie = useSaisieNombre(valeur, onChange, decimales ?? unite === "%");
   return (
     <Champ libelle={libelle} aide={aide} erreur={erreur} requis={requis}>
       {(attributs) => (
@@ -198,13 +233,8 @@ export function ChampNombre({
           <Input
             {...attributs}
             {...props}
-            type="number"
-            inputMode="numeric"
-            value={valeur === 0 ? "" : valeur}
-            placeholder="0"
-            onChange={(e) => onChange(e.target.value === "" ? 0 : Number(e.target.value) || 0)}
-            onFocus={(e) => e.currentTarget.select()}
-            className={cn("text-right font-mono tabular-nums placeholder:text-encre-pale/70", unite && "pr-12")}
+            {...saisie}
+            className={cn("text-right font-mono tabular-nums placeholder:text-encre-pale/70", unite && "pr-12", className)}
           />
           {unite ? (
             <span

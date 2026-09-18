@@ -9,7 +9,8 @@
  */
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { FileCheck2Icon, PencilIcon } from "lucide-react";
+import { FileCheck2Icon, PencilIcon, UserRoundPenIcon } from "lucide-react";
+import { FicheEmploye } from "./fiche-employe";
 import { num } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useRailLateral } from "@/components/Layout";
@@ -146,9 +147,9 @@ const TH = "px-1.5 py-1.5 text-right text-[10px] font-semibold uppercase leading
 const TD = "h-10 px-1.5 text-right font-mono text-[11.5px] tabular-nums whitespace-nowrap border-b border-filet-clair";
 
 export function RecapToutVisible({
-  periode, onPeriode, recap, brouillon, filtre, actif,
+  periode, onPeriode, recap, brouillon, filtre, actif, actions,
 }: {
-  periode: string; onPeriode: (p: string) => void; recap: RecapPaie; brouillon: Brouillon; filtre: FiltreRecap; actif: boolean;
+  periode: string; onPeriode: (p: string) => void; recap: RecapPaie; brouillon: Brouillon; filtre: FiltreRecap; actif: boolean; actions?: React.ReactNode;
 }) {
   useRailLateral(actif);
   const { cloture, paie } = recap;
@@ -174,7 +175,7 @@ export function RecapToutVisible({
 
   return (
     <div className="flex flex-col gap-3">
-      <BarreRecap periode={periode} onPeriode={onPeriode} recap={recap} tauxLong />
+      <BarreRecap periode={periode} onPeriode={onPeriode} recap={recap} tauxLong actions={actions} />
       <TuilesRecap recap={recap} periode={periode} />
       {paie?.erreur && <p className="text-sm font-medium text-carmin">{paie.erreur}</p>}
       <BarreFiltre filtre={filtre} />
@@ -213,7 +214,7 @@ export function RecapToutVisible({
                 <th className={TH} aria-label="Bulletin" />
               </tr>
             </thead>
-            <tbody className="[&>tr:nth-child(even)]:bg-bande [&>tr:hover]:bg-sceau-clair/70">
+            <tbody className="[&>tr:nth-child(even)]:bg-bande [&>tr:hover]:bg-sceau-clair/70 [&>tr:focus-within]:bg-sceau-clair [&>tr:focus-within]:shadow-[inset_3px_0_0_var(--ocean-ceruleen)]">
               {bulletins.map((b) => {
                 const id = String(b.employeId);
                 const d = b.details;
@@ -221,7 +222,19 @@ export function RecapToutVisible({
                   <tr key={id}>
                     <td className={cn(TD, "sticky left-0 z-10 bg-inherit text-left font-sans leading-tight shadow-[6px_0_12px_-8px_rgba(15,23,42,.25)]")}>
                       <div className="flex flex-col gap-0.5 overflow-hidden">
-                        <span className="truncate text-[13px] font-semibold" title={b.nom}>{b.nom}</span>
+                        <span className="flex items-center gap-1">
+                          <span className="truncate text-[13px] font-semibold" title={b.nom}>{b.nom}</span>
+                          <FicheEmploye
+                            b={b}
+                            recap={recap}
+                            disabled={ro}
+                            declencheur={
+                              <button type="button" aria-label={`Fiche employé — ${b.nom}`} title="Fiche employé" className="shrink-0 rounded-sm p-0.5 text-encre-pale hover:bg-surface hover:text-ocean-profond">
+                                <UserRoundPenIcon className="h-3 w-3" />
+                              </button>
+                            }
+                          />
+                        </span>
                         <span className="flex items-center gap-1.5 text-[10px] text-encre-pale">
                           <span className="truncate">{b.fonction ?? "—"}</span>
                           <PastilleSociete societe={b.societe} />

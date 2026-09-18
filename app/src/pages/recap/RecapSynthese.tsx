@@ -8,7 +8,8 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { CheckIcon, ChevronRightIcon, FileCheck2Icon, XIcon } from "lucide-react";
+import { CheckIcon, ChevronRightIcon, FileCheck2Icon, UserRoundPenIcon, XIcon } from "lucide-react";
+import { FicheEmploye } from "./fiche-employe";
 import { libellePeriode, num } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,9 +30,9 @@ const GROUPES: { titre: string; champs: Champ[]; colonnes: string }[] = [
 
 /** Volet de saisie d'un employé (ancré, pas superposé : le tableau reste visible). */
 function FicheSaisie({
-  b, brouillon, bareme, periode, cloture, onFermer,
+  b, brouillon, bareme, periode, cloture, onFermer, recap,
 }: {
-  b: BulletinLigne; brouillon: Brouillon; bareme: any; periode: string; cloture: boolean; onFermer: () => void;
+  b: BulletinLigne; brouillon: Brouillon; bareme: any; periode: string; cloture: boolean; onFermer: () => void; recap: RecapPaie;
 }) {
   const id = String(b.employeId);
   const [v, setV] = React.useState<Valeurs>(() => brouillon.valeurs(id));
@@ -67,7 +68,15 @@ function FicheSaisie({
             <span className="font-mono tabular-nums text-encre-pale">{b.matricule} · brut {num(b.salaireBrut)}</span>
           </div>
         </div>
-        <Button variant="ghost" size="icon-sm" onClick={onFermer} aria-label="Fermer la fiche"><XIcon /></Button>
+        <div className="flex items-center gap-1">
+          <FicheEmploye
+            b={b}
+            recap={recap}
+            disabled={cloture}
+            declencheur={<Button variant="ghost" size="icon-sm" aria-label={`Fiche employé — ${b.nom}`} title="Fiche employé (fonction, société, brut, CNPS…)"><UserRoundPenIcon /></Button>}
+          />
+          <Button variant="ghost" size="icon-sm" onClick={onFermer} aria-label="Fermer la fiche"><XIcon /></Button>
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-3">
@@ -131,9 +140,9 @@ function FicheSaisie({
 }
 
 export function RecapSynthese({
-  periode, onPeriode, recap, brouillon, filtre,
+  periode, onPeriode, recap, brouillon, filtre, actions,
 }: {
-  periode: string; onPeriode: (p: string) => void; recap: RecapPaie; brouillon: Brouillon; filtre: FiltreRecap;
+  periode: string; onPeriode: (p: string) => void; recap: RecapPaie; brouillon: Brouillon; filtre: FiltreRecap; actions?: React.ReactNode;
 }) {
   const { cloture, paie, bareme } = recap;
   const bulletins = filtre.visibles;
@@ -146,7 +155,7 @@ export function RecapSynthese({
 
   return (
     <div className="flex flex-col gap-3">
-      <BarreRecap periode={periode} onPeriode={onPeriode} recap={recap} />
+      <BarreRecap periode={periode} onPeriode={onPeriode} recap={recap} actions={actions} />
       <TuilesRecap recap={recap} periode={periode} />
       {paie?.erreur && <p className="text-sm font-medium text-carmin">{paie.erreur}</p>}
       <BarreFiltre filtre={filtre} />
@@ -178,7 +187,7 @@ export function RecapSynthese({
                     <TableRow
                       key={id}
                       active={active}
-                      className={cn("cursor-pointer", active && "shadow-[inset_3px_0_0_var(--ocean-ceruleen)]")}
+                      className={"cursor-pointer"}
                       onClick={() => setSelection(active ? null : id)}
                       tabIndex={0}
                       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelection(active ? null : id); } }}
@@ -224,7 +233,7 @@ export function RecapSynthese({
         </div>
 
         {choisi ? (
-          <FicheSaisie b={choisi} brouillon={brouillon} bareme={bareme} periode={periode} cloture={cloture} onFermer={() => setSelection(null)} />
+          <FicheSaisie b={choisi} brouillon={brouillon} bareme={bareme} periode={periode} cloture={cloture} onFermer={() => setSelection(null)} recap={recap} />
         ) : (
           <aside className="hidden w-[27.5rem] shrink-0 items-center justify-center rounded-xl border border-dashed border-filet bg-surface/60 p-6 text-center text-sm text-encre-douce lg:flex">
             Sélectionnez un employé pour ouvrir sa fiche de saisie du mois.

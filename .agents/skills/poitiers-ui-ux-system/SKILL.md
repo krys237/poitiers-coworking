@@ -130,3 +130,32 @@ L'utilisateur ne doit jamais avoir à deviner ce qu'il doit faire :
 
 * Dégradé bleu progressif et fluide partant du haut de la barre latérale, traversant doucement l'onglet Dashboard avant de rejoindre le blanc.
 * Profil utilisateur et poste de travail ancrés en bas dans un bloc bleu nuit plein (`bg-[#03045e] text-white`).
+
+---
+
+## 7. Saisie en série & champs persistants (adopté le 18/09/2026)
+
+Principe hérité de la plateforme d'origine : **l'utilisateur qui a n éléments à saisir ne clique pas n fois sur un bouton d'ajout**. Il entre directement, valide, la ligne apparaît, il enchaîne.
+
+### La question qui décide du pattern
+« Combien d'éléments l'utilisateur saisit-il d'affilée dans une session normale ? »
+
+| Usage | Pattern | Exemples |
+|---|---|---|
+| **Série** — n lignes semblables | **ligne de saisie permanente** dans le tableau (en tête), Entrée ajoute, le focus revient au premier champ | primes médecins, audit (14 catégories), registre primes & charges, planning des absences, employés |
+| **Grille** — lignes = personnes, colonnes = champs | saisie **dans la cellule**, Tab de case en case | récapitulatif salaires (option A), caisse du mois, financier |
+| **Unitaire riche** — un objet, beaucoup de champs, pièces jointes | dialogue ou carte dépliable **+ « Enregistrer et en saisir un autre »** | intervention, commande, document |
+| **Quotidien unique** | formulaire en place | compte rendu |
+
+### Le bouton « Rendre les champs persistants »
+* Composant `<BoutonPersistance>` + hook `useSaisiePersistante(cle)` (`app/saisie-persistante.tsx`). Préférence **par écran**, mémorisée sur l'appareil : c'est l'utilisateur qui configure son workflow.
+* Placement : **à côté de la croix** qui ferme les champs de saisie (ou dans la barre d'outils de l'écran s'il n'y a pas de croix). Actif, il devient **« Masquer les champs »**.
+* Effet : les champs de saisie restent affichés (ligne de saisie permanente, ou grille en saisie directe) ; le bouton d'ajout disparaît puisqu'il n'a plus d'objet.
+* Un écran en usage « série » ou « grille » **doit** le proposer. Un écran « unitaire riche » peut s'en passer.
+* Sur le récapitulatif salaires : consultation (option C, volet latéral) par défaut ; « champs persistants » = grille de saisie directe (option A).
+
+### Ce que la ligne de saisie permanente doit faire
+* Une seule ligne, à la hauteur du tableau, **jamais** un formulaire de 14 champs au-dessus.
+* Entrée valide ; le focus revient au premier champ ; la ligne apparaît immédiatement dans le tableau (réactivité Convex) ; toast discret.
+* Les champs pré-remplis par le contexte (catégorie filtrée, période, date du jour) ne se retapent pas.
+* Modifier une ligne existante se fait **sur la ligne** (clic → dialogue ou édition en place), jamais en re-remplissant la ligne de saisie du haut.

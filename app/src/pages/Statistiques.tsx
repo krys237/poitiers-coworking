@@ -22,11 +22,13 @@ import {
 import { fcfa, libellePeriode, messageErreur, num, periodeCourante } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageEnTete } from "@/components/app/en-tete";
+import { useRailLateral } from "@/components/Layout";
 import { GrilleTuiles, Tuile } from "@/components/app/tuile";
 import { Montant } from "@/components/app/montant";
 import { Barres } from "@/components/app/barres";
 import { BoutonConfirmation } from "@/components/app/bouton-action";
-import { Champ, ChampNombre } from "@/components/app/champs";
+import { CelluleNombre, Champ, ChampNombre } from "@/components/app/champs";
+import { BoutonPersistance, useSaisiePersistante } from "@/components/app/saisie-persistante";
 import { SqueletteTableau } from "@/components/app/chargement";
 import { SelecteurPeriode } from "@/components/app/selecteur-periode";
 import { Button } from "@/components/ui/button";
@@ -78,6 +80,15 @@ export function Statistiques() {
   const [recherche, setRecherche] = React.useState("");
   // Les 8 postes espèces sont repliés par défaut : on lit d'abord les totaux, le détail est à un clic.
   const [detailPostes, setDetailPostes] = React.useState(false);
+  // Saisie en série (skill §7) : ligne de saisie permanente en tête du tableau.
+  // Primes : activée par défaut (n médecins × 6 catégories chaque mois).
+  // Caisse : au choix, et elle affiche les 8 postes puisqu'on les saisit.
+  const [persistPrimes, setPersistPrimes] = useSaisiePersistante("statistiques:primes", true);
+  const [persistCaisse, setPersistCaisseBrut] = useSaisiePersistante("statistiques:caisse", false);
+  const setPersistCaisse = (v: boolean) => { setPersistCaisseBrut(v); if (v) setDetailPostes(true); };
+  React.useEffect(() => { if (persistCaisse) setDetailPostes(true); }, [persistCaisse]);
+  // 14 colonnes + une ligne de saisie : la barre latérale se replie en rail, comme sur le récap salaires.
+  useRailLateral(onglet === "caisse" && persistCaisse && detailPostes);
 
   const caisse = useQuery(api.stats.caisse, { periode });
   const primes = useQuery(api.stats.primes, { periode });
@@ -144,11 +155,12 @@ export function Statistiques() {
             <input ref={fichierRef} type="file" accept=".csv,text/csv" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void surFichier(f); e.target.value = ""; }} />
             <Button variant="outline" size="sm" onClick={() => fichierRef.current?.click()}><UploadIcon /> Importer CSV</Button>
             <Button variant="outline" size="sm" onClick={exporter} disabled={exportVide}><DownloadIcon /> Exporter CSV</Button>
-            {onglet === "caisse" ? (
+            {onglet === "caisse" && !persistCaisse ? (
               <Button size="sm" onClick={() => setFormCaisse(CAISSE_VIDE())}><PlusIcon /> Ajouter un intervalle</Button>
-            ) : (
+            ) : null}
+            {onglet === "primes" && !persistPrimes ? (
               <Button size="sm" onClick={() => setFormPrime(PRIME_VIDE(categorieCourante))}><PlusIcon /> Ajouter une prime</Button>
-            )}
+            ) : null}
           </>
         }
       />
@@ -157,6 +169,7 @@ export function Statistiques() {
         <SelecteurPeriode valeur={periode} onChange={setPeriode} />
         <span className="text-sm font-semibold">{libellePeriode(periode)}</span>
         <span className="flex-1" />
+        {onglet === "caisse" && <BoutonPersistance actif={persistCaisse} onChange={setPersistCaisse} />}
         {onglet === "caisse" && (
           <button
             type="button"
@@ -188,7 +201,7 @@ export function Statistiques() {
 
       <Tabs value={onglet} onValueChange={(v) => setOnglet(v as "caisse" | "primes")}>
         {/* ------------------------------------------------------------- Caisse */}
-        <TabsContent value="caisse" className="flex flex-col gap-3.5 lg:flex-row lg:items-start">
+        <TabsContent value="caisse" className={cn("flex flex-col gap-3.5", !persistCaisse && "lg:flex-row lg:items-start")}>
           <div className="min-w-0 flex-1">
             {caisse === undefined ? (
               <SqueletteTableau colonnes={8} lignes={4} />
@@ -211,6 +224,15 @@ export function Statistiques() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {persistCaisse && (
+                    <LigneSaisieCaisse
+                      detailPostes={detailPostes}
+                      onEnregistrer={async (l) => {
+                        await enregistrerLigne({ periode, dateDebut: l.dateDebut, dateFin: l.dateFin, horaires: l.horaires || undefined, ...Object.fromEntries(COLS.map((k) => [k, Number(l[k]) || 0])) } as any);
+                        toast.success("Intervalle ajouté", { description: `CA ${fcfa(chiffreAffaires(l))} — totaux du mois recalculés` });
+                      }}
+                    />
+                  )}
                   {(caisse.lignes as any[]).map((l) => (
                     <TableRow key={String(l._id)} className="cursor-pointer" onClick={() => setFormCaisse({ ...CAISSE_VIDE(), ...l, horaires: l.horaires ?? "", ligneId: String(l._id) })}>
                       <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums">{fmtDate(l.dateDebut)} → {fmtDate(l.dateFin)}</TableCell>
@@ -254,7 +276,7 @@ export function Statistiques() {
               </Table>
             )}
           </div>
-          <aside className="w-full rounded-xl border border-filet bg-surface p-4 lg:w-80 lg:shrink-0">
+          <aside className={cn("w-full rounded-xl border border-filet bg-surface p-4", !persistCaisse && "lg:w-80 lg:shrink-0")}>
             {graphes ? (
               <Barres
                 titre="Chiffre d'affaires — 6 derniers mois"
@@ -292,13 +314,14 @@ export function Statistiques() {
               })}
             </div>
             <span className="flex-1" />
+            <BoutonPersistance actif={persistPrimes} onChange={setPersistPrimes} />
             <div className="relative w-56">
               <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-encre-pale" aria-hidden="true" />
               <Input type="search" value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Médecin, note…" aria-label="Rechercher un médecin" className="h-8 pl-8" />
             </div>
           </div>
 
-          <div className="flex flex-col gap-3.5 lg:flex-row lg:items-start">
+          <div className={cn("flex flex-col gap-3.5", !persistPrimes && "lg:flex-row lg:items-start")}>
             <div className="min-w-0 flex-1">
               {primes === undefined ? (
                 <SqueletteTableau colonnes={7} lignes={5} />
@@ -317,6 +340,16 @@ export function Statistiques() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
+                    {persistPrimes && (
+                      <LigneSaisiePrime
+                        categorie={categorieCourante}
+                        onEnregistrer={async (p) => {
+                          await enregistrerPrime({ periode, categorie: p.categorie, designation: p.designation, dateDebut: p.dateDebut || undefined, dateFin: p.dateFin || undefined, actes: p.actes, montantUnitaire: p.montantUnitaire, notes: p.notes || undefined });
+                          toast.success(`Prime ajoutée — ${p.designation}`, { description: `${fcfa(montantTotalPrime(p.actes, p.montantUnitaire))} · ${LIBELLE_CATEGORIE[p.categorie]}` });
+                          if (categorie !== "toutes" && categorie !== p.categorie) setCategorie(p.categorie);
+                        }}
+                      />
+                    )}
                     {primesVisibles.map((p) => (
                       <TableRow key={String(p._id)} className="cursor-pointer" onClick={() => setFormPrime({ primeId: String(p._id), categorie: p.categorie, designation: p.designation, dateDebut: p.dateDebut ?? "", dateFin: p.dateFin ?? "", actes: p.actes ?? 0, montantUnitaire: p.montantUnitaire ?? 0, notes: p.notes ?? "" })}>
                         <TableCell className="whitespace-nowrap text-[13px] font-semibold">{p.designation}</TableCell>
@@ -362,7 +395,7 @@ export function Statistiques() {
                 </Table>
               )}
             </div>
-            <aside className="w-full rounded-xl border border-filet bg-surface p-4 lg:w-[26rem] lg:shrink-0">
+            <aside className={cn("w-full rounded-xl border border-filet bg-surface p-4", !persistPrimes && "lg:w-[26rem] lg:shrink-0")}>
               {graphes ? (
                 <Barres
                   titre={`Primes par catégorie — ${libellePeriode(periode)}`}
@@ -513,5 +546,105 @@ export function Statistiques() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// --- Lignes de saisie permanentes (skill §7) -----------------------------------
+
+const CELLULE_SAISIE = "bg-ocean-brume/40 align-middle";
+
+/** Entrée valide, Échap vide ; le focus revient au premier champ après l'ajout. */
+function surClavier(e: React.KeyboardEvent, valider: () => void, vider: () => void) {
+  if (e.key === "Enter") { e.preventDefault(); valider(); }
+  if (e.key === "Escape") { e.preventDefault(); vider(); }
+}
+
+function LigneSaisiePrime({ categorie, onEnregistrer }: { categorie: CategoriePrime; onEnregistrer: (p: Omit<FormPrime, "primeId">) => Promise<void> }) {
+  const vierge = React.useCallback((): Omit<FormPrime, "primeId"> => ({ categorie, designation: "", dateDebut: "", dateFin: "", actes: 0, montantUnitaire: 0, notes: "" }), [categorie]);
+  const [p, setP] = React.useState(vierge);
+  const [enCours, setEnCours] = React.useState(false);
+  const premier = React.useRef<HTMLInputElement>(null);
+  // Le filtre de catégorie change → la ligne suit (sans écraser une saisie en cours).
+  React.useEffect(() => { setP((x) => (x.designation ? x : { ...x, categorie })); }, [categorie]);
+  const vider = () => { setP(vierge()); premier.current?.focus(); };
+  const valider = async () => {
+    if (!p.designation.trim()) { toast.error("Le nom du médecin est requis."); premier.current?.focus(); return; }
+    setEnCours(true);
+    try { await onEnregistrer({ ...p, designation: p.designation.trim() }); vider(); }
+    catch (e) { toast.error("Prime non ajoutée", { description: messageErreur(e) }); }
+    finally { setEnCours(false); }
+  };
+  const k = (e: React.KeyboardEvent) => surClavier(e, () => void valider(), vider);
+  return (
+    <TableRow className={CELLULE_SAISIE} aria-label="Nouvelle prime">
+      <TableCell className={CELLULE_SAISIE}>
+        <Input ref={premier} value={p.designation} onChange={(e) => setP({ ...p, designation: e.target.value })} onKeyDown={k} placeholder="Dr Nom Prénom" aria-label="Médecin (nouvelle prime)" className="h-8 w-40 text-xs" />
+      </TableCell>
+      <TableCell className={CELLULE_SAISIE}>
+        <Select value={p.categorie} onValueChange={(v) => setP({ ...p, categorie: v as CategoriePrime })}>
+          <SelectTrigger size="sm" className="h-8 w-36 text-xs" aria-label="Catégorie (nouvelle prime)"><SelectValue /></SelectTrigger>
+          <SelectContent>{CATEGORIES_PRIMES.map(([c, l]) => <SelectItem key={c} value={c}>{l}</SelectItem>)}</SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell className={CELLULE_SAISIE}>
+        <div className="flex items-center gap-1">
+          <Input type="date" value={p.dateDebut} onChange={(e) => setP({ ...p, dateDebut: e.target.value })} onKeyDown={k} aria-label="Date début (nouvelle prime)" className="h-8 w-[7.6rem] px-1.5 text-2xs" />
+          <span className="text-encre-pale">→</span>
+          <Input type="date" value={p.dateFin} onChange={(e) => setP({ ...p, dateFin: e.target.value })} onKeyDown={k} aria-label="Date fin (nouvelle prime)" className="h-8 w-[7.6rem] px-1.5 text-2xs" />
+        </div>
+      </TableCell>
+      <TableCell numerique className={CELLULE_SAISIE}><span onKeyDown={k}><CelluleNombre libelle="Actes (nouvelle prime)" valeur={p.actes} onChange={(n) => setP({ ...p, actes: n })} largeur={64} min={0} pas={1} /></span></TableCell>
+      <TableCell numerique className={CELLULE_SAISIE}><span onKeyDown={k}><CelluleNombre libelle="Montant unitaire (nouvelle prime)" valeur={p.montantUnitaire} onChange={(n) => setP({ ...p, montantUnitaire: n })} largeur={92} min={0} pas={1000} /></span></TableCell>
+      <TableCell numerique className={cn(CELLULE_SAISIE, "font-mono text-xs font-semibold")}><N v={montantTotalPrime(p.actes, p.montantUnitaire)} /></TableCell>
+      <TableCell className={CELLULE_SAISIE}>
+        <Input value={p.notes} onChange={(e) => setP({ ...p, notes: e.target.value })} onKeyDown={k} placeholder="Notes" aria-label="Notes (nouvelle prime)" className="h-8 w-32 text-xs" />
+      </TableCell>
+      <TableCell className={cn(CELLULE_SAISIE, "whitespace-nowrap text-right")}>
+        <Button size="icon-sm" onClick={() => void valider()} disabled={enCours} aria-label="Ajouter la ligne" title="Ajouter (Entrée) · vider (Échap)"><PlusIcon /></Button>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function LigneSaisieCaisse({ detailPostes, onEnregistrer }: { detailPostes: boolean; onEnregistrer: (l: LigneCaisse) => Promise<void> }) {
+  const vierge = (): LigneCaisse => { const { ligneId: _ignore, ...l } = CAISSE_VIDE(); return l; };
+  const [l, setL] = React.useState<LigneCaisse>(vierge);
+  const [enCours, setEnCours] = React.useState(false);
+  const premier = React.useRef<HTMLInputElement>(null);
+  const vider = () => { setL(vierge()); premier.current?.focus(); };
+  const valider = async () => {
+    if (!l.dateDebut || !l.dateFin) { toast.error("Les deux dates de l'intervalle sont requises."); premier.current?.focus(); return; }
+    setEnCours(true);
+    try { await onEnregistrer(l); vider(); }
+    catch (e) { toast.error("Intervalle non ajouté", { description: messageErreur(e) }); }
+    finally { setEnCours(false); }
+  };
+  const k = (e: React.KeyboardEvent) => surClavier(e, () => void valider(), vider);
+  const cel = (c: Col, largeur = 72) => (
+    <TableCell key={c} numerique className={CELLULE_SAISIE}>
+      <span onKeyDown={k}><CelluleNombre libelle={`${LIBELLES_CAISSE[c]} (nouvel intervalle)`} valeur={l[c]} onChange={(n) => setL({ ...l, [c]: n })} largeur={largeur} min={0} pas={1000} /></span>
+    </TableCell>
+  );
+  return (
+    <TableRow className={CELLULE_SAISIE} aria-label="Nouvel intervalle de caisse">
+      <TableCell className={CELLULE_SAISIE}>
+        <div className="flex items-center gap-1">
+          <Input ref={premier} type="date" value={l.dateDebut} onChange={(e) => setL({ ...l, dateDebut: e.target.value })} onKeyDown={k} aria-label="Du (nouvel intervalle)" className="h-8 w-[7.6rem] px-1.5 text-2xs" />
+          <span className="text-encre-pale">→</span>
+          <Input type="date" value={l.dateFin} onChange={(e) => setL({ ...l, dateFin: e.target.value })} onKeyDown={k} aria-label="Au (nouvel intervalle)" className="h-8 w-[7.6rem] px-1.5 text-2xs" />
+        </div>
+      </TableCell>
+      <TableCell className={CELLULE_SAISIE}>
+        <Input value={l.horaires ?? ""} onChange={(e) => setL({ ...l, horaires: e.target.value })} onKeyDown={k} placeholder="8h–18h" aria-label="Horaires (nouvel intervalle)" className="h-8 w-20 text-xs" />
+      </TableCell>
+      {detailPostes && POSTES_ESPECES.map((c) => cel(c, 68))}
+      <TableCell numerique className={cn(CELLULE_SAISIE, "font-mono text-xs font-semibold")}><N v={totalEspeces(l)} /></TableCell>
+      {AUTRES.map((c) => cel(c))}
+      {cel("sortiesDuJour")}
+      <TableCell numerique className={cn(CELLULE_SAISIE, "font-mono text-xs font-semibold")}><N v={chiffreAffaires(l)} /></TableCell>
+      <TableCell className={cn(CELLULE_SAISIE, "whitespace-nowrap text-right")}>
+        <Button size="icon-sm" onClick={() => void valider()} disabled={enCours} aria-label="Ajouter la ligne" title="Ajouter (Entrée) · vider (Échap)"><PlusIcon /></Button>
+      </TableCell>
+    </TableRow>
   );
 }

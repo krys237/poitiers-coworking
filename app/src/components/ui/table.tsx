@@ -113,7 +113,9 @@ function TableRow({ className, active, ...props }: TableRowProps) {
       data-active={active || undefined}
       className={cn(
         "border-b border-filet-clair transition-colors",
-        "hover:bg-sceau-clair/70 data-[active]:bg-sceau-clair",
+        // Surlignage : survol, ligne sélectionnée (`active`) et ligne dont un champ a le focus.
+        "hover:bg-sceau-clair/70 focus-within:bg-sceau-clair data-[active]:bg-sceau-clair",
+        "data-[active]:shadow-[inset_3px_0_0_var(--ocean-ceruleen)]",
         "print:hover:bg-transparent",
         className
       )}
