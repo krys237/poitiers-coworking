@@ -74,3 +74,20 @@ export const enregistrerPdf = internalMutation({
   args: { bulletinId: v.id("bulletins"), pdfId: v.id("_storage") },
   handler: async (ctx, { bulletinId, pdfId }) => { await ctx.db.patch(bulletinId, { pdfId }); },
 });
+
+// Retire les PDF archivés d'un mois (fichiers supprimés du stockage, bulletins remis « à générer »).
+// Outil d'administration (CLI) : `npx convex run archives:retirerPdfs '{"periode":"2026-07"}'`.
+export const retirerPdfs = internalMutation({
+  args: { periode: v.string() },
+  handler: async (ctx, { periode }) => {
+    const bulletins = await ctx.db.query("bulletins").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
+    let retires = 0;
+    for (const b of bulletins) {
+      if (!b.pdfId) continue;
+      await ctx.storage.delete(b.pdfId);
+      await ctx.db.patch(b._id, { pdfId: undefined });
+      retires++;
+    }
+    return { periode, retires };
+  },
+});

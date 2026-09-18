@@ -13,13 +13,13 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import { useAction, useQuery } from "convex/react";
-import { ArchiveIcon, DownloadIcon, EyeIcon, FileCheck2Icon, SearchIcon, XIcon } from "lucide-react";
+import { ArchiveIcon, DownloadIcon, EyeIcon, FileCheck2Icon, FileDownIcon, SearchIcon, XIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { BulletinCard } from "../components/BulletinCard";
 import { libellePeriode, num } from "@/lib/format";
 import { PageEnTete } from "@/components/app/en-tete";
 import { GrilleTuiles, Tuile } from "@/components/app/tuile";
-import { BoutonAction } from "@/components/app/bouton-action";
+import { BoutonConfirmation } from "@/components/app/bouton-action";
 import { SqueletteTableau } from "@/components/app/chargement";
 import { EtatVide } from "@/components/app/etat-vide";
 import { SelecteurLignes, useLignesVisibles } from "@/components/app/lignes-visibles";
@@ -98,7 +98,6 @@ export function Archives() {
                   <TableHead numerique className="bg-ocean-nuit">Net (FCFA)</TableHead>
                   <TableHead>Envoyés</TableHead>
                   <TableHead>PDF archivés</TableHead>
-                  <TableHead aria-label="Actions" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -118,20 +117,7 @@ export function Archives() {
                       <TableCell numerique className="font-mono text-xs">{num(m.brut)}</TableCell>
                       <TableCell numerique className="bg-ocean-brume font-mono text-xs font-semibold">{num(m.net)}</TableCell>
                       <TableCell><Flag variant={m.envoyes === m.nombre ? "renseigne" : m.envoyes ? "a-renseigner" : "neutre"} size="xs">{m.envoyes} / {m.nombre}</Flag></TableCell>
-                      <TableCell><Flag variant={complet ? "renseigne" : "a-renseigner"} size="xs" title={complet ? "Tous les PDF sont dans le stockage" : `${m.nombre - m.pdfs} PDF à générer`}>{m.pdfs} / {m.nombre}</Flag></TableCell>
-                      <TableCell className="whitespace-nowrap text-right" onClick={(e) => e.stopPropagation()}>
-                        {!complet ? (
-                          <BoutonAction
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-2xs"
-                            onAction={() => archiver({ periode: m.periode })}
-                            succes={(r: any) => `${libellePeriode(m.periode)} : ${r.generes} PDF généré(s), ${r.dejaPresents} déjà archivé(s) (${Math.round(r.octets / 1024)} Ko)`}
-                          >
-                            PDF ({m.nombre - m.pdfs})
-                          </BoutonAction>
-                        ) : null}
-                      </TableCell>
+                      <TableCell><Flag variant={complet ? "renseigne" : "a-renseigner"} size="xs" title={complet ? "Tous les PDF sont dans le stockage" : `${m.nombre - m.pdfs} PDF à générer`}>{m.pdfs} / {m.nombre}{complet ? " archivés" : " · à générer"}</Flag></TableCell>
                     </TableRow>
                   );
                 })}
@@ -142,7 +128,7 @@ export function Archives() {
                   <TableCell numerique className="font-mono text-xs">{totalBulletins}</TableCell>
                   <TableCell numerique className="font-mono text-xs">{num(liste.reduce((s, m) => s + m.brut, 0))}</TableCell>
                   <TableCell numerique className="bg-ocean-brume font-mono text-xs">{num(liste.reduce((s, m) => s + m.net, 0))}</TableCell>
-                  <TableCell colSpan={3} />
+                  <TableCell colSpan={2} />
                 </TableRow>
               </TableFooter>
             </Table>
@@ -156,7 +142,21 @@ export function Archives() {
                 <div className="text-2xs text-encre-pale">{moisOuvert ? `Clôturé le ${fmtDateHeure(moisOuvert.closedAt)} par ${moisOuvert.closedBy}` : "Choisissez un mois."}</div>
               </div>
               {moisOuvert ? (
-                <Button variant="outline" size="sm" asChild><Link to={`/paie/bulletins?periode=${moisOuvert.periode}`}><FileCheck2Icon /> Tous les bulletins</Link></Button>
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <Button variant="outline" size="sm" asChild><Link to={`/paie/bulletins?periode=${moisOuvert.periode}`}><FileCheck2Icon /> Tous les bulletins</Link></Button>
+                  {moisOuvert.pdfs < moisOuvert.nombre && (
+                    <BoutonConfirmation
+                      variant="outline"
+                      size="sm"
+                      libelle={<><FileDownIcon /> Générer les PDF manquants ({moisOuvert.nombre - moisOuvert.pdfs})</>}
+                      titre={`Générer ${moisOuvert.nombre - moisOuvert.pdfs} PDF pour ${libellePeriode(moisOuvert.periode)} ?`}
+                      consequence={`Chaque bulletin figé sans PDF sera rendu (lettre + bulletin) et archivé dans le stockage. Les ${moisOuvert.pdfs} PDF déjà présents ne sont pas refaits. Aucun envoi n'est déclenché.`}
+                      confirmer="Générer"
+                      onConfirmer={() => archiver({ periode: moisOuvert.periode })}
+                      succes={(r: any) => `${libellePeriode(moisOuvert.periode)} : ${r.generes} PDF généré(s), ${r.dejaPresents} déjà archivé(s) (${Math.round(r.octets / 1024)} Ko)`}
+                    />
+                  )}
+                </div>
               ) : null}
             </div>
             <div className="border-b border-filet px-4 py-2">
