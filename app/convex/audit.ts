@@ -53,6 +53,18 @@ export const importerLignes = mutation({
   },
 });
 
+// Toutes les lignes du mois, toutes catégories (vue « Toutes » de l'écran).
+export const lignesDuMois = query({
+  args: { periode: v.string() },
+  handler: async (ctx, { periode }) => {
+    await requireAudit(ctx);
+    const rows = await ctx.db.query("primesMedecins").withIndex("by_contexte_periode", (q) => q.eq("contexte", "audit").eq("periode", periode)).collect();
+    const l = rows.map((r) => ({ ligneId: r._id, categorie: r.categorie, libelle: LIBELLE_AUDIT[r.categorie] ?? r.categorie, designation: r.designation, dateDebut: r.dateDebut, dateFin: r.dateFin, montant: r.montant, notes: r.notes }))
+      .sort((a, b) => a.libelle.localeCompare(b.libelle) || a.designation.localeCompare(b.designation));
+    return { periode, lignes: l, total: totalLignes(l) };
+  },
+});
+
 export const rapport = query({
   args: { periode: v.string(), categorie: v.string() },
   handler: async (ctx, { periode, categorie }) => {
