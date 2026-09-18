@@ -45,7 +45,7 @@ export function Header({ onOpenMobileMenu }: { onOpenMobileMenu?: () => void }) 
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-filet bg-surface/95 px-4 backdrop-blur sm:px-6">
+    <header className="sticky top-0 z-30 flex h-16 print:hidden w-full items-center justify-between border-b border-filet bg-surface/95 px-4 backdrop-blur sm:px-6">
       {/* Côté Gauche : Menu Mobile + Contexte de Page */}
       <div className="flex items-center gap-3">
         {onOpenMobileMenu && (

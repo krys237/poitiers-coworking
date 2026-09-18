@@ -344,7 +344,7 @@ export function Layout() {
     >
     <div className="flex min-h-screen bg-papier text-encre">
       {/* Sidebar Desktop Fixe (ou rail replié) */}
-      <aside className={cn("hidden shrink-0 md:block", rail ? "w-16" : "w-64")}>
+      <aside className={cn("hidden shrink-0 print:!hidden md:block", rail ? "w-16" : "w-64")}>
         <div className="sticky top-0 h-screen shadow-md">
           {rail ? (
             <RailLateral role={role} me={me} signOut={signOut} onDeplier={() => setRailForceOuvert(true)} />
@@ -372,13 +372,13 @@ export function Layout() {
         {/* Tant que AUTH_DEV_BYPASS est actif, TOUTE personne disposant du lien est
             Directeur Général. Le bandeau doit rester visible et déplaisant. */}
         {me?.modeDev && (
-          <div className="auth-bandeau-dev">
+          <div className="auth-bandeau-dev print:hidden">
             Mode développement actif (<code>AUTH_DEV_BYPASS</code>) — toute personne ayant ce lien
             dispose des droits de Directeur Général. À désactiver avant toute diffusion.
           </div>
         )}
         <Header onOpenMobileMenu={() => setMobileOpen(true)} />
-        <main className={cn("flex-1 p-4", rail ? "sm:p-5" : "sm:p-6 lg:p-8")}>
+        <main className={cn("flex-1 p-4 print:p-0", rail ? "sm:p-5" : "sm:p-6 lg:p-8")}>
           <Outlet />
         </main>
       </div>
