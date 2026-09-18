@@ -28,7 +28,7 @@ const TITRES_PAGES: Record<string, { titre: string; sousTitre: string }> = {
   "/paie/archives": { titre: "Archives de paie", sousTitre: "Historique des clôtures mensuelles" },
   "/audit": { titre: "Audit confidentiel", sousTitre: "Contrôle financier indépendant" },
   "/bareme": { titre: "Barème", sousTitre: "Grille salariale et taux de référence" },
-  "/membres": { titre: "Membres", sousTitre: "Utilisateurs et permissions d'accès" },
+  "/membres": { titre: "Membres & accès", sousTitre: "Comptes et niveaux d'accès (DG)" },
   "/journal": { titre: "Journal d'activité", sousTitre: "Traçabilité des opérations système" },
   "/api-readme": { titre: "Fiche API", sousTitre: "Documentation technique des endpoints" },
   "/parametres": { titre: "Paramètres", sousTitre: "Configuration générale" },
