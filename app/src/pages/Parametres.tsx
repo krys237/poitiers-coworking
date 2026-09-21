@@ -17,7 +17,7 @@ import * as React from "react";
 import { useMutation, useQuery } from "convex/react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { BanknoteIcon, Building2Icon, CalculatorIcon, CheckIcon, ClockIcon, FileTextIcon, FolderOpenIcon, LandmarkIcon, MailIcon, MinusIcon, PaletteIcon, RotateCcwIcon, SaveIcon, ServerCogIcon, ShieldCheckIcon, XIcon } from "lucide-react";
+import { Building2Icon, CheckIcon, MinusIcon, RotateCcwIcon, SaveIcon, ShieldCheckIcon, XIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { DESCRIPTION, DROITS, LIBELLE, NIVEAU, ROLES_ORDONNES, aLeDroit } from "../../convex/rbac";
 import { REGLAGES_DEFAUT, reglagesDe, validerReglages, type Reglages } from "../../convex/lib/reglages";
@@ -139,15 +139,26 @@ export function Parametres() {
       </GrilleTuiles>
 
       <Tabs value={onglet} onValueChange={(v) => setParams(v === "entreprise" ? {} : { onglet: v }, { replace: true })} className="gap-4">
-        <div className="rounded-2xl border border-filet bg-surface px-3.5 py-2 shadow-xs sm:py-2.5">
-        <TabsList className="flex-wrap bg-transparent p-0">
-          <TabsTrigger value="entreprise">Entreprise & documents{dirtyE && ["nom", "adresse", "niu", "numeroCnps", "logoUrl", "couleurEntete", "filigrane"].some((k) => modifieE(k as keyof Entreprise)) ? <Point /> : null}</TabsTrigger>
-          <TabsTrigger value="paie">Paie & congés{(["responsableRH", "jourPaiement", "congesParMois"] as (keyof Entreprise)[]).some(modifieE) || (["joursBaseDefaut", "plafondSaisie", "pdfAutoCloture"] as (keyof Reglages)[]).some(modifieR) ? <Point /> : null}</TabsTrigger>
-          <TabsTrigger value="courrier">Courrier & e-mail{(["emailExpediteur", "modeleCourrier"] as (keyof Entreprise)[]).some(modifieE) || modifieR("envoiReelActive") ? <Point /> : null}</TabsTrigger>
-          <TabsTrigger value="fonctionnement">Fonctionnement{(["crHeureOuverture", "crHeureFermeture", "crSamedi", "verrouFinancierMin", "iaDocumentsActive"] as (keyof Reglages)[]).some(modifieR) ? <Point /> : null}</TabsTrigger>
-          <TabsTrigger value="roles">Rôles & accès</TabsTrigger>
-          {superAdmin && <TabsTrigger value="deploiement"><ServerCogIcon className="h-3.5 w-3.5" /> Déploiement</TabsTrigger>}
-        </TabsList>
+        {/* Sélecteur de section : segmenté, l'actif en fond océan (même contrôle que les filtres d'état de Membres / Courrier). */}
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-filet bg-surface px-3.5 py-2 shadow-xs sm:py-2.5">
+          <TabsList className="h-auto flex-wrap gap-1 rounded-xl border border-filet bg-slate-100/80 p-1">
+            {([
+              ["entreprise", "Entreprise & documents", (["nom", "adresse", "niu", "numeroCnps", "logoUrl", "couleurEntete", "filigrane"] as (keyof Entreprise)[]).some(modifieE)],
+              ["paie", "Paie & congés", (["responsableRH", "jourPaiement", "congesParMois"] as (keyof Entreprise)[]).some(modifieE) || (["joursBaseDefaut", "plafondSaisie", "pdfAutoCloture"] as (keyof Reglages)[]).some(modifieR)],
+              ["courrier", "Courrier & e-mail", (["emailExpediteur", "modeleCourrier"] as (keyof Entreprise)[]).some(modifieE) || modifieR("envoiReelActive")],
+              ["fonctionnement", "Fonctionnement", (["crHeureOuverture", "crHeureFermeture", "crSamedi", "verrouFinancierMin", "iaDocumentsActive"] as (keyof Reglages)[]).some(modifieR)],
+              ["roles", "Rôles & accès", false],
+              ...(superAdmin ? [["deploiement", "Déploiement", false] as const] : []),
+            ] as [Onglet, string, boolean][]).map(([k, l, modifie]) => (
+              <TabsTrigger key={k} value={k} className={cn(
+                "h-auto flex-none rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors data-[state=inactive]:text-encre-douce data-[state=inactive]:hover:bg-white data-[state=inactive]:hover:text-encre",
+                "data-[state=active]:bg-ocean-profond data-[state=active]:text-white data-[state=active]:shadow-xs",
+              )}>
+                {l}{modifie ? <Point /> : null}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <span className="ml-auto text-2xs text-encre-pale">{onglet === "roles" ? "lecture seule" : onglet === "deploiement" ? "super administrateur · lecture seule" : "modifiable · niveau 7"}</span>
         </div>
 
         {!e || !r ? (
@@ -156,7 +167,7 @@ export function Parametres() {
           <>
             {/* --- Entreprise & documents ------------------------------------------------ */}
             <TabsContent value="entreprise" className="grid gap-4 lg:grid-cols-[1fr_22rem]">
-              <Bloc titre="Identité" icone={Building2Icon} description="Reprise en en-tête des bulletins, listes et PDF, et dans les courriers.">
+              <Bloc titre="Identité" description="Reprise en en-tête des bulletins, listes et PDF, et dans les courriers.">
                 <Grille>
                   <Champ libelle="Raison sociale" requis className={modif(modifieE("nom"))}>{(a) => <Input {...a} value={e.nom} onChange={(x) => majE("nom", x.target.value)} />}</Champ>
                   <Champ libelle="Adresse" requis className={cn("sm:col-span-2", modif(modifieE("adresse")))}>{(a) => <Input {...a} value={e.adresse} onChange={(x) => majE("adresse", x.target.value)} />}</Champ>
@@ -164,7 +175,7 @@ export function Parametres() {
                   <Champ libelle="N° CNPS employeur" className={modif(modifieE("numeroCnps"))}>{(a) => <Input {...a} value={e.numeroCnps} onChange={(x) => majE("numeroCnps", x.target.value)} className="font-mono" />}</Champ>
                 </Grille>
               </Bloc>
-              <Bloc titre="Aperçu de l'en-tête" icone={FileTextIcon} description="Tel qu'il apparaît sur un document imprimé." className="lg:row-span-2">
+              <Bloc titre="Aperçu de l'en-tête" description="Tel qu'il apparaît sur un document imprimé." className="lg:row-span-2">
                 <div className="rounded-lg bg-papier p-3"><div className="rounded border border-filet bg-white p-4 text-encre shadow-sm">
                   <div className="flex items-start gap-3 border-b-2 pb-3" style={{ borderColor: e.couleurEntete }}>
                     {e.logoUrl ? <img src={e.logoUrl} alt="" className="h-12 w-12 shrink-0 object-contain" /> : <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-filet-clair text-encre-pale"><Building2Icon className="h-6 w-6" /></div>}
@@ -181,7 +192,7 @@ export function Parametres() {
                   <div className="mt-2 border-t border-filet-clair pt-2 text-2xs text-encre-pale">Visa RH : {e.responsableRH || "—"}</div>
                 </div></div>
               </Bloc>
-              <Bloc titre="Apparence des documents" icone={PaletteIcon} description="Couleur de l'en-tête, logo, filigrane des PDF.">
+              <Bloc titre="Apparence des documents" description="Couleur de l'en-tête, logo, filigrane des PDF.">
                 <Grille>
                   <Champ libelle="Couleur d'en-tête" className={modif(modifieE("couleurEntete"))}>{(a) => (
                     <div className="flex items-center gap-2">
@@ -197,14 +208,14 @@ export function Parametres() {
 
             {/* --- Paie & congés ------------------------------------------------------------ */}
             <TabsContent value="paie" className="grid gap-4 lg:grid-cols-2">
-              <Bloc titre="Bulletin & paiement" icone={BanknoteIcon} description="Mentions portées sur chaque bulletin.">
+              <Bloc titre="Bulletin & paiement" description="Mentions portées sur chaque bulletin.">
                 <Grille>
                   <Champ libelle="Responsable RH (visa des bulletins)" className={cn("sm:col-span-2", modif(modifieE("responsableRH")))}>{(a) => <Input {...a} value={e.responsableRH} onChange={(x) => majE("responsableRH", x.target.value)} placeholder="Nom du signataire" />}</Champ>
                   <ChampNombre libelle="Jour de paiement (mois suivant)" aide="Mention du bulletin : « Paiement le N du mois suivant par banque »" unite="le" valeur={e.jourPaiement} onChange={(v) => majE("jourPaiement", v)} className={modif(modifieE("jourPaiement"))} />
                   <ChampNombre libelle="Congés acquis par mois de service" aide="Solde = initial + N × mois de service − congés pris" unite="j" decimales valeur={e.congesParMois} onChange={(v) => majE("congesParMois", v)} className={modif(modifieE("congesParMois"))} />
                 </Grille>
               </Bloc>
-              <Bloc titre="Calcul & garde-fous" icone={CalculatorIcon} description="Réglages du moteur de paie et de la saisie.">
+              <Bloc titre="Calcul & garde-fous" description="Réglages du moteur de paie et de la saisie.">
                 <Grille>
                   <ChampNombre libelle="Jours de base d'un nouvel employé" aide="Diviseur du salaire journalier (brut ÷ N). Les employés existants gardent le leur." unite="j" valeur={r.joursBaseDefaut} onChange={(v) => majR("joursBaseDefaut", v)} className={modif(modifieR("joursBaseDefaut"))} />
                   <ChampNombre libelle="Plafond de saisie mensuelle" aide="Au-delà, la saisie est refusée : protège des fautes de frappe." unite="FCFA" valeur={r.plafondSaisie} onChange={(v) => majR("plafondSaisie", v)} className={modif(modifieR("plafondSaisie"))} />
@@ -215,7 +226,7 @@ export function Parametres() {
 
             {/* --- Courrier & e-mail ---------------------------------------------------------- */}
             <TabsContent value="courrier" className="grid gap-4 lg:grid-cols-2">
-              <Bloc titre="Expéditeur & envoi" icone={MailIcon} description="Le courrier de paie part par Resend ; sans clé ou sans l'interrupteur, il est simulé (journal seul).">
+              <Bloc titre="Expéditeur & envoi" description="Le courrier de paie part par Resend ; sans clé ou sans l'interrupteur, il est simulé (journal seul).">
                 <Grille>
                   <Champ libelle="E-mail expéditeur" aide="Sur un domaine vérifié chez Resend" className={cn("sm:col-span-2", modif(modifieE("emailExpediteur")))}>{(a) => <Input {...a} type="email" value={e.emailExpediteur} onChange={(x) => majE("emailExpediteur", x.target.value)} placeholder="paie@votre-domaine.com" />}</Champ>
                 </Grille>
@@ -227,7 +238,7 @@ export function Parametres() {
                     : <Flag variant="a-renseigner" size="xs">simulation · {!modeCourrier.cleConfiguree ? "clé absente" : "interrupteur fermé"}</Flag>}
                 </div>
               </Bloc>
-              <Bloc titre="Modèle de lettre" icone={FileTextIcon} description="Variables : {nom} {periode} {net} {entreprise}. Vide = modèle par défaut. Modifiable aussi depuis Courrier de paie.">
+              <Bloc titre="Modèle de lettre" description="Variables : {nom} {periode} {net} {entreprise}. Vide = modèle par défaut. Modifiable aussi depuis Courrier de paie.">
                 <Champ libelle="Lettre d'accompagnement" className={modif(modifieE("modeleCourrier"))}>{(a) => <Textarea {...a} value={e.modeleCourrier} onChange={(x) => majE("modeleCourrier", x.target.value)} placeholder={MODELE_DEFAUT} rows={9} className="font-mono text-xs" />}</Champ>
                 {e.modeleCourrier && <Button type="button" variant="ghost" size="sm" className="mt-1 text-2xs" onClick={() => majE("modeleCourrier", "")}>Revenir au modèle par défaut</Button>}
               </Bloc>
@@ -235,22 +246,22 @@ export function Parametres() {
 
             {/* --- Fonctionnement -------------------------------------------------------------- */}
             <TabsContent value="fonctionnement" className="grid gap-4 lg:grid-cols-2">
-              <Bloc titre="Comptes rendus" icone={ClockIcon} description="Fenêtre de soumission (heure de Douala). Dans la fenêtre : 1 point ; hors fenêtre : accepté, 0 point.">
+              <Bloc titre="Comptes rendus" description="Fenêtre de soumission (heure de Douala). Dans la fenêtre : 1 point ; hors fenêtre : accepté, 0 point.">
                 <Grille>
                   <ChampNombre libelle="Ouverture" unite="h" valeur={r.crHeureOuverture} onChange={(v) => majR("crHeureOuverture", v)} className={modif(modifieR("crHeureOuverture"))} />
                   <ChampNombre libelle="Fermeture" aide="exclue" unite="h" valeur={r.crHeureFermeture} onChange={(v) => majR("crHeureFermeture", v)} className={modif(modifieR("crHeureFermeture"))} />
                 </Grille>
                 <Interrupteur libelle="Ouvrir aussi le samedi" aide="Par défaut, lundi à vendredi." valeur={r.crSamedi} onChange={(v) => majR("crSamedi", v)} modifie={modifieR("crSamedi")} />
               </Bloc>
-              <Bloc titre="Grand livre financier" icone={LandmarkIcon} description="Un membre qui saisit une journée la verrouille pour les autres.">
+              <Bloc titre="Grand livre financier" description="Un membre qui saisit une journée la verrouille pour les autres.">
                 <Grille>
                   <ChampNombre libelle="Expiration d'un verrou inactif" aide="Passé ce délai sans activité, un autre membre peut reprendre la journée." unite="min" valeur={r.verrouFinancierMin} onChange={(v) => majR("verrouFinancierMin", v)} className={modif(modifieR("verrouFinancierMin"))} />
                 </Grille>
               </Bloc>
-              <Bloc titre="Documents" icone={FolderOpenIcon} description="Extraction automatique du titre, de la description et de la catégorie au dépôt.">
+              <Bloc titre="Documents" description="Extraction automatique du titre, de la description et de la catégorie au dépôt.">
                 <Interrupteur libelle="Extraction par IA" aide="Si ANTHROPIC_API_KEY est définie. Désactivé : repli heuristique (nom du fichier, mots-clés)." valeur={r.iaDocumentsActive} onChange={(v) => majR("iaDocumentsActive", v)} modifie={modifieR("iaDocumentsActive")} />
               </Bloc>
-              <Bloc titre="Valeurs par défaut" icone={RotateCcwIcon} description="Ce que vaut chaque réglage si vous n'y touchez pas.">
+              <Bloc titre="Valeurs par défaut" description="Ce que vaut chaque réglage si vous n'y touchez pas.">
                 <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-xs">
                   <dt className="text-encre-douce">Comptes rendus</dt><dd className="font-mono">{REGLAGES_DEFAUT.crHeureOuverture}h–{REGLAGES_DEFAUT.crHeureFermeture}h, lun–ven</dd>
                   <dt className="text-encre-douce">Verrou financier</dt><dd className="font-mono">{REGLAGES_DEFAUT.verrouFinancierMin} min</dd>
@@ -265,7 +276,7 @@ export function Parametres() {
 
         {/* --- Rôles & accès --------------------------------------------------------------- */}
         <TabsContent value="roles">
-          <Bloc titre="Rôles & accès" icone={ShieldCheckIcon} description="Ce que chaque rôle ouvre. Les niveaux sont cumulatifs ; l'auditeur externe est hors hiérarchie. Dérivé du code (convex/rbac.ts) : l'écran affiche exactement ce que le serveur applique.">
+          <Bloc titre="Rôles & accès" description="Ce que chaque rôle ouvre. Les niveaux sont cumulatifs ; l'auditeur externe est hors hiérarchie. Dérivé du code (convex/rbac.ts) : l'écran affiche exactement ce que le serveur applique.">
             <MatriceRoles />
           </Bloc>
         </TabsContent>
@@ -273,7 +284,7 @@ export function Parametres() {
         {/* --- Déploiement (super administrateur) -------------------------------------------- */}
         {superAdmin && (
           <TabsContent value="deploiement">
-            <Bloc titre="État du déploiement" icone={ServerCogIcon} description="Quelles variables d'environnement sont définies et ce que leur absence implique. Les valeurs ne sont jamais affichées ni transmises au navigateur.">
+            <Bloc titre="État du déploiement" description="Quelles variables d'environnement sont définies et ce que leur absence implique. Les valeurs ne sont jamais affichées ni transmises au navigateur.">
               <EtatDeploiement />
             </Bloc>
           </TabsContent>
@@ -286,13 +297,12 @@ export function Parametres() {
 // --- Briques de mise en page ----------------------------------------------------------
 
 const modif = (m: boolean) => (m ? "[&_input]:border-ocre [&_input]:bg-ocre/5 [&_textarea]:border-ocre [&_textarea]:bg-ocre/5" : "");
-const Point = () => <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-ocre" aria-label="modifications non enregistrées" />;
+const Point = () => <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-ocre ring-2 ring-white/70" aria-label="modifications non enregistrées" />;
 
-function Bloc({ titre, description, icone: Icone, className, children }: { titre: string; description?: string; icone?: React.ComponentType<{ className?: string }>; className?: string; children: React.ReactNode }) {
+function Bloc({ titre, description, className, children }: { titre: string; description?: string; className?: string; children: React.ReactNode }) {
   return (
     <section className={cn("flex flex-col overflow-hidden rounded-xl border border-filet bg-surface shadow-xs", className)}>
       <div className="flex items-start gap-3 border-b border-filet bg-papier/70 px-4 py-3">
-        {Icone && <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ocean-brume text-ocean-profond"><Icone className="h-4 w-4" /></span>}
         <div className="min-w-0">
           <h2 className="text-sm font-semibold leading-tight">{titre}</h2>
           {description && <p className="mt-0.5 text-2xs text-encre-douce">{description}</p>}
