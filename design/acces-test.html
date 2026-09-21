@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Accès de test — Plateforme POITIERS COWORKING</title>
+<style>
+  @page { size: A4; margin: 14mm 13mm; }
+  :root { --sceau: #0077b6; --nuit: #03045e; --encre: #0b132b; --douce: #334155; --pale: #64748b; --filet: #8a968d; --bande: #eaf3f8; --ocre: #8a5d12; --ocre-clair: #fef3c7; --carmin: #9e2b20; --carmin-clair: #fee2e2; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif; font-size: 10pt; line-height: 1.45; color: var(--encre); }
+  .mono { font-family: "IBM Plex Mono", Consolas, monospace; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10mm; padding-bottom: 3mm; margin-bottom: 5mm; border-bottom: 2.5pt solid var(--sceau); }
+  header .raison { font-size: 13pt; font-weight: 700; color: var(--sceau); }
+  header .coord { font-size: 8pt; color: var(--pale); margin-top: 1mm; }
+  header .nature { text-align: right; font-size: 12pt; font-weight: 700; }
+  header .nature span { display: block; font-size: 8.5pt; font-weight: 400; color: var(--pale); }
+  h2 { font-size: 10.5pt; margin: 6mm 0 2mm; color: var(--nuit); text-transform: uppercase; letter-spacing: .04em; }
+  p { margin: 0 0 2.5mm; }
+  table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+  th, td { border: .5pt solid var(--filet); padding: 1.4mm 2mm; vertical-align: top; text-align: left; }
+  td.mono, th.tel { white-space: nowrap; }
+  thead th { background: var(--bande); font-size: 8pt; }
+  td.c { text-align: center; }
+  .niv { display: inline-block; min-width: 5mm; padding: 0 1.5mm; border-radius: 3px; background: var(--nuit); color: #fff; font-family: "IBM Plex Mono", Consolas, monospace; font-size: 8pt; font-weight: 700; text-align: center; }
+  .niv.audit { background: #64748b; }
+  .voit { color: var(--douce); font-size: 8.5pt; }
+  .encart { border: .5pt solid var(--filet); padding: 3mm 3.5mm; margin-top: 2mm; background: #fff; }
+  .encart.attention { background: var(--ocre-clair); border-color: var(--ocre); color: var(--ocre); }
+  .encart.attention b { color: var(--ocre); }
+  .etapes { margin: 0; padding-left: 5mm; }
+  .etapes li { margin-bottom: 1.2mm; }
+  .deux { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+  footer { margin-top: 6mm; padding-top: 2mm; border-top: .5pt solid var(--filet); display: flex; justify-content: space-between; font-size: 7.5pt; color: var(--pale); }
+  .mdp { font-family: "IBM Plex Mono", Consolas, monospace; font-weight: 700; background: var(--bande); padding: 0 1.5mm; border-radius: 3px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="raison">POITIERS COWORKING</div>
+    <div class="coord">Plateforme unifiée de gestion & paie — Polyclinique de Poitiers, Douala</div>
+  </div>
+  <div class="nature">ACCÈS DE TEST<span>Comptes par rôle · établi le 21/09/2026</span><span>Diffusion restreinte aux testeurs</span></div>
+</header>
+
+<h2>Se connecter</h2>
+<div class="deux">
+  <div class="encart">
+    <ol class="etapes">
+      <li>Ouvrir <span class="mono">https://poitiers-coworking.vercel.app/connexion</span> (en local : <span class="mono">http://localhost:5199/connexion</span>).</li>
+      <li>Choisir <b>Adresse e-mail</b> ou <b>Numéro de téléphone</b> en haut de la fenêtre.</li>
+      <li>Saisir l'identifiant du compte (tableau ci-dessous). Pour le téléphone, l'indicatif <span class="mono">+237</span> est déjà rempli : taper seulement <span class="mono">6 90 00 00 0N</span>.</li>
+      <li>Mot de passe : <span class="mdp">Poitiers2026</span> pour tous les comptes de test.</li>
+      <li>Pour changer de rôle : icône de sortie en bas de la barre latérale, puis se reconnecter avec un autre compte.</li>
+    </ol>
+  </div>
+  <div class="encart attention">
+    <b>À savoir.</b> Ces comptes sont des comptes de recette : ils partagent le même mot de passe et seront désactivés à la mise en service. Ne pas les utiliser pour des données réelles. Le compte <b>super administrateur</b> ouvre les réglages techniques : réservé au développeur. Pas de création de compte ni de code par e-mail sur cet écran : un accès manquant se demande au Directeur Général (écran Membres).
+  </div>
+</div>
+
+<h2>Les huit comptes</h2>
+<table>
+  <thead>
+    <tr><th>Rôle</th><th class="c">Niveau</th><th>E-mail (identifiant)</th><th class="tel">Téléphone (identifiant)</th><th>Ce que l'interface doit montrer</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><b>Employé</b></td><td class="c"><span class="niv">1</span></td><td class="mono">employe.test@poitiers.local</td><td class="mono">+237 6 90 00 00 06</td><td class="voit">Tableau de bord, Documents, Comptes rendus, Interventions</td></tr>
+    <tr><td><b>Chef d'équipe</b></td><td class="c"><span class="niv">2</span></td><td class="mono">chef.test@poitiers.local</td><td class="mono">+237 6 90 00 00 02</td><td class="voit">+ vue superviseur des comptes rendus</td></tr>
+    <tr><td><b>Comptable</b></td><td class="c"><span class="niv">3</span></td><td class="mono">comptable.test@poitiers.local</td><td class="mono">+237 6 90 00 00 03</td><td class="voit">+ Employés, Commandes, Caisse & primes médecins</td></tr>
+    <tr><td><b>Gestionnaire RH</b></td><td class="c"><span class="niv">4</span></td><td class="mono">rh.test@poitiers.local</td><td class="mono">+237 6 90 00 00 07</td><td class="voit">+ toute la paie (récapitulatif, liste, bulletins, courrier, planning, primes & retenues, archives), Barème</td></tr>
+    <tr><td><b>Directeur Administratif (DAF)</b></td><td class="c"><span class="niv">5</span></td><td class="mono">daf.test@poitiers.local</td><td class="mono">+237 6 90 00 00 04</td><td class="voit">+ Récapitulatif financier, validation des commandes et interventions, documents confidentiels</td></tr>
+    <tr><td><b>Directeur Général</b></td><td class="c"><span class="niv">7</span></td><td class="mono">dg.test@poitiers.local</td><td class="mono">+237 6 90 00 00 05</td><td class="voit">+ Membres & rôles, Paramètres (sans l'onglet Déploiement), Journal d'activité, Audit, nouvelle version du barème</td></tr>
+    <tr><td><b>Super administrateur</b></td><td class="c"><span class="niv">8</span></td><td class="mono">superadmin.test@poitiers.local</td><td class="mono">+237 6 90 00 00 08</td><td class="voit">+ Fiche API, onglet Déploiement, données de démo — technique</td></tr>
+    <tr><td><b>Auditeur externe</b></td><td class="c"><span class="niv audit">—</span></td><td class="mono">auditeur.test@poitiers.local</td><td class="mono">+237 6 90 00 00 01</td><td class="voit">Tableau de bord et Audit confidentiel seulement</td></tr>
+  </tbody>
+</table>
+<p style="margin-top:2mm;font-size:8.5pt;color:var(--pale)">Les niveaux sont cumulatifs : un rôle voit tout ce que voient les rôles en dessous. La matrice complète est dans <b>Paramètres → Rôles & accès</b> (compte DG ou super administrateur). Les niveaux exacts de chaque rôle seront ajustés après les entretiens avec chaque spécialiste.</p>
+
+<h2>Que vérifier avec chaque compte</h2>
+<div class="deux">
+  <div class="encart">
+    <ol class="etapes">
+      <li>Le <b>menu de gauche</b> ne montre que les écrans du rôle ; une adresse tapée à la main d'un écran interdit affiche « Cet écran ne vous est pas ouvert ».</li>
+      <li>Le <b>nom et le rôle</b> apparaissent en haut à droite et en bas de la barre latérale.</li>
+      <li>Aucun <b>bandeau brun « mode développement »</b> ne doit apparaître.</li>
+    </ol>
+  </div>
+  <div class="encart">
+    <ol class="etapes" start="4">
+      <li>Le <b>tableau de bord</b> n'affiche le solde de trésorerie qu'à partir du niveau 5.</li>
+      <li>Un <b>employé</b> ne peut ni voir la paie ni les commandes ; un <b>auditeur</b> ne voit que l'audit.</li>
+      <li>Toute anomalie : noter le compte, l'écran, l'heure et une capture, pour le cahier de recette.</li>
+    </ol>
+  </div>
+</div>
+
+<footer>
+  <span>POITIERS COWORKING · accès de test · plan d'avancement S1 (22 → 26 septembre 2026)</span>
+  <span class="mono">acces-test.pdf · 21/09/2026</span>
+</footer>
+</body>
+</html>
