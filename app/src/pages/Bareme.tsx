@@ -134,7 +134,7 @@ export function Bareme() {
       />
 
       <GrilleTuiles>
-        <Tuile libelle={`Version applicable · ${libellePeriode(periode)}`} valeur={applicable === undefined ? undefined : applicable ? fmtDate(applicable.effectiveFrom) : "aucune"} note={applicable ? applicable.source : "les bulletins de ce mois ne peuvent pas être calculés"} ton={applicable === null ? "alerte" : undefined} vedette />
+        <Tuile libelle={`Version applicable · ${libellePeriode(periode)}`} valeur={applicable === undefined ? undefined : applicable ? fmtDate(applicable.effectiveFrom) : "aucune"} note={applicable ? applicable.source : "les bulletins de ce mois ne peuvent pas être calculés"} vedette />
         <Tuile libelle="Versions" valeur={versions ? liste.length : undefined} note={liste[0] ? `la plus récente est effective au ${fmtDate(liste[0].effectiveFrom)}` : "aucune version enregistrée"} />
         <Tuile libelle="Source officielle" valeur={controle ? <Statut etat={controle.sourceConfiguree ? "configure" : "absent"}>{controle.sourceConfiguree ? "Configurée" : "Non configurée"}</Statut> : undefined} note={controle?.sourceConfiguree ? "variable BAREME_SOURCE_URL" : "définir BAREME_SOURCE_URL sur le déploiement"} compact />
         <Tuile libelle="Dernier contrôle" valeur={controle ? (controle.dernier ? fmtDateHeure(controle.dernier.date) : "jamais") : undefined} note={controle?.dernier?.detail} compact />

@@ -276,3 +276,184 @@
     print-color-adjust: exact;
   }
 }
+
+/* --- Bulletin de paie (refonte validee le 21/09/2026) ----------------------
+   Sept zones sur les briques ci-dessus. Les mesures restent en mm / pt. */
+.doc-bulletin {
+  font-size: 9.5pt;
+}
+
+.doc-zone + .doc-zone {
+  margin-top: 2.5mm;
+}
+
+.doc-entete .nature .paiement {
+  display: block;
+  font-size: 8.5pt;
+  font-weight: 600;
+  color: var(--encre);
+}
+
+/* Nom du salarie en bandeau, matricule et societe a droite. */
+.doc-bandeau-nom {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.doc-bandeau-nom .nom {
+  font-size: 11pt;
+}
+
+.doc-bandeau-nom .matricule {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+/* Cases d'identite et de temps : un intitule en capitales fines, la valeur en dessous. */
+.doc-identite td,
+.doc-temps td {
+  width: 25%;
+}
+
+.doc-temps td {
+  width: 16.66%;
+  text-align: center;
+}
+
+.doc-identite .cle,
+.doc-temps .cle,
+.doc-synthese .cle {
+  display: block;
+  font-size: 7pt;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5b6860;
+}
+
+.doc-identite .val {
+  display: block;
+  font-weight: 600;
+}
+
+.doc-temps .val,
+.doc-synthese .val {
+  display: block;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 10.5pt;
+  font-variant-numeric: tabular-nums;
+}
+
+.doc-temps td.reste .val {
+  color: var(--sceau);
+}
+
+/* Rubriques : colonne des codes, intercalaires, montants nuls estompes. */
+.doc-rubriques .code {
+  font-family: var(--font-mono);
+  font-size: 7.5pt;
+  color: #5b6860;
+  text-align: center;
+  width: 12mm;
+}
+
+.doc-rubriques tr.groupe td {
+  background: var(--bande);
+  font-size: 7pt;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--encre-douce);
+  padding: 0.8mm 1.8mm;
+}
+
+.doc-rubriques .r {
+  font-family: var(--font-mono);
+}
+
+.doc-rubriques td.zero,
+.doc-temps .val.zero,
+.doc-synthese .val.zero {
+  color: #9aa5b1;
+}
+
+/* Synthese : quatre montants et le net a payer en bleu sceau. */
+.doc-synthese {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1.5fr;
+  border: 0.5pt solid var(--doc-filet);
+}
+
+.doc-synthese > div {
+  padding: 1.6mm 2mm;
+  border-right: 0.5pt solid var(--doc-filet);
+}
+
+.doc-synthese > div:last-child {
+  border-right: 0;
+}
+
+.doc-synthese .net {
+  background: var(--sceau);
+  color: #fff;
+}
+
+.doc-synthese .net .cle {
+  color: var(--sceau-clair);
+}
+
+.doc-synthese .net .val {
+  font-size: 15pt;
+}
+
+.doc-synthese .net .paye {
+  display: block;
+  margin-top: 0.5mm;
+  font-size: 7.5pt;
+  color: var(--sceau-clair);
+}
+
+/* Cases visa et recu. */
+.doc-case .signature {
+  height: 9mm;
+  font-family: "Segoe Script", "Brush Script MT", cursive;
+  font-size: 13pt;
+  color: var(--ocean-nuit, #03045e);
+}
+
+.doc-case .petit {
+  font-size: 7.5pt;
+  color: #5b6860;
+}
+
+.doc-bulletin .doc-mention {
+  margin-top: 2.5mm;
+}
+
+/* Pied : reference du bareme, periode, matricule, page. */
+.doc-pied {
+  display: flex;
+  justify-content: space-between;
+  gap: 6mm;
+  font-size: 7pt;
+  color: #5b6860;
+}
+
+.doc-pied .legal {
+  font-weight: 600;
+}
+
+.doc-pied .ref {
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+@media print {
+  .doc-synthese .net,
+  .doc-rubriques tr.groupe td {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

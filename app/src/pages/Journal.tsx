@@ -116,7 +116,7 @@ export function Journal() {
         <Tuile libelle="Événements" valeur={rows ? total : undefined} note={`sur les ${fenetreLibelle}${total >= 500 ? " · plafond de 500 atteint" : ""}`} ton={total >= 500 ? "attente" : undefined} vedette />
         <Tuile libelle="Accès & membres" valeur={rows ? n((r) => familleDe(r.action) === "acces") : undefined} note="connexions, rôles, activations" />
         <Tuile libelle="Clôtures" valeur={rows ? n((r) => r.action === "cloture_paie" || r.action === "cloture_financier") : undefined} note="paie et grand livre" />
-        <Tuile libelle="Appels API" valeur={rows ? n((r) => r.action === "api_financial") : undefined} note={api4xx5xx ? `dont ${api4xx5xx} refusé(s) ou en erreur` : "aucun refus ni erreur"} ton={api4xx5xx ? "alerte" : undefined} />
+        <Tuile libelle="Appels API" valeur={rows ? n((r) => r.action === "api_financial") : undefined} note={api4xx5xx ? `dont ${api4xx5xx} refusé(s) ou en erreur` : "aucun refus ni erreur"} />
       </GrilleTuiles>
 
       <div className="flex flex-wrap items-center gap-2">

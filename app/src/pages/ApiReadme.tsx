@@ -99,9 +99,9 @@ export function ApiReadme() {
       />
 
       <GrilleTuiles>
-        <Tuile libelle="Clé backend" valeur={etat ? <Statut etat={etat.cleConfiguree ? "configure" : "absent"}>{etat.cleConfiguree ? "Configurée" : "Absente"}</Statut> : undefined} note={etat?.cleConfiguree ? "secret FINANCIAL_API_KEY présent sur le déploiement" : "définir FINANCIAL_API_KEY : tout appel répond 503"} ton={etat && !etat.cleConfiguree ? "alerte" : undefined} compact vedette />
+        <Tuile libelle="Clé backend" valeur={etat ? <Statut etat={etat.cleConfiguree ? "configure" : "absent"}>{etat.cleConfiguree ? "Configurée" : "Absente"}</Statut> : undefined} note={etat?.cleConfiguree ? "secret FINANCIAL_API_KEY présent sur le déploiement" : "définir FINANCIAL_API_KEY : tout appel répond 503"} compact vedette />
         <Tuile libelle="Appels sur 7 jours" valeur={etat?.appels7j} note="toutes réponses confondues" />
-        <Tuile libelle="20 derniers appels" valeur={etat ? `${reussis} / ${derniers.length}` : undefined} note={derniers.length ? `réussis · ${refuses} refusé(s) · ${erreurs} erreur(s)` : "aucun appel journalisé"} ton={erreurs ? "alerte" : refuses ? "attente" : undefined} />
+        <Tuile libelle="20 derniers appels" valeur={etat ? `${reussis} / ${derniers.length}` : undefined} note={derniers.length ? `réussis · ${refuses} refusé(s) · ${erreurs} erreur(s)` : "aucun appel journalisé"} />
         <Tuile libelle="Point d'entrée" valeur={<span className="font-mono text-sm">{site.replace(/^https?:\/\//, "")}</span>} note="version 2.0 · 8 entités · GET /health pour la disponibilité" compact />
       </GrilleTuiles>
 
