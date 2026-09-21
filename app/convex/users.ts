@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { getCurrentUser, requireLevel, PENDING_PREFIX, DEV_BYPASS } from "./lib/authz";
 import { journaliser } from "./lib/journal";
 import { LIBELLE, NIVEAU, Role, peutAttribuer, peutModifierMembre } from "./rbac";
+import { normaliserTelephone, erreurTelephone } from "./lib/telephone";
 
 const ROLE = v.union(
   v.literal("employe"), v.literal("chef_equipe"), v.literal("comptable"), v.literal("gestionnaire_rh"),
@@ -50,6 +51,33 @@ export const liste = query({
   },
 });
 
+// Téléphone : indicatif obligatoire (journal des décisions, 21/09/2026), format compact, unique.
+async function telephoneValide(ctx: Parameters<typeof requireLevel>[0], brut: string | undefined, saufId?: any): Promise<string | undefined> {
+  if (!brut || !brut.trim()) return undefined;
+  const err = erreurTelephone(brut);
+  if (err) throw new Error(err);
+  const phone = normaliserTelephone(brut)!;
+  const autre = await ctx.db.query("users").withIndex("phone", (q) => q.eq("phone", phone)).first();
+  if (autre && String(autre._id) !== String(saufId)) throw new Error(`Ce numéro est déjà attribué à ${autre.nom ?? autre.email}.`);
+  return phone;
+}
+
+// Connexion par téléphone : le compte Convex Auth est indexé par e-mail, l'écran de connexion
+// traduit donc le numéro saisi en e-mail avant d'appeler `signIn`. Requête publique : elle ne
+// renvoie l'e-mail que pour un numéro EXACT d'un compte actif — compromis accepté pour un outil
+// interne aux comptes pré-provisionnés (journal des décisions, 21/09/2026).
+export const emailPourIdentifiant = query({
+  args: { identifiant: v.string() },
+  handler: async (ctx, { identifiant }) => {
+    const s = identifiant.trim().toLowerCase();
+    if (s.includes("@")) return s;
+    const phone = normaliserTelephone(s);
+    if (!phone) return null;
+    const u = await ctx.db.query("users").withIndex("phone", (q) => q.eq("phone", phone)).first();
+    return u && u.isActive ? u.email : null;
+  },
+});
+
 // Garde-fou : on ne peut ni désactiver ni rétrograder le dernier DG actif.
 async function verifierDernierDg(ctx: Parameters<typeof requireLevel>[0], cible: { _id: any; role: string; isActive: boolean }, patch: { role?: string; isActive?: boolean }) {
   const perdDg = cible.role === "dg" && cible.isActive && ((patch.role !== undefined && patch.role !== "dg") || patch.isActive === false);
@@ -62,11 +90,13 @@ export const modifier = mutation({
   args: {
     userId: v.id("users"), role: v.optional(ROLE), poste: v.optional(v.string()), departement: v.optional(v.string()),
     societe: v.optional(SOCIETE), codeAcces: v.optional(v.string()), nom: v.optional(v.string()), isActive: v.optional(v.boolean()),
+    phone: v.optional(v.string()),
   },
   handler: async (ctx, { userId, ...patch }) => {
     const me = await requireLevel(ctx, 7);
     const cible = await ctx.db.get(userId);
     if (!cible) throw new Error("Membre introuvable.");
+    if (patch.phone !== undefined) patch.phone = await telephoneValide(ctx, patch.phone, userId);
     // Nul ne touche à un membre placé au-dessus de lui, ni n'attribue un rôle au-dessus du sien :
     // un Directeur Général ne fabrique pas de super administrateur.
     if (!peutModifierMembre(me.role as Role, cible.role as Role)) throw new Error(`Accès refusé : ${LIBELLE[cible.role as Role]} est au-dessus de votre niveau.`);
@@ -95,14 +125,15 @@ export const modifier = mutation({
 // `auth.createOrUpdateUser` la rattache alors à son compte (voir auth.ts). C'est le chemin
 // nominal — une inscription non pré-provisionnée n'obtient aucun droit.
 export const creer = mutation({
-  args: { email: v.string(), nom: v.optional(v.string()), role: ROLE, poste: v.optional(v.string()), departement: v.optional(v.string()), societe: v.optional(SOCIETE), codeAcces: v.optional(v.string()) },
+  args: { email: v.string(), nom: v.optional(v.string()), role: ROLE, poste: v.optional(v.string()), departement: v.optional(v.string()), societe: v.optional(SOCIETE), codeAcces: v.optional(v.string()), phone: v.optional(v.string()) },
   handler: async (ctx, a) => {
     const me = await requireLevel(ctx, 7);
     if (!peutAttribuer(me.role as Role, a.role as Role)) throw new Error(`Accès refusé : vous ne pouvez pas attribuer le rôle ${LIBELLE[a.role as Role]}.`);
+    const phone = await telephoneValide(ctx, a.phone);
     const email = a.email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Adresse e-mail invalide.");
     if (await ctx.db.query("users").withIndex("email", (q) => q.eq("email", email)).first()) throw new Error("Un membre existe déjà avec cet e-mail.");
-    const id = await ctx.db.insert("users", { tokenIdentifier: `${PENDING_PREFIX}${email}`, email, nom: a.nom?.trim() || undefined, role: a.role, poste: a.poste || undefined, departement: a.departement || undefined, societe: a.societe, codeAcces: a.codeAcces || undefined, isActive: true });
+    const id = await ctx.db.insert("users", { tokenIdentifier: `${PENDING_PREFIX}${email}`, email, nom: a.nom?.trim() || undefined, role: a.role, poste: a.poste || undefined, departement: a.departement || undefined, societe: a.societe, codeAcces: a.codeAcces || undefined, phone, isActive: true });
     await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "membre_creation", cible: a.nom?.trim() || email, detail: `${LIBELLE[a.role as Role]} · en attente de rattachement` });
     return id;
   },

@@ -6,7 +6,7 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 await page.goto(`${BASE}/connexion`, { waitUntil: "networkidle" });
 await page.waitForTimeout(2500);
-await page.locator('input[type="email"]').first().fill(email);
+await page.locator('input[autocomplete="username"]').first().fill(email);
 await page.locator('input[type="password"]').first().fill(mdp);
 await page.getByRole("button", { name: /Se connecter/ }).click();
 await page.waitForURL((u) => !u.pathname.startsWith("/connexion"), { timeout: 20000 }).catch(() => {});

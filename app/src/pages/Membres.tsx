@@ -20,6 +20,7 @@ import { Link } from "react-router-dom";
 import { CheckIcon, KeyRoundIcon, LockIcon, PlusIcon, SearchIcon, ShieldCheckIcon, UserRoundPenIcon, UserRoundPlusIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { DESCRIPTION, LIBELLE, NIVEAU, ROLES_ORDONNES, peutAttribuer, peutModifierMembre, type Role } from "../../convex/rbac";
+import { erreurTelephone, formaterTelephone } from "../../convex/lib/telephone";
 import { messageErreur } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageEnTete } from "@/components/app/en-tete";
@@ -79,7 +80,7 @@ function SelectRole({ valeur, onChange, auteur, id, taille = "md", className, ar
   );
 }
 
-type Fiche = { userId: string | null; email: string; nom: string; role: Role; poste: string; departement: string; societe: string; codeAcces: string; isActive: boolean; enAttente: boolean };
+type Fiche = { userId: string | null; email: string; nom: string; role: Role; poste: string; departement: string; societe: string; codeAcces: string; phone: string; isActive: boolean; enAttente: boolean };
 const sansAccents = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 // --- Page -------------------------------------------------------------------------
@@ -110,9 +111,9 @@ export function Membres() {
 
   const ouvrir = (m: any, autoriser = false): Fiche => ({
     userId: String(m._id), email: m.email, nom: m.nom ?? "", role: m.role, poste: m.poste ?? "", departement: m.departement ?? "",
-    societe: m.societe ?? "", codeAcces: "", isActive: autoriser ? true : !!m.isActive, enAttente: !!m.enAttente,
+    societe: m.societe ?? "", codeAcces: "", phone: m.phone ?? "", isActive: autoriser ? true : !!m.isActive, enAttente: !!m.enAttente,
   });
-  const nouvelle = (): Fiche => ({ userId: null, email: "", nom: "", role: "employe", poste: "", departement: "", societe: "", codeAcces: "", isActive: true, enAttente: false });
+  const nouvelle = (): Fiche => ({ userId: null, email: "", nom: "", role: "employe", poste: "", departement: "", societe: "", codeAcces: "", phone: "", isActive: true, enAttente: false });
 
   const monRole = me?.role as Role | undefined;
   // Changement de rôle directement dans la ligne : journalisé côté serveur, borné au niveau de l'auteur.
@@ -126,10 +127,10 @@ export function Membres() {
 
   const enregistrer = async (f: Fiche) => {
     if (f.userId) {
-      await modifier({ userId: f.userId as any, role: f.role, nom: f.nom || undefined, poste: f.poste || undefined, departement: f.departement || undefined, societe: (f.societe || undefined) as any, codeAcces: f.codeAcces || undefined, isActive: f.isActive });
+      await modifier({ userId: f.userId as any, role: f.role, nom: f.nom || undefined, poste: f.poste || undefined, departement: f.departement || undefined, societe: (f.societe || undefined) as any, codeAcces: f.codeAcces || undefined, phone: f.phone.trim() || undefined, isActive: f.isActive });
       toast.success(f.enAttente && f.isActive ? `Accès accordé à ${f.nom || f.email}` : `Membre ${f.nom || f.email} mis à jour`, { description: libelleRole(f.role) });
     } else {
-      await creer({ email: f.email.trim(), nom: f.nom || undefined, role: f.role, poste: f.poste || undefined, departement: f.departement || undefined, societe: (f.societe || undefined) as any, codeAcces: f.codeAcces || undefined });
+      await creer({ email: f.email.trim(), nom: f.nom || undefined, role: f.role, poste: f.poste || undefined, departement: f.departement || undefined, societe: (f.societe || undefined) as any, codeAcces: f.codeAcces || undefined, phone: f.phone.trim() || undefined });
       toast.success(`Membre ${f.email.trim()} pré-provisionné`, { description: `${libelleRole(f.role)} · reprendra ce rôle à sa première connexion` });
     }
   };
@@ -205,7 +206,7 @@ export function Membres() {
                 <TableRow key={String(m._id)} className={cn("cursor-pointer", !m.isActive && !m.enAttente && "opacity-60")} onClick={() => setFiche(ouvrir(m))}>
                   <TableCell className="leading-tight">
                     <div className="flex items-center gap-1.5 whitespace-nowrap text-[13px] font-semibold">{m.nom || <span className="text-encre-pale">(sans nom)</span>}{moi ? <Flag variant="saisie-active" size="xs">vous</Flag> : null}</div>
-                    <div className="whitespace-nowrap font-mono text-2xs text-encre-pale">{m.email}</div>
+                    <div className="whitespace-nowrap font-mono text-2xs text-encre-pale">{m.email}{m.phone ? ` · ${formaterTelephone(m.phone)}` : ""}</div>
                   </TableCell>
                   <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     {!moi && monRole && peutModifierMembre(monRole, m.role) && !m.enAttente ? (
@@ -297,6 +298,9 @@ function FormFiche({ fiche, auteur, estMoi, dernierDg, onFermer, onEnregistrer, 
         </Champ>
         {texte("poste", "Poste", "Caissier, Infirmière…")}
         {texte("departement", "Département", "Accueil, Laboratoire…")}
+        <Champ libelle="Téléphone (avec indicatif)" aide="Sert aussi d'identifiant de connexion" erreur={erreurTelephone(f.phone)}>
+          {(a) => <Input {...a} type="tel" inputMode="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="+237 6 90 00 00 00" className="font-mono" />}
+        </Champ>
         <Champ libelle="Société" aide="Segmente paie et exports">
           {(a) => (
             <Select value={f.societe || AUCUNE} onValueChange={(v) => setF({ ...f, societe: v === AUCUNE ? "" : v })}>
@@ -352,7 +356,7 @@ function FormFiche({ fiche, auteur, estMoi, dernierDg, onFermer, onEnregistrer, 
 const CS = "bg-ocean-brume/40 align-middle";
 
 function LigneSaisie({ auteur, onEnregistrer }: { auteur: Role | undefined; onEnregistrer: (f: Fiche) => Promise<void> }) {
-  const vierge = (): Fiche => ({ userId: null, email: "", nom: "", role: "employe", poste: "", departement: "", societe: "", codeAcces: "", isActive: true, enAttente: false });
+  const vierge = (): Fiche => ({ userId: null, email: "", nom: "", role: "employe", poste: "", departement: "", societe: "", codeAcces: "", phone: "", isActive: true, enAttente: false });
   const [f, setF] = React.useState<Fiche>(vierge);
   const [enCours, setEnCours] = React.useState(false);
   const premier = React.useRef<HTMLInputElement>(null);
@@ -371,6 +375,7 @@ function LigneSaisie({ auteur, onEnregistrer }: { auteur: Role | undefined; onEn
         <div className="flex flex-col gap-1">
           <Input ref={premier} type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} onKeyDown={k} placeholder="prenom.nom@domaine.com" aria-label="E-mail (nouveau membre)" className="h-8 w-56 text-xs" />
           <Input value={f.nom} onChange={(e) => setF({ ...f, nom: e.target.value })} onKeyDown={k} placeholder="Nom (optionnel)" aria-label="Nom (nouveau membre)" className="h-8 w-56 text-xs" />
+          <Input type="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} onKeyDown={k} placeholder="+237 6 90 00 00 00 (optionnel)" aria-label="Téléphone avec indicatif (nouveau membre)" className="h-8 w-56 font-mono text-xs" />
         </div>
       </TableCell>
       <TableCell className={CS}>

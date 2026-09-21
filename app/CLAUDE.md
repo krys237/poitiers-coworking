@@ -55,10 +55,15 @@ npm install
 npx convex dev      # démarre le backend Convex (crée le déploiement au 1er lancement)
 npm run dev         # démarre le front Vite
 ```
-Puis, dans le dashboard Convex, définir la variable d'environnement **`AUTH_DEV_BYPASS=true`**
-(mode développement : agit comme le membre super administrateur « dev » sans IdP) et cliquer **« Initialiser les données de démo »**
-sur le tableau de bord (barème, entreprise, 8 employés). Retirer `AUTH_DEV_BYPASS` en production et
-brancher le fournisseur OIDC (`convex/auth.config.ts`).
+Connexion obligatoire (`AUTH_DEV_BYPASS` est **coupé** depuis le 21/09/2026) : un compte par rôle existe sur le
+déploiement dev (`<role>.test@poitiers.local`, voir `DECISIONS.md`), le technique passe par `superadmin.test@…`.
+Sur un déploiement vierge : `npx convex env set AUTH_DEV_BYPASS true` le temps de cliquer **« Initialiser les données
+de démo »** (barème, entreprise, 8 employés) et de créer un vrai compte super administrateur, puis le remettre à `false`.
+Écran de connexion `/connexion` (alias `/login`) : identifiant = e-mail **ou téléphone avec indicatif** + mot de passe.
+
+> **Journal des décisions** : `DECISIONS.md` — toute consigne transverse du propriétaire y est consignée avec sa date
+> et l'endroit du code qui l'applique. À lire avant de toucher aux règles métier ; à compléter à chaque décision.
+> Consigne à connaître : **un numéro de téléphone porte toujours l'indicatif du pays** (`lib/telephone.ts`).
 
 > **Piège Convex** : `auth.config.ts` est analysé statiquement au push et toute référence à une variable
 > d'environnement **non définie** fait échouer le déploiement (→ aucune fonction, page blanche côté client).
@@ -220,6 +225,9 @@ Convex agent skills for common tasks can be installed by running
   le second est bloqué dès `callbacks.beforeSessionCreation`. `users.modifier` lève le drapeau à l'activation.
 - `users.me` expose `enAttente` et `modeDev` (bypass de développement actif) pour l'interface.
 - Connexions journalisées (`connexion`, `connexion_attente`, `membre_rattachement`, `membre_autorisation`).
+- **Connexion par téléphone** : le compte Convex Auth est indexé par e-mail ; `users.emailPourIdentifiant` (requête
+  publique) traduit un numéro exact (`+237…`, `lib/telephone.ts`) en e-mail avant `signIn("password")`. `users.phone`
+  est unique, normalisé, saisi dans Membres. Pas d'inscription ni de code OTP sur l'écran de connexion.
 - **Variables à créer sur le déploiement AVANT le push** (sinon application silencieusement déconnectée) :
   `JWT_PRIVATE_KEY`, `JWKS` (générées avec `jose`, cf. `.agents/skills/convex-auth`), `SITE_URL`.
   Ne PAS lancer l'assistant interactif `npx @convex-dev/auth` : il bloque en environnement non interactif.

@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { PageIntrouvable } from "./pages/Introuvable";
 import { PortailAuth, Guard, PageConnexion } from "./auth/Guard";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
@@ -66,6 +67,7 @@ export function App() {
         {/* Connexion explicite : en mode développement le bypass connecte d'office, cette
             route permet quand même d'ouvrir une session réelle (comptes de test par rôle). */}
         <Route path="/connexion" element={<PageConnexion />} />
+        <Route path="/login" element={<Navigate to="/connexion" replace />} />
         <Route
           path="*"
           element={
@@ -75,6 +77,8 @@ export function App() {
                   {ROUTES.map((r) => (
                     <Route key={r.path} path={r.path} element={<Guard perm={r.perm}>{r.element}</Guard>} />
                   ))}
+                  {/* Une adresse inconnue affichait une page vide : on le dit, et on propose l'accueil. */}
+                  <Route path="*" element={<PageIntrouvable />} />
                 </Route>
               </Routes>
             </PortailAuth>
