@@ -21,6 +21,7 @@ import { CheckIcon, KeyRoundIcon, LockIcon, PlusIcon, SearchIcon, ShieldCheckIco
 import { api } from "../../convex/_generated/api";
 import { DESCRIPTION, LIBELLE, NIVEAU, ROLES_ORDONNES, peutAttribuer, peutModifierMembre, type Role } from "../../convex/rbac";
 import { erreurTelephone, formaterTelephone } from "../../convex/lib/telephone";
+import { ChampTelephone } from "@/components/app/champ-telephone";
 import { messageErreur } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageEnTete } from "@/components/app/en-tete";
@@ -298,8 +299,8 @@ function FormFiche({ fiche, auteur, estMoi, dernierDg, onFermer, onEnregistrer, 
         </Champ>
         {texte("poste", "Poste", "Caissier, Infirmière…")}
         {texte("departement", "Département", "Accueil, Laboratoire…")}
-        <Champ libelle="Téléphone (avec indicatif)" aide="Sert aussi d'identifiant de connexion" erreur={erreurTelephone(f.phone)}>
-          {(a) => <Input {...a} type="tel" inputMode="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} placeholder="+237 6 90 00 00 00" className="font-mono" />}
+        <Champ libelle="Téléphone" aide="Indicatif pré-rempli · sert aussi d'identifiant de connexion" erreur={erreurTelephone(f.phone)}>
+          {(a) => <ChampTelephone id={a.id} aria-describedby={a["aria-describedby"]} aria-invalid={a["aria-invalid"]} valeur={f.phone} onChange={(v) => setF({ ...f, phone: v })} />}
         </Champ>
         <Champ libelle="Société" aide="Segmente paie et exports">
           {(a) => (
@@ -375,7 +376,7 @@ function LigneSaisie({ auteur, onEnregistrer }: { auteur: Role | undefined; onEn
         <div className="flex flex-col gap-1">
           <Input ref={premier} type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} onKeyDown={k} placeholder="prenom.nom@domaine.com" aria-label="E-mail (nouveau membre)" className="h-8 w-56 text-xs" />
           <Input value={f.nom} onChange={(e) => setF({ ...f, nom: e.target.value })} onKeyDown={k} placeholder="Nom (optionnel)" aria-label="Nom (nouveau membre)" className="h-8 w-56 text-xs" />
-          <Input type="tel" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} onKeyDown={k} placeholder="+237 6 90 00 00 00 (optionnel)" aria-label="Téléphone avec indicatif (nouveau membre)" className="h-8 w-56 font-mono text-xs" />
+          <ChampTelephone valeur={f.phone} onChange={(v) => setF({ ...f, phone: v })} onKeyDown={k} taille="sm" className="w-56" ariaLabel="Téléphone (nouveau membre)" />
         </div>
       </TableCell>
       <TableCell className={CS}>

@@ -8,22 +8,27 @@ import { useConvex } from "convex/react";
 import { EyeIcon, EyeOffIcon, LockKeyholeIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { messageErreur } from "../lib/format";
-import { erreurTelephone, ressembleAUnTelephone } from "../../convex/lib/telephone";
+import { erreurTelephone } from "../../convex/lib/telephone";
+import { ChampTelephone } from "@/components/app/champ-telephone";
 import logo from "@/assets/logo-polyclinique.png";
-import fond from "@/assets/banniere-scene-analytics.jpg";
+import fond from "@/assets/bg-clogin.jpg";
 import "./auth.css";
 
 export function Login() {
   const { signIn } = useAuthActions();
   const convex = useConvex();
-  const [identifiant, setIdentifiant] = useState("");
+  // Deux façons de s'identifier ; le choix est mémorisé sur l'appareil.
+  const [mode, setMode] = useState<"email" | "telephone">(() => { try { return localStorage.getItem("connexion:mode") === "telephone" ? "telephone" : "email"; } catch { return "email"; } });
+  const choisir = (m: "email" | "telephone") => { setMode(m); setErreur(null); try { localStorage.setItem("connexion:mode", m); } catch { /* stockage indisponible : sans effet */ } };
+  const [email, setEmail] = useState("");
+  const [telephone, setTelephone] = useState("");
+  const identifiant = mode === "email" ? email : telephone;
   const [motDePasse, setMotDePasse] = useState("");
   const [voir, setVoir] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
   const [occupe, setOccupe] = useState(false);
 
-  const telephone = ressembleAUnTelephone(identifiant);
-  const aideIdentifiant = telephone ? erreurTelephone(identifiant) : null;
+  const aideIdentifiant = mode === "telephone" ? erreurTelephone(telephone) : null;
 
   const connecter = async (ev: React.FormEvent) => {
     ev.preventDefault();
@@ -51,28 +56,39 @@ export function Login() {
           <img src={logo} alt="" className="auth-logo" />
           <div>
             <p className="auth-marque">Polyclinique de Poitiers</p>
-            <h1 id="auth-titre" className="auth-titre">Plateforme de gestion & paie</h1>
+            <h1 id="auth-titre" className="auth-titre">Plateforme de Coworking</h1>
           </div>
         </header>
 
+        <div className="auth-modes" role="tablist" aria-label="Mode de connexion">
+          <button type="button" role="tab" aria-selected={mode === "email"} className={mode === "email" ? "actif" : ""} onClick={() => choisir("email")}>Adresse e-mail</button>
+          <button type="button" role="tab" aria-selected={mode === "telephone"} className={mode === "telephone" ? "actif" : ""} onClick={() => choisir("telephone")}>Numéro de téléphone</button>
+        </div>
+
         <form className="auth-form" onSubmit={connecter} noValidate>
-          <label>
-            Identifiant
-            <input
-              value={identifiant}
-              autoComplete="username"
-              inputMode={telephone ? "tel" : "email"}
-              required
-              autoFocus
-              aria-invalid={aideIdentifiant ? true : undefined}
-              aria-describedby="auth-aide-id"
-              onChange={(e) => { setIdentifiant(e.target.value); setErreur(null); }}
-              placeholder="prenom.nom@domaine.com ou +237 6 90 00 00 00"
-            />
-            <span id="auth-aide-id" className={`auth-aide${aideIdentifiant ? " auth-aide-erreur" : ""}`}>
-              {aideIdentifiant ?? "Adresse e-mail, ou numéro de téléphone précédé de l'indicatif du pays."}
-            </span>
-          </label>
+          {mode === "email" ? (
+            <label>
+              Adresse e-mail
+              <input
+                type="email"
+                value={email}
+                autoComplete="username"
+                inputMode="email"
+                required
+                autoFocus
+                onChange={(e) => { setEmail(e.target.value); setErreur(null); }}
+                placeholder="prenom.nom@domaine.com"
+              />
+            </label>
+          ) : (
+            <label>
+              Numéro de téléphone
+              <ChampTelephone valeur={telephone} onChange={(v) => { setTelephone(v); setErreur(null); }} autoFocus autoComplete="username" aria-describedby="auth-aide-tel" aria-invalid={aideIdentifiant ? true : undefined} />
+              <span id="auth-aide-tel" className={`auth-aide${aideIdentifiant ? " auth-aide-erreur" : ""}`}>
+                {aideIdentifiant ?? "Le même numéro que sur WhatsApp : l'indicatif est déjà rempli."}
+              </span>
+            </label>
+          )}
           <label>
             Mot de passe
             <span className="auth-champ-mdp">

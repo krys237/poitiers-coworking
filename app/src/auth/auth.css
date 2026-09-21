@@ -264,3 +264,27 @@
   .auth-scene { padding: 16px; align-items: flex-end; }
   .auth-modale { padding: 22px 18px 18px; border-radius: 16px 16px 12px 12px; }
 }
+
+/* Choix du mode de connexion : segmenté, l'actif en fond océan. */
+.auth-modes {
+  display: flex; gap: 3px; margin-bottom: 18px; padding: 3px;
+  background: #eaf3f8; border: 1px solid #e2e8f0; border-radius: 10px;
+}
+.auth-modes button {
+  flex: 1; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent;
+  font: inherit; font-size: 13px; font-weight: 600; color: #334155; cursor: pointer;
+}
+.auth-modes button:hover { background: #fff; color: #0b132b; }
+.auth-modes button.actif { background: #0077b6; color: #fff; box-shadow: 0 1px 2px rgba(3, 4, 94, 0.15); }
+.auth-modes button:focus-visible { outline: 2px solid #00b4d8; outline-offset: 1px; }
+/* Le champ téléphone (sélecteur + saisie) reprend la hauteur des autres champs de la modale. */
+.auth-modale .auth-form label > div { margin-top: 6px; }
+.auth-modale .auth-form label > div input { padding: 0 12px; height: 42px; }
+.auth-modale .auth-form label > div [data-slot="select-trigger"] { height: 42px; border-radius: 10px; }
+
+/* Image de fond fournie (bg-clogin) : le sujet est au centre-droit, la modale se pose à gauche
+   sur grand écran pour le laisser visible ; le voile reste léger, l'image est déjà sombre. */
+.auth-voile { background: linear-gradient(90deg, rgba(3, 4, 94, 0.55) 0%, rgba(3, 4, 94, 0.25) 45%, rgba(3, 4, 94, 0.1) 100%); }
+@media (min-width: 1024px) {
+  .auth-scene { justify-content: flex-start; padding-left: 8vw; }
+}
