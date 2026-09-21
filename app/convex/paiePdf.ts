@@ -1,7 +1,7 @@
 "use node";
 // Actions Node : génération des PDF de bulletins (pdf-lib) au format de référence (application PAIE du directeur),
 // envoi du courrier de paie avec pièce jointe, archivage des PDF des mois clôturés dans le stockage Convex.
-import { action } from "./_generated/server";
+import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
@@ -211,7 +211,8 @@ export const envoyerCourrier = action({
   args: { periode: v.string(), employeIds: v.optional(v.array(v.id("employes"))) },
   handler: async (ctx, args): Promise<ResultatEnvoi> => {
     const key = process.env.RESEND_API_KEY;
-    const modeEnvoi: "reel" | "simulation" = key ? "reel" : "simulation";
+    const reglages: { envoiReelActive: boolean } = await ctx.runQuery(internal.parametres.reglagesInternes, {});
+    const modeEnvoi: "reel" | "simulation" = key && reglages.envoiReelActive ? "reel" : "simulation";
     const lots: any[] = await ctx.runQuery(internal.courrier.payloads, args);
     let envoyes = 0, echecs = 0, simules = 0, pdfOctets = 0;
 
@@ -225,7 +226,7 @@ export const envoyerCourrier = action({
       try {
         const pdf = await buildPdf({ bulletin: p.bulletin, periode: args.periode, entreprise: p.entreprise, lettre: p.lettre });
         pdfOctets += pdf.byteLength;
-        if (key) {
+        if (key && modeEnvoi === "reel") {
           const res = await fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
@@ -268,18 +269,30 @@ export const apercuPdf = action({
 type ResultatArchive = { periode: string; generes: number; dejaPresents: number; octets: number };
 
 // Génère et stocke le PDF de chaque bulletin figé d'un mois clôturé (idempotent : ignore ceux déjà archivés).
+// Corps partagé : appelé par l'action publique (niveau 4) et par la version interne planifiée à la clôture.
+async function archiver(ctx: any, periode: string): Promise<ResultatArchive> {
+  const lots: any[] = await ctx.runQuery(internal.archives.snapshotsPourPdf, { periode });
+  let generes = 0, dejaPresents = 0, octets = 0;
+  for (const s of lots) {
+    if (s.pdfId) { dejaPresents++; continue; }
+    const pdf = await buildPdf({ bulletin: s.bulletin, periode, entreprise: s.entreprise });
+    const pdfId = await ctx.storage.store(new Blob([new Uint8Array(pdf)], { type: "application/pdf" }));
+    await ctx.runMutation(internal.archives.enregistrerPdf, { bulletinId: s.bulletinId as Id<"bulletins">, pdfId });
+    generes++; octets += pdf.byteLength;
+  }
+  return { periode, generes, dejaPresents, octets };
+}
+
 export const archiverPdfs = action({
   args: { periode: v.string() },
   handler: async (ctx, { periode }): Promise<ResultatArchive> => {
-    const lots: any[] = await ctx.runQuery(internal.archives.snapshotsPourPdf, { periode });
-    let generes = 0, dejaPresents = 0, octets = 0;
-    for (const s of lots) {
-      if (s.pdfId) { dejaPresents++; continue; }
-      const pdf = await buildPdf({ bulletin: s.bulletin, periode, entreprise: s.entreprise });
-      const pdfId = await ctx.storage.store(new Blob([new Uint8Array(pdf)], { type: "application/pdf" }));
-      await ctx.runMutation(internal.archives.enregistrerPdf, { bulletinId: s.bulletinId as Id<"bulletins">, pdfId });
-      generes++; octets += pdf.byteLength;
-    }
-    return { periode, generes, dejaPresents, octets };
+    await ctx.runQuery(internal.users.verifierNiveau, { min: 4 });
+    return await archiver(ctx, periode);
   },
+});
+
+// Planifiée par `payroll.cloturer` quand le réglage « PDF à la clôture » est actif (pas d'identité : interne).
+export const archiverPdfsPlanifie = internalAction({
+  args: { periode: v.string() },
+  handler: async (ctx, { periode }): Promise<ResultatArchive> => archiver(ctx, periode),
 });

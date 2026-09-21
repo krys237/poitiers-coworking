@@ -107,7 +107,7 @@ export function Courrier() {
             {mode ? (
               mode.reel
                 ? <Flag variant="renseigne" size="sm" icon={<MailIcon className="h-3 w-3" />}>Envoi réel (Resend)</Flag>
-                : <Flag variant="a-renseigner" size="sm" icon={<MailWarningIcon className="h-3 w-3" />} title="Aucune clé RESEND_API_KEY sur le déploiement : l'envoi est journalisé sans partir réellement.">Mode simulation</Flag>
+                : <Flag variant="a-renseigner" size="sm" icon={<MailWarningIcon className="h-3 w-3" />} title={!mode.cleConfiguree ? "Aucune clé RESEND_API_KEY sur le déploiement : l'envoi est journalisé sans partir réellement." : "L'envoi réel est désactivé dans Paramètres → Fonctionnement : l'envoi est journalisé sans partir réellement."}>Mode simulation{mode.cleConfiguree ? " · envoi réel désactivé" : " · clé absente"}</Flag>
             ) : null}
           </>
         }

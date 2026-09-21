@@ -22,29 +22,33 @@ export function instantDouala(y: number, m: number, d: number, h = 0, min = 0): 
 // Date du jour "YYYY-MM-DD" à Douala.
 export const dateDouala = (d: Date = new Date()) => heureDouala(d).iso;
 
-export function estJourOuvrable(d: Date): boolean {
+// Fenêtre paramétrable (Paramètres → Fonctionnement) ; les défauts sont les constantes historiques.
+export interface Fenetre { ouverture: number; fermeture: number; samedi: boolean }
+export const FENETRE_DEFAUT: Fenetre = { ouverture: HEURE_OUVERTURE, fermeture: HEURE_FERMETURE, samedi: false };
+
+export function estJourOuvrable(d: Date, f: Fenetre = FENETRE_DEFAUT): boolean {
   const dow = heureDouala(d).dow;
-  return dow >= 1 && dow <= 5;
+  return (dow >= 1 && dow <= 5) || (f.samedi && dow === 6);
 }
 
-export function estDansFenetre(d: Date): boolean {
+export function estDansFenetre(d: Date, f: Fenetre = FENETRE_DEFAUT): boolean {
   const h = heureDouala(d);
-  return estJourOuvrable(d) && h.h >= HEURE_OUVERTURE && h.h < HEURE_FERMETURE;
+  return estJourOuvrable(d, f) && h.h >= f.ouverture && h.h < f.fermeture;
 }
 
-// Fin de la fenêtre en cours (20h00 Douala) si l'instant est dans la fenêtre, sinon null.
-export function finFenetre(d: Date): Date | null {
-  if (!estDansFenetre(d)) return null;
+// Fin de la fenêtre en cours (fermeture Douala) si l'instant est dans la fenêtre, sinon null.
+export function finFenetre(d: Date, f: Fenetre = FENETRE_DEFAUT): Date | null {
+  if (!estDansFenetre(d, f)) return null;
   const h = heureDouala(d);
-  return instantDouala(h.y, h.m, h.d, HEURE_FERMETURE);
+  return instantDouala(h.y, h.m, h.d, f.fermeture);
 }
 
-// Prochaine ouverture (16h00 Douala d'un jour ouvrable) strictement postérieure à l'instant.
-export function prochaineOuverture(d: Date): Date {
+// Prochaine ouverture (heure d'ouverture Douala d'un jour ouvrable) strictement postérieure à l'instant.
+export function prochaineOuverture(d: Date, f: Fenetre = FENETRE_DEFAUT): Date {
   const h = heureDouala(d);
-  if (estJourOuvrable(d) && h.h < HEURE_OUVERTURE) return instantDouala(h.y, h.m, h.d, HEURE_OUVERTURE);
-  let cand = instantDouala(h.y, h.m, h.d + 1, HEURE_OUVERTURE);
-  for (let i = 0; i < 7 && !estJourOuvrable(cand); i++) cand = new Date(cand.getTime() + 86400000);
+  if (estJourOuvrable(d, f) && h.h < f.ouverture) return instantDouala(h.y, h.m, h.d, f.ouverture);
+  let cand = instantDouala(h.y, h.m, h.d + 1, f.ouverture);
+  for (let i = 0; i < 7 && !estJourOuvrable(cand, f); i++) cand = new Date(cand.getTime() + 86400000);
   return cand;
 }
 

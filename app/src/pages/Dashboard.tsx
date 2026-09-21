@@ -231,8 +231,8 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* 1. Bandeaux d'information et initialisation Démo (Niveau 7) */}
-      {(me === null || (employes && employes.length === 0)) && (
+      {/* 1. Bandeaux d'information et initialisation Démo (super administrateur, ou déploiement vierge) */}
+      {(me === null || (niveau >= 8 && employes && employes.length === 0)) && (
         <Avis
           ton="attention"
           titre="Première utilisation"
@@ -252,7 +252,7 @@ export function Dashboard() {
         </Avis>
       )}
 
-      {me && niveau >= 7 && fin && !fin.derniere && (
+      {me && niveau >= 8 && fin && !fin.derniere && (
         <Avis
           ton="info"
           titre="Phase 2 Trésorerie"
@@ -276,7 +276,7 @@ export function Dashboard() {
         </Avis>
       )}
 
-      {me && niveau >= 7 && demo && !demo.phase3 && (
+      {me && niveau >= 8 && demo && !demo.phase3 && (
         <Avis
           ton="info"
           titre="Phase 3 Activité"
@@ -300,7 +300,7 @@ export function Dashboard() {
         </Avis>
       )}
 
-      {me && niveau >= 7 && demo4 && !demo4.phase4 && (
+      {me && niveau >= 8 && demo4 && !demo4.phase4 && (
         <Avis
           ton="info"
           titre="Phase 4 Contrôle"
@@ -649,7 +649,7 @@ export function Dashboard() {
                 <p className="text-2xs text-encre-douce">
                   {cr?.aujourdHui
                     ? "Votre compte rendu de journée a été enregistré."
-                    : "Votre compte rendu journalier doit être renseigné avant 20h."}
+                    : `Votre compte rendu journalier doit être renseigné avant ${cr?.fenetre?.fermeture ?? 20}h.`}
                 </p>
                 <Button
                   asChild

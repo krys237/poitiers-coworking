@@ -3,6 +3,8 @@ import { v } from "convex/values";
 import { requireLevel } from "./lib/authz";
 import { journaliser } from "./lib/journal";
 import { bulletinsPourPeriode } from "./lib/calculBulletins";
+import { internal } from "./_generated/api";
+import { lireReglages } from "./parametres";
 
 // Requête RÉACTIVE : les bulletins du mois (calcul à la volée, ou snapshots si le mois est clôturé).
 export const bulletinsDuMois = query({
@@ -32,7 +34,10 @@ export const genererEtCloturer = mutation({
     }
     await ctx.db.insert("cloturesPaie", { periode, closedBy: user._id, closedAt: genereLe, baremeId: r.baremeId });
     await journaliser(ctx, { auteurId: user._id, auteurNom: user.nom ?? user.email, action: "cloture_paie", cible: periode, detail: `${r.bulletins.length} bulletin(s) figé(s)` });
-    return { periode, bulletins: r.bulletins.length };
+    // Réglage « PDF à la clôture » : les bulletins figés sont rendus et archivés dans la foulée.
+    const pdfAuto = (await lireReglages(ctx)).pdfAutoCloture;
+    if (pdfAuto) await ctx.scheduler.runAfter(0, internal.paiePdf.archiverPdfsPlanifie, { periode });
+    return { periode, bulletins: r.bulletins.length, pdfPlanifies: pdfAuto };
   },
 });
 
@@ -63,10 +68,11 @@ export const saisirMois = mutation({
     // Bornes de saisie : une case de tableau n'a pas de garde-fou, le serveur en a un.
     if (valeurs.joursTravailles < 0 || valeurs.joursTravailles > 31) throw new Error("Jours travaillés : entre 0 et 31.");
     if (valeurs.mutuellePct < 0 || valeurs.mutuellePct > 100) throw new Error("Mutuelle : pourcentage entre 0 et 100.");
+    const plafond = (await lireReglages(ctx)).plafondSaisie;
     for (const [k, x] of Object.entries(valeurs)) {
       if (typeof x !== "number" || !Number.isFinite(x)) throw new Error(`Valeur invalide pour ${k}.`);
       if (x < 0) throw new Error(`Montant négatif interdit (${k}).`);
-      if (k !== "joursTravailles" && k !== "mutuellePct" && k !== "absencesJours" && x > 100_000_000) throw new Error(`Montant invraisemblable pour ${k} (> 100 000 000 FCFA).`);
+      if (k !== "joursTravailles" && k !== "mutuellePct" && k !== "absencesJours" && x > plafond) throw new Error(`Montant invraisemblable pour ${k} (> ${plafond.toLocaleString("fr-FR")} FCFA — plafond réglable dans Paramètres).`);
     }
     const existant = await ctx.db.query("saisiesMensuelles")
       .withIndex("by_employe_periode", (q) => q.eq("employeId", employeId).eq("periode", periode)).unique();

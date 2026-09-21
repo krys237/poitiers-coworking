@@ -10,9 +10,9 @@ const ROLE = v.union(
   v.literal("chef_equipe"),    // niv. 2
   v.literal("comptable"),      // niv. 3
   v.literal("gestionnaire_rh"),// niv. 4  (= Directeur RH)
-  v.literal("da1"),            // niv. 5
-  v.literal("da2"),            // niv. 6
+  v.literal("da1"),            // niv. 5  (Directeur Administratif — le niveau 6 ex-DA2 est retiré)
   v.literal("dg"),             // niv. 7  (Admin)
+  v.literal("super_admin"),    // niv. 8  (technique : développeur)
   v.literal("auditeur_externe")// spécial (orthogonal)
 );
 
@@ -73,6 +73,12 @@ export default defineSchema({
     numeroCnps: v.optional(v.string()),       // N° CNPS employeur (en-tête bulletin)
     responsableRH: v.optional(v.string()),    // visa du responsable RH sur les bulletins
     jourPaiement: v.optional(v.number()),     // jour de paiement du mois suivant (déf. 5)
+    reglages: v.optional(v.object({           // réglages de fonctionnement — voir lib/reglages.ts (défauts = anciennes constantes)
+      crHeureOuverture: v.optional(v.number()), crHeureFermeture: v.optional(v.number()), crSamedi: v.optional(v.boolean()),
+      verrouFinancierMin: v.optional(v.number()),
+      envoiReelActive: v.optional(v.boolean()), iaDocumentsActive: v.optional(v.boolean()), pdfAutoCloture: v.optional(v.boolean()),
+      joursBaseDefaut: v.optional(v.number()), plafondSaisie: v.optional(v.number()),
+    })),
   }),
 
   // ---- Paie (Phase 1) ----

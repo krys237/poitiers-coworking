@@ -35,7 +35,7 @@ export const etatDemo4 = query({
 export const phase4 = mutation({
   args: {},
   handler: async (ctx) => {
-    await requireLevel(ctx, 7);
+    await requireLevel(ctx, 8);
     const r = { auditeur: 0, lignes: 0, rapports: 0, journal: 0, ignores: 0 };
     const dev = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("tokenIdentifier", DEV_TOKEN)).unique();
     if (!dev) throw new Error("Initialisez d'abord les données de base (membre dev).");

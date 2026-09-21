@@ -374,7 +374,7 @@ export function Layout() {
         {me?.modeDev && (
           <div className="auth-bandeau-dev print:hidden">
             Mode développement actif (<code>AUTH_DEV_BYPASS</code>) — toute personne ayant ce lien
-            dispose des droits de Directeur Général. À désactiver avant toute diffusion.
+            dispose des droits de {me.roleLibelle}. À désactiver avant toute diffusion.
           </div>
         )}
         <Header onOpenMobileMenu={() => setMobileOpen(true)} />

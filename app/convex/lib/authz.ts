@@ -1,7 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { QueryCtx, MutationCtx } from "../_generated/server";
 import { Doc } from "../_generated/dataModel";
-import { NIVEAU, Role } from "../rbac";
+import { NIVEAU, ROLES_AUDIT, Role } from "../rbac";
 
 // Mode développement : si AUTH_DEV_BYPASS=true (variable d'env Convex) et qu'aucune session
 // Convex Auth n'est ouverte, on agit comme le membre DG marqué "dev".
@@ -58,6 +58,6 @@ export async function requireLevelOuAmorcage(ctx: Ctx, min: number) {
 // Module Audit : cloisonné — auditeur externe ou Directeur Général uniquement (un niveau 6 est refusé).
 export async function requireAudit(ctx: Ctx) {
   const user = verifierCompte(await getCurrentUser(ctx));
-  if (user.role !== "auditeur_externe" && user.role !== "dg") throw new Error("Accès refusé : module réservé à l'auditeur externe et au Directeur Général.");
+  if (user.role !== "auditeur_externe" && !ROLES_AUDIT.includes(user.role as Role)) throw new Error("Accès refusé : module réservé à l'auditeur externe et au Directeur Général.");
   return user;
 }

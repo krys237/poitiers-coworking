@@ -39,8 +39,7 @@ const NIVEAUX = [
   [2, "Niveau 2 — Chef d'équipe et plus"],
   [3, "Niveau 3 — Comptabilité et plus"],
   [4, "Niveau 4 — Ressources Humaines et plus"],
-  [5, "Niveau 5 — Direction (DA1 et plus)"],
-  [6, "Niveau 6 — Direction Générale Adjointe (DA2)"],
+  [5, "Niveau 5 — Direction administrative (DAF) et plus"],
   [7, "Niveau 7 — Directeur Général seul (DG)"],
 ] as const;
 

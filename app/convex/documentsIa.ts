@@ -39,7 +39,8 @@ export const extraireMetadonnees = action({
 
     const repli = heuristique(nomFichier, typeMime, taille, texte);
     const key = process.env.ANTHROPIC_API_KEY;
-    if (!key) return repli;
+    const reglages: { iaDocumentsActive: boolean } = await ctx.runQuery(internal.parametres.reglagesInternes, {});
+    if (!key || !reglages.iaDocumentsActive) return { ...repli, detail: !key ? "ANTHROPIC_API_KEY non définie" : "IA désactivée dans les paramètres" };
 
     try {
       const client = new Anthropic({ apiKey: key });

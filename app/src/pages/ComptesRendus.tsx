@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { dureeLisible, HEURE_OUVERTURE, HEURE_FERMETURE } from "../../convex/lib/fenetre";
+import { dureeLisible } from "../../convex/lib/fenetre";
 import { messageErreur } from "../lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -104,13 +104,13 @@ export function ComptesRendus() {
       const msRestant = new Date(fen.finA).getTime() - tick;
       const fermeeBientot = msRestant > 0 && msRestant < 30 * 60000;
       return {
-        compteAReboursTexte: `Ferme à ${HEURE_FERMETURE}h00 (reste ${dureeLisible(msRestant)})`,
+        compteAReboursTexte: `Ferme à ${fen.fermeture}h00 (reste ${dureeLisible(msRestant)})`,
         estFermeeBientot: fermeeBientot,
       };
     }
     const msAvantOuverture = new Date(fen.prochaine).getTime() - tick;
     return {
-      compteAReboursTexte: `Ouvre à ${HEURE_OUVERTURE}h00 (dans ${dureeLisible(msAvantOuverture)})`,
+      compteAReboursTexte: `Ouvre à ${fen.ouverture}h00 (dans ${dureeLisible(msAvantOuverture)})`,
       estFermeeBientot: false,
     };
   }, [fen, tick]);
@@ -188,7 +188,7 @@ export function ComptesRendus() {
             </Flag>
           </div>
           <p className="text-xs sm:text-sm text-encre-douce">
-            Validation quotidienne des activités et assiduité · Fenêtre officielle de 16h00 à 20h00
+            Validation quotidienne des activités et assiduité · Fenêtre officielle de {fen?.ouverture ?? 16}h00 à {fen?.fermeture ?? 20}h00
           </p>
         </div>
 
@@ -274,7 +274,7 @@ export function ComptesRendus() {
                 ? "Hors créneau (0 pt)"
                 : espace?.aujourdHui
                 ? "+1 point accordé"
-                : "À déposer avant 20h00"}
+                : `À déposer avant ${fen?.fermeture ?? 20}h00`}
             </div>
           </div>
         </div>
@@ -301,7 +301,7 @@ export function ComptesRendus() {
               {compteAReboursTexte}
             </div>
             <div className="text-3xs text-encre-pale truncate">
-              Jours ouvrables : 16h–20h
+              {fen?.samedi ? "Lundi–samedi" : "Jours ouvrables"} : {fen?.ouverture ?? 16}h–{fen?.fermeture ?? 20}h
             </div>
           </div>
         </div>
@@ -386,7 +386,7 @@ export function ComptesRendus() {
                 <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold">Soumission hors créneau officiel : </span>
-                  La fenêtre officielle (16h00–20h00) est actuellement fermée. Votre compte rendu sera reçu et transmis aux superviseurs avec la mention « hors fenêtre » (0 point).
+                  La fenêtre officielle ({fen?.ouverture ?? 16}h00–{fen?.fermeture ?? 20}h00) est actuellement fermée. Votre compte rendu sera reçu et transmis aux superviseurs avec la mention « hors fenêtre » (0 point).
                 </div>
               </div>
             ) : (

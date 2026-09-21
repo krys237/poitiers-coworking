@@ -1,6 +1,7 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireLevel } from "./lib/authz";
+import { lireReglages } from "./parametres";
 
 const SOCIETE = v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"));
 
@@ -25,7 +26,7 @@ export const creer = mutation({
   },
   handler: async (ctx, args) => {
     await requireLevel(ctx, 4);
-    return await ctx.db.insert("employes", { ...args, joursBase: 30, actif: true });
+    return await ctx.db.insert("employes", { ...args, joursBase: (await lireReglages(ctx)).joursBaseDefaut, actif: true });
   },
 });
 
@@ -58,6 +59,7 @@ export const importer = mutation({
   },
   handler: async (ctx, { lignes }) => {
     await requireLevel(ctx, 4);
+    const joursBase = (await lireReglages(ctx)).joursBaseDefaut;
     let crees = 0, majs = 0;
     for (const l of lignes) {
       const existant = await ctx.db
@@ -65,7 +67,7 @@ export const importer = mutation({
         .withIndex("by_matricule", (q) => q.eq("matricule", l.matricule))
         .unique();
       if (existant) { await ctx.db.patch(existant._id, l); majs++; }
-      else { await ctx.db.insert("employes", { ...l, joursBase: 30, actif: true }); crees++; }
+      else { await ctx.db.insert("employes", { ...l, joursBase, actif: true }); crees++; }
     }
     return { crees, majs };
   },

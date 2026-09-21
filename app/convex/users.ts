@@ -2,11 +2,11 @@ import { query, mutation, internalQuery, internalMutation } from "./_generated/s
 import { v } from "convex/values";
 import { getCurrentUser, requireLevel, PENDING_PREFIX, DEV_BYPASS } from "./lib/authz";
 import { journaliser } from "./lib/journal";
-import { LIBELLE, NIVEAU, Role } from "./rbac";
+import { LIBELLE, NIVEAU, Role, peutAttribuer, peutModifierMembre } from "./rbac";
 
 const ROLE = v.union(
   v.literal("employe"), v.literal("chef_equipe"), v.literal("comptable"), v.literal("gestionnaire_rh"),
-  v.literal("da1"), v.literal("da2"), v.literal("dg"), v.literal("auditeur_externe")
+  v.literal("da1"), v.literal("dg"), v.literal("super_admin"), v.literal("auditeur_externe")
 );
 const SOCIETE = v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"));
 
@@ -67,6 +67,10 @@ export const modifier = mutation({
     const me = await requireLevel(ctx, 7);
     const cible = await ctx.db.get(userId);
     if (!cible) throw new Error("Membre introuvable.");
+    // Nul ne touche à un membre placé au-dessus de lui, ni n'attribue un rôle au-dessus du sien :
+    // un Directeur Général ne fabrique pas de super administrateur.
+    if (!peutModifierMembre(me.role as Role, cible.role as Role)) throw new Error(`Accès refusé : ${LIBELLE[cible.role as Role]} est au-dessus de votre niveau.`);
+    if (patch.role !== undefined && !peutAttribuer(me.role as Role, patch.role as Role)) throw new Error(`Accès refusé : vous ne pouvez pas attribuer le rôle ${LIBELLE[patch.role as Role]}.`);
     await verifierDernierDg(ctx, cible, patch);
     const propre = Object.fromEntries(Object.entries(patch).filter(([, val]) => val !== undefined));
     await ctx.db.patch(userId, propre);
@@ -94,6 +98,7 @@ export const creer = mutation({
   args: { email: v.string(), nom: v.optional(v.string()), role: ROLE, poste: v.optional(v.string()), departement: v.optional(v.string()), societe: v.optional(SOCIETE), codeAcces: v.optional(v.string()) },
   handler: async (ctx, a) => {
     const me = await requireLevel(ctx, 7);
+    if (!peutAttribuer(me.role as Role, a.role as Role)) throw new Error(`Accès refusé : vous ne pouvez pas attribuer le rôle ${LIBELLE[a.role as Role]}.`);
     const email = a.email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Adresse e-mail invalide.");
     if (await ctx.db.query("users").withIndex("email", (q) => q.eq("email", email)).first()) throw new Error("Un membre existe déjà avec cet e-mail.");

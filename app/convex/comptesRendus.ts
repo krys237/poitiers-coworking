@@ -2,13 +2,19 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireLevel } from "./lib/authz";
 import { NIVEAU, Role } from "./rbac";
-import { dateDouala, estDansFenetre, finFenetre, prochaineOuverture, pointsPour, heureDouala } from "./lib/fenetre";
+import { dateDouala, estDansFenetre, finFenetre, prochaineOuverture, pointsPour, heureDouala, type Fenetre } from "./lib/fenetre";
+import { lireReglages } from "./parametres";
 
 const STATUT = v.union(v.literal("brouillon"), v.literal("en_relecture"), v.literal("valide"));
 const heure = (iso: string) => { const h = heureDouala(new Date(iso)); return `${String(h.h).padStart(2, "0")}:${String(h.min).padStart(2, "0")}`; };
 
-function etatFenetre(now = new Date()) {
-  return { maintenant: now.toISOString(), ouverte: estDansFenetre(now), finA: finFenetre(now)?.toISOString() ?? null, prochaine: prochaineOuverture(now).toISOString(), aujourdHui: dateDouala(now) };
+// La fenêtre vient des réglages (heures d'ouverture / fermeture, samedi) ; l'écran reçoit ses bornes.
+async function fenetreDe(ctx: Parameters<typeof lireReglages>[0]): Promise<Fenetre> {
+  const r = await lireReglages(ctx);
+  return { ouverture: r.crHeureOuverture, fermeture: r.crHeureFermeture, samedi: r.crSamedi };
+}
+function etatFenetre(f: Fenetre, now = new Date()) {
+  return { maintenant: now.toISOString(), ouverte: estDansFenetre(now, f), finA: finFenetre(now, f)?.toISOString() ?? null, prochaine: prochaineOuverture(now, f).toISOString(), aujourdHui: dateDouala(now), ouverture: f.ouverture, fermeture: f.fermeture, samedi: f.samedi };
 }
 
 // Espace du membre : score, compte rendu du jour, état de la fenêtre, historique.
@@ -16,7 +22,7 @@ export const monEspace = query({
   args: {},
   handler: async (ctx) => {
     const user = await requireLevel(ctx, 1);
-    const fen = etatFenetre();
+    const fen = etatFenetre(await fenetreDe(ctx));
     const miens = (await ctx.db.query("comptesRendus").withIndex("by_auteur", (q) => q.eq("auteurId", user._id)).collect())
       .sort((a, b) => b.date.localeCompare(a.date));
     const score = miens.reduce((t, c) => t + c.points, 0);
@@ -42,7 +48,7 @@ export const soumettre = mutation({
     const existant = await ctx.db.query("comptesRendus").withIndex("by_auteur_date", (q) => q.eq("auteurId", user._id).eq("date", jour)).unique();
     if (existant?.statut === "valide") throw new Error("Ce compte rendu a été validé : il n'est plus modifiable.");
     // Dans la fenêtre uniquement si le jour soumis est aujourd'hui ET l'heure est dans le créneau.
-    const horsFenetre = !(jour === dateDouala(now) && estDansFenetre(now));
+    const horsFenetre = !(jour === dateDouala(now) && estDansFenetre(now, await fenetreDe(ctx)));
     const points = pointsPour(horsFenetre);
     const doc = { contenu: contenu.trim(), soumisA: now.toISOString(), horsFenetre, points, statut: "en_relecture" as const };
     if (existant) await ctx.db.patch(existant._id, doc);
@@ -72,7 +78,7 @@ export const vueSuperviseur = query({
     }
     const soumis = lignes.filter((l) => l.soumis).length;
     return {
-      date: jour, fenetre: etatFenetre(), membres: membres.length, soumis, taux: membres.length ? Math.round((soumis / membres.length) * 100) : 0,
+      date: jour, fenetre: etatFenetre(await fenetreDe(ctx)), membres: membres.length, soumis, taux: membres.length ? Math.round((soumis / membres.length) * 100) : 0,
       lignes: lignes.sort((a, b) => Number(b.soumis) - Number(a.soumis) || a.nom.localeCompare(b.nom)),
       contenus: duJour.map((c) => ({ _id: c._id, auteur: membres.find((m) => m._id === c.auteurId)?.nom ?? "?", heure: heure(c.soumisA), horsFenetre: c.horsFenetre, statut: c.statut, contenu: c.contenu })),
     };

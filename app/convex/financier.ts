@@ -4,8 +4,8 @@ import { Doc } from "./_generated/dataModel";
 import { getCurrentUser, requireLevel } from "./lib/authz";
 import { journaliser } from "./lib/journal";
 import { calculerSoldes, recetteTotale, periodeDe, Mouvements, Soldes } from "./lib/tresorerie";
+import { lireReglages } from "./parametres";
 
-const VERROU_MS = 15 * 60 * 1000; // expiration d'un verrou inactif
 type Ctx = QueryCtx | MutationCtx;
 
 const mouvementsV = v.record(v.string(), v.record(v.string(), v.number()));
@@ -17,9 +17,11 @@ async function journeeAvant(ctx: Ctx, date: string) {
 async function moisCloture(ctx: Ctx, periode: string) {
   return !!(await ctx.db.query("cloturesFinancieres").withIndex("by_periode", (q) => q.eq("periode", periode)).unique());
 }
-function verrouActif(j: Doc<"journeesFinancieres"> | null) {
+// Un verrou inactif expire après `verrouFinancierMin` minutes (Paramètres → Fonctionnement, déf. 15).
+async function verrouActif(ctx: Ctx, j: Doc<"journeesFinancieres"> | null) {
   if (!j?.verrouParId || !j.verrouAt) return false;
-  return Date.now() - Date.parse(j.verrouAt) < VERROU_MS;
+  const minutes = (await lireReglages(ctx)).verrouFinancierMin;
+  return Date.now() - Date.parse(j.verrouAt) < minutes * 60 * 1000;
 }
 
 // Ouverture effective d'une journée : J0 saisis manuellement, sinon soldes de la dernière journée précédente.
@@ -39,7 +41,7 @@ export const journee = query({
     const mouvements: Mouvements = j?.mouvements ?? {};
     const pieces: Record<string, string | null> = {};
     for (const [cle, id] of Object.entries(j?.pieces ?? {})) pieces[cle] = await ctx.storage.getUrl(id);
-    const actif = verrouActif(j);
+    const actif = await verrouActif(ctx, j);
     return {
       date, periode: periodeDe(date), existe: !!j,
       cloture: (j?.cloture ?? false) || (await moisCloture(ctx, periodeDe(date))),
@@ -72,7 +74,7 @@ export async function ecrireJournee(ctx: MutationCtx, args: {
   if (await moisCloture(ctx, periode)) throw new Error(`Le mois ${periode} est clôturé : journée immuable.`);
   const j = await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.eq("date", args.date)).unique();
   if (j?.cloture) throw new Error("Journée clôturée : immuable.");
-  if (j && verrouActif(j) && args.userId && j.verrouParId !== args.userId) throw new Error(`Tableau verrouillé par ${j.verrouNom ?? "un autre membre"}.`);
+  if (j && (await verrouActif(ctx, j)) && args.userId && j.verrouParId !== args.userId) throw new Error(`Tableau verrouillé par ${j.verrouNom ?? "un autre membre"}.`);
 
   const manuels = args.soldesOuverture !== undefined || (j?.soldesOuvertureManuels ?? false);
   const ouverture = args.soldesOuverture ?? (j?.soldesOuvertureManuels ? j.soldesOuverture : (await ouverturePour(ctx, args.date, null)).soldes);
@@ -104,7 +106,7 @@ export const prendreVerrou = mutation({
   handler: async (ctx, { date }) => {
     const me = await requireLevel(ctx, 5);
     const j = await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.eq("date", date)).unique();
-    if (j && verrouActif(j) && j.verrouParId !== me._id) throw new Error(`Tableau verrouillé par ${j.verrouNom ?? "un autre membre"}.`);
+    if (j && (await verrouActif(ctx, j)) && j.verrouParId !== me._id) throw new Error(`Tableau verrouillé par ${j.verrouNom ?? "un autre membre"}.`);
     const now = new Date().toISOString();
     if (j) { await ctx.db.patch(j._id, { verrouParId: me._id, verrouAt: now, verrouNom: me.nom ?? me.email }); return { cree: false }; }
     await ecrireJournee(ctx, { date, mouvements: {}, userId: me._id, userNom: me.nom ?? me.email });
@@ -212,7 +214,7 @@ export const purgerVerrousExpires = internalMutation({
     const rows = await ctx.db.query("journeesFinancieres").collect();
     let n = 0;
     for (const j of rows) {
-      if (j.verrouParId && !verrouActif(j)) { await ctx.db.patch(j._id, { verrouParId: undefined, verrouAt: undefined, verrouNom: undefined }); n++; }
+      if (j.verrouParId && !(await verrouActif(ctx, j))) { await ctx.db.patch(j._id, { verrouParId: undefined, verrouAt: undefined, verrouNom: undefined }); n++; }
     }
     if (n) await journaliser(ctx, { action: "verrous_purge", detail: `${n} verrou(s) expiré(s) purgé(s)` });
     return { purges: n };

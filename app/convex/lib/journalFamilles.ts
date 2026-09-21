@@ -16,6 +16,7 @@ export const ACTIONS_LIBELLES = [
   ["bareme_version", "Nouvelle version du barème"],
   ["audit_rapport", "Rapport d'audit"],
   ["verrous_purge", "Purge des verrous"],
+  ["parametres_modification", "Modification des paramètres"],
 ] as const;
 export type ActionJournal = typeof ACTIONS_LIBELLES[number][0];
 
@@ -33,5 +34,5 @@ export const FAMILLE_ACTION: Record<ActionJournal, FamilleJournal> = {
   connexion: "acces", connexion_attente: "acces", membre_creation: "acces", membre_rattachement: "acces",
   membre_autorisation: "acces", membre_role: "acces", membre_activation: "acces", membre_modification: "acces",
   cloture_paie: "paie", cloture_financier: "finances", verrous_purge: "finances", api_financial: "api",
-  bareme_controle: "bareme", bareme_version: "bareme", audit_rapport: "audit",
+  bareme_controle: "bareme", bareme_version: "bareme", audit_rapport: "audit", parametres_modification: "acces",
 };

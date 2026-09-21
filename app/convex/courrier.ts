@@ -1,17 +1,22 @@
 import { query, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireLevel } from "./lib/authz";
+import { lireReglages } from "./parametres";
 import { bulletinsPourPeriode } from "./lib/calculBulletins";
 import { MODELE_DEFAUT, rendreLettre, htmlEmail, libellePeriode } from "./lib/courrier";
 
 // L'envoi (avec PDF en pièce jointe) est une action Node : voir `paiePdf.envoyerCourrier`.
 
-// Mode d'envoi : réel si RESEND_API_KEY est défini sur le déploiement, sinon simulation (journal seul).
+// Mode d'envoi : réel si RESEND_API_KEY est définie ET que l'interrupteur « envoi réel » des
+// paramètres est activé ; sinon simulation (journal seul). Les deux conditions sont renvoyées
+// séparément pour que l'écran dise laquelle manque.
 export const mode = query({
   args: {},
   handler: async (ctx) => {
     await requireLevel(ctx, 4);
-    return { reel: !!process.env.RESEND_API_KEY };
+    const cle = !!process.env.RESEND_API_KEY;
+    const interrupteur = (await lireReglages(ctx)).envoiReelActive;
+    return { reel: cle && interrupteur, cleConfiguree: cle, envoiActive: interrupteur };
   },
 });
 

@@ -16,9 +16,10 @@
 import * as React from "react";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
-import { CheckIcon, KeyRoundIcon, PlusIcon, SearchIcon, ShieldCheckIcon, UserRoundPenIcon, UserRoundPlusIcon } from "lucide-react";
+import { Link } from "react-router-dom";
+import { CheckIcon, KeyRoundIcon, LockIcon, PlusIcon, SearchIcon, ShieldCheckIcon, UserRoundPenIcon, UserRoundPlusIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
-import { LIBELLE, NIVEAU, type Role } from "../../convex/rbac";
+import { DESCRIPTION, LIBELLE, NIVEAU, ROLES_ORDONNES, peutAttribuer, peutModifierMembre, type Role } from "../../convex/rbac";
 import { messageErreur } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageEnTete } from "@/components/app/en-tete";
@@ -31,13 +32,14 @@ import { SelecteurLignes, useLignesVisibles } from "@/components/app/lignes-visi
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Flag, type FlagVariant } from "@/components/ui/flag";
+import * as SelectPrimitive from "@radix-ui/react-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableVide } from "@/components/ui/table";
 
 // --- Vocabulaire ----------------------------------------------------------------
 
-const ROLES = Object.keys(LIBELLE) as Role[];
+const ROLES = ROLES_ORDONNES;
 const SOCIETES = ["SESAME", "SOFINA", "SGC"] as const;
 const AUCUNE = "__aucune__";
 /** Libellé de rôle avec son niveau : « Niv. 4 · Gestionnaire RH ». */
@@ -50,6 +52,32 @@ const ORIGINE: Record<string, { label: string; variant: FlagVariant; aide: strin
   dev: { label: "Dev", variant: "verrou", aide: "Compte du mode développement (AUTH_DEV_BYPASS)." },
   autre: { label: "Autre", variant: "neutre", aide: "" },
 };
+
+/**
+ * Choix d'un rôle : seuls les rôles que l'auteur peut attribuer (≤ son niveau) sont proposés,
+ * chacun avec ce qu'il ouvre — c'est ici que le DG lit « qui fait quoi ».
+ */
+function SelectRole({ valeur, onChange, auteur, id, taille = "md", className, ariaLabel = "Rôle" }: {
+  valeur: Role; onChange: (r: Role) => void; auteur: Role | undefined; id?: string; taille?: "sm" | "md"; className?: string; ariaLabel?: string;
+}) {
+  const options = ROLES.filter((r) => !auteur || peutAttribuer(auteur, r) || r === valeur);
+  return (
+    <Select value={valeur} onValueChange={(v) => onChange(v as Role)}>
+      <SelectTrigger id={id} size={taille === "sm" ? "sm" : undefined} className={cn(taille === "sm" ? "h-8 text-xs" : "w-full", className)} aria-label={ariaLabel}><SelectValue /></SelectTrigger>
+      <SelectContent className="max-w-md">
+        {options.map((r) => (
+          // Item « nu » : seul le libellé passe dans ItemText (donc dans le déclencheur), la description reste dans la liste.
+          <SelectPrimitive.Item key={r} value={r} textValue={libelleRole(r)} disabled={!!auteur && !peutAttribuer(auteur, r)}
+            className="relative flex w-full cursor-default select-none flex-col rounded-sm py-1.5 pl-2 pr-8 outline-hidden focus:bg-accent data-[disabled]:pointer-events-none data-[disabled]:opacity-50">
+            <span className="absolute right-2 top-2 flex size-3.5 items-center justify-center"><SelectPrimitive.ItemIndicator><CheckIcon className="size-4" /></SelectPrimitive.ItemIndicator></span>
+            <SelectPrimitive.ItemText><span className="text-xs font-semibold">{libelleRole(r)}</span></SelectPrimitive.ItemText>
+            <span className="text-2xs text-encre-pale">{DESCRIPTION[r]}</span>
+          </SelectPrimitive.Item>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 type Fiche = { userId: string | null; email: string; nom: string; role: Role; poste: string; departement: string; societe: string; codeAcces: string; isActive: boolean; enAttente: boolean };
 const sansAccents = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -86,6 +114,16 @@ export function Membres() {
   });
   const nouvelle = (): Fiche => ({ userId: null, email: "", nom: "", role: "employe", poste: "", departement: "", societe: "", codeAcces: "", isActive: true, enAttente: false });
 
+  const monRole = me?.role as Role | undefined;
+  // Changement de rôle directement dans la ligne : journalisé côté serveur, borné au niveau de l'auteur.
+  const changerRole = async (m: any, role: Role) => {
+    if (role === m.role) return;
+    try {
+      await modifier({ userId: m._id, role });
+      toast.success(`${m.nom || m.email} : ${LIBELLE[role]}`, { description: DESCRIPTION[role] });
+    } catch (err) { toast.error("Changement de rôle refusé", { description: messageErreur(err) }); }
+  };
+
   const enregistrer = async (f: Fiche) => {
     if (f.userId) {
       await modifier({ userId: f.userId as any, role: f.role, nom: f.nom || undefined, poste: f.poste || undefined, departement: f.departement || undefined, societe: (f.societe || undefined) as any, codeAcces: f.codeAcces || undefined, isActive: f.isActive });
@@ -100,8 +138,8 @@ export function Membres() {
     <div className="space-y-4">
       <PageEnTete
         titre="Membres & accès"
-        description="Les comptes de la plateforme et leur niveau d'accès (1 à 7, cumulatifs ; l'auditeur externe est à part). Un membre pré-provisionné par e-mail reprend son rôle à sa première connexion ; une inscription spontanée attend votre autorisation."
-        statut={<Flag variant="verrou" size="sm" icon={<ShieldCheckIcon className="h-3 w-3" />}>Directeur Général</Flag>}
+        description={<>Les comptes de la plateforme et leur rôle. Le rôle fixe le niveau d'accès (1 à 8, cumulatifs ; l'auditeur externe est à part) : changez-le directement dans la ligne, la liste dit ce que chaque rôle ouvre — le détail est dans <Link to="/parametres?onglet=roles" className="underline decoration-dotted underline-offset-2">Paramètres → Rôles & accès</Link>. Un membre pré-provisionné reprend son rôle à sa première connexion ; une inscription spontanée attend votre autorisation.</>}
+        statut={me ? <Flag variant="verrou" size="sm" icon={<ShieldCheckIcon className="h-3 w-3" />}>{me.roleLibelle}</Flag> : null}
         actions={
           <>
             {!persistant ? <Button size="sm" onClick={() => setFiche(nouvelle())}><UserRoundPlusIcon /> Nouveau membre</Button> : null}
@@ -158,7 +196,7 @@ export function Membres() {
           </TableHeader>
           <TableBody>
             {persistant && (
-              <LigneSaisie onEnregistrer={async (f) => { await enregistrer(f); }} />
+              <LigneSaisie auteur={monRole} onEnregistrer={async (f) => { await enregistrer(f); }} />
             )}
             {liste.map((m) => {
               const o = ORIGINE[m.origine] ?? ORIGINE.autre;
@@ -169,9 +207,16 @@ export function Membres() {
                     <div className="flex items-center gap-1.5 whitespace-nowrap text-[13px] font-semibold">{m.nom || <span className="text-encre-pale">(sans nom)</span>}{moi ? <Flag variant="saisie-active" size="xs">vous</Flag> : null}</div>
                     <div className="whitespace-nowrap font-mono text-2xs text-encre-pale">{m.email}</div>
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    <span className="text-xs font-semibold">{m.roleLibelle}</span>
-                    <span className="ml-1.5 font-mono text-2xs text-encre-pale">{m.niveau ? `niv. ${m.niveau}` : "hors hiérarchie"}</span>
+                  <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    {!moi && monRole && peutModifierMembre(monRole, m.role) && !m.enAttente ? (
+                      <SelectRole valeur={m.role} onChange={(r) => void changerRole(m, r)} auteur={monRole} taille="sm" className="w-64" ariaLabel={`Rôle de ${m.nom || m.email}`} />
+                    ) : (
+                      <span title={moi ? "Votre propre rôle ne se change pas ici." : m.enAttente ? "Autorisez d'abord ce compte (bouton Autoriser)." : "Ce membre est au-dessus de votre niveau."}>
+                        <span className="text-xs font-semibold">{m.roleLibelle}</span>
+                        <span className="ml-1.5 font-mono text-2xs text-encre-pale">{m.niveau ? `niv. ${m.niveau}` : "hors hiérarchie"}</span>
+                        {monRole && !peutModifierMembre(monRole, m.role) ? <LockIcon className="ml-1.5 inline h-3 w-3 text-encre-pale" aria-hidden="true" /> : null}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-xs text-encre-douce">{m.poste || <span className="text-encre-pale">—</span>}{m.departement ? <span className="text-encre-pale"> · {m.departement}</span> : null}</TableCell>
                   <TableCell>{m.societe ? <Flag variant="neutre" size="xs">{m.societe}</Flag> : <span className="text-encre-pale">—</span>}</TableCell>
@@ -199,6 +244,7 @@ export function Membres() {
           {fiche && (
             <FormFiche
               fiche={fiche}
+              auteur={monRole}
               estMoi={!!(me && fiche.userId && String(me._id) === fiche.userId)}
               dernierDg={dgActifs <= 1 && fiche.role === "dg" && fiche.isActive}
               onFermer={() => setFiche(null)}
@@ -214,8 +260,8 @@ export function Membres() {
 
 // --- Fiche membre ------------------------------------------------------------------
 
-function FormFiche({ fiche, estMoi, dernierDg, onFermer, onEnregistrer, onDesactiver }: {
-  fiche: Fiche; estMoi: boolean; dernierDg: boolean; onFermer: () => void; onEnregistrer: (f: Fiche) => Promise<void>; onDesactiver: () => Promise<void>;
+function FormFiche({ fiche, auteur, estMoi, dernierDg, onFermer, onEnregistrer, onDesactiver }: {
+  fiche: Fiche; auteur: Role | undefined; estMoi: boolean; dernierDg: boolean; onFermer: () => void; onEnregistrer: (f: Fiche) => Promise<void>; onDesactiver: () => Promise<void>;
 }) {
   const [f, setF] = React.useState(fiche);
   const [enCours, setEnCours] = React.useState(false);
@@ -240,19 +286,14 @@ function FormFiche({ fiche, estMoi, dernierDg, onFermer, onEnregistrer, onDesact
             ? "Le membre est créé avec son rôle avant toute connexion : à sa première connexion avec cet e-mail, son compte reprend ce rôle."
             : autorisation
               ? "Ce compte s'est inscrit sans être pré-provisionné : il n'a aucun droit. Choisissez son rôle et enregistrez pour lui ouvrir l'accès."
-              : `${fiche.email} · le rôle fixe le niveau d'accès (1 à 7, cumulatifs).`}
+              : `${fiche.email} · le rôle fixe le niveau d'accès (1 à 8, cumulatifs).`}
         </DialogDescription>
       </DialogHeader>
       <div className="mt-4 grid grid-cols-2 gap-3">
         {creation ? <div className="col-span-2">{texte("email", "E-mail", "prenom.nom@domaine.com", true, "email")}</div> : null}
         {texte("nom", "Nom")}
-        <Champ libelle="Rôle · niveau d'accès" requis>
-          {(a) => (
-            <Select value={f.role} onValueChange={(v) => setF({ ...f, role: v as Role })}>
-              <SelectTrigger id={a.id} className="w-full" aria-label="Rôle"><SelectValue /></SelectTrigger>
-              <SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{libelleRole(r)}</SelectItem>)}</SelectContent>
-            </Select>
-          )}
+        <Champ libelle="Rôle · niveau d'accès" requis aide={DESCRIPTION[f.role]}>
+          {(a) => <SelectRole id={a.id} valeur={f.role} onChange={(r) => setF({ ...f, role: r })} auteur={estMoi ? undefined : auteur} />}
         </Champ>
         {texte("poste", "Poste", "Caissier, Infirmière…")}
         {texte("departement", "Département", "Accueil, Laboratoire…")}
@@ -310,7 +351,7 @@ function FormFiche({ fiche, estMoi, dernierDg, onFermer, onEnregistrer, onDesact
 
 const CS = "bg-ocean-brume/40 align-middle";
 
-function LigneSaisie({ onEnregistrer }: { onEnregistrer: (f: Fiche) => Promise<void> }) {
+function LigneSaisie({ auteur, onEnregistrer }: { auteur: Role | undefined; onEnregistrer: (f: Fiche) => Promise<void> }) {
   const vierge = (): Fiche => ({ userId: null, email: "", nom: "", role: "employe", poste: "", departement: "", societe: "", codeAcces: "", isActive: true, enAttente: false });
   const [f, setF] = React.useState<Fiche>(vierge);
   const [enCours, setEnCours] = React.useState(false);
@@ -333,10 +374,7 @@ function LigneSaisie({ onEnregistrer }: { onEnregistrer: (f: Fiche) => Promise<v
         </div>
       </TableCell>
       <TableCell className={CS}>
-        <Select value={f.role} onValueChange={(v) => setF({ ...f, role: v as Role })}>
-          <SelectTrigger size="sm" className="h-8 w-52 text-xs" aria-label="Rôle (nouveau membre)"><SelectValue /></SelectTrigger>
-          <SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{libelleRole(r)}</SelectItem>)}</SelectContent>
-        </Select>
+        <SelectRole valeur={f.role} onChange={(r) => setF({ ...f, role: r })} auteur={auteur} taille="sm" className="w-64" ariaLabel="Rôle (nouveau membre)" />
       </TableCell>
       <TableCell className={CS}>
         <div className="flex flex-col gap-1">

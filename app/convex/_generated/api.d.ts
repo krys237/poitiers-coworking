@@ -36,6 +36,7 @@ import type * as lib_journal from "../lib/journal.js";
 import type * as lib_journalFamilles from "../lib/journalFamilles.js";
 import type * as lib_paie from "../lib/paie.js";
 import type * as lib_periode from "../lib/periode.js";
+import type * as lib_reglages from "../lib/reglages.js";
 import type * as lib_stats from "../lib/stats.js";
 import type * as lib_tresorerie from "../lib/tresorerie.js";
 import type * as paiePdf from "../paiePdf.js";
@@ -85,6 +86,7 @@ declare const fullApi: ApiFromModules<{
   "lib/journalFamilles": typeof lib_journalFamilles;
   "lib/paie": typeof lib_paie;
   "lib/periode": typeof lib_periode;
+  "lib/reglages": typeof lib_reglages;
   "lib/stats": typeof lib_stats;
   "lib/tresorerie": typeof lib_tresorerie;
   paiePdf: typeof paiePdf;

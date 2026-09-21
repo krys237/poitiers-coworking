@@ -21,14 +21,14 @@ export const initialiser = mutation({
   handler: async (ctx) => {
     // Ouvert uniquement sur un déploiement vierge (c'est cette mutation qui crée le premier DG) ;
     // dès qu'un membre existe, réservé au Directeur Général.
-    await requireLevelOuAmorcage(ctx, 7);
+    await requireLevelOuAmorcage(ctx, 8);
     const r = { user: false, entreprise: false, bareme: false, employes: 0, datesCompletees: 0 };
 
     const dg = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("tokenIdentifier", DEV_TOKEN)).unique();
     if (!dg) {
       await ctx.db.insert("users", {
-        tokenIdentifier: DEV_TOKEN, email: "dg@poitiers.local", nom: "Directeur (dev)",
-        role: "dg", poste: "Directeur Général", departement: "Direction", isActive: true,
+        tokenIdentifier: DEV_TOKEN, email: "dg@poitiers.local", nom: "Développeur (dev)",
+        role: "super_admin", poste: "Super administrateur", departement: "Technique", isActive: true,
       });
       r.user = true;
     }
@@ -105,7 +105,7 @@ type ResultatPhase2 = { journees: number; documents: number; ignores: number };
 export const phase2 = action({
   args: {},
   handler: async (ctx): Promise<ResultatPhase2> => {
-    await ctx.runQuery(internal.users.verifierNiveau, { min: 7 });
+    await ctx.runQuery(internal.users.verifierNiveau, { min: 8 });
     const r: ResultatPhase2 = { journees: 0, documents: 0, ignores: 0 };
     for (const j of JOURNEES_DEMO) {
       const res: { cree: boolean } = await ctx.runMutation(internal.financier.ecrireJourneeInterne, {
