@@ -9,6 +9,7 @@
 // Convex Auth : c'est ce qui permet au mode `AUTH_DEV_BYPASS` de continuer à fonctionner,
 // puisqu'il produit un membre sans jamais ouvrir de session côté client.
 import { ReactNode } from "react";
+import { Navigate } from "react-router-dom";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { canAccess, NIVEAU_MODULE, Role } from "../../convex/rbac";
 import { useMe } from "./useMe";
@@ -58,6 +59,18 @@ function Refuse({ module }: { module: string }) {
       </p>
     </div>
   );
+}
+
+/**
+ * `/connexion` : l'écran de connexion, même quand le bypass de développement est actif.
+ * Une session réelle prime sur le bypass (`getCurrentUser` regarde d'abord Convex Auth) :
+ * dès qu'elle est ouverte, on renvoie à l'accueil. Se déconnecter ramène au compte « dev ».
+ */
+export function PageConnexion() {
+  const me = useMe();
+  if (me === undefined) return <Patiente message="Vérification de votre session…" />;
+  if (me && !me.modeDev) return <Navigate to="/" replace />;
+  return <Login />;
 }
 
 /**

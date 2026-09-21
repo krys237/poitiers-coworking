@@ -512,7 +512,8 @@ export function Dashboard() {
               />
             )}
 
-            {/* Tuile 2 : Solde Trésorerie F3 Poitiers */}
+            {/* Tuile 2 : Solde Trésorerie F3 Poitiers (grand livre : niveau 5) */}
+            {niveau >= 5 && (
             <Tuile
               ton="neutre"
               libelle="Solde Trésorerie F3"
@@ -541,6 +542,7 @@ export function Dashboard() {
                 )
               }
             />
+            )}
 
             {/* Tuile 3 : Net à Payer (Paie) */}
             {niveau >= 4 && (

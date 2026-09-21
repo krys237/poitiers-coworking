@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { PortailAuth, Guard } from "./auth/Guard";
+import { PortailAuth, Guard, PageConnexion } from "./auth/Guard";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
 import { Employes } from "./pages/Employes";
@@ -63,6 +63,9 @@ export function App() {
             authentification : elle ne lit aucune donnee et doit rester consultable
             meme pendant la refonte du Layout. Voir REFONTE-UX.md. */}
         <Route path="/charte" element={<Charte />} />
+        {/* Connexion explicite : en mode développement le bypass connecte d'office, cette
+            route permet quand même d'ouvrir une session réelle (comptes de test par rôle). */}
+        <Route path="/connexion" element={<PageConnexion />} />
         <Route
           path="*"
           element={

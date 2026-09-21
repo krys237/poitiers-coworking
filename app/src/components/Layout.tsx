@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { canAccess, Role } from "../../convex/rbac";
 import { Header } from "./Header";
@@ -375,6 +375,7 @@ export function Layout() {
           <div className="auth-bandeau-dev print:hidden">
             Mode développement actif (<code>AUTH_DEV_BYPASS</code>) — toute personne ayant ce lien
             dispose des droits de {me.roleLibelle}. À désactiver avant toute diffusion.
+            {" "}<Link to="/connexion" className="underline underline-offset-2 hover:text-white/80">Se connecter avec un compte de test</Link>
           </div>
         )}
         <Header onOpenMobileMenu={() => setMobileOpen(true)} />

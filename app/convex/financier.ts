@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { Doc } from "./_generated/dataModel";
 import { getCurrentUser, requireLevel } from "./lib/authz";
 import { journaliser } from "./lib/journal";
+import { NIVEAU, NIVEAU_MODULE, Role } from "./rbac";
 import { calculerSoldes, recetteTotale, periodeDe, Mouvements, Soldes } from "./lib/tresorerie";
 import { lireReglages } from "./parametres";
 
@@ -173,8 +174,10 @@ export const attacherPiece = mutation({
 export const kpi = query({
   args: {},
   handler: async (ctx) => {
+    // Le grand livre est un module de niveau 5 : ses soldes ne descendent pas en dessous,
+    // même sur le tableau de bord (découvert en testant le compte « employé »).
     const me = await getCurrentUser(ctx);
-    if (!me) return null;
+    if (!me || !me.isActive || NIVEAU[me.role as Role] < NIVEAU_MODULE["/financier"]) return null;
     const aujourdHui = new Date().toISOString().slice(0, 10);
     const jour = await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.eq("date", aujourdHui)).unique();
     const derniere = await ctx.db.query("journeesFinancieres").withIndex("by_date").order("desc").first();
