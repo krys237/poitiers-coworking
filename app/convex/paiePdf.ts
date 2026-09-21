@@ -11,8 +11,6 @@ import { libellePeriode, nomFichierPdf } from "./lib/periode";
 // Les polices standard PDF n'encodent que Latin-1 : on remplace le reste (—, …, espaces fines…).
 const clean = (s: string) => (s ?? "").normalize("NFC").replace(/[–—]/g, "-").replace(/…/g, "...").replace(/[   ]/g, " ").replace(/[«»]/g, '"').replace(/[^\x20-\x7E\xA0-\xFF]/g, "?");
 const fmt = (n: number) => Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-const f0 = (n: number | undefined) => (n ? fmt(n) : "-");
-const pctTxt = (t: number) => (t ? `${t.toString().replace(".", ",")}%` : "");
 const hex = (h?: string) => { const m = /^#?([0-9a-f]{6})$/i.exec(h ?? ""); const n = parseInt(m ? m[1] : "0f2a44", 16); return rgb(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255); };
 
 interface BulletinPdfInput {
@@ -46,7 +44,11 @@ function wrap(font: PDFFont, text: string, size: number, maxWidth: number): stri
 }
 
 const W = 595.28, H = 841.89, M = 36;
-const INK = rgb(0.06, 0.09, 0.16), SOFT = rgb(0.2, 0.25, 0.33), BORDER = rgb(0.58, 0.64, 0.72), WHITE = rgb(1, 1, 1);
+const INK = rgb(0.06, 0.09, 0.16), SOFT = rgb(0.2, 0.25, 0.33), WHITE = rgb(1, 1, 1);
+// Charte des documents (documents.css) : sceau #0077b6, nuit #03045e, bande #eaf3f8, filet #8a968d, carmin #9e2b20.
+const SCEAU = rgb(0, 0.467, 0.714), SCEAU_CLAIR = rgb(0.792, 0.941, 0.973), NUIT = rgb(0.012, 0.016, 0.369), BANDE = rgb(0.918, 0.953, 0.973);
+const DOCFILET = rgb(0.541, 0.588, 0.553), GRIS = rgb(0.357, 0.408, 0.376), ZERO = rgb(0.604, 0.647, 0.694), APPUYE = rgb(0.957, 0.969, 0.949);
+const CARMIN = rgb(0.62, 0.169, 0.125), CARMIN_CLAIR = rgb(0.996, 0.886, 0.886);
 
 async function buildPdf(input: BulletinPdfInput): Promise<Uint8Array> {
   const { bulletin: b, periode, entreprise, lettre } = input;
@@ -77,127 +79,146 @@ async function buildPdf(input: BulletinPdfInput): Promise<Uint8Array> {
     for (const l of wrap(font, lettre, 11, W - 2 * M)) { if (l) page.drawText(l, { x: M, y, size: 11, font, color: INK }); y -= 17; }
   }
 
-  // ---------- Page bulletin ----------
+  // ---------- Page bulletin (refonte validée le 21/09/2026 : même feuille que BulletinCard.tsx) ----------
+  const mono = await doc.embedFont(StandardFonts.Courier);
+  const monoBold = await doc.embedFont(StandardFonts.CourierBold);
   const page = doc.addPage([W, H]);
-  filigrane(page);
+  // Filigrane : PROVISOIRE tant que le mois est ouvert ; sinon celui de l'entreprise s'il existe.
+  if (!b.valide) {
+    const s = 56, txt = "PROVISOIRE", w = bold.widthOfTextAtSize(txt, s);
+    page.drawText(txt, { x: (W - w * 0.9) / 2, y: H / 2 - 60, size: s, font: bold, color: CARMIN, opacity: 0.07, rotate: { type: "degrees", angle: 24 } as any });
+  } else filigrane(page);
+
+  const IW = W - 2 * M;
   let y = H - M; // bord supérieur courant (on descend)
-
-  // Cellule bordée avec texte (align: l|c|r), fond optionnel, texte optionnellement en 2 lignes (label + valeur).
-  const cell = (x: number, w: number, h: number, txt: string, o: { size?: number; f?: PDFFont; align?: "l" | "c" | "r"; fill?: ReturnType<typeof rgb>; color?: ReturnType<typeof rgb>; label?: string; valueSize?: number } = {}) => {
-    if (o.fill) page.drawRectangle({ x, y: y - h, width: w, height: h, color: o.fill });
-    page.drawRectangle({ x, y: y - h, width: w, height: h, borderColor: BORDER, borderWidth: 0.6 });
-    const f = o.f ?? font, size = o.size ?? 8.5, color = o.color ?? INK;
-    const draw = (s: string, ty: number, fs: number, ff: PDFFont) => {
-      const c = clean(s); const tw = ff.widthOfTextAtSize(c, fs);
-      const tx = o.align === "r" ? x + w - 3 - tw : o.align === "c" ? x + (w - tw) / 2 : x + 3;
-      page.drawText(c, { x: tx, y: ty, size: fs, font: ff, color });
-    };
-    if (o.label !== undefined) { draw(o.label, y - 8, 7, font); draw(txt, y - h + 4, o.valueSize ?? 9, bold); }
-    else draw(txt, y - h + (h - size) / 2 + 1, size, f);
-  };
   const row = (h: number) => { y -= h; };
-  const IW = W - 2 * M; // 523
+  const txt = (s: string, x: number, ty: number, size: number, f: PDFFont, color = INK, align: "l" | "c" | "r" = "l", w = 0) => {
+    const c = clean(s); const tw = f.widthOfTextAtSize(c, size);
+    page.drawText(c, { x: align === "r" ? x + w - tw : align === "c" ? x + (w - tw) / 2 : x, y: ty, size, font: f, color });
+  };
+  const box = (x: number, top: number, w: number, h: number, fill?: ReturnType<typeof rgb>) => {
+    if (fill) page.drawRectangle({ x, y: top - h, width: w, height: h, color: fill });
+    page.drawRectangle({ x, y: top - h, width: w, height: h, borderColor: DOCFILET, borderWidth: 0.5 });
+  };
+  // Case « intitulé en capitales fines + valeur » (identité, temps, synthèse).
+  const caseKV = (x: number, w: number, h: number, cle: string, val: string, o: { align?: "l" | "c"; f?: PDFFont; size?: number; color?: ReturnType<typeof rgb>; fill?: ReturnType<typeof rgb>; cleColor?: ReturnType<typeof rgb> } = {}) => {
+    box(x, y, w, h, o.fill);
+    const pad = 5, al = o.align ?? "l";
+    txt(cle.toUpperCase(), x + pad, y - 9, 6.5, font, o.cleColor ?? GRIS, al, w - 2 * pad);
+    txt(val, x + pad, y - h + 6, o.size ?? 8.5, o.f ?? bold, o.color ?? INK, al, w - 2 * pad);
+  };
 
-  // En-tête période / paiement
-  cell(M, 120, 16, "BULLETIN DE PAIE", { f: bold, size: 9, fill: couleur, color: WHITE });
-  cell(M + 120, 220, 16, `Période du ${b.periodeDu ?? ""} au ${b.periodeAu ?? ""}`, { f: bold, size: 8.5, fill: couleur, color: WHITE, align: "c" });
-  cell(M + 340, IW - 340, 16, `Paiement le ${b.datePaiement ?? ""} par banque`, { f: bold, size: 8.5, fill: couleur, color: WHITE, align: "c" });
-  row(16);
+  // 1. En-tête de document : émetteur à gauche, acte à droite, filet épais sceau.
+  txt(entreprise.nom, M, y - 13, 13, bold, SCEAU);
+  const coord = [entreprise.adresse ?? "", `NIU ${entreprise.niu || "-"} · N° CNPS ${entreprise.numeroCnps || "-"}`];
+  coord.forEach((l, i) => txt(l, M, y - 25 - i * 10, 8, font, GRIS));
+  txt("BULLETIN DE PAIE", M, y - 13, 12, bold, INK, "r", IW);
+  txt(`Période du ${b.periodeDu ?? ""} au ${b.periodeAu ?? ""}`, M, y - 25, 8.5, font, GRIS, "r", IW);
+  txt(`Paiement le ${b.datePaiement ?? ""} par banque`, M, y - 36, 8.5, bold, INK, "r", IW);
+  row(44);
+  page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 2.5, color: SCEAU });
+  row(8);
 
-  // Bloc employeur (gauche) + grille identité (droite)
-  const EW = 160, GX = M + EW, GW = IW - EW;
-  const top = y;
-  const GH = 22, EH = 3 * GH + 16; // 3 lignes d'identité + bandeau nom
-  page.drawRectangle({ x: M, y: y - EH, width: EW, height: EH, borderColor: BORDER, borderWidth: 0.6 });
-  page.drawText(clean(entreprise.nom), { x: M + 4, y: y - 12, size: 9.5, font: bold, color: couleur });
-  const adr = wrap(font, entreprise.adresse ?? "", 7, EW - 8);
-  let ey = y - 22; for (const l of adr.slice(0, 2)) { page.drawText(l, { x: M + 4, y: ey, size: 7, font, color: INK }); ey -= 9; }
-  page.drawText(clean(`NIU : ${entreprise.niu || "-"}`), { x: M + 4, y: ey, size: 7, font, color: INK }); ey -= 9;
-  page.drawText(clean(`N°CNPS : ${entreprise.numeroCnps || "-"}`), { x: M + 4, y: ey, size: 7, font, color: INK });
-
-  const g4 = GW / 5;
-  cell(GX, g4, GH, b.matricule || "-", { label: "Matricule", align: "c" });
-  cell(GX + g4, g4, GH, b.categorie || "-", { label: "Catégorie", align: "c" });
-  cell(GX + 2 * g4, g4, GH, b.echelon || "-", { label: "Échelon", align: "c" });
-  cell(GX + 3 * g4, 2 * g4, GH, b.cnps || "-", { label: "Numéro CNPS", align: "c" });
-  row(GH);
-  cell(GX, g4, GH, "Employé", { label: "Statut", align: "c" });
-  cell(GX + g4, 2 * g4, GH, b.fonction || "-", { label: "Emploi occupé", align: "c" });
-  cell(GX + 3 * g4, 2 * g4, GH, b.departement || "-", { label: "Département", align: "c" });
-  row(GH);
+  // 2. Salarié : nom en bandeau, huit cases d'identité.
+  page.drawRectangle({ x: M, y: y - 18, width: IW, height: 18, color: SCEAU });
+  txt(b.nom, M + 6, y - 12.5, 11, bold, WHITE);
+  txt(`${b.matricule} · ${b.societe}`, M, y - 12.5, 8.5, monoBold, WHITE, "r", IW - 6);
+  row(18);
+  const c4 = IW / 4, IH = 24;
   const emb = b.dateDebut ? b.dateDebut.split("-").reverse().join("/") : "-";
-  cell(GX, 2 * g4, GH, emb, { label: "Date d'embauche", align: "c" });
-  cell(GX + 2 * g4, g4, GH, "40", { label: "Horaire", align: "c" });
-  cell(GX + 3 * g4, 2 * g4, GH, b.adresse || "-", { label: "Adresse", align: "c", valueSize: 7.5 });
-  row(GH);
-  cell(GX, GW, 16, b.nom, { f: bold, size: 11, fill: rgb(0.008, 0.52, 0.78), color: WHITE, align: "c" });
-  row(16);
-  y = top - EH; row(3);
+  caseKV(M, c4, IH, "Emploi occupé", b.fonction || "-");
+  caseKV(M + c4, c4, IH, "Département", b.departement || "-");
+  caseKV(M + 2 * c4, c4, IH, "Catégorie · Échelon", `${b.categorie || "-"} · ${b.echelon || "-"}`);
+  caseKV(M + 3 * c4, c4, IH, "N° CNPS salarié", b.cnps || "-");
+  row(IH);
+  caseKV(M, c4, IH, "Date d'embauche", emb);
+  caseKV(M + c4, c4, IH, "Statut · Horaire", "Employé · 40 h");
+  caseKV(M + 2 * c4, c4, IH, "Payé par", `SALAIRE ${b.societe}`);
+  caseKV(M + 3 * c4, c4, IH, "Adresse", b.adresse || "-", { size: 7.5 });
+  row(IH); row(7);
 
-  // Jours & congés
-  const c6 = IW / 6;
-  const infos: [string, string][] = [
-    ["Nombre de jours travaillés", String(d.joursTravailles ?? "-")], ["Congés acquis", String(d.congesAcquis ?? "-")], ["Congés pris", String(d.congesPris ?? "-")],
-    ["Reste à prendre", String(d.congesRestants ?? "-")], ["Indemnité de congés", f0(d.indemniteConges)], ["Salaire journalier", f0(d.salaireJournalier)],
+  // 3. Temps et congés.
+  const c6 = IW / 6, TH = 26;
+  const j = (n?: number) => (n === undefined || n === null ? "-" : `${String(n).replace(".", ",")} j`);
+  const joursBase = d.joursBase ?? 30;
+  const temps: [string, string, ReturnType<typeof rgb>?][] = [
+    ["Jours travaillés", `${d.joursTravailles ?? "-"} / ${joursBase}`], ["Salaire journalier", d.salaireJournalier ? fmt(d.salaireJournalier) : "-"],
+    ["Congés acquis", j(d.congesAcquis)], ["Congés pris", j(d.congesPris)], ["Reste à prendre", j(d.congesRestants), SCEAU],
+    ["Indemnité de congés", d.indemniteConges ? fmt(d.indemniteConges) : "0", d.indemniteConges ? undefined : ZERO],
   ];
-  infos.forEach(([l, val], i) => cell(M + i * c6, c6, 20, val, { label: l, align: "c", valueSize: 10 }));
-  row(20); row(3);
+  temps.forEach(([cle, val, color], i) => caseKV(M + i * c6, c6, TH, cle, val, { align: "c", f: monoBold, size: 10.5, color }));
+  row(TH); row(7);
 
-  // Lignes : N° | Désignation | Base | Taux | Gain | Retenue | Charg. patron.
-  const cols = [34, 175, 72, 42, 68, 68, 64]; const xs: number[] = []; let cx = M; for (const w of cols) { xs.push(cx); cx += w; }
-  const heads = ["N°", "Désignation", "Base", "Taux", "Gain", "Retenue", "Charg. patron."];
-  heads.forEach((h, i) => cell(xs[i], cols[i], 13, h, { f: bold, size: 7, fill: rgb(0.95, 0.96, 0.98), align: i === 0 ? "c" : i === 1 ? "l" : "r" }));
+  // 4. Rubriques : liste codée fixe, intercalaires, montants nuls estompés.
+  const cols = [34, 171, 66, 40, 66, 66, 80]; const xs: number[] = []; let cx = M; for (const w of cols) { xs.push(cx); cx += w; }
+  const heads = ["N°", "Désignation", "Base (FCFA)", "Taux", "Gain", "Retenue", "Charge patronale"];
+  heads.forEach((h, i) => { box(xs[i], y, cols[i], 13, BANDE); txt(h, xs[i] + 4, y - 9, 7, bold, INK, i === 0 ? "c" : i === 1 ? "l" : "r", cols[i] - 8); });
   row(13);
-  const RH = 11.5;
-  const line = (code: string, lib: string, base: string, taux: string, gain: string, ret: string, pat: string, strong = false) => {
+  const groupe = (t: string) => { box(M, y, IW, 10, BANDE); txt(t.toUpperCase(), M + 4, y - 7.5, 6.5, bold, SOFT); row(10); };
+  const RH = 12;
+  const montant = (v: number | undefined | null, i: number, f: PDFFont) => {
+    if (v === undefined || v === null) return;
+    txt(v === 0 ? "-" : fmt(v), xs[i] + 4, y - 8.5, 8, f, v === 0 ? ZERO : INK, "r", cols[i] - 8);
+  };
+  const ligne = (code: string, lib: string, base: number | null, taux: string, gain: number | null, ret: number | null, pat: number | null, strong = false) => {
+    cols.forEach((w, i) => box(xs[i], y, w, RH, strong ? APPUYE : undefined));
     const f = strong ? bold : font;
-    cell(xs[0], cols[0], RH, code, { size: 7, align: "c", f }); cell(xs[1], cols[1], RH, lib, { size: 7.5, f });
-    cell(xs[2], cols[2], RH, base, { size: 7.5, align: "r", f }); cell(xs[3], cols[3], RH, taux, { size: 7.5, align: "r", f });
-    cell(xs[4], cols[4], RH, gain, { size: 7.5, align: "r", f }); cell(xs[5], cols[5], RH, ret, { size: 7.5, align: "r", f }); cell(xs[6], cols[6], RH, pat, { size: 7.5, align: "r", f });
+    txt(code, xs[0] + 4, y - 8.5, 7, mono, GRIS, "c", cols[0] - 8);
+    txt(lib, xs[1] + 4, y - 8.5, 8, f, INK);
+    montant(base, 2, strong ? monoBold : mono);
+    txt(taux, xs[3] + 4, y - 8.5, 7.5, mono, INK, "r", cols[3] - 8);
+    montant(gain, 4, strong ? monoBold : mono);
+    montant(ret, 5, strong ? monoBold : mono);
+    montant(pat, 6, strong ? monoBold : mono);
     row(RH);
   };
-  for (const g of b.lignesGain) line(g.code, g.libelle, g.base ? fmt(g.base) : "", "", f0(g.gain), "", "");
-  line("", "TOTAL BRUT", fmt(b.brut), "", fmt(b.brut), "", "", true);
-  let patronal = 0;
-  for (const c of b.cotisations) {
-    patronal += c.chargePatronale;
-    line(c.code, c.libelle, c.base ? fmt(c.base) : "", pctTxt(c.taux), "", c.retenue ? fmt(c.retenue) : c.chargePatronale ? "" : "-", c.chargePatronale ? fmt(c.chargePatronale) : "");
-  }
-  line("", "TOTAL COTISATIONS & RETENUES", "", "", "", fmt(b.totalRetenues), fmt(patronal), true);
-  row(3);
+  const tauxDe = (c: { code: string; taux: number }) => (c.taux ? `${String(c.taux).replace(".", ",")} %` : ["44721", "44723", "44725"].includes(c.code) ? "barème" : "");
+  groupe("Gains");
+  for (const g of b.lignesGain) ligne(g.code, g.libelle, g.base || null, "", g.gain, null, null);
+  ligne("", "TOTAL BRUT (Total 1)", b.brut, "", b.brut, null, null, true);
+  const codees = b.cotisations.filter((c) => c.code && c.code !== "RETENUE" && c.code !== "MUT");
+  const autres = b.cotisations.filter((c) => !c.code || c.code === "RETENUE" || c.code === "MUT");
+  groupe("Cotisations et impôts");
+  let patronal = 0, retenues = 0;
+  for (const c of b.cotisations) { patronal += c.chargePatronale; retenues += c.retenue; }
+  for (const c of codees) ligne(c.code, c.libelle, c.base || null, tauxDe(c), null, c.retenue, c.chargePatronale);
+  if (autres.length) groupe("Autres retenues");
+  for (const c of autres) ligne("", c.libelle, c.base || null, tauxDe(c), null, c.retenue, null);
+  ligne("", "TOTAL COTISATIONS ET RETENUES", null, "", null, retenues, patronal, true);
+  row(7);
 
-  // Synthèse
-  const c5 = IW / 5;
-  cell(M, c5, 22, f0(b.brut), { label: "Salaire brut", align: "c", valueSize: 10 });
-  cell(M + c5, c5, 22, f0(d.chargesSalariales), { label: "Charges salariales", align: "c", valueSize: 10 });
-  cell(M + 2 * c5, c5, 22, f0(d.chargesPatronales ?? patronal), { label: "Charges patronales", align: "c", valueSize: 10 });
-  cell(M + 3 * c5, c5, 22, f0(d.heuresSup), { label: "Heures sup.", align: "c", valueSize: 10 });
-  page.drawRectangle({ x: M + 4 * c5, y: y - 22, width: c5, height: 22, color: rgb(0.08, 0.5, 0.24) });
-  page.drawRectangle({ x: M + 4 * c5, y: y - 22, width: c5, height: 22, borderColor: BORDER, borderWidth: 0.6 });
-  { const t1 = "NET A PAYER", w1 = font.widthOfTextAtSize(t1, 7); page.drawText(t1, { x: M + 4 * c5 + (c5 - w1) / 2, y: y - 8, size: 7, font, color: WHITE });
-    const t2 = f0(b.net), w2 = bold.widthOfTextAtSize(t2, 11); page.drawText(t2, { x: M + 4 * c5 + (c5 - w2) / 2, y: y - 19, size: 11, font: bold, color: WHITE }); }
-  row(22);
-  cell(M, c5, 14, `Période : du ${b.periodeDu ?? ""} au ${b.periodeAu ?? ""}`, { size: 6.5, align: "c", fill: rgb(0.86, 0.99, 0.91) });
-  cell(M + c5, 3 * c5, 14, `Payé par : SALAIRE ${b.societe}`, { size: 8, align: "c", f: bold });
-  cell(M + 4 * c5, c5, 14, "Signature employé", { size: 7, align: "c" });
-  row(14); row(6);
+  // 5. Synthèse : quatre montants et le net à payer en bleu sceau.
+  const SH = 36, cs = IW / 5.5, netW = IW - 4 * cs;
+  caseKV(M, cs, SH, "Salaire brut (Total 1)", fmt(b.brut), { f: monoBold, size: 10.5 });
+  caseKV(M + cs, cs, SH, "Charges salariales", fmt(d.chargesSalariales ?? retenues), { f: monoBold, size: 10.5 });
+  caseKV(M + 2 * cs, cs, SH, "Charges patronales", fmt(d.chargesPatronales ?? patronal), { f: monoBold, size: 10.5 });
+  caseKV(M + 3 * cs, cs, SH, "Heures sup.", d.heuresSup ? fmt(d.heuresSup) : "0", { f: monoBold, size: 10.5, color: d.heuresSup ? INK : ZERO });
+  box(M + 4 * cs, y, netW, SH, SCEAU);
+  txt("NET À PAYER (TOTAL 2)", M + 4 * cs + 5, y - 9, 6.5, font, SCEAU_CLAIR);
+  txt(fmt(b.net), M + 4 * cs + 5, y - 24, 15, monoBold, WHITE);
+  txt(`FCFA · payé par SALAIRE ${b.societe} le ${b.datePaiement ?? ""}`, M + 4 * cs + 5, y - SH + 5, 6, font, SCEAU_CLAIR);
+  row(SH); row(7);
 
-  // Visa RH & validation
-  const BW = (IW - 8) / 2, BH = 62;
-  page.drawRectangle({ x: M, y: y - BH, width: BW, height: BH, borderColor: BORDER, borderWidth: 0.6 });
-  page.drawRectangle({ x: M + BW + 8, y: y - BH, width: BW, height: BH, borderColor: BORDER, borderWidth: 0.6 });
-  page.drawText("VISA DU RESPONSABLE RH", { x: M + 5, y: y - 11, size: 7, font: bold, color: INK });
-  page.drawText(clean(entreprise.responsableRH || "-"), { x: M + 5, y: y - 23, size: 8, font, color: INK });
-  if (b.valide && entreprise.responsableRH) page.drawText(clean(entreprise.responsableRH), { x: M + 5, y: y - 42, size: 12, font: await doc.embedFont(StandardFonts.TimesRomanBoldItalic), color: rgb(0.12, 0.25, 0.69) });
-  page.drawText("Signature et cachet de l'employeur", { x: M + 5, y: y - BH + 5, size: 6.5, font, color: SOFT });
-  const bx = M + BW + 8;
-  page.drawText("VALIDATION DU BULLETIN", { x: bx + 5, y: y - 11, size: 7, font: bold, color: INK });
+  // 6. Visa et reçu, puis la mention d'état.
+  const BW = (IW - 8) / 2, BH = 58, bx = M + BW + 8;
+  box(M, y, BW, BH); box(bx, y, BW, BH);
+  txt("VISA DU RESPONSABLE RH", M + 6, y - 10, 7, bold, GRIS);
+  txt(entreprise.responsableRH || "-", M + 6, y - 22, 8.5, font, INK);
+  if (b.valide && entreprise.responsableRH) page.drawText(clean(entreprise.responsableRH), { x: M + 6, y: y - 40, size: 12, font: await doc.embedFont(StandardFonts.TimesRomanBoldItalic), color: NUIT });
+  txt("Signature et cachet de l'employeur", M + 6, y - BH + 6, 7, font, GRIS);
+  txt("REÇU PAR LE SALARIÉ", bx + 6, y - 10, 7, bold, GRIS);
+  txt("Signature précédée de la mention \"reçu\"", bx + 6, y - 22, 7, font, GRIS);
+  txt("Pour faire valoir vos droits, conservez ce bulletin sans limitation de durée.", bx + 6, y - BH + 6, 7, font, GRIS);
+  row(BH); row(7);
   const valideLe = b.valideLe ? new Date(b.valideLe).toLocaleDateString("fr-FR") : "";
-  page.drawText(clean(b.valide ? `BULLETIN VALIDÉ le ${valideLe}` : "BULLETIN NON VALIDÉ - document provisoire"), { x: bx + 5, y: y - 24, size: 8, font: bold, color: b.valide ? rgb(0.08, 0.5, 0.24) : rgb(0.7, 0.11, 0.11) });
-  page.drawText(clean("Signature de l'employé (précédée de la mention \"reçu\")"), { x: bx + 5, y: y - BH + 5, size: 6.5, font, color: SOFT });
-  row(BH); row(8);
-  const foot = "Pour vous aider à faire valoir vos droits, conservez ce bulletin de paie sans limitation de durée.";
-  const fw = bold.widthOfTextAtSize(clean(foot), 7); page.drawText(clean(foot), { x: (W - fw) / 2, y: y - 6, size: 7, font: bold, color: INK });
+  const mention = b.valide ? `BULLETIN VALIDÉ le ${valideLe} - mois clôturé, document définitif` : "BULLETIN NON VALIDÉ - document provisoire, le mois est encore ouvert";
+  page.drawRectangle({ x: M, y: y - 16, width: IW, height: 16, color: b.valide ? SCEAU_CLAIR : CARMIN_CLAIR, borderColor: b.valide ? SCEAU : CARMIN, borderWidth: 0.5 });
+  txt(mention, M, y - 11, 8.5, bold, b.valide ? SCEAU : CARMIN, "c", IW);
+  row(16); row(7);
+
+  // 7. Pied : référence du barème, période, matricule, page.
+  txt(`${entreprise.nom} · bulletin établi selon le barème CNPS / CGI applicable à la période`, M, y - 7, 6.5, bold, GRIS);
+  txt(`${periode} · ${b.matricule} · page 1/1`, M, y - 7, 6.5, mono, GRIS, "r", IW);
 
   return await doc.save();
 }

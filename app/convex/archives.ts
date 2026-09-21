@@ -1,6 +1,7 @@
 import { query, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireLevel } from "./lib/authz";
+import { bulletinsPourPeriode } from "./lib/calculBulletins";
 
 // Mois clôturés : agrégats, état des envois et des PDF archivés.
 export const liste = query({
@@ -48,23 +49,23 @@ export const bulletinsDuMois = query({
 export const snapshotsPourPdf = internalQuery({
   args: { periode: v.string() },
   handler: async (ctx, { periode }) => {
-    await requireLevel(ctx, 4);
+    // Pas de contrôle de niveau ici : l'action publique `paiePdf.archiverPdfs` l'exige (niv. 4), et la
+    // variante planifiée à la clôture tourne sans identité. Interne = injoignable depuis le client.
     const cloture = await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
     if (!cloture) throw new Error(`Le mois ${periode} n'est pas clôturé : rien à archiver.`);
     const entreprise = await ctx.db.query("parametresEntreprise").first();
-    const ent = { nom: entreprise?.nom ?? "", adresse: entreprise?.adresse, couleurEntete: entreprise?.couleurEntete, filigrane: entreprise?.filigrane };
-    const bulletins = await ctx.db.query("bulletins").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
+    const ent = {
+      nom: entreprise?.nom ?? "", adresse: entreprise?.adresse, couleurEntete: entreprise?.couleurEntete, filigrane: entreprise?.filigrane,
+      niu: entreprise?.niu, numeroCnps: entreprise?.numeroCnps, responsableRH: entreprise?.responsableRH,
+    };
+    // La forme unifiée (snapshots figés + identité + période + validation) : la même que l'écran et le courrier.
+    const r = await bulletinsPourPeriode(ctx, periode);
+    const figes = await ctx.db.query("bulletins").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
     const out = [];
-    for (const b of bulletins) {
-      const e = await ctx.db.get(b.employeId);
-      if (!e) continue;
-      out.push({
-        bulletinId: b._id, pdfId: b.pdfId ?? null, entreprise: ent,
-        bulletin: {
-          nom: e.nom, matricule: e.matricule, fonction: e.fonction, cnps: e.cnps, niu: e.niu, societe: b.societe,
-          brut: b.brut, totalRetenues: b.totalRetenues, net: b.net, lignesGain: b.lignesGain, cotisations: b.cotisations,
-        },
-      });
+    for (const f of figes) {
+      const b = r.bulletins.find((x) => String(x.employeId) === String(f.employeId));
+      if (!b) continue;
+      out.push({ bulletinId: f._id, pdfId: f.pdfId ?? null, entreprise: ent, bulletin: b });
     }
     return out;
   },
