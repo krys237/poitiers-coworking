@@ -110,14 +110,13 @@ function SidebarContent({
   signOut: () => Promise<unknown>;
 }) {
   return (
-    <div className="relative flex h-full flex-col justify-between bg-white text-slate-800 overflow-hidden border-r border-slate-200/80">
+    <div className="relative flex h-full flex-col justify-between bg-gradient-to-b from-blue-600 via-[#0077b6] to-[#0077b6] text-slate-800 overflow-hidden border-r border-blue-700/30">
       {/* 
-        1. Dégradé bleu supérieur harmonisé avec le sélecteur actif :
-        Utilise exactement les mêmes tons bleu (from-blue-600 to-[#0077b6]) que les items
-        actifs de navigation pour une parfaite cohérence chromatique de la barre latérale.
+        1. Fond bleu continu étendu sur toute la hauteur de la barre latérale :
+        Descend du bleu supérieur jusqu'au bloc de déconnexion tout en bas.
       */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-[280px] bg-gradient-to-b from-blue-600 via-[#0077b6] via-[52%] via-[#00b4d8]/20 via-[82%] to-white"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-blue-600 via-[#0077b6] to-[#0077b6]"
         aria-hidden="true"
       />
 
@@ -255,9 +254,9 @@ function RailLateral({
 }) {
   const items = NAV.flatMap((g) => g.items).filter((i) => canAccess(role, i.perm));
   return (
-    <div className="relative flex h-full flex-col justify-between overflow-hidden border-r border-slate-200/80 bg-white">
+    <div className="relative flex h-full flex-col justify-between overflow-hidden border-r border-blue-700/30 bg-gradient-to-b from-blue-600 via-[#0077b6] to-[#0077b6]">
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-[200px] bg-gradient-to-b from-blue-600 via-[#0077b6] via-[48%] via-[#00b4d8]/20 via-[80%] to-white"
+        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-blue-600 via-[#0077b6] to-[#0077b6]"
         aria-hidden="true"
       />
       <div className="relative z-10 flex flex-col items-center gap-1.5 px-3 pt-3.5">

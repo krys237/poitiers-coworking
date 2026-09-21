@@ -7,6 +7,7 @@ import {
   Calendar,
   Search,
   Bell,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -102,6 +103,18 @@ export function Header({ onOpenMobileMenu }: { onOpenMobileMenu?: () => void }) 
             </kbd>
           </div>
         </div>
+
+        {/* Bouton d'accès au Guide Interactif (Pédagogie & Règles) */}
+        <a
+          href="/guide-interactif.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Ouvrir le guide interactif : Rôles, interactions des onglets et règles de calcul"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-ocean-ceruleen/30 bg-ocean-brume/50 px-2.5 py-1.5 text-xs font-semibold text-ocean-profond hover:bg-ocean-brume/80 hover:text-ocean-profond transition-colors shadow-2xs"
+        >
+          <BookOpen className="h-3.5 w-3.5 text-ocean-profond" />
+          <span className="hidden md:inline">Guide des Rôles & Calculs</span>
+        </a>
 
         {/* Cloche d'alertes */}
         <Button
