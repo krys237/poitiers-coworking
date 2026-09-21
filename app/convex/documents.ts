@@ -69,6 +69,21 @@ export const obtenirUrl = mutation({
   },
 });
 
+// Aperçu en lecture seule : dès qu'on a le droit de VOIR le document (le téléchargement, lui, peut
+// rester réservé à un niveau supérieur). Le code d'accès s'applique de la même façon.
+export const apercuUrl = mutation({
+  args: { documentId: v.id("documents"), code: v.optional(v.string()) },
+  handler: async (ctx, { documentId, code }) => {
+    const me = await requireLevel(ctx, 1);
+    const d = await ctx.db.get(documentId);
+    if (!d || !canView(me.role as Role, d)) throw new Error("Document introuvable.");
+    if (d.codeAcces && d.codeAcces !== (code ?? "").trim()) throw new Error("Code d'accès incorrect.");
+    const url = await ctx.storage.getUrl(d.fichierId);
+    if (!url) throw new Error("Fichier indisponible.");
+    return { url, nomFichier: d.nomFichier, typeMime: d.typeMime, titre: d.titre };
+  },
+});
+
 export const supprimer = mutation({
   args: { documentId: v.id("documents") },
   handler: async (ctx, { documentId }) => {

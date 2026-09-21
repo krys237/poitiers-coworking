@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { messageErreur } from "../lib/format";
@@ -17,6 +17,7 @@ import {
   Lock,
   Sparkles,
   Download,
+  Eye,
   ShieldAlert,
   FolderOpen,
   Plus,
@@ -33,6 +34,7 @@ import {
   LayoutGrid,
   Rows3,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const NIVEAUX = [
   [1, "Niveau 1 — Tous les membres"],
@@ -149,6 +151,18 @@ export function Documents() {
   const genererUploadUrl = useMutation(api.documents.genererUploadUrl);
   const deposer = useMutation(api.documents.deposer);
   const obtenirUrl = useMutation(api.documents.obtenirUrl);
+  const apercuUrl = useMutation(api.documents.apercuUrl);
+  // Aperçu en lecture seule dans l'application (PDF, images, texte) — sans passer par le téléchargement.
+  const [apercu, setApercu] = useState<{ url: string; nomFichier: string; typeMime: string; titre: string } | null>(null);
+  // Les fichiers texte (CSV, TXT…) ne s'affichent pas dans un cadre : on lit leur contenu et on l'affiche tel quel.
+  const [apercuTexte, setApercuTexte] = useState<string | null>(null);
+  useEffect(() => {
+    setApercuTexte(null);
+    if (!apercu || !apercu.typeMime.startsWith("text/")) return;
+    let actif = true;
+    fetch(apercu.url).then((r) => r.text()).then((t) => { if (actif) setApercuTexte(t.slice(0, 200_000)); }).catch(() => { if (actif) setApercuTexte("Contenu illisible."); });
+    return () => { actif = false; };
+  }, [apercu]);
   const supprimer = useMutation(api.documents.supprimer);
   const extraire = useAction(api.documentsIa.extraireMetadonnees);
 
@@ -274,6 +288,19 @@ export function Documents() {
       setFormOuvert(false);
     } catch (err) {
       setMsg({ type: "erreur", texte: `Erreur d'enregistrement : ${messageErreur(err)}` });
+    }
+  };
+
+  const previsualiser = async (d: any) => {
+    const id = String(d._id);
+    if (d.codeRequis && demandeCode !== id) { setDemandeCode(id); return; }
+    try {
+      const r = await apercuUrl({ documentId: d._id, code: codes[id] });
+      setErreurs((m) => ({ ...m, [id]: "" }));
+      setDemandeCode(null);
+      setApercu(r);
+    } catch (err) {
+      setErreurs((m) => ({ ...m, [id]: messageErreur(err) }));
     }
   };
 
@@ -922,6 +949,12 @@ export function Documents() {
                         </div>
                       )}
                       {erreurs[id] && <span className="text-2xs font-semibold text-carmin">{erreurs[id]}</span>}
+                      {!enDemandeCode && (
+                        <Button size="sm" variant="ghost" onClick={() => previsualiser(d)} className="h-7 gap-1 px-2 text-2xs text-encre-douce hover:text-encre" title="Lire le document dans l'application (lecture seule)" aria-label={`Aperçu de ${d.titre}`}>
+                          <Eye className="h-3.5 w-3.5" />
+                          Aperçu
+                        </Button>
+                      )}
                       {!enDemandeCode && (d.telechargeable ? (
                         <Button size="sm" variant="outline" onClick={() => telecharger(d)} className="h-7 gap-1 px-2.5 text-2xs font-semibold text-ocean-profond" aria-label={`Télécharger ${d.titre}`}>
                           <Download className="h-3.5 w-3.5" />
@@ -1092,6 +1125,10 @@ export function Documents() {
                   )}
 
                   <div className="flex items-center justify-between gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => previsualiser(d)} className="h-8 gap-1.5 text-xs text-encre-douce hover:text-encre" title="Lire le document dans l'application (lecture seule)" aria-label={`Aperçu de ${d.titre}`}>
+                      <Eye className="h-3.5 w-3.5" />
+                      Aperçu
+                    </Button>
                     {d.telechargeable ? (
                       <Button
                         size="sm"
@@ -1129,6 +1166,33 @@ export function Documents() {
           })}
         </div>
       )}
+
+      {/* Aperçu en lecture seule : PDF et images dans un cadre, texte brut, sinon invitation à télécharger. */}
+      <Dialog open={!!apercu} onOpenChange={(o) => { if (!o) setApercu(null); }}>
+        <DialogContent className="max-h-[92vh] sm:max-w-5xl">
+          {apercu && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{apercu.titre}</DialogTitle>
+                <DialogDescription className="font-mono text-xs">{apercu.nomFichier} · {apercu.typeMime} · lecture seule</DialogDescription>
+              </DialogHeader>
+              {apercu.typeMime === "application/pdf" ? (
+                <iframe src={`${apercu.url}#toolbar=0`} title={`Aperçu — ${apercu.titre}`} className="h-[72vh] w-full rounded-lg border border-filet bg-papier" />
+              ) : apercu.typeMime.startsWith("text/") ? (
+                <pre className="max-h-[72vh] overflow-auto whitespace-pre-wrap rounded-lg border border-filet bg-papier px-4 py-3 font-mono text-xs leading-relaxed text-encre">{apercuTexte ?? "Chargement…"}</pre>
+              ) : apercu.typeMime.startsWith("image/") ? (
+                <div className="flex max-h-[72vh] items-center justify-center overflow-auto rounded-lg border border-filet bg-papier p-2">
+                  <img src={apercu.url} alt={apercu.titre} className="max-h-[70vh] max-w-full object-contain" />
+                </div>
+              ) : (
+                <div className="rounded-lg border border-filet bg-papier px-4 py-8 text-center text-sm text-encre-douce">
+                  Ce type de fichier ({apercu.typeMime}) ne s'affiche pas dans le navigateur. Le téléchargement reste soumis au niveau requis.
+                </div>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

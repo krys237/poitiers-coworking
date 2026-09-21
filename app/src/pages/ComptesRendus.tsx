@@ -24,7 +24,9 @@ import {
   Check,
   AlertCircle,
   FileText,
+  Eye,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const fmtDateLongue = (s: string) => {
   if (!s) return "";
@@ -72,12 +74,15 @@ export function ComptesRendus() {
   const [jourSup, setJourSup] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [vueOngletSuperviseur, setVueOngletSuperviseur] = useState<"tableau" | "feed">("tableau");
+  // Aperçu en lecture seule d'un compte rendu depuis la ligne du membre (superviseur).
+  const [apercuId, setApercuId] = useState<string | null>(null);
   const lignesVisibles = useLignesVisibles("comptes-rendus:supervision");
 
   const sup = useQuery(
     api.comptesRendus.vueSuperviseur,
     espace?.superviseur ? { date: jourSup || undefined } : "skip"
   );
+  const apercu = apercuId ? (sup?.contenus ?? []).find((c: any) => String(c._id) === apercuId) ?? null : null;
 
   // Horloge de recalcul du compte à rebours toutes les 30 secondes
   useEffect(() => {
@@ -765,6 +770,19 @@ export function ComptesRendus() {
                           )}
                         </TableCell>
                         <TableCell className="text-right">
+                          {l.id && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setApercuId(String(l.id))}
+                              className="mr-1 h-7 gap-1 px-2 text-3xs text-encre-douce hover:text-encre"
+                              title="Lire le compte rendu (lecture seule)"
+                              aria-label={`Aperçu du compte rendu de ${l.nom}`}
+                            >
+                              <Eye className="h-3 w-3" />
+                              Aperçu
+                            </Button>
+                          )}
                           {l.id && l.statut !== "valide" && (
                             <Button
                               size="sm"
@@ -832,6 +850,32 @@ export function ComptesRendus() {
           )}
         </div>
       )}
+
+      {/* Aperçu en lecture seule : le texte tel qu'il a été soumis, sans possibilité de le modifier. */}
+      <Dialog open={!!apercu} onOpenChange={(o) => { if (!o) setApercuId(null); }}>
+        <DialogContent className="sm:max-w-2xl">
+          {apercu && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex flex-wrap items-center gap-2">
+                  Compte rendu de {apercu.auteur}
+                  <Flag variant={STATUT_INFO[apercu.statut]?.variant ?? "neutre"} size="xs">{STATUT_INFO[apercu.statut]?.label ?? apercu.statut}</Flag>
+                  {apercu.horsFenetre && <Flag variant="a-renseigner" size="xs">hors fenêtre</Flag>}
+                </DialogTitle>
+                <DialogDescription>{fmtDateLongue(sup?.date ?? "")} · soumis à {apercu.heure} · lecture seule</DialogDescription>
+              </DialogHeader>
+              <div className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap rounded-lg border border-filet bg-papier px-4 py-3 text-sm leading-relaxed text-encre">{apercu.contenu}</div>
+              <div className="flex justify-end gap-2">
+                {apercu.statut !== "valide" ? (
+                  <Button size="sm" onClick={() => { void handleChangerStatut(apercu._id, "valide", apercu.auteur); setApercuId(null); }} className="bg-emerald-600 text-white hover:bg-emerald-700"><Check className="h-3.5 w-3.5" /> Valider</Button>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={() => { void handleChangerStatut(apercu._id, "en_relecture", apercu.auteur); setApercuId(null); }}><RotateCcw className="h-3.5 w-3.5" /> Rouvrir</Button>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
