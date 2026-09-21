@@ -1,0 +1,286 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Rapport de la semaine du 14 septembre 2026</title>
+<style>
+  @page { size: A4; margin: 15mm 14mm 16mm; }
+  :root { --sceau:#0077b6; --nuit:#03045e; --encre:#0b132b; --douce:#334155; --pale:#64748b; --filet:#8a968d; --bande:#eaf3f8; --brume:#caf0f8; }
+  body { margin:0; font-family:"IBM Plex Sans","Segoe UI",system-ui,sans-serif; font-size:10pt; line-height:1.5; color:var(--encre); }
+  header { display:flex; justify-content:space-between; align-items:flex-start; gap:10mm; padding-bottom:3mm; margin-bottom:5mm; border-bottom:2.5pt solid var(--sceau); }
+  header .raison { font-size:13pt; font-weight:700; color:var(--sceau); }
+  header .coord { font-size:8pt; color:var(--pale); margin-top:1mm; max-width:95mm; }
+  header .nature { text-align:right; font-size:12pt; font-weight:700; }
+  header .nature span { display:block; font-size:8.5pt; font-weight:400; color:var(--pale); }
+  h2 { font-size:11pt; margin:6mm 0 2mm; color:var(--nuit); text-transform:uppercase; letter-spacing:.04em; border-left:3pt solid var(--sceau); padding-left:2.5mm; break-after:avoid; }
+  h3 { font-size:10pt; margin:4mm 0 1.5mm; color:var(--sceau); break-after:avoid; }
+  p { margin:0 0 2.5mm; }
+  ul, ol { margin:0 0 2.5mm; padding-left:5mm; }
+  li { margin-bottom:1mm; }
+  hr { display:none; }
+  table { width:100%; border-collapse:collapse; font-size:8.8pt; margin:1.5mm 0 3.5mm; break-inside:auto; }
+  th, td { border:.5pt solid var(--filet); padding:1.4mm 2mm; vertical-align:top; text-align:left; }
+  thead th { background:var(--bande); font-size:8pt; }
+  tr { break-inside:avoid; }
+  code { font-family:"IBM Plex Mono",Consolas,monospace; font-size:8.5pt; background:var(--bande); padding:0 1.2mm; border-radius:3px; }
+  strong { color:var(--nuit); }
+  footer { position:fixed; bottom:-10mm; left:0; right:0; display:flex; justify-content:space-between; font-size:7.5pt; color:var(--pale); }
+</style></head><body>
+<header>
+  <div><div class="raison">POITIERS COWORKING</div><div class="coord">POITIERS COWORKING — plateforme unifiée d'administration et de paie</div></div>
+  <div class="nature">RAPPORT DE LA SEMAINE DU 14 SEPTEMBRE 2026<span>lundi 14 au dimanche 20 septembre 2026, prolongée au lundi 21 (point arrêté le lundi 21 au soir)</span><span>Rédigé par krys237</span></div>
+</header>
+<h2>1. En bref</h2>
+<p>La semaine la plus dense du projet : <strong>56 livraisons versionnées</strong>, contre 5 la semaine précédente.
+Trois chantiers ont été menés de front et sont aujourd'hui fermés ou presque :</p>
+<ol>
+<li><strong>L'authentification réelle et les rôles</strong> : fin du mode « toute personne ayant le lien est directeur ».
+   Chaque utilisateur se connecte avec son e-mail ou son numéro de téléphone et voit uniquement ses écrans.</li>
+<li><strong>La refonte du front-end</strong>, annoncée comme le chantier de la semaine : <strong>21 écrans sur 22 sont passés sur
+   la nouvelle charte</strong> (le tableau de bord servait de modèle). Le bulletin de paie, dernier document, a été
+   redessiné, validé sur maquette par le propriétaire du projet et livré à l'écran, à l'impression et en PDF.</li>
+<li><strong>Le pilotage</strong> : un plan d'avancement sur trois semaines fixe la mise en service au <strong>vendredi 10 octobre 2026</strong>,
+   avec huit comptes de test pour la recette et un journal des décisions.</li>
+</ol>
+<p>Le projet est estimé à <strong>75 % d'achèvement</strong>. Ce qui reste est court mais conditionne la mise en service :
+la recette avec les utilisateurs, l'arbitrage des niveaux de rôles, la bascule en production.</p>
+<hr />
+<h2>2. Ce qui a été fait</h2>
+<h3>2.1 Authentification réelle et rôles (14 → 17 septembre, puis 21)</h3>
+<p>Jusqu'ici, le déploiement fonctionnait en « mode développement » : le lien donnait à quiconque les droits
+de direction. C'est fini.</p>
+<p><strong>Connexion</strong> (Convex Auth)</p>
+<ul>
+<li>Chaque compte a un mot de passe ; la session est signée par le déploiement lui-même, sans fournisseur externe.</li>
+<li>Écran de connexion refait le 21 : une image en arrière-plan, une fenêtre de connexion, <strong>deux modes au choix —
+  adresse e-mail ou numéro de téléphone</strong> — et l'indicatif du pays pré-rempli (+237) comme sur WhatsApp.</li>
+<li>Pas d'inscription ni de code par e-mail sur l'écran : les comptes sont créés par la Direction (écran Membres)
+  et le rôle est repris à la première connexion. Une inscription spontanée n'ouvre aucun droit.</li>
+<li>Le mode développement est <strong>coupé</strong> sur le déploiement : connexion obligatoire partout, y compris sur le lien Vercel.</li>
+</ul>
+<p><strong>Rôles</strong></p>
+<ul>
+<li>Toutes les fonctions du serveur exigent désormais un niveau ; toutes les routes du front sont gardées
+  (taper une adresse à la main n'affiche plus un écran interdit).</li>
+<li>Le niveau 6 (Directeur Administratif 2) est <strong>retiré</strong> : aucun droit ne le distinguait du niveau 5, qui devient
+  « Directeur Administratif (DAF) ».</li>
+<li>Un rôle <strong>super administrateur</strong> (niveau 8) isole le technique — données de démonstration, fiche API, état du
+  déploiement — hors de portée du Directeur Général. Nul ne peut attribuer un rôle au-dessus du sien.</li>
+<li>Le Directeur Général change un rôle directement dans la liste des membres, et la liste dit ce que chaque rôle
+  ouvre ; la matrice complète est lisible dans <strong>Paramètres → Rôles &amp; accès</strong>, générée depuis le code.</li>
+<li><strong>Huit comptes de test</strong>, un par rôle, avec e-mail, téléphone et mot de passe commun (fiche PDF <code>acces-test.pdf</code>).</li>
+<li>Trouvé en testant le compte « employé » : le solde de trésorerie s'affichait sur le tableau de bord de tout le monde.
+  Corrigé : réservé au niveau 5.</li>
+</ul>
+<h3>2.2 Refonte du front-end (17 → 21 septembre)</h3>
+<p>La charte « Ocean Breeze » et ses composants ont été fixés dans deux skills de projet, puis déclinés écran par écran.
+Trois règles transverses ont été adoptées en cours de route, sur retour du propriétaire :</p>
+<ul>
+<li><strong>Formalisme des chiffres</strong> : milliers séparés, décimales à la virgule, unité séparée, zéro = champ vide.</li>
+<li><strong>Saisie en série</strong> : « l'utilisateur qui a n éléments à saisir ne clique pas n fois » — une ligne de saisie
+  permanente et un bouton « Rendre les champs persistants » sur chaque écran de saisie.</li>
+<li><strong>Tableaux</strong> : défilement intégré et nombre de lignes visibles au choix, partout ; c'est un ERP, pas une page web.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Lot</th>
+<th>Écrans livrés sur la charte</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Paie</td>
+<td>Récapitulatif salaires (deux présentations : synthèse + volet par défaut, grille en mode persistant), Liste des salaires (écran + impression A4), <strong>Bulletins du mois</strong>, Courrier de paie (aperçu lettre + bulletin, envoi confirmé, journal), Planning des absences, Primes &amp; retenues, Archives (PDF à générer sur confirmation)</td>
+</tr>
+<tr>
+<td>Exploitation</td>
+<td>Interventions (file de traitement + volet), Commandes, Documents, Comptes rendus, Caisse &amp; primes médecins (deux onglets au lieu de huit), Récapitulatif financier (cockpit bicolonne)</td>
+</tr>
+<tr>
+<td>Administration</td>
+<td>Employés (fiche partagée avec le récapitulatif), Membres &amp; accès, Barème (versions, écarts avec la version précédente, nouvelle version confirmée), Journal d'activité (fenêtre de temps, familles, export CSV), Fiche API, <strong>Paramètres</strong></td>
+</tr>
+<tr>
+<td>Contrôle</td>
+<td>Audit confidentiel (horizon 6 / 12 / 24 mois, comparaison N / N−1, graphe par catégorie)</td>
+</tr>
+<tr>
+<td>Coquille</td>
+<td>Tableau de bord, barre latérale repliable en rail, bannière d'accueil</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Bulletin de paie</strong> — présenté au propriétaire sous forme de maquette interactive (sept zones expliquées, état
+validé / provisoire, rendu actuel en regard), validé le 21, puis livré : écran, impression (page récapitulative
+puis un bulletin par page) et PDF alignés trait pour trait. Formules et liste codée des rubriques inchangées.
+Au passage, les PDF archivés recevaient une version appauvrie du bulletin (sans période ni validation) : corrigé.</p>
+<p><strong>Paramètres</strong> — six sections : entreprise &amp; documents (avec aperçu de l'en-tête imprimé), paie &amp; congés, courrier &amp;
+e-mail, fonctionnement (fenêtre des comptes rendus, verrou financier, IA documents, PDF à la clôture, jours de base,
+plafond de saisie — jusqu'ici des constantes enfouies dans le code), rôles &amp; accès, et un onglet « déploiement »
+réservé au super administrateur qui dit quelles clés sont configurées, sans jamais montrer leur valeur.</p>
+<h3>2.3 Pilotage et documentation (21 septembre)</h3>
+<ul>
+<li><strong>Plan d'avancement sur trois semaines</strong> (en ligne et en PDF) : S1 « le bulletin fait foi », S2 « la clinique
+  teste », S3 « prêt à mettre en service » — tâches, responsables, critères de fait, sept décisions attendues avec
+  date butoir, risques, indicateurs, suivi hebdomadaire.</li>
+<li><strong>Journal des décisions</strong> (<code>app/DECISIONS.md</code>) : chaque consigne transverse avec sa date et l'endroit du code qui
+  l'applique. Dernière en date : <strong>tout numéro de téléphone porte l'indicatif du pays</strong>.</li>
+<li><strong>Guide interactif</strong> de la plateforme accessible depuis l'en-tête, fiche des accès de test, guide du dépôt à jour.</li>
+</ul>
+<p><strong>Volume de la semaine</strong> : 124 fichiers modifiés, environ 20 800 lignes ajoutées et 2 600 remplacées ;
+18 composants partagés dans la bibliothèque applicative.</p>
+<hr />
+<h2>3. État d'avancement</h2>
+<table>
+<thead>
+<tr>
+<th>Chantier</th>
+<th>Avancement</th>
+<th>Commentaire</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Architecture et modèle de données</td>
+<td>90 %</td>
+<td>Stable ; réglages de fonctionnement ajoutés aux paramètres</td>
+</tr>
+<tr>
+<td>Backend (fonctions métier)</td>
+<td>90 %</td>
+<td>Toutes les fonctions contrôlées par niveau ; reste la comparaison réelle du barème officiel</td>
+</tr>
+<tr>
+<td>Moteur de paie</td>
+<td>95 %</td>
+<td>Inchangé, tests chiffrés au vert</td>
+</tr>
+<tr>
+<td>Authentification et rôles</td>
+<td>85 %</td>
+<td>En service ; niveaux exacts à arbitrer avec chaque spécialiste</td>
+</tr>
+<tr>
+<td><strong>Front-end (présentation)</strong></td>
+<td><strong>90 %</strong></td>
+<td><strong>21 écrans sur 22 ; cinq écrans à unifier sur les mêmes tuiles</strong></td>
+</tr>
+<tr>
+<td>Documents imprimés</td>
+<td>80 %</td>
+<td>Bulletin, liste des salaires, courrier livrés ; validation papier à faire</td>
+</tr>
+<tr>
+<td>Tests automatisés</td>
+<td>85 %</td>
+<td>8 suites, toutes au vert</td>
+</tr>
+<tr>
+<td>Documentation, recette, pilotage</td>
+<td>70 %</td>
+<td>Plan, journal des décisions, comptes de test ; cahier de recette final à écrire</td>
+</tr>
+<tr>
+<td>Sécurité et mise en production</td>
+<td>45 %</td>
+<td>Mode développement coupé ; production Convex, domaine, e-mail réel restent à faire</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Lecture d'ensemble</strong> : le passage de 40 % à 90 % sur le front-end est le fait marquant. La plateforme est
+maintenant utilisable de bout en bout par un utilisateur connecté avec son propre rôle.</p>
+<hr />
+<h2>4. Points de vigilance</h2>
+<table>
+<thead>
+<tr>
+<th>Sujet</th>
+<th>Situation</th>
+<th>Action attendue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Niveaux des rôles</td>
+<td>Matrice actuelle en service ; comptable, DAF et RH n'ont pas encore été entendus</td>
+<td>Entretiens avec chaque spécialiste avant le 2 octobre, report dans le code</td>
+</tr>
+<tr>
+<td>Mot de passe du super administrateur</td>
+<td>Compte de test avec le mot de passe commun</td>
+<td>À changer par le propriétaire avant toute diffusion du lien</td>
+</tr>
+<tr>
+<td>Validation papier du bulletin</td>
+<td>Maquette validée, papier pas encore signé</td>
+<td>Impression et relecture par le directeur (semaine du 22)</td>
+</tr>
+<tr>
+<td>Envoi d'e-mails</td>
+<td>Simulation ; clé et domaine absents</td>
+<td>Compte Resend et domaine vérifié (butoir 3 octobre)</td>
+</tr>
+<tr>
+<td>Barème officiel</td>
+<td>Contrôle quotidien sans source branchée</td>
+<td>Choisir la source à surveiller</td>
+</tr>
+<tr>
+<td>Données réelles</td>
+<td>Recette sur données de démonstration</td>
+<td>Fichier de l'effectif et soldes J0 (butoir 26 septembre)</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>5. Chiffres de la semaine</h2>
+<table>
+<thead>
+<tr>
+<th>Indicateur</th>
+<th>Valeur</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Livraisons versionnées</td>
+<td>56</td>
+</tr>
+<tr>
+<td>Fichiers modifiés</td>
+<td>124 (≈ 20 800 lignes ajoutées)</td>
+</tr>
+<tr>
+<td>Écrans sur la nouvelle charte</td>
+<td>21 sur 22</td>
+</tr>
+<tr>
+<td>Composants partagés</td>
+<td>18</td>
+</tr>
+<tr>
+<td>Comptes de test</td>
+<td>8 (un par rôle)</td>
+</tr>
+<tr>
+<td>Décisions consignées</td>
+<td>14</td>
+</tr>
+<tr>
+<td>Suites de tests automatisés</td>
+<td>8, toutes au vert</td>
+</tr>
+<tr>
+<td>Achèvement estimé</td>
+<td>75 %</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>6. Programme de la semaine du 21 septembre (S1 du plan)</h2>
+<ol>
+<li>Faire valider le bulletin de paie sur papier par le directeur ; corriger les écarts.</li>
+<li>Changer le mot de passe du super administrateur ; vérifier chaque compte de test un par un.</li>
+<li>Écrire le cahier de recette final, un scénario par écran et par rôle, à partir des attendus du propriétaire.</li>
+<li>Recueillir le fichier de l'effectif réel et les soldes d'ouverture du grand livre.</li>
+<li>Unifier les tuiles des cinq écrans refondus en parallèle (tableau de bord, financier, commandes, documents, comptes rendus).</li>
+</ol>
+<footer><span>POITIERS COWORKING · Rapport de la semaine du 14 septembre 2026</span><span>krys237</span></footer>
+</body></html>
