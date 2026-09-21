@@ -35,8 +35,12 @@ app/
 ```
 
 ## Concepts clés à respecter
-1. **Niveaux cumulatifs** : le niveau N hérite des accès de 1…N. Voir `rbac.ts` (`ROLES`, `canAccess`).
-   Le rôle `auditeur_externe` est *orthogonal* (voit `/audit` seul).
+1. **Niveaux cumulatifs** : le niveau N hérite des accès de 1…N. Voir `rbac.ts` (`NIVEAU`, `canAccess`, `DROITS`).
+   Rôles : employé 1, chef d'équipe 2, comptable 3, RH 4, DAF (`da1`) 5, DG 7, **super administrateur 8**
+   (technique : seeds, fiche API, état du déploiement — le compte « dev » du bypass). Le niveau 6 (ex-DA2) est
+   **retiré**. Le rôle `auditeur_externe` est *orthogonal* (voit `/audit` seul). `peutAttribuer` / `peutModifierMembre` :
+   nul n'attribue un rôle au-dessus du sien ni ne modifie un membre au-dessus de lui. `rbac.ts` est la source
+   unique : l'onglet Paramètres → Rôles & accès en dérive, ne jamais dupliquer un droit dans un composant.
 2. **Barème daté (effective-dated)** : un bulletin référence la version du barème *applicable à sa période*.
    Ne jamais recalculer un mois clôturé avec un barème plus récent.
 3. **Recalcul réactif** : les bulletins d'un mois ouvert sont dérivés (query) de `employes` + `saisiesMensuelles`
@@ -52,7 +56,7 @@ npx convex dev      # démarre le backend Convex (crée le déploiement au 1er l
 npm run dev         # démarre le front Vite
 ```
 Puis, dans le dashboard Convex, définir la variable d'environnement **`AUTH_DEV_BYPASS=true`**
-(mode développement : agit comme le membre DG « dev » sans IdP) et cliquer **« Initialiser les données de démo »**
+(mode développement : agit comme le membre super administrateur « dev » sans IdP) et cliquer **« Initialiser les données de démo »**
 sur le tableau de bord (barème, entreprise, 8 employés). Retirer `AUTH_DEV_BYPASS` en production et
 brancher le fournisseur OIDC (`convex/auth.config.ts`).
 
@@ -165,26 +169,38 @@ Convex agent skills for common tasks can be installed by running
   catégorie/mois (`rapportsAudit`), « Total salaires reçus » = `bulletinsPourPeriode` sur 6 mois (figés ou calculés), graphes.
   **Cloisonnement** : `lib/authz.requireAudit` — `auditeur_externe` ou `dg` uniquement (un niveau 6 est refusé) ; `rbac.canAccess`
   masque le module aux autres. Tests `test:audit`.
-- **Membres** (`convex/users.ts`) : `liste` (origine dev / demo / pending / oidc), `modifier` (garde-fou : jamais le **dernier DG actif**
-  désactivé ou rétrogradé), `creer` = pré-provisionnement `tokenIdentifier: "pending:<email>"` ; `lib/authz.getCurrentUser` **rattache**
+- **Membres** (`convex/users.ts`) : `liste` (origine dev / demo / pending / oidc), `modifier` (garde-fous : jamais le **dernier DG actif**
+  désactivé ou rétrogradé ; rôle et cible bornés au niveau de l'auteur), changement de rôle en ligne dans l'écran, `creer` = pré-provisionnement `tokenIdentifier: "pending:<email>"` ; `lib/authz.getCurrentUser` **rattache**
   une identité OIDC à la ligne `pending:*` de même e-mail (patch dans une mutation, lecture seule en query).
 - **Journal** (`journalActivite`, `lib/journal.ts` `journaliser`) : rôles/activations, clôtures paie & financière, appels API, barème.
   Écran `/journal` (niv. 7). Les HTTP actions écrivent via `internal.journal.ecrire`.
 - **API** (`convex/http.ts` + `lib/apiSecurite.ts`) : `GET /api/financial?date&entity` — clé **re-validée en temps constant**
   (`FINANCIAL_API_KEY`), 503 si non configurée, 401/400/404, en-têtes `no-store`/`nosniff`, journalisation avec statut + IP.
   Proxy autonome `api-proxy/` (`server.mjs`, `lib.mjs`, ESM sans dépendance) : allowlist IP, clé, rate-limit glissant 60 s, logs JSON.
-  Tests `test:api`, `test:proxy`. Écran `/api-readme` (niv. 7) — la clé n'est jamais affichée.
+  Tests `test:api`, `test:proxy`. Écran `/api-readme` (niv. **8**) — la clé n'est jamais affichée.
 - **Barème** (`/bareme`, niv. 4 ; nouvelle version = niv. 7) : versions datées, `verifierMaintenant` planifie
   `controlerBaremeOfficiel` (lit `BAREME_SOURCE_URL` si définie, sinon journalise « source non configurée », met à jour `controleLe`).
   `convex/crons.ts` : contrôle quotidien 06:00 UTC, purge hebdomadaire des verrous financiers (`financier.purgerVerrousExpires`).
 - Démo : `seed:phase4` — membre `demo:auditeur` (auditeur externe), lignes d'audit sur 4 catégories × 2 mois, 2 rapports.
 - Pièges : dans un remplacement `perl`, `${x}` d'un template literal est interprété comme variable perl (échapper `\$`) ;
   `httpAction` n'a pas de `ctx.db` → passer par `internal.*` ; `crons.ts` doit exporter par défaut `cronJobs()`.
-- **Porte de secours** : `npx convex run users:restaurerRole '{"tokenIdentifier":"dev:dg","role":"dg"}'` (mutation interne, CLI admin)
+- **Porte de secours** : `npx convex run users:restaurerRole '{"tokenIdentifier":"dev:dg","role":"super_admin"}'` (mutation interne, CLI admin)
   si plus aucun DG actif ne peut agir — un membre rétrogradé ne peut pas se re-promouvoir (`users:modifier` exige le niveau 7).
 - Tests Node (`--experimental-strip-types`) : les libs pures importées par les tests doivent importer leurs dépendances avec
   l'extension `.ts` et `import type` pour les types (`convex/tsconfig.json` a `allowImportingTsExtensions`) ; pas de hook de
   résolution (`module.register` plante à la sortie sous Windows).
+
+## Réglages de fonctionnement (Paramètres)
+- `convex/lib/reglages.ts` (PUR) : `Reglages`, `REGLAGES_DEFAUT` (= les anciennes constantes), `reglagesDe()`, `validerReglages()`.
+  Stockés dans `parametresEntreprise.reglages` (tous optionnels) ; `parametres.lireReglages(ctx)` côté serveur,
+  `internal.parametres.reglagesInternes` depuis les actions `"use node"`.
+- Câblés : fenêtre des comptes rendus (`lib/fenetre.ts` prend un `Fenetre`), durée du verrou financier, **envoi réel**
+  du courrier (= clé `RESEND_API_KEY` **et** interrupteur `envoiReelActive`, sinon simulation), IA documents, PDF à la
+  clôture (`payroll.genererEtCloturer` planifie `internal.paiePdf.archiverPdfsPlanifie`), jours de base d'un nouvel
+  employé, plafond de saisie mensuelle. Chaque enregistrement est journalisé (`parametres_modification`).
+- Écran `/parametres` (niv. 7) : onglets Entreprise & documents / Paie & congés / Courrier & e-mail / Fonctionnement /
+  Rôles & accès (matrice dérivée de `rbac.DROITS`) / **Déploiement** (niv. 8 : `parametres.etatDeploiement` dit quelles
+  variables d'environnement sont définies, jamais leur valeur). Un seul « Enregistrer » pour toute la page.
 
 ## Phase 1 bis — Authentification (Convex Auth)
 - `convex/auth.ts` : `convexAuth({ providers: [Password, ResendOTP], callbacks })`. **Deux fournisseurs** :
