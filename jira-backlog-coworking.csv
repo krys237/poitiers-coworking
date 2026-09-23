@@ -1,0 +1,228 @@
+﻿"Issue Type","Summary","Description","Status","Priority","Component","Epic Name","Epic Link","Sprint","Story Points","Start Date","Due Date","Labels","Labels","Labels","Labels"
+"Epic","Socle & données","Modèle de données, moteur de paie, barème daté, tests automatisés, API d'export. La partie invisible du produit.","Terminé","High","Socle","Socle & données","","Semaine 37 (07/09-13/09)","","2026-09-07","2026-09-13","epic","","",""
+"Epic","Paie automatisée","Saisie mensuelle, bulletins, liste des salaires, courrier, planning, primes & retenues, archives, barème.","En cours","High","Paie","Paie automatisée","","Semaine 38 (14/09-20/09)","","2026-09-14","2026-09-20","epic","","",""
+"Epic","Exploitation & activité","Interventions, commandes, documents, comptes rendus, caisse & primes médecins, tableau de bord.","Terminé","High","Exploitation","Exploitation & activité","","Semaine 38 (14/09-20/09)","","2026-09-14","2026-09-20","epic","","",""
+"Epic","Finances & grand livre","Grand livre journalier, soldes par canal, verrou de saisie, clôture mensuelle.","En cours","High","Finances","Finances & grand livre","","Semaine 38 (14/09-20/09)","","2026-09-14","2026-09-20","epic","","",""
+"Epic","Accès, rôles & sécurité","Authentification, matrice des rôles, membres, journal d'activité, API sécurisée.","En cours","High","Accès","Accès, rôles & sécurité","","S1 (21/09-26/09)","","2026-09-21","2026-09-26","epic","","",""
+"Epic","Documents imprimables","Bulletin de paie, liste des salaires, courrier : écran, impression A4 et PDF.","En cours","High","Documents","Documents imprimables","","S1 (21/09-26/09)","","2026-09-21","2026-09-26","epic","","",""
+"Epic","Paramètres & réglages","Identité de l'entreprise, règles de paie, réglages de fonctionnement, matrice des rôles, déploiement.","Terminé","High","Paramètres","Paramètres & réglages","","S1 (21/09-26/09)","","2026-09-21","2026-09-26","epic","","",""
+"Epic","Recette & qualité","Cahier de recette final, campagne par rôle, accessibilité, mobile, corrections.","À faire","High","Recette","Recette & qualité","","S2 (29/09-03/10)","","2026-09-29","2026-10-03","epic","","",""
+"Epic","Mise en production","Déploiement de production, domaine, e-mail réel, sauvegardes, répétition et mise en service.","À faire","High","Production","Mise en production","","S3 (06/10-10/10)","","2026-10-06","2026-10-10","epic","","",""
+"Epic","Pilotage & documentation","Plan d'avancement, journal des décisions, rapports hebdomadaires, guides, passation.","En cours","High","Pilotage","Pilotage & documentation","","S1 (21/09-26/09)","","2026-09-21","2026-09-26","epic","","",""
+"Story","Analyse par reverse engineering des deux plateformes existantes","Objectif : comprendre Hercules (en production) et la version Lovable du directeur pour définir la cible.
+Critère de « fait » : document de compréhension métier, esquisse d'architecture et rapport de semaine publiés.","Terminé","High","Socle","","Socle & données","Semaine 36 (31/08-06/09)","8","2026-08-31","2026-09-06","analyse","dev","",""
+"Story","Modèle de données Convex : 20 tables, index et règles d'accès","Objectif : une seule source de vérité pour les entités (employés, saisies, bulletins, journées financières, documents, membres).
+Critère de « fait » : schema.ts stable, index interrogés par les fonctions métier.","Terminé","High","Socle","","Socle & données","Semaine 37 (07/09-13/09)","8","2026-09-07","2026-09-13","backend","dev","",""
+"Story","Moteur de paie pur : brut, cotisations, impôts, net","Objectif : calcul testable isolément (lib/paie.ts), indépendant de la base.
+Critère de « fait » : suite test:paie au vert, égalité stricte avec les cas chiffrés du directeur.","Terminé","Highest","Socle","","Socle & données","Semaine 37 (07/09-13/09)","8","2026-09-07","2026-09-13","backend","paie","dev",""
+"Story","Barème CNPS / CGI daté et contrôle quotidien de la source","Objectif : un bulletin utilise la version du barème applicable à sa période ; un mois clôturé n'est jamais recalculé.
+Critère de « fait » : versions datées, cron de contrôle à 06:00 UTC, résultat journalisé.","Terminé","High","Socle","","Socle & données","Semaine 37 (07/09-13/09)","5","2026-09-07","2026-09-13","backend","paie","dev",""
+"Story","Huit suites de tests automatisés sur la logique pure","Objectif : paie, trésorerie, fenêtre des comptes rendus, commandes, statistiques, audit, API, proxy.
+Critère de « fait » : les huit suites passent (npm run test:*).","Terminé","High","Socle","","Socle & données","Semaine 37 (07/09-13/09)","5","2026-09-07","2026-09-13","qualite","dev","",""
+"Story","Alignement de la paie sur le format de référence du directeur","Objectif : montants et présentation identiques au franc près (Total 1, Total 2, TDL, RAV, IRPP annuel).
+Critère de « fait » : deux cas de référence fournis par le directeur vérifiés par les tests.","Terminé","Highest","Socle","","Socle & données","Semaine 37 (07/09-13/09)","8","2026-09-07","2026-09-13","paie","dev","",""
+"Story","Mise en ligne : dépôt GitHub, backend Convex, frontend Vercel","Objectif : la plateforme est consultable depuis un lien, sans installation.
+Critère de « fait » : déploiement accessible, liens profonds réécrits, variable VITE_CONVEX_URL en place.","Terminé","High","Socle","","Socle & données","Semaine 37 (07/09-13/09)","3","2026-09-07","2026-09-13","infra","dev","",""
+"Story","API d'export financier et proxy Node (IP, clé, quota)","Objectif : exposer le grand livre journalier aux systèmes tiers sans exposer le backend.
+Critère de « fait » : GET /api/financial contrôlé des deux côtés, tests test:api et test:proxy au vert.","Terminé","Medium","Socle","","Socle & données","Semaine 37 (07/09-13/09)","5","2026-09-07","2026-09-13","backend","api","dev",""
+"Story","Comparer réellement le barème avec la source officielle","Objectif : aujourd'hui le contrôle vérifie seulement que la source répond.
+Critère de « fait » : écart détecté et signalé dans le journal ; proposition de nouvelle version au DG.
+Dépend de : choix de la source officielle à surveiller.","À faire","Low","Socle","","Socle & données","","5","","","backend","paie","dev",""
+"Story","Agrégats mensuels stockés pour l'audit au-delà de 24 mois","Objectif : l'horizon des séries d'audit est plafonné à 24 mois car chaque mois est recalculé à l'appel.
+Critère de « fait » : table d'agrégats alimentée à la clôture, séries pluriannuelles et agrégation par trimestre dans les graphes.","À faire","Low","Socle","","Socle & données","","8","","","backend","audit","dev",""
+"Story","Récapitulatif salaires : synthèse et volet, grille en mode persistant","Objectif : saisir 18 colonnes sans perdre le fil ; option C par défaut, « Rendre les champs persistants » bascule sur la grille.
+Critère de « fait » : écran livré, formalisme des chiffres appliqué, actions fiche employé disponibles.","Terminé","High","Paie","","Paie automatisée","Semaine 38 (14/09-20/09)","5","2026-09-14","2026-09-20","front","paie","dev",""
+"Story","Liste des salaires : écran et impression A4","Objectif : « Récapitulatif général salaire et primes perçus », net dans la colonne de la société.
+Critère de « fait » : écran sur la charte, feuille A4 imprimable, coquille masquée à l'impression.","Terminé","High","Paie","","Paie automatisée","Semaine 38 (14/09-20/09)","3","2026-09-14","2026-09-20","front","paie","document","dev"
+"Story","Courrier de paie : destinataires, modèle, aperçu, envoi confirmé","Objectif : une lettre et un bulletin par salarié, imprimables ou envoyés en PDF.
+Critère de « fait » : table des destinataires, modèle de lettre, aperçu par employé, journal des envois.","Terminé","High","Paie","","Paie automatisée","Semaine 38 (14/09-20/09)","5","2026-09-14","2026-09-20","front","paie","dev",""
+"Story","Planning des absences : saisie en série, soldes et jours travaillés","Objectif : les absences non payées alimentent la paie du mois sans double saisie.
+Critère de « fait » : ajout et modification d'absence, synchronisation de la paie, onglet soldes de congés.","Terminé","High","Paie","","Paie automatisée","Semaine 38 (14/09-20/09)","5","2026-09-14","2026-09-20","front","paie","dev",""
+"Story","Primes & retenues (paie) : saisie en série et libellés explicites","Objectif : distinguer les primes de paie des primes médecins (hors paie).
+Critère de « fait » : écran renommé, ligne de saisie permanente, modification et suppression confirmées.","Terminé","Medium","Paie","","Paie automatisée","Semaine 38 (14/09-20/09)","3","2026-09-14","2026-09-20","front","paie","dev",""
+"Story","Archives de paie : mois clôturés, bulletins figés, PDF","Objectif : retrouver, prévisualiser, télécharger ou ré-imprimer un bulletin passé.
+Critère de « fait » : tableau des mois, volet des bulletins du mois, aperçu et téléchargement PDF.","Terminé","Medium","Paie","","Paie automatisée","Semaine 38 (14/09-20/09)","5","2026-09-14","2026-09-20","front","paie","dev",""
+"Story","Barème : versions en tableau, écarts, nouvelle version confirmée","Objectif : lire les taux applicables et créer une version datée sans se tromper.
+Critère de « fait » : détail par famille de taux, ancienne valeur barrée quand elle change, validation avant enregistrement.","Terminé","Medium","Paie","","Paie automatisée","Semaine 38 (14/09-20/09)","5","2026-09-14","2026-09-20","front","paie","dev",""
+"Story","Employés : saisie en série et fiche partagée avec le récapitulatif","Objectif : créer et modifier un effectif sans quitter l'écran.
+Critère de « fait » : ligne de saisie permanente, fiche employé commune aux deux écrans, import CSV conservé.","Terminé","Medium","Paie","","Paie automatisée","Semaine 38 (14/09-20/09)","3","2026-09-14","2026-09-20","front","paie","dev",""
+"Story","Bulletins du mois : récapitulatif-sommaire, aperçu A4, clôture confirmée","Objectif : voir tous les bulletins d'un mois et imprimer soit tout, soit un seul.
+Critère de « fait » : tableau récapitulatif cliquable, aperçu A4 du salarié choisi, impression = récapitulatif puis un bulletin par page, clôture par mot-clé.","Terminé","High","Paie","","Paie automatisée","S1 (21/09-26/09)","5","2026-09-21","2026-09-26","front","paie","dev",""
+"Task","Génération des PDF d'archives explicite et confirmée","Objectif : le compteur « PDF (n) » ressemblait à un badge et lançait la génération au clic.
+Critère de « fait » : action « Générer les PDF manquants (n) » avec confirmation ; mutation interne de remise à zéro pour rejouer.","Terminé","Medium","Paie","","Paie automatisée","Semaine 38 (14/09-20/09)","2","2026-09-14","2026-09-20","front","paie","dev",""
+"Story","Interventions : file de traitement et volet de détail","Objectif : traiter les demandes sans perdre le contexte.
+Critère de « fait » : liste à gauche, détail ancré à droite, workflow et photos conservés.","Terminé","Medium","Exploitation","","Exploitation & activité","Semaine 38 (14/09-20/09)","5","2026-09-14","2026-09-20","front","dev","",""
+"Story","Commandes : tableau sur la charte et comparaison automatique","Objectif : comparer une commande à la précédente du même type.
+Critère de « fait » : tableau à défilement intégré, lignes ajoutées / retirées / modifiées, workflow de validation.","Terminé","Medium","Exploitation","","Exploitation & activité","Semaine 38 (14/09-20/09)","3","2026-09-14","2026-09-20","front","dev","",""
+"Story","Documents : tableau et cartes, dépôt avec extraction des métadonnées","Objectif : archiver et retrouver une pièce, avec un accès par objet (niveau, code, confidentiel).
+Critère de « fait » : deux vues, dépôt avec extraction IA ou repli heuristique, téléchargement contrôlé.","Terminé","Medium","Exploitation","","Exploitation & activité","Semaine 38 (14/09-20/09)","3","2026-09-14","2026-09-20","front","dev","",""
+"Story","Comptes rendus : fenêtre de soumission, score, vue superviseur","Objectif : un compte rendu par membre et par jour, 1 point dans la fenêtre.
+Critère de « fait » : espace du membre, taux de soumission de l'équipe, validation éditoriale.","Terminé","Medium","Exploitation","","Exploitation & activité","Semaine 38 (14/09-20/09)","3","2026-09-14","2026-09-20","front","dev","",""
+"Story","Caisse & primes médecins : deux onglets au lieu de huit","Objectif : saisir la caisse du jour et les primes sans huit clics.
+Critère de « fait » : deux onglets, saisie en série, graphes à côté des chiffres, barre latérale repliée pendant la saisie.","Terminé","Medium","Exploitation","","Exploitation & activité","Semaine 38 (14/09-20/09)","5","2026-09-14","2026-09-20","front","dev","",""
+"Story","Tableau de bord : bannière d'accueil, tuiles et raccourcis par rôle","Objectif : la vitrine de la plateforme, adaptée au niveau du membre.
+Critère de « fait » : bannière, tuiles KPI, à-faire du jour, graphes ; chaque bloc conditionné au niveau.","Terminé","High","Exploitation","","Exploitation & activité","S1 (21/09-26/09)","5","2026-09-21","2026-09-26","front","dev","",""
+"Story","Aperçu en lecture seule d'un compte rendu (superviseur)","Objectif : le responsable doit pouvoir lire un compte rendu depuis les actions de la ligne.
+Critère de « fait » : bouton Aperçu, contenu non modifiable, Valider / Rouvrir à portée.","Terminé","Medium","Exploitation","","Exploitation & activité","S1 (21/09-26/09)","2","2026-09-21","2026-09-26","front","dev","",""
+"Story","Aperçu en lecture seule d'un document","Objectif : lire un document sans droit de téléchargement.
+Critère de « fait » : bouton Aperçu dès le droit de voir ; PDF, images et fichiers texte affichés ; code d'accès appliqué ; mutation apercuUrl côté serveur.","Terminé","Medium","Exploitation","","Exploitation & activité","S1 (21/09-26/09)","3","2026-09-21","2026-09-26","front","backend","dev",""
+"Task","Unifier les tuiles KPI des cinq écrans refondus en parallèle","Objectif : tableau de bord, financier, commandes, documents et comptes rendus utilisent des tuiles faites main.
+Critère de « fait » : une seule tuile (GrilleTuiles / Tuile) dans toute la plateforme.","À faire","Medium","Exploitation","","Exploitation & activité","S2 (29/09-03/10)","3","2026-09-29","2026-10-03","front","dette","dev",""
+"Task","Retirer le CSS hérité (legacy.css)","Objectif : 529 lignes de styles d'avant la refonte encore chargées.
+Critère de « fait » : fichier vide puis supprimé, import retiré, aucune régression visuelle.","À faire","Low","Exploitation","","Exploitation & activité","S3 (06/10-10/10)","2","2026-10-06","2026-10-10","front","dette","dev",""
+"Story","Récapitulatif financier : cockpit bicolonne et huit cartes de solde","Objectif : saisir la journée sans faire défiler la page.
+Critère de « fait » : synthèse à gauche, saisie à droite, 8 cartes KPI sur deux lignes, sélecteur de caisses en grille.","Terminé","High","Finances","","Finances & grand livre","Semaine 38 (14/09-20/09)","8","2026-09-14","2026-09-20","front","finances","dev",""
+"Story","Clôture financière mensuelle et verrou de journée","Objectif : figer un mois et empêcher deux saisies simultanées.
+Critère de « fait » : journées immuables après clôture, verrou par membre avec expiration, purge hebdomadaire.","Terminé","High","Finances","","Finances & grand livre","Semaine 37 (07/09-13/09)","3","2026-09-07","2026-09-13","backend","finances","dev",""
+"Task","Durée d'expiration du verrou réglable depuis Paramètres","Objectif : la durée était une constante de code (15 min).
+Critère de « fait » : réglage « Fonctionnement », valeur par défaut inchangée.","Terminé","Low","Finances","","Finances & grand livre","S1 (21/09-26/09)","2","2026-09-21","2026-09-26","backend","dev","",""
+"Bug","Le solde de trésorerie s'affichait à tout membre connecté","Constaté en testant le compte « employé » : la requête financier.kpi ne contrôlait aucun niveau, et la tuile du tableau de bord n'était pas conditionnée.
+Corrigé : réservé au niveau du module /financier (5), côté serveur et à l'écran.","Terminé","High","Finances","","Finances & grand livre","S1 (21/09-26/09)","2","2026-09-21","2026-09-26","securite","dev","",""
+"Story","Authentification réelle (Convex Auth) : mot de passe et code e-mail","Objectif : la table users est à la fois l'identité et le registre des rôles.
+Critère de « fait » : session signée par le déploiement, inscription sans droits, compte pré-provisionné rattaché à la première connexion.","Terminé","Highest","Accès","","Accès, rôles & sécurité","Semaine 38 (14/09-20/09)","8","2026-09-14","2026-09-20","backend","securite","dev",""
+"Story","RBAC : fermeture des fonctions Convex publiques non contrôlées","Objectif : aucune requête ni mutation accessible sans niveau.
+Critère de « fait » : requireLevel sur chaque fonction métier, audit cloisonné.","Terminé","Highest","Accès","","Accès, rôles & sécurité","Semaine 38 (14/09-20/09)","5","2026-09-14","2026-09-20","backend","securite","dev",""
+"Story","RBAC : gardes de route côté front et écran d'attente","Objectif : taper une adresse à la main n'affiche plus un écran interdit.
+Critère de « fait » : chaque route enveloppée d'un Guard, écran « compte en attente d'autorisation », menu filtré.","Terminé","Highest","Accès","","Accès, rôles & sécurité","Semaine 38 (14/09-20/09)","5","2026-09-14","2026-09-20","front","securite","dev",""
+"Story","Membres & accès : file d'autorisation et pré-provisionnement en série","Objectif : le DG crée les comptes et accorde les accès depuis un seul écran.
+Critère de « fait » : fiche membre en dialogue, autorisation d'une inscription spontanée, saisie en série, garde-fou du dernier DG.","Terminé","High","Accès","","Accès, rôles & sécurité","Semaine 38 (14/09-20/09)","5","2026-09-14","2026-09-20","front","dev","",""
+"Story","Journal d'activité : fenêtre de temps, familles d'actions, export CSV","Objectif : qui a fait quoi, quand — consultable et exportable pour l'auditeur.
+Critère de « fait » : filtres cumulés, détail d'un événement, export de la sélection.","Terminé","Medium","Accès","","Accès, rôles & sécurité","Semaine 38 (14/09-20/09)","5","2026-09-14","2026-09-20","front","dev","",""
+"Story","Fiche API : état, codes de réponse, proxy, derniers appels","Objectif : documentation vivante pour l'intégrateur, surveillance pour le DG.
+Critère de « fait » : requêtes copiables, codes expliqués, 20 derniers appels, clé jamais affichée.","Terminé","Low","Accès","","Accès, rôles & sécurité","Semaine 38 (14/09-20/09)","3","2026-09-14","2026-09-20","front","api","dev",""
+"Story","Retirer le niveau 6 (DA2) et créer le super administrateur (niveau 8)","Objectif : aucun droit ne distinguait DA2 de DA1 ; le technique doit sortir de la portée du DG.
+Critère de « fait » : rbac.ts à jour, seeds et fiche API au niveau 8, compte « dev » passé super administrateur.
+Décision du propriétaire du 21/09/2026.","Terminé","High","Accès","","Accès, rôles & sécurité","S1 (21/09-26/09)","5","2026-09-21","2026-09-26","backend","securite","dev",""
+"Story","Attribution de rôle bornée au niveau de l'auteur","Objectif : nul ne peut attribuer un rôle au-dessus du sien ni modifier un membre au-dessus de lui.
+Critère de « fait » : contrôle serveur, rôles hors de portée verrouillés à l'écran, changement de rôle directement dans la liste.","Terminé","High","Accès","","Accès, rôles & sécurité","S1 (21/09-26/09)","3","2026-09-21","2026-09-26","backend","front","securite","dev"
+"Story","Écran de connexion : image de fond, modale, e-mail ou téléphone","Objectif : une entrée claire, deux modes au choix, indicatif du pays pré-rempli comme sur WhatsApp.
+Critère de « fait » : /connexion (alias /login), formulaire adapté au mode choisi, erreur unique, pas d'inscription ni d'OTP à l'écran.","Terminé","Highest","Accès","","Accès, rôles & sécurité","S1 (21/09-26/09)","5","2026-09-21","2026-09-26","front","securite","dev",""
+"Story","Téléphone avec indicatif obligatoire partout","Consigne transverse du propriétaire (21/09/2026) consignée dans DECISIONS.md.
+Objectif : le numéro sert d'identifiant de connexion et ne doit pas être ambigu.
+Critère de « fait » : lib/telephone.ts (validation, normalisation +237…), composant ChampTelephone réutilisé dans Membres et à la connexion, unicité vérifiée.","Terminé","High","Accès","","Accès, rôles & sécurité","S1 (21/09-26/09)","3","2026-09-21","2026-09-26","front","backend","dev",""
+"Task","Couper AUTH_DEV_BYPASS sur le déploiement","Objectif : le lien public donnait les droits de direction à quiconque.
+Critère de « fait » : variable à false, connexion obligatoire partout, vérifié avec un navigateur sans session.","Terminé","Highest","Accès","","Accès, rôles & sécurité","S1 (21/09-26/09)","1","2026-09-21","2026-09-26","securite","infra","dev",""
+"Task","Créer huit comptes de test, un par rôle","Objectif : permettre la recette par rôle.
+Critère de « fait » : comptes <role>.test@poitiers.local avec mot de passe et numéro, fiche PDF acces-test.pdf pour les testeurs.","Terminé","High","Accès","","Accès, rôles & sécurité","S1 (21/09-26/09)","2","2026-09-21","2026-09-26","recette","dev","",""
+"Bug","archiverPdfs était une action publique sans contrôle de niveau","N'importe quel appelant authentifié pouvait déclencher la génération des PDF d'un mois.
+Corrigé : niveau 4 exigé, variante interne pour la génération planifiée à la clôture.","Terminé","High","Accès","","Accès, rôles & sécurité","S1 (21/09-26/09)","1","2026-09-21","2026-09-26","securite","dev","",""
+"Bug","JWKS invalide : aucune session réelle ne pouvait s'ouvrir","La variable JWKS du déploiement avait perdu ses guillemets (JSON invalide) : toute connexion réelle échouait sur « Auth provider discovery failed », masqué jusqu'ici par le mode développement.
+Corrigé : variable redéfinie, connexions vérifiées par e-mail et par téléphone.","Terminé","Highest","Accès","","Accès, rôles & sécurité","S1 (21/09-26/09)","2","2026-09-21","2026-09-26","securite","infra","dev",""
+"Bug","Une adresse inconnue affichait une page blanche","Le routeur n'avait pas de page « introuvable » : /login et toute adresse erronée donnaient un écran vide.
+Corrigé : alias /login vers /connexion et page « Cette page n'existe pas » avec retour au tableau de bord.","Terminé","Medium","Accès","","Accès, rôles & sécurité","S1 (21/09-26/09)","1","2026-09-21","2026-09-26","front","dev","",""
+"Task","Changer le mot de passe du super administrateur","Objectif : le compte technique partage aujourd'hui le mot de passe commun des comptes de test.
+Critère de « fait » : mot de passe fort, connu du seul propriétaire, vérifié par une connexion.
+Butoir : 23/09/2026 (décision D-1 du plan).","À faire","Highest","Accès","","Accès, rôles & sécurité","S1 (21/09-26/09)","1","2026-09-21","2026-09-23","securite","proprietaire","",""
+"Task","Vérifier chaque compte de test un par un","Objectif : s'assurer que chaque rôle voit exactement ses écrans.
+Critère de « fait » : les huit comptes ouverts successivement, menu et gardes conformes à la matrice, aucune anomalie ouverte.","À tester","High","Accès","","Accès, rôles & sécurité","S1 (21/09-26/09)","1","2026-09-21","2026-09-26","recette","dev","",""
+"Story","Arbitrer les niveaux exacts de chaque rôle avec les spécialistes","Objectif : comptable, DAF et RH n'ont pas encore été entendus ; la matrice actuelle est provisoire.
+Critère de « fait » : un niveau validé par son titulaire pour chaque rôle, reporté dans convex/rbac.ts, matrice et documentation à jour.
+Butoir : 02/10/2026 (décision D-5 du plan).","À faire","High","Accès","","Accès, rôles & sécurité","S2 (29/09-03/10)","5","2026-09-29","2026-10-02","securite","proprietaire","",""
+"Task","Relever la politique de mot de passe à 10 caractères","Objectif : seuil provisoire de 8 caractères retenu pour la mise en service.
+Critère de « fait » : refus d'un mot de passe faible avec un message clair, messages de connexion relus.","À faire","Medium","Accès","","Accès, rôles & sécurité","S2 (29/09-03/10)","2","2026-09-29","2026-10-03","securite","dev","",""
+"Story","Réinitialisation de mot de passe (« mot de passe oublié »)","Objectif : aujourd'hui un mot de passe perdu se règle par le DG ou en console.
+Critère de « fait » : parcours de réinitialisation par code e-mail, journalisé.
+Dépend de : compte Resend et domaine vérifié.","À faire","Medium","Accès","","Accès, rôles & sécurité","","5","","","securite","dev","",""
+"Story","Maquette du bulletin refondu, pour validation","Objectif : faire valider la mise en page avant de développer.
+Critère de « fait » : maquette interactive (sept zones expliquées, état validé / provisoire, rendu actuel en regard) validée par le propriétaire le 21/09.","Terminé","High","Documents","","Documents imprimables","S1 (21/09-26/09)","3","2026-09-21","2026-09-26","document","design","dev",""
+"Story","Bulletin de paie : écran et impression sur les briques de document","Objectif : même charte que la liste des salaires et le courrier, sans changer une formule.
+Critère de « fait » : sept zones, liste codée des rubriques inchangée, net en bleu sceau, filigrane PROVISOIRE tant que le mois est ouvert ; tient sur une A4.","Terminé","Highest","Documents","","Documents imprimables","S1 (21/09-26/09)","8","2026-09-21","2026-09-26","document","paie","dev",""
+"Story","PDF du bulletin (pdf-lib) aligné sur la refonte","Objectif : le PDF archivé et envoyé doit être identique au bulletin à l'écran.
+Critère de « fait » : rendu trait pour trait, vérifié sur un PDF réellement généré depuis les archives.","Terminé","High","Documents","","Documents imprimables","S1 (21/09-26/09)","5","2026-09-21","2026-09-26","document","paie","dev",""
+"Bug","Les PDF archivés recevaient un bulletin appauvri","Les snapshots envoyés au générateur de PDF ne portaient ni période, ni date de paiement, ni validation, ni détails de calcul, ni NIU/CNPS employeur.
+Corrigé : la forme unifiée du bulletin (celle de l'écran et du courrier) est passée au générateur ; PDF de juillet régénérés.","Terminé","High","Documents","","Documents imprimables","S1 (21/09-26/09)","2","2026-09-21","2026-09-26","document","paie","dev",""
+"Task","Remettre au directeur le jeu d'impression (3 bulletins, liste, courrier)","Objectif : permettre la relecture papier.
+Critère de « fait » : documents imprimés remis avec une fiche de relecture en cinq points.","En cours","Highest","Documents","","Documents imprimables","S1 (21/09-26/09)","1","2026-09-21","2026-09-24","document","dev","",""
+"Task","Validation papier du bulletin par le directeur","Objectif : arrêter la forme du document qui fait foi.
+Critère de « fait » : bulletin signé, ou liste d'écarts renvoyée.
+Butoir : 25/09/2026 (décision D-2 du plan).","À tester","Highest","Documents","","Documents imprimables","S1 (21/09-26/09)","2","2026-09-21","2026-09-25","document","directeur","",""
+"Task","Corrections issues de la validation papier","Objectif : traiter les écarts relevés par le directeur.
+Critère de « fait » : écarts corrigés, nouvelle impression validée.
+Dépend de : validation papier du bulletin.","À faire","High","Documents","","Documents imprimables","S1 (21/09-26/09)","2","2026-09-21","2026-09-26","document","dev","",""
+"Task","Recette d'impression comparée avant / après sur les trois documents","Objectif : vérifier qu'aucune régression ne s'est glissée dans les documents papier.
+Critère de « fait » : impressions avant / après archivées pour bulletin, liste des salaires et courrier.","À tester","Medium","Documents","","Documents imprimables","S3 (06/10-10/10)","2","2026-10-06","2026-10-10","document","recette","dev",""
+"Story","Paramètres : six sections et un seul enregistrement","Objectif : rassembler tout ce qui se règle une fois.
+Critère de « fait » : entreprise & documents (avec aperçu de l'en-tête imprimé), paie & congés, courrier & e-mail, fonctionnement, rôles & accès, déploiement ; compteur de modifications, validation partagée, enregistrement journalisé.","Terminé","High","Paramètres","","Paramètres & réglages","S1 (21/09-26/09)","8","2026-09-21","2026-09-26","front","dev","",""
+"Story","Sortir du code les réglages de fonctionnement de l'ERP","Objectif : fenêtre des comptes rendus, verrou financier, envoi réel, IA documents, PDF à la clôture, jours de base, plafond de saisie étaient des constantes enfouies.
+Critère de « fait » : lib/reglages.ts, valeurs par défaut = anciennes constantes, câblage vérifié module par module.","Terminé","High","Paramètres","","Paramètres & réglages","S1 (21/09-26/09)","5","2026-09-21","2026-09-26","backend","dev","",""
+"Story","Matrice « Rôles & accès » dérivée du code","Objectif : le DG doit voir ce que chaque rôle ouvre, sans lire le code.
+Critère de « fait » : matrice droits × rôles générée depuis rbac.ts, fiches de rôles, règles transverses ; lecture seule.","Terminé","High","Paramètres","","Paramètres & réglages","S1 (21/09-26/09)","3","2026-09-21","2026-09-26","front","securite","dev",""
+"Story","Onglet Déploiement réservé au super administrateur","Objectif : savoir quelles clés sont configurées sans jamais montrer leur valeur.
+Critère de « fait » : liste des variables avec leur rôle et la conséquence de leur absence ; niveau 8 exigé côté serveur.","Terminé","Medium","Paramètres","","Paramètres & réglages","S1 (21/09-26/09)","3","2026-09-21","2026-09-26","front","securite","dev",""
+"Story","Écrire le cahier de recette final","Objectif : un scénario par écran et par rôle, avec les attendus du propriétaire.
+Critère de « fait » : cahier publié (page en ligne + PDF), colonnes attendu / constaté / verdict, un scénario par ligne de la matrice des rôles.
+Dépend de : attendus de la recette (décision D-3).","À faire","Highest","Recette","","Recette & qualité","S2 (29/09-03/10)","8","2026-09-29","2026-10-03","recette","dev","proprietaire",""
+"Task","Fournir les attendus de la recette, écran par écran","Objectif : ce que chaque rôle doit pouvoir faire et ne pas faire, du point de vue métier.
+Critère de « fait » : attendus transmis au développeur.
+Butoir : 26/09/2026 (décision D-3 du plan).","À faire","Highest","Recette","","Recette & qualité","S1 (21/09-26/09)","3","2026-09-21","2026-09-26","recette","proprietaire","",""
+"Task","Constituer les données de recette réelles","Objectif : tester sur des chiffres que les utilisateurs reconnaissent.
+Critère de « fait » : effectif réel importé (CSV), barème daté, un mois de paie complet, soldes J0 du grand livre.
+Butoir : 26/09/2026 (décision D-4 du plan).","À faire","High","Recette","","Recette & qualité","S1 (21/09-26/09)","5","2026-09-21","2026-09-26","recette","proprietaire","dev",""
+"Story","Recette — rôle Employé","Objectif : parcourir tous les écrans ouverts à ce rôle avec son compte de test.
+Compte : employe.test@poitiers.local (niveau 1).
+Critère de « fait » : chaque scénario du cahier a un verdict ; le menu ne montre que les écrans du rôle ; une adresse interdite tapée à la main est refusée ; anomalies consignées avec capture.","À tester","High","Recette","","Recette & qualité","S2 (29/09-03/10)","2","2026-09-29","2026-10-03","recette","testeur","",""
+"Story","Recette — rôle Chef d'équipe","Objectif : parcourir tous les écrans ouverts à ce rôle avec son compte de test.
+Compte : chef.test@poitiers.local (niveau 2).
+Critère de « fait » : chaque scénario du cahier a un verdict ; le menu ne montre que les écrans du rôle ; une adresse interdite tapée à la main est refusée ; anomalies consignées avec capture.","À tester","High","Recette","","Recette & qualité","S2 (29/09-03/10)","2","2026-09-29","2026-10-03","recette","testeur","",""
+"Story","Recette — rôle Comptable","Objectif : parcourir tous les écrans ouverts à ce rôle avec son compte de test.
+Compte : comptable.test@poitiers.local (niveau 3).
+Critère de « fait » : chaque scénario du cahier a un verdict ; le menu ne montre que les écrans du rôle ; une adresse interdite tapée à la main est refusée ; anomalies consignées avec capture.","À tester","High","Recette","","Recette & qualité","S2 (29/09-03/10)","2","2026-09-29","2026-10-03","recette","testeur","",""
+"Story","Recette — rôle Gestionnaire RH","Objectif : parcourir tous les écrans ouverts à ce rôle avec son compte de test.
+Compte : rh.test@poitiers.local (niveau 4).
+Critère de « fait » : chaque scénario du cahier a un verdict ; le menu ne montre que les écrans du rôle ; une adresse interdite tapée à la main est refusée ; anomalies consignées avec capture.","À tester","High","Recette","","Recette & qualité","S2 (29/09-03/10)","2","2026-09-29","2026-10-03","recette","testeur","",""
+"Story","Recette — rôle Directeur Administratif (DAF)","Objectif : parcourir tous les écrans ouverts à ce rôle avec son compte de test.
+Compte : daf.test@poitiers.local (niveau 5).
+Critère de « fait » : chaque scénario du cahier a un verdict ; le menu ne montre que les écrans du rôle ; une adresse interdite tapée à la main est refusée ; anomalies consignées avec capture.","À tester","High","Recette","","Recette & qualité","S2 (29/09-03/10)","2","2026-09-29","2026-10-03","recette","testeur","",""
+"Story","Recette — rôle Directeur Général","Objectif : parcourir tous les écrans ouverts à ce rôle avec son compte de test.
+Compte : dg.test@poitiers.local (niveau 7).
+Critère de « fait » : chaque scénario du cahier a un verdict ; le menu ne montre que les écrans du rôle ; une adresse interdite tapée à la main est refusée ; anomalies consignées avec capture.","À tester","High","Recette","","Recette & qualité","S2 (29/09-03/10)","2","2026-09-29","2026-10-03","recette","testeur","",""
+"Story","Recette — rôle Super administrateur","Objectif : parcourir tous les écrans ouverts à ce rôle avec son compte de test.
+Compte : superadmin.test@poitiers.local (niveau 8).
+Critère de « fait » : chaque scénario du cahier a un verdict ; le menu ne montre que les écrans du rôle ; une adresse interdite tapée à la main est refusée ; anomalies consignées avec capture.","À tester","High","Recette","","Recette & qualité","S2 (29/09-03/10)","2","2026-09-29","2026-10-03","recette","testeur","",""
+"Story","Recette — rôle Auditeur externe","Objectif : parcourir tous les écrans ouverts à ce rôle avec son compte de test.
+Compte : auditeur.test@poitiers.local (niveau hors hiérarchie).
+Critère de « fait » : chaque scénario du cahier a un verdict ; le menu ne montre que les écrans du rôle ; une adresse interdite tapée à la main est refusée ; anomalies consignées avec capture.","À tester","High","Recette","","Recette & qualité","S2 (29/09-03/10)","2","2026-09-29","2026-10-03","recette","testeur","",""
+"Task","Corriger les anomalies de recette — lot 1 (mercredi)","Objectif : traiter au fil de l'eau ce que la campagne remonte.
+Critère de « fait » : anomalies bloquantes fermées le jour même.","À faire","High","Recette","","Recette & qualité","S2 (29/09-03/10)","5","2026-09-29","2026-10-01","recette","dev","",""
+"Task","Corriger les anomalies de recette — lot 2 (vendredi)","Objectif : second lot de correction avant la semaine de mise en service.
+Critère de « fait » : aucune anomalie bloquante ouverte à la fin de S2.","À faire","High","Recette","","Recette & qualité","S2 (29/09-03/10)","5","2026-09-29","2026-10-03","recette","dev","",""
+"Task","Passe accessibilité : navigation clavier et contrastes","Objectif : l'application doit s'utiliser au clavier de bout en bout.
+Critère de « fait » : parcours clavier complet sur les écrans de saisie, contrastes vérifiés, attributs aria corrigés.","À tester","Medium","Recette","","Recette & qualité","S3 (06/10-10/10)","5","2026-10-06","2026-10-10","qualite","front","dev",""
+"Task","Passe mobile réelle (PWA installée sur téléphone)","Objectif : la saisie doit rester possible sur téléphone.
+Critère de « fait » : saisie mensuelle, comptes rendus et grand livre utilisables sur un téléphone réel, application installée.","À tester","Medium","Recette","","Recette & qualité","S3 (06/10-10/10)","5","2026-10-06","2026-10-10","qualite","front","dev",""
+"Story","Déploiement Convex de production, distinct du développement","Objectif : le lien public ne doit plus pointer sur le déploiement de travail.
+Critère de « fait » : variables posées (JWT, JWKS, SITE_URL, clés), npx convex deploy, Vercel branché dessus, mode développement absent.","À faire","Highest","Production","","Mise en production","S3 (06/10-10/10)","3","2026-10-06","2026-10-10","infra","dev","",""
+"Story","Domaine, HTTPS et proxy de l'API financière","Objectif : une adresse définitive et une API exposée derrière le proxy.
+Critère de « fait » : application servie sur le domaine, appel API de test passant par le proxy avec liste blanche d'IP.
+Butoir de la décision : 03/10/2026 (D-6).","À faire","High","Production","","Mise en production","S3 (06/10-10/10)","3","2026-10-06","2026-10-07","infra","proprietaire","dev",""
+"Story","Envoi d'e-mails réel (Resend, domaine vérifié)","Objectif : le courrier de paie part réellement, avec le PDF en pièce jointe.
+Critère de « fait » : clé posée, expéditeur sur un domaine vérifié, interrupteur « envoi réel » activé, courrier de test reçu dans une boîte réelle.
+Butoir de la décision : 03/10/2026 (D-7).","À faire","High","Production","","Mise en production","S3 (06/10-10/10)","3","2026-10-06","2026-10-07","infra","paie","proprietaire","dev"
+"Task","Sauvegardes planifiées et exercice de restauration","Objectif : pouvoir revenir en arrière après une erreur de saisie ou une panne.
+Critère de « fait » : sauvegardes planifiées, restauration réalisée et vérifiée sur un déploiement jetable, procédure écrite.","À faire","High","Production","","Mise en production","S3 (06/10-10/10)","3","2026-10-06","2026-10-10","infra","dev","",""
+"Task","Activer l'extraction des documents par IA","Objectif : aujourd'hui repli heuristique (titre = nom du fichier).
+Critère de « fait » : clé ANTHROPIC_API_KEY posée, extraction vérifiée sur un document de test.","À faire","Low","Production","","Mise en production","S3 (06/10-10/10)","1","2026-10-06","2026-10-10","infra","dev","",""
+"Task","Répétition de mise en service (jeudi)","Objectif : dérouler la bascule à blanc avant le jour J.
+Critère de « fait » : import réel, premier mois ouvert, comptes nominatifs créés, comptes de test désactivés, liste de contrôle signée.","À faire","Highest","Production","","Mise en production","S3 (06/10-10/10)","3","2026-10-06","2026-10-09","infra","dev","proprietaire",""
+"Task","Mise en service","Objectif : ouvrir la plateforme aux utilisateurs de la clinique.
+Critère de « fait » : application ouverte, comptes nominatifs actifs, rapport final publié.","À faire","Highest","Production","","Mise en production","S3 (06/10-10/10)","2","2026-10-06","2026-10-10","infra","dev","directeur",""
+"Story","Charte visuelle et skills de projet","Objectif : une seule identité visuelle sur tous les écrans.
+Critère de « fait » : palette Ocean Breeze, composants partagés, skills poitiers-ui-ux-system et flag-design-system (formalisme des chiffres, saisie en série, tableaux).","Terminé","High","Pilotage","","Pilotage & documentation","Semaine 38 (14/09-20/09)","3","2026-09-14","2026-09-20","design","dev","",""
+"Story","Plan d'avancement sur trois semaines","Objectif : fixer la mise en service et ce qui y mène.
+Critère de « fait » : plan en ligne et PDF — objectifs par semaine, tâches, responsables, critères de fait, sept décisions avec butoir, risques, indicateurs.","Terminé","High","Pilotage","","Pilotage & documentation","S1 (21/09-26/09)","3","2026-09-21","2026-09-26","pilotage","dev","",""
+"Story","Journal des décisions (DECISIONS.md)","Objectif : garder la trace de chaque consigne transverse et de l'endroit du code qui l'applique.
+Critère de « fait » : 14 décisions datées depuis le 17/09, à compléter à chaque nouvelle décision.","Terminé","Medium","Pilotage","","Pilotage & documentation","S1 (21/09-26/09)","2","2026-09-21","2026-09-26","pilotage","dev","",""
+"Story","Rapport de la semaine 36 (analyse) et version PowerPoint","Critère de « fait » : rapport publié et présenté au directeur.","Terminé","Medium","Pilotage","","Pilotage & documentation","Semaine 36 (31/08-06/09)","3","2026-08-31","2026-09-06","pilotage","dev","",""
+"Story","Rapport de la semaine du 7 septembre","Critère de « fait » : rapport publié (mise en ligne, alignement de la paie, cahier de recette révisé).","Terminé","Medium","Pilotage","","Pilotage & documentation","Semaine 37 (07/09-13/09)","2","2026-09-07","2026-09-13","pilotage","dev","",""
+"Story","Rapport de la semaine du 14 septembre (md, PDF, PowerPoint)","Critère de « fait » : rapport publié dans les trois formats, générateurs réutilisables pour les semaines suivantes.","Terminé","Medium","Pilotage","","Pilotage & documentation","S1 (21/09-26/09)","3","2026-09-21","2026-09-26","pilotage","dev","",""
+"Story","Fiche des accès de test (PDF)","Objectif : donner aux testeurs de quoi se connecter et quoi vérifier.
+Critère de « fait » : acces-test.pdf — huit comptes, e-mail et téléphone, ce que chaque rôle doit voir, six points de contrôle.","Terminé","Medium","Pilotage","","Pilotage & documentation","S1 (21/09-26/09)","1","2026-09-21","2026-09-26","recette","pilotage","dev",""
+"Story","Guide interactif de la plateforme","Objectif : expliquer rôles et calculs aux utilisateurs depuis l'application.
+Critère de « fait » : guide accessible depuis l'en-tête.","Terminé","Low","Pilotage","","Pilotage & documentation","S1 (21/09-26/09)","3","2026-09-21","2026-09-26","pilotage","dev","",""
+"Task","Backlog Jira du projet au format CSV","Objectif : donner à l'administrateur Jira un fichier importable couvrant tout le travail.
+Critère de « fait » : jira-backlog-coworking.csv — epics, stories, tâches et bugs, statuts, sprints datés, points et butoirs.","Terminé","Medium","Pilotage","","Pilotage & documentation","S1 (21/09-26/09)","2","2026-09-21","2026-09-26","pilotage","dev","",""
+"Task","Rapport de la semaine du 21 septembre","Critère de « fait » : rapport publié le vendredi, section « suivi hebdomadaire » du plan mise à jour.","À faire","Medium","Pilotage","","Pilotage & documentation","S1 (21/09-26/09)","2","2026-09-21","2026-09-26","pilotage","dev","",""
+"Task","Rapport de la semaine du 28 septembre et bilan de recette","Critère de « fait » : rapport publié, scénarios passés / échoués comptés.","À faire","Medium","Pilotage","","Pilotage & documentation","S2 (29/09-03/10)","2","2026-09-29","2026-10-03","pilotage","dev","",""
+"Story","Passation : guide utilisateur par rôle et procédure de secours","Objectif : la clinique doit pouvoir créer un compte et attribuer un rôle sans aide.
+Critère de « fait » : une page par rôle, procédure de secours (rôle restauré en console), journal des décisions et documentation du dépôt à jour.","À faire","High","Pilotage","","Pilotage & documentation","S3 (06/10-10/10)","5","2026-10-06","2026-10-10","pilotage","dev","",""
+"Task","Rapport final de mise en service","Critère de « fait » : rapport publié le jour de la mise en service, avec l'état des indicateurs.","À faire","Medium","Pilotage","","Pilotage & documentation","S3 (06/10-10/10)","2","2026-10-06","2026-10-10","pilotage","dev","",""
