@@ -76,8 +76,8 @@ export function Tuile({
       <div className="mt-2.5 flex items-baseline justify-between gap-2">
         <div
           className={cn(
-            "font-bold tabular-nums tracking-tight text-encre",
-            compact ? "text-base sm:text-lg" : "text-2xl sm:text-3xl"
+            "min-w-0 break-words font-bold tabular-nums tracking-tight text-encre",
+            compact ? "text-base sm:text-lg" : "text-xl sm:text-3xl"
           )}
         >
           {valeur === undefined ? (
@@ -122,7 +122,8 @@ export function GrilleTuiles({
   return (
     <div
       className={cn(
-        "grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))]",
+        // Téléphone : deux tuiles par ligne (150 px mini) plutôt qu'une pile d'un écran de haut avant le contenu.
+        "grid gap-2.5 sm:gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))] sm:[grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))]",
         className
       )}
     >

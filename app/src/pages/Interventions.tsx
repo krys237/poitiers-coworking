@@ -118,7 +118,7 @@ export function Interventions() {
 
       {/* Barre de file : onglets de statut, priorité, recherche, hauteur */}
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-filet bg-surface px-3 py-2 shadow-xs print:hidden">
-        <div role="tablist" aria-label="Filtrer par statut" className="flex items-center gap-1 rounded-xl border border-filet bg-slate-100/80 p-1">
+        <div role="tablist" aria-label="Filtrer par statut" className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-filet bg-slate-100/80 p-1">
           {(["toutes", ...ORDRE_STATUTS] as const).map((s) => {
             const actif = statut === s;
             const n = s === "toutes" ? toutes.length : compte(s);
@@ -129,7 +129,7 @@ export function Interventions() {
                 aria-selected={actif}
                 onClick={() => setStatut(s)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
+                  "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
                   actif ? "bg-ocean-profond text-white shadow-xs" : "text-encre-douce hover:bg-white hover:text-encre"
                 )}
               >

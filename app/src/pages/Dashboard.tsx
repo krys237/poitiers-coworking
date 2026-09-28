@@ -386,7 +386,7 @@ export function Dashboard() {
         {/* Colonne Gauche : Cockpit 2x2 + Graphique des Flux (8 colonnes sur 12) */}
         <div className="lg:col-span-8 space-y-6">
           {/* Grille 2x2 des 4 Tuiles Majeures */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
             {/* Tuile 1 (Vedette) : Chiffre d'Affaires du Mois */}
             {voit("/statistiques") && (
               <Tuile
