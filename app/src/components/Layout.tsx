@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { canAccess, Role } from "../../convex/rbac";
+import { Role } from "../../convex/rbac";
 import { Header } from "./Header";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -75,7 +75,7 @@ const NAV: { grp: string; items: NavItem[] }[] = [
     items: [
       { to: "/employes", label: "Employés", perm: "/employes", icon: Users },
       // `perm` reprend exactement la clé de la route correspondante dans App.tsx :
-      // le menu et le garde d'accès lisent ainsi la même ligne de `NIVEAU_MODULE`.
+      // le menu et le garde d'accès lisent ainsi le même droit (`me.droits`, rbac.MODULES).
       { to: "/paie/saisie", label: "Récapitulatif salaires", perm: "/paie/saisie", icon: TableProperties },
       { to: "/paie/liste", label: "Liste des salaires", perm: "/paie/liste", icon: ListOrdered },
       { to: "/paie/bulletins", label: "Bulletins du mois", perm: "/paie/bulletins", icon: FileCheck2 },
@@ -99,7 +99,7 @@ const NAV: { grp: string; items: NavItem[] }[] = [
 ];
 
 function SidebarContent({
-  role,
+  role: _role,
   me,
   onItemClick,
   signOut,
@@ -148,7 +148,7 @@ function SidebarContent({
         <div className="flex-1 overflow-y-auto px-3 py-3.5">
           <nav className="space-y-4">
             {NAV.map((g) => {
-              const items = g.items.filter((i) => canAccess(role, i.perm));
+              const items = g.items.filter((i) => !!me?.droits?.[i.perm]?.voir);
               if (!items.length) return null;
               return (
                 <div key={g.grp} className="space-y-1">
@@ -242,7 +242,7 @@ function SidebarContent({
 
 /** Barre latérale repliée : mêmes entrées, même filtrage d'accès, icônes seules. */
 function RailLateral({
-  role,
+  role: _role,
   me,
   signOut,
   onDeplier,
@@ -252,7 +252,7 @@ function RailLateral({
   signOut: () => Promise<unknown>;
   onDeplier: () => void;
 }) {
-  const items = NAV.flatMap((g) => g.items).filter((i) => canAccess(role, i.perm));
+  const items = NAV.flatMap((g) => g.items).filter((i) => !!me?.droits?.[i.perm]?.voir);
   return (
     <div className="relative flex h-full flex-col justify-between overflow-hidden border-r border-blue-700/30 bg-gradient-to-b from-blue-600 via-[#0077b6] to-[#0077b6]">
       <div

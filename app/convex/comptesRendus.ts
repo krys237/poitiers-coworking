@@ -1,7 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireLevel } from "./lib/authz";
-import { NIVEAU, Role } from "./rbac";
+import { requireDroit, droitsDuMembre } from "./lib/authz";
 import { dateDouala, estDansFenetre, finFenetre, prochaineOuverture, pointsPour, heureDouala, type Fenetre } from "./lib/fenetre";
 import { lireReglages } from "./parametres";
 
@@ -21,14 +20,14 @@ function etatFenetre(f: Fenetre, now = new Date()) {
 export const monEspace = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireLevel(ctx, 1);
+    const user = await requireDroit(ctx, "/comptes-rendus");
     const fen = etatFenetre(await fenetreDe(ctx));
     const miens = (await ctx.db.query("comptesRendus").withIndex("by_auteur", (q) => q.eq("auteurId", user._id)).collect())
       .sort((a, b) => b.date.localeCompare(a.date));
     const score = miens.reduce((t, c) => t + c.points, 0);
     const duJour = miens.find((c) => c.date === fen.aujourdHui) ?? null;
     return {
-      fenetre: fen, score, superviseur: NIVEAU[user.role as Role] >= 2,
+      fenetre: fen, score, superviseur: (await droitsDuMembre(ctx, user))["/comptes-rendus"].faire,
       aujourdHui: duJour ? { ...duJour, heure: heure(duJour.soumisA) } : null,
       historique: miens.slice(0, 30).map((c) => ({ _id: c._id, date: c.date, heure: heure(c.soumisA), horsFenetre: c.horsFenetre, points: c.points, statut: c.statut, contenu: c.contenu })),
     };
@@ -39,7 +38,7 @@ export const monEspace = query({
 export const soumettre = mutation({
   args: { date: v.optional(v.string()), contenu: v.string() },
   handler: async (ctx, { date, contenu }) => {
-    const user = await requireLevel(ctx, 1);
+    const user = await requireDroit(ctx, "/comptes-rendus");
     const now = new Date();
     const jour = date ?? dateDouala(now);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(jour)) throw new Error("Date au format AAAA-MM-JJ.");
@@ -61,7 +60,7 @@ export const soumettre = mutation({
 export const vueSuperviseur = query({
   args: { date: v.optional(v.string()) },
   handler: async (ctx, { date }) => {
-    await requireLevel(ctx, 2);
+    await requireDroit(ctx, "/comptes-rendus", "faire");
     const jour = date ?? dateDouala();
     const membres = (await ctx.db.query("users").collect()).filter((u) => u.isActive);
     const duJour = await ctx.db.query("comptesRendus").withIndex("by_date", (q) => q.eq("date", jour)).collect();
@@ -89,7 +88,7 @@ export const vueSuperviseur = query({
 export const changerStatut = mutation({
   args: { compteRenduId: v.id("comptesRendus"), statut: STATUT },
   handler: async (ctx, { compteRenduId, statut }) => {
-    const user = await requireLevel(ctx, 2);
+    const user = await requireDroit(ctx, "/comptes-rendus", "faire");
     const c = await ctx.db.get(compteRenduId);
     if (!c) throw new Error("Compte rendu introuvable.");
     await ctx.db.patch(compteRenduId, { statut, valideParId: statut === "valide" ? user._id : undefined });

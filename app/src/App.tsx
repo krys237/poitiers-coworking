@@ -25,13 +25,13 @@ import { ApiReadme } from "./pages/ApiReadme";
 import { Bareme } from "./pages/Bareme";
 import { Charte } from "./pages/Charte";
 
-// Table des routes. `perm` est la clé de `NIVEAU_MODULE` (convex/rbac.ts) qui commande l'accès.
+// Table des routes. `perm` est la clé du module (convex/rbac.ts, `MODULES`) dont le droit VOIR commande l'accès.
 // Jusqu'ici le menu était filtré mais les routes ne l'étaient pas : taper une URL directement
 // affichait la page (les données, elles, restaient protégées par le serveur). Chaque route est
 // désormais enveloppée d'un `<Guard>`.
 //
-// AJOUT D'UN ÉCRAN : inscrire la route ici ET son niveau dans `NIVEAU_MODULE`. Une route sans
-// entrée dans la matrice est refusée à tout le monde, Directeur Général compris.
+// AJOUT D'UN ÉCRAN : inscrire la route ici ET le module dans `rbac.MODULES` (libellé, Voir/Faire, niveaux
+// par défaut). Une route sans module est refusée à tout le monde, Directeur Général compris.
 const ROUTES: { path: string; perm: string; element: JSX.Element }[] = [
   { path: "/", perm: "/", element: <Dashboard /> },
   { path: "/employes", perm: "/employes", element: <Employes /> },

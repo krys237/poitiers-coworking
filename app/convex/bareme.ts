@@ -1,7 +1,7 @@
 import { query, mutation, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
-import { requireLevel } from "./lib/authz";
+import { requireDroit } from "./lib/authz";
 import { journaliser } from "./lib/journal";
 import { BAREME_DEFAUT } from "./lib/paie";
 
@@ -21,7 +21,7 @@ export const pourPeriode = query({
 export const liste = query({
   args: {},
   handler: async (ctx) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/bareme");
     return await ctx.db.query("baremes").withIndex("by_effective").order("desc").collect();
   },
 });
@@ -37,7 +37,7 @@ const valeursV = v.object({
 export const upsert = mutation({
   args: { effectiveFrom: v.string(), valeurs: v.optional(valeursV), source: v.string() },
   handler: async (ctx, { effectiveFrom, valeurs, source }) => {
-    const me = await requireLevel(ctx, 7);
+    const me = await requireDroit(ctx, "/bareme", "faire");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom)) throw new Error("Date d'effet au format AAAA-MM-JJ.");
     const b = valeurs ?? BAREME_DEFAUT;
     const tranches = [...b.irppBrackets];
@@ -72,7 +72,7 @@ export const marquerControle = internalMutation({
 export const dernierControle = query({
   args: {},
   handler: async (ctx) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/bareme");
     const ev = await ctx.db.query("journalActivite").withIndex("by_action", (q) => q.eq("action", "bareme_controle")).order("desc").first();
     const actif = (await ctx.db.query("baremes").withIndex("by_effective").order("desc").collect()).find((b) => b.statut === "actif") ?? null;
     return { dernier: ev ? { date: ev.date, detail: ev.detail ?? "" } : null, sourceConfiguree: !!process.env.BAREME_SOURCE_URL, actif: actif ? { effectiveFrom: actif.effectiveFrom, controleLe: actif.controleLe ?? null, source: actif.source } : null };
@@ -83,7 +83,7 @@ export const dernierControle = query({
 export const verifierMaintenant = mutation({
   args: {},
   handler: async (ctx) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/bareme");
     await ctx.scheduler.runAfter(0, internal.bareme.controlerBaremeOfficiel, {});
     return { planifie: true };
   },

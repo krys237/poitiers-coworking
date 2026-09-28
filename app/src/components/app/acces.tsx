@@ -2,7 +2,7 @@ import * as React from "react";
 import { useQuery } from "convex/react";
 import { LockIcon } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
-import { canAccess, type Role } from "../../../convex/rbac";
+import { type Role } from "../../../convex/rbac";
 import { EtatVide } from "@/components/app/etat-vide";
 
 /**
@@ -52,7 +52,7 @@ export function NiveauRequis({
 }
 
 /**
- * Garde d'ecran complet : verifie la permission de route de `rbac.canAccess`.
+ * Garde d'ecran complet : verifie le droit VOIR du module (`me.droits`).
  * Sur refus, explique au lieu de rediriger en silence.
  */
 export function EcranProtege({
@@ -63,15 +63,15 @@ export function EcranProtege({
   permission: string;
   children: React.ReactNode;
 }) {
-  const { role, chargement } = useMoi();
+  const { moi, chargement } = useMoi();
   if (chargement) return null;
 
-  if (!canAccess(role, permission)) {
+  if (!moi?.droits?.[permission]?.voir) {
     return (
       <EtatVide icone={LockIcon} titre="Cet ecran ne vous est pas ouvert">
         Votre role ne donne pas acces a cette partie de la plateforme. Si vous
         pensez que c'est une erreur, demandez au directeur general de revoir vos
-        droits dans Membres.
+        droits dans Parametres → Roles & acces.
       </EtatVide>
     );
   }

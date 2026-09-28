@@ -107,7 +107,8 @@ export function Commandes() {
   const [texteCommentaire, setTexteCommentaire] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const niveau = me?.niveau ?? 0;
+  const peutValider = !!me?.droits?.["/commandes/validation"]?.faire;
+  const peutGerer = !!me?.droits?.["/commandes"]?.faire;
 
   const majLigne = (i: number, patch: Partial<Ligne>) =>
     setLignes((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
@@ -1129,7 +1130,7 @@ export function Commandes() {
 
                                       {detail.statut === "en_attente" && (
                                         <>
-                                          {niveau >= 5 ? (
+                                          {peutValider ? (
                                             <div className="space-y-3">
                                               {demandeRejet && (
                                                 <div className="space-y-1.5 p-3 rounded-xl bg-rose-50 border border-rose-200 animate-in fade-in">
@@ -1213,7 +1214,7 @@ export function Commandes() {
                                             <span>Commande validée le {fmtDate(detail.valideLe?.slice(0, 10) ?? "")}.</span>
                                           </div>
 
-                                          {niveau >= 3 && (
+                                          {peutGerer && (
                                             <Button
                                               size="sm"
                                               disabled={enTransition}

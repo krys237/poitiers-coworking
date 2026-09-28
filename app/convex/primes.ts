@@ -1,6 +1,6 @@
 import { query, mutation, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { requireLevel } from "./lib/authz";
+import { requireDroit } from "./lib/authz";
 
 const TYPE = v.union(v.literal("prime"), v.literal("charge"));
 
@@ -13,7 +13,7 @@ async function verifierOuvert(ctx: MutationCtx, periode: string) {
 export const liste = query({
   args: { periode: v.string() },
   handler: async (ctx, { periode }) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/paie/primes");
     const cloture = await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
     const employes = await ctx.db.query("employes").collect();
     const nomDe = new Map(employes.map((e) => [String(e._id), e.nom]));
@@ -41,7 +41,7 @@ export const liste = query({
 export const ajouter = mutation({
   args: { employeId: v.id("employes"), periode: v.string(), libelle: v.string(), montant: v.number(), type: TYPE, date: v.string() },
   handler: async (ctx, a) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/paie/primes", "faire");
     await verifierOuvert(ctx, a.periode);
     const libelle = a.libelle.trim();
     if (!libelle) throw new Error("Libellé requis.");
@@ -55,7 +55,7 @@ export const ajouter = mutation({
 export const modifier = mutation({
   args: { ligneId: v.id("primesCharges"), employeId: v.optional(v.id("employes")), libelle: v.optional(v.string()), montant: v.optional(v.number()), type: v.optional(TYPE), date: v.optional(v.string()) },
   handler: async (ctx, { ligneId, ...patch }) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/paie/primes", "faire");
     const l = await ctx.db.get(ligneId);
     if (!l) throw new Error("Ligne introuvable.");
     await verifierOuvert(ctx, l.periode);
@@ -71,7 +71,7 @@ export const modifier = mutation({
 export const supprimer = mutation({
   args: { ligneId: v.id("primesCharges") },
   handler: async (ctx, { ligneId }) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/paie/primes", "faire");
     const l = await ctx.db.get(ligneId);
     if (!l) return;
     await verifierOuvert(ctx, l.periode);

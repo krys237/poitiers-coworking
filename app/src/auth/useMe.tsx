@@ -7,7 +7,7 @@
 import { ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { NIVEAU, canAccess, Role } from "../../convex/rbac";
+import { NIVEAU, Role, type Action } from "../../convex/rbac";
 
 /**
  * Le membre courant.
@@ -28,11 +28,16 @@ export function useNiveau(): number {
   return NIVEAU[me.role as Role];
 }
 
-/** Le membre courant a-t-il accès à ce module ? (clé de `NIVEAU_MODULE`, ex. "/financier") */
-export function usePeut(module: string): boolean {
+/** Le membre courant peut-il VOIR (défaut) ou FAIRE dans ce module ? (clé de rbac.MODULES, ex. "/financier") */
+export function usePeut(module: string, action: Action = "voir"): boolean {
   const me = useMe();
   if (!me || me.enAttente) return false;
-  return canAccess(me.role as Role, module);
+  return !!me.droits?.[module]?.[action];
+}
+
+/** Affiche ses enfants seulement si le membre a le droit demandé sur le module. */
+export function SiDroit({ module, action = "faire", children, sinon = null }: { module: string; action?: Action; children: ReactNode; sinon?: ReactNode }) {
+  return <>{usePeut(module, action) ? children : sinon}</>;
 }
 
 /**

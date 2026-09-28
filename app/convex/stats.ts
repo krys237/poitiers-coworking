@@ -1,6 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireLevel } from "./lib/authz";
+import { requireDroit } from "./lib/authz";
 import { totalEspeces, chiffreAffaires, totauxCaisse, montantTotalPrime, CATEGORIES_PRIMES } from "./lib/stats";
 
 const CHAMPS_CAISSE = {
@@ -20,7 +20,7 @@ const moisPrecedents = (periode: string, n: number) => {
 export const caisse = query({
   args: { periode: v.string() },
   handler: async (ctx, { periode }) => {
-    await requireLevel(ctx, 3);
+    await requireDroit(ctx, "/statistiques");
     const lignes = (await ctx.db.query("statsCaisse").withIndex("by_periode", (q) => q.eq("periode", periode)).collect())
       .sort((a, b) => a.dateDebut.localeCompare(b.dateDebut))
       .map((l) => ({ ...l, totalEspeces: totalEspeces(l), chiffreAffaires: chiffreAffaires(l) }));
@@ -31,7 +31,7 @@ export const caisse = query({
 export const enregistrerLigne = mutation({
   args: { ligneId: v.optional(v.id("statsCaisse")), periode: v.string(), ...CHAMPS_CAISSE },
   handler: async (ctx, { ligneId, ...l }) => {
-    await requireLevel(ctx, 3);
+    await requireDroit(ctx, "/statistiques", "faire");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(l.dateDebut) || !/^\d{4}-\d{2}-\d{2}$/.test(l.dateFin)) throw new Error("Dates au format AAAA-MM-JJ.");
     if (l.dateFin < l.dateDebut) throw new Error("La date de fin précède la date de début.");
     if (ligneId) { await ctx.db.patch(ligneId, l); return ligneId; }
@@ -41,13 +41,13 @@ export const enregistrerLigne = mutation({
 
 export const supprimerLigne = mutation({
   args: { ligneId: v.id("statsCaisse") },
-  handler: async (ctx, { ligneId }) => { await requireLevel(ctx, 3); await ctx.db.delete(ligneId); },
+  handler: async (ctx, { ligneId }) => { await requireDroit(ctx, "/statistiques", "faire"); await ctx.db.delete(ligneId); },
 });
 
 export const importerCaisse = mutation({
   args: { periode: v.string(), lignes: v.array(v.object(CHAMPS_CAISSE)) },
   handler: async (ctx, { periode, lignes }) => {
-    await requireLevel(ctx, 3);
+    await requireDroit(ctx, "/statistiques", "faire");
     for (const l of lignes) await ctx.db.insert("statsCaisse", { periode, ...l });
     return { importees: lignes.length };
   },
@@ -57,7 +57,7 @@ export const importerCaisse = mutation({
 export const primes = query({
   args: { periode: v.string(), categorie: v.optional(CATEGORIE) },
   handler: async (ctx, { periode, categorie }) => {
-    await requireLevel(ctx, 3);
+    await requireDroit(ctx, "/statistiques");
     const rows = categorie
       ? await ctx.db.query("primesMedecins").withIndex("by_contexte_periode_categorie", (q) => q.eq("contexte", "stats").eq("periode", periode).eq("categorie", categorie)).collect()
       : await ctx.db.query("primesMedecins").withIndex("by_contexte_periode", (q) => q.eq("contexte", "stats").eq("periode", periode)).collect();
@@ -74,7 +74,7 @@ export const enregistrerPrime = mutation({
     dateDebut: v.optional(v.string()), dateFin: v.optional(v.string()), actes: v.number(), montantUnitaire: v.number(), notes: v.optional(v.string()),
   },
   handler: async (ctx, { primeId, ...p }) => {
-    await requireLevel(ctx, 3);
+    await requireDroit(ctx, "/statistiques", "faire");
     if (!p.designation.trim()) throw new Error("Nom du médecin requis.");
     const doc = { contexte: "stats" as const, ...p, designation: p.designation.trim(), montant: montantTotalPrime(p.actes, p.montantUnitaire) };
     if (primeId) { await ctx.db.patch(primeId, doc); return primeId; }
@@ -84,7 +84,7 @@ export const enregistrerPrime = mutation({
 
 export const supprimerPrime = mutation({
   args: { primeId: v.id("primesMedecins") },
-  handler: async (ctx, { primeId }) => { await requireLevel(ctx, 3); await ctx.db.delete(primeId); },
+  handler: async (ctx, { primeId }) => { await requireDroit(ctx, "/statistiques", "faire"); await ctx.db.delete(primeId); },
 });
 
 export const importerPrimes = mutation({
@@ -93,7 +93,7 @@ export const importerPrimes = mutation({
     lignes: v.array(v.object({ designation: v.string(), dateDebut: v.optional(v.string()), dateFin: v.optional(v.string()), actes: v.number(), montantUnitaire: v.number(), notes: v.optional(v.string()) })),
   },
   handler: async (ctx, { periode, categorie, lignes }) => {
-    await requireLevel(ctx, 3);
+    await requireDroit(ctx, "/statistiques", "faire");
     for (const l of lignes) await ctx.db.insert("primesMedecins", { contexte: "stats", periode, categorie, ...l, montant: montantTotalPrime(l.actes, l.montantUnitaire) });
     return { importees: lignes.length };
   },
@@ -103,7 +103,7 @@ export const importerPrimes = mutation({
 export const graphes = query({
   args: { periode: v.string() },
   handler: async (ctx, { periode }) => {
-    await requireLevel(ctx, 3);
+    await requireDroit(ctx, "/statistiques");
     const caParMois = [];
     for (const p of moisPrecedents(periode, 6)) {
       const lignes = await ctx.db.query("statsCaisse").withIndex("by_periode", (q) => q.eq("periode", p)).collect();
@@ -118,7 +118,7 @@ export const graphes = query({
 export const kpi = query({
   args: { periode: v.string() },
   handler: async (ctx, { periode }) => {
-    await requireLevel(ctx, 1);
+    await requireDroit(ctx, "/statistiques");
     const lignes = await ctx.db.query("statsCaisse").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
     const primes = await ctx.db.query("primesMedecins").withIndex("by_contexte_periode", (q) => q.eq("contexte", "stats").eq("periode", periode)).collect();
     return { periode, chiffreAffaires: lignes.reduce((t, l) => t + chiffreAffaires(l), 0), nbLignes: lignes.length, primes: primes.reduce((t, p) => t + p.montant, 0) };

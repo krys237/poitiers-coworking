@@ -71,8 +71,8 @@ const totalLignes = (ls: Ligne[]) => ls.reduce((t, l) => t + Math.round(Number(l
 // --- Page -------------------------------------------------------------------------
 
 export function Interventions() {
-  const { moi: me, niveau } = useMoi();
-  const peutArbitrer = niveau >= 5;
+  const { moi: me } = useMoi();
+  const peutArbitrer = !!me?.droits?.["/interventions"]?.faire;
 
   const liste = useQuery(api.interventions.liste, {});
   const [statut, setStatut] = React.useState<Statut | "toutes">("toutes");

@@ -38,12 +38,19 @@ app/
 ```
 
 ## Concepts clés à respecter
-1. **Niveaux cumulatifs** : le niveau N hérite des accès de 1…N. Voir `rbac.ts` (`NIVEAU`, `canAccess`, `DROITS`).
+1. **Droits VOIR / FAIRE par module, choisis par le directeur** (depuis le 28/09/2026) : `rbac.MODULES` liste les
+   modules (Voir = consulter, Faire = saisir/valider/envoyer ; Faire ⇒ Voir). Le **niveau** du rôle ne donne plus que
+   les droits *par défaut* (`celluleParDefaut`, = l'ancienne hiérarchie + décisions) ; le DG les change dans
+   Paramètres → Rôles & accès (`parametresEntreprise.droitsRoles`, seuls les écarts au défaut sont stockés) et pose
+   des exceptions par personne (`users.droitsPerso`). `droitsEffectifs(role, surcharges, exceptions)` calcule le
+   résultat, avec garde-fous (super admin : tout ; DG : Paramètres et Membres). Côté serveur : `requireDroit(ctx,
+   module, "voir"|"faire")` / `requireUnDesDroits` (plus de `requireLevel` sur une fonction métier) ; côté écran :
+   `me.droits` (menu, `<Guard>`, `usePeut(module, action)`, `<SiDroit>`). Tests : `npm run test:droits`.
    Rôles : employé 1, chef d'équipe 2, comptable 3, RH 4, DAF (`da1`) 5, DG 7, **super administrateur 8**
-   (technique : seeds, fiche API, état du déploiement — le compte « dev » du bypass). Le niveau 6 (ex-DA2) est
-   **retiré**. Le rôle `auditeur_externe` est *orthogonal* (voit `/audit` seul). `peutAttribuer` / `peutModifierMembre` :
-   nul n'attribue un rôle au-dessus du sien ni ne modifie un membre au-dessus de lui. `rbac.ts` est la source
-   unique : l'onglet Paramètres → Rôles & accès en dérive, ne jamais dupliquer un droit dans un composant.
+   (technique : seeds, fiche API, état du déploiement). Le niveau 6 (ex-DA2) est **retiré**. L'`auditeur_externe`
+   consulte tout sans agir, sauf Paramètres, Journal, Archives, documents et comptes rendus ; il saisit l'audit.
+   Le niveau sert encore à `peutAttribuer` / `peutModifierMembre` (nul n'attribue un rôle au-dessus du sien) et au
+   niveau de visibilité porté par chaque document.
 2. **Barème daté (effective-dated)** : un bulletin référence la version du barème *applicable à sa période*.
    Ne jamais recalculer un mois clôturé avec un barème plus récent.
 3. **Recalcul réactif** : les bulletins d'un mois ouvert sont dérivés (query) de `employes` + `saisiesMensuelles`

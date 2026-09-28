@@ -1,6 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireLevel } from "./lib/authz";
+import { requireDroit, requireUnDesDroits } from "./lib/authz";
 import { lireReglages } from "./parametres";
 
 const SOCIETE = v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"));
@@ -8,7 +8,7 @@ const SOCIETE = v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC
 export const liste = query({
   args: { societe: v.optional(SOCIETE) },
   handler: async (ctx, { societe }) => {
-    await requireLevel(ctx, 3);
+    await requireUnDesDroits(ctx, ["/employes", "/paie/saisie", "/paie/planning", "/paie/primes", "/paie/bulletins"]);
     if (societe) {
       return await ctx.db.query("employes").withIndex("by_societe", (q) => q.eq("societe", societe)).collect();
     }
@@ -25,7 +25,7 @@ export const creer = mutation({
     categorie: v.optional(v.string()), echelon: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/employes", "faire");
     return await ctx.db.insert("employes", { ...args, joursBase: (await lireReglages(ctx)).joursBaseDefaut, actif: true });
   },
 });
@@ -41,7 +41,7 @@ export const modifier = mutation({
     categorie: v.optional(v.string()), echelon: v.optional(v.string()),
   },
   handler: async (ctx, { employeId, ...patch }) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/employes", "faire");
     const propre = Object.fromEntries(Object.entries(patch).filter(([, val]) => val !== undefined));
     await ctx.db.patch(employeId, propre);
   },
@@ -58,7 +58,7 @@ export const importer = mutation({
     })),
   },
   handler: async (ctx, { lignes }) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/employes", "faire");
     const joursBase = (await lireReglages(ctx)).joursBaseDefaut;
     let crees = 0, majs = 0;
     for (const l of lignes) {

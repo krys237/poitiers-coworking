@@ -7,19 +7,20 @@
  *    PDF à la clôture ;
  *  - Courrier & e-mail : expéditeur, modèle de lettre, interrupteur d'envoi réel ;
  *  - Fonctionnement : fenêtre des comptes rendus, verrou financier, IA documents ;
- *  - Rôles & accès : la matrice qui dit ce que chaque rôle ouvre (lecture seule, dérivée de rbac.ts) ;
+ *  - Rôles & accès : qui voit et qui fait quoi, module par module (matrice modifiable), et les
+ *    exceptions accordées ou retirées à une personne précise ;
  *  - Déploiement (super administrateur) : variables d'environnement définies ou non, jamais leur valeur.
  *
  * Un seul bouton « Enregistrer » pour la page : les modifications de tous les onglets partent
- * ensemble, le compteur dit combien attendent. Niveau 7 ; l'onglet Déploiement exige le niveau 8.
+ * ensemble, le compteur dit combien attendent. Droit « Paramètres » (Faire pour modifier) ; l'onglet Déploiement exige le niveau 8.
  */
 import * as React from "react";
 import { useMutation, useQuery } from "convex/react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Building2Icon, CheckIcon, MinusIcon, RotateCcwIcon, SaveIcon, ShieldCheckIcon, XIcon } from "lucide-react";
+import { Building2Icon, LockIcon, RotateCcwIcon, SaveIcon, ShieldCheckIcon, XIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
-import { DESCRIPTION, DROITS, LIBELLE, NIVEAU, ROLES_ORDONNES, aLeDroit } from "../../convex/rbac";
+import { DESCRIPTION, LIBELLE, MODULES, NIVEAU, ROLES_ORDONNES, droitsEffectifs, estVerrouille, normaliser, type Action, type Cellule, type Exception, type Module, type Role, type SurchargeRole } from "../../convex/rbac";
 import { REGLAGES_DEFAUT, reglagesDe, validerReglages, type Reglages } from "../../convex/lib/reglages";
 import { MODELE_DEFAUT } from "../../convex/lib/courrier";
 import { messageErreur, num } from "@/lib/format";
@@ -37,6 +38,7 @@ import { Switch } from "@/components/ui/switch";
 import { Flag } from "@/components/ui/flag";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // --- Vocabulaire ----------------------------------------------------------------
 
@@ -63,21 +65,26 @@ export function Parametres() {
   const dernierEnreg = useQuery(api.journal.liste, { action: "parametres_modification", limite: 1 });
   const enregistrer = useMutation(api.parametres.enregistrer);
   const enregistrerReglages = useMutation(api.parametres.enregistrerReglages);
+  const enregistrerDroits = useMutation(api.parametres.enregistrerDroitsRoles);
   const [params, setParams] = useSearchParams();
   const ongletUrl = params.get("onglet") as Onglet | null;
   const onglet: Onglet = ongletUrl && ONGLETS.includes(ongletUrl) ? ongletUrl : "entreprise";
   const superAdmin = !!me && me.niveau >= 8;
+  const peutModifier = !!me?.droits?.["/parametres"]?.faire;
 
   // Deux états locaux, initialisés depuis la base ; « dirty » = différent de ce qui est en base.
   const [e, setE] = React.useState<Entreprise | null>(null);
   const [r, setR] = React.useState<Reglages | null>(null);
-  React.useEffect(() => { if (p !== undefined && e === null) { setE(entrepriseDe(p)); setR(reglagesDe(p?.reglages)); } }, [p, e]);
+  const [dR, setDR] = React.useState<Matrice | null>(null);
+  React.useEffect(() => { if (p !== undefined && e === null) { setE(entrepriseDe(p)); setR(reglagesDe(p?.reglages)); setDR(matriceDe(p?.droitsRoles)); } }, [p, e]);
   const baseE = entrepriseDe(p);
   const baseR = reglagesDe(p?.reglages);
+  const baseD = React.useMemo(() => matriceDe(p?.droitsRoles), [p?.droitsRoles]);
   const dirtyE = !!e && !memes(e, baseE);
   const dirtyR = !!r && !memes(r, baseR);
+  const modifsD = dR ? Object.keys(baseD).filter((k) => !memeCellule(dR[k], baseD[k])).length : 0;
   const nbModifs = (e ? (Object.keys(e) as (keyof Entreprise)[]).filter((k) => e[k] !== baseE[k]).length : 0)
-    + (r ? (Object.keys(r) as (keyof Reglages)[]).filter((k) => r[k] !== baseR[k]).length : 0);
+    + (r ? (Object.keys(r) as (keyof Reglages)[]).filter((k) => r[k] !== baseR[k]).length : 0) + modifsD;
   const erreursR = r ? validerReglages(r) : [];
   const erreursE = e ? [
     ...(!e.nom.trim() ? ["Le nom de l'entreprise est obligatoire."] : []),
@@ -101,11 +108,12 @@ export function Parametres() {
         jourPaiement: e.jourPaiement,
       });
       if (dirtyR) await enregistrerReglages({ reglages: r });
+      if (dR && modifsD) await enregistrerDroits({ droits: Object.entries(dR).map(([k, c]) => { const [role, module] = k.split("|"); return { role, module, voir: c.voir, faire: c.faire }; }) });
       toast.success("Paramètres enregistrés", { description: `${nbModifs} modification(s) appliquée(s) — journalisées.` });
     } catch (err) { toast.error("Enregistrement refusé", { description: messageErreur(err) }); }
     finally { setEnCours(false); }
   };
-  const annuler = () => { setE(baseE); setR(baseR); };
+  const annuler = () => { setE(baseE); setR(baseR); setDR(baseD); };
 
   const majE = <K extends keyof Entreprise>(k: K, v: Entreprise[K]) => setE((x) => (x ? { ...x, [k]: v } : x));
   const majR = <K extends keyof Reglages>(k: K, v: Reglages[K]) => setR((x) => (x ? { ...x, [k]: v } : x));
@@ -147,7 +155,7 @@ export function Parametres() {
               ["paie", "Paie & congés", (["responsableRH", "jourPaiement", "congesParMois"] as (keyof Entreprise)[]).some(modifieE) || (["joursBaseDefaut", "plafondSaisie", "pdfAutoCloture"] as (keyof Reglages)[]).some(modifieR)],
               ["courrier", "Courrier & e-mail", (["emailExpediteur", "modeleCourrier"] as (keyof Entreprise)[]).some(modifieE) || modifieR("envoiReelActive")],
               ["fonctionnement", "Fonctionnement", (["crHeureOuverture", "crHeureFermeture", "crSamedi", "verrouFinancierMin", "iaDocumentsActive"] as (keyof Reglages)[]).some(modifieR)],
-              ["roles", "Rôles & accès", false],
+              ["roles", "Rôles & accès", modifsD > 0],
               ...(superAdmin ? [["deploiement", "Déploiement", false] as const] : []),
             ] as [Onglet, string, boolean][]).map(([k, l, modifie]) => (
               <TabsTrigger key={k} value={k} className={cn(
@@ -158,7 +166,7 @@ export function Parametres() {
               </TabsTrigger>
             ))}
           </TabsList>
-          <span className="ml-auto text-2xs text-encre-pale">{onglet === "roles" ? "lecture seule" : onglet === "deploiement" ? "super administrateur · lecture seule" : "modifiable · niveau 7"}</span>
+          <span className="ml-auto text-2xs text-encre-pale">{onglet === "deploiement" ? "super administrateur · lecture seule" : peutModifier ? "modifiable" : "consultation seule"}</span>
         </div>
 
         {!e || !r ? (
@@ -276,9 +284,14 @@ export function Parametres() {
 
         {/* --- Rôles & accès --------------------------------------------------------------- */}
         <TabsContent value="roles">
-          <Bloc titre="Rôles & accès" description="Ce que chaque rôle ouvre. Les niveaux sont cumulatifs ; l'auditeur externe est hors hiérarchie. Dérivé du code (convex/rbac.ts) : l'écran affiche exactement ce que le serveur applique.">
-            <MatriceRoles />
-          </Bloc>
+          <div className="space-y-4">
+            <Bloc titre="Rôles & accès" description="Qui voit et qui fait quoi, module par module. Un clic sur V (voir) ou F (faire) ; les changements partent avec « Enregistrer » et sont journalisés. Le serveur applique exactement ce tableau.">
+              {dR ? <MatriceRoles valeur={dR} base={baseD} onChange={setDR} lectureSeule={!peutModifier} /> : <SqueletteTexte lignes={6} />}
+            </Bloc>
+            <Bloc titre="Exceptions par personne" description="Accorder ou retirer un droit à un membre précis, au-delà de ce que donne son rôle. S'enregistre membre par membre.">
+              <ExceptionsParPersonne base={baseD} lectureSeule={!peutModifier} peutVoirMembres={!!me?.droits?.["/membres"]?.voir} />
+            </Bloc>
+          </div>
         </TabsContent>
 
         {/* --- Déploiement (super administrateur) -------------------------------------------- */}
@@ -328,36 +341,117 @@ function Interrupteur({ libelle, aide, valeur, onChange, modifie }: { libelle: s
 }
 
 // --- Rôles & accès -------------------------------------------------------------------
+// Matrice rôle × module, deux cases par croisement : VOIR et FAIRE. Elle part des droits
+// effectifs enregistrés (rbac.droitsEffectifs) ; ses changements partent avec « Enregistrer ».
 
-function MatriceRoles() {
-  const roles = ROLES_ORDONNES;
-  const categories = Array.from(new Set(DROITS.map((d) => d.categorie)));
+type Matrice = Record<string, Cellule>; // clé `${role}|${module}`
+const cleM = (r: Role, m: string) => `${r}|${m}`;
+const matriceDe = (surcharges?: SurchargeRole[]): Matrice => {
+  const out: Matrice = {};
+  for (const r of ROLES_ORDONNES) {
+    const d = droitsEffectifs(r, surcharges ?? []);
+    for (const m of MODULES) out[cleM(r, m.cle)] = d[m.cle];
+  }
+  return out;
+};
+const memeCellule = (a?: Cellule, b?: Cellule) => !!a && !!b && a.voir === b.voir && a.faire === b.faire;
+const libelleCellule = (c: Cellule) => (c.faire ? "voir + faire" : c.voir ? "voir" : "aucun");
+const CATEGORIES_MODULES = Array.from(new Set(MODULES.map((m) => m.categorie)));
+const roleCourt = (r: Role) => LIBELLE[r].replace(" (Admin)", "").replace(" (technique)", "").replace(" (DAF)", "");
+
+/** Nouvelle cellule après un clic : « Faire » entraîne « Voir », retirer « Voir » retire « Faire ». */
+function basculer(m: Module, c: Cellule, action: Action): Cellule {
+  if (m.voir === null) return normaliser(m, { voir: !c.faire, faire: !c.faire });
+  return normaliser(m, action === "voir" ? { voir: !c.voir, faire: c.voir ? false : c.faire } : { voir: c.faire ? c.voir : true, faire: !c.faire });
+}
+
+function CaseDroit({ actif, libelle, modifie, verrou, desactive, onClick, titre }: {
+  actif: boolean; libelle: string; modifie?: boolean; verrou?: boolean; desactive?: boolean; onClick?: () => void; titre: string;
+}) {
   return (
-    <div className="space-y-4">
+    <button
+      type="button"
+      aria-pressed={actif}
+      aria-label={titre}
+      title={titre}
+      disabled={desactive}
+      onClick={onClick}
+      className={cn(
+        "h-6 min-w-7 rounded-md border px-1 text-2xs font-bold transition-colors",
+        actif ? "border-ocean-profond bg-ocean-profond text-white" : "border-filet bg-white text-encre-pale hover:border-ocean-ciel hover:text-encre",
+        verrou && "cursor-not-allowed opacity-60",
+        desactive && !verrou && "cursor-default",
+        modifie && "ring-2 ring-ocre ring-offset-1",
+      )}
+    >
+      {libelle}
+    </button>
+  );
+}
+
+function MatriceRoles({ valeur, base, onChange, lectureSeule }: { valeur: Matrice; base: Matrice; onChange: (m: Matrice) => void; lectureSeule: boolean }) {
+  const roles = ROLES_ORDONNES;
+  const maj = (r: Role, m: Module, action: Action) => {
+    const k = cleM(r, m.cle);
+    onChange({ ...valeur, [k]: basculer(m, valeur[k], action) });
+  };
+  const defaut = React.useMemo(() => matriceDe(), []);
+  const auDefaut = Object.keys(defaut).every((k) => memeCellule(defaut[k], valeur[k]));
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-2xs text-encre-douce">
+        <span className="flex items-center gap-1.5"><CaseDroit actif libelle="V" titre="Voir" desactive /> Voir : consulter le module</span>
+        <span className="flex items-center gap-1.5"><CaseDroit actif libelle="F" titre="Faire" desactive /> Faire : saisir, valider, envoyer (entraîne Voir)</span>
+        <span className="flex items-center gap-1.5"><CaseDroit actif={false} libelle="V" titre="Modifié" modifie desactive /> modifié, pas encore enregistré</span>
+        <span className="flex items-center gap-1.5"><LockIcon className="h-3 w-3" /> garde-fou, non modifiable</span>
+        {!lectureSeule && (
+          <Button type="button" variant="outline" size="sm" className="ml-auto" disabled={auDefaut} onClick={() => onChange({ ...defaut })}>
+            <RotateCcwIcon /> Revenir aux droits par défaut
+          </Button>
+        )}
+      </div>
       <Table classNameConteneur="rounded-xl">
         <TableHeader>
           <TableRow>
-            <TableHead className="min-w-[18rem]">Droit</TableHead>
+            <TableHead className="min-w-[16rem]">Module</TableHead>
             {roles.map((r) => (
               <TableHead key={r} className="text-center" title={DESCRIPTION[r]}>
-                <div className="text-2xs font-semibold leading-tight">{LIBELLE[r].replace(" (Admin)", "").replace(" (technique)", "").replace(" (DAF)", "")}</div>
+                <div className="text-2xs font-semibold leading-tight">{roleCourt(r)}</div>
                 <div className="font-mono text-2xs font-normal opacity-80">{NIVEAU[r] ? `niv. ${NIVEAU[r]}` : "à part"}</div>
               </TableHead>
             ))}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {categories.map((cat) => (
+          {CATEGORIES_MODULES.map((cat) => (
             <React.Fragment key={cat}>
               <TableRow className="bg-ocean-brume/40 hover:bg-ocean-brume/40">
                 <TableCell colSpan={roles.length + 1} className="py-1.5 text-2xs font-semibold uppercase tracking-wide text-ocean-nuit">{cat}</TableCell>
               </TableRow>
-              {DROITS.filter((d) => d.categorie === cat).map((d) => (
-                <TableRow key={d.libelle}>
-                  <TableCell className="text-xs">{d.libelle}{d.audit ? <span className="ml-1.5 text-2xs text-encre-pale">(cloisonné)</span> : null}<span className="ml-1.5 font-mono text-2xs text-encre-pale">≥ {d.niveau}</span></TableCell>
+              {MODULES.filter((m) => m.categorie === cat).map((m) => (
+                <TableRow key={m.cle}>
+                  <TableCell className="text-xs">
+                    <div className="font-semibold">{m.libelle}</div>
+                    <div className="text-2xs text-encre-pale">
+                      {m.voir && <>Voir : {m.voir}</>}{m.voir && m.faire && " · "}{m.faire && <>Faire : {m.faire}</>}
+                    </div>
+                  </TableCell>
                   {roles.map((r) => {
-                    const ok = aLeDroit(r, d);
-                    return <TableCell key={r} className="text-center">{ok ? <CheckIcon className="mx-auto h-4 w-4 text-emerald-600" aria-label="oui" /> : <MinusIcon className="mx-auto h-3.5 w-3.5 text-encre-pale/50" aria-label="non" />}</TableCell>;
+                    const k = cleM(r, m.cle);
+                    const c = valeur[k];
+                    const verrou = estVerrouille(r, m.cle);
+                    const modifie = !memeCellule(c, base[k]);
+                    const off = lectureSeule || verrou;
+                    const qui = `${roleCourt(r)} · ${m.libelle}`;
+                    return (
+                      <TableCell key={r} className="text-center">
+                        <div className="inline-flex items-center gap-1">
+                          {m.voir !== null && <CaseDroit actif={c.voir} libelle="V" titre={`${qui} : voir${verrou ? " (garde-fou)" : ""}`} modifie={modifie} verrou={verrou} desactive={off} onClick={() => maj(r, m, "voir")} />}
+                          {m.faire !== null && <CaseDroit actif={c.faire} libelle="F" titre={`${qui} : faire${verrou ? " (garde-fou)" : ""}`} modifie={modifie} verrou={verrou} desactive={off} onClick={() => maj(r, m, "faire")} />}
+                          {verrou && <LockIcon className="h-3 w-3 text-encre-pale" aria-hidden />}
+                        </div>
+                      </TableCell>
+                    );
                   })}
                 </TableRow>
               ))}
@@ -365,15 +459,126 @@ function MatriceRoles() {
           ))}
         </TableBody>
       </Table>
-      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        {roles.map((r) => (
-          <div key={r} className="rounded-lg border border-filet bg-papier p-3 shadow-[inset_3px_0_0_var(--ocean-profond)]">
-            <div className="flex items-center justify-between gap-2 text-xs font-semibold"><span className="truncate">{LIBELLE[r]}</span><Flag variant={NIVEAU[r] ? "finance" : "verrou"} size="xs" className="shrink-0 font-mono">{NIVEAU[r] ? `niv. ${NIVEAU[r]}` : "à part"}</Flag></div>
-            <div className="mt-1 text-2xs text-encre-douce">{DESCRIPTION[r]}</div>
+      <p className="text-2xs text-encre-pale">
+        Garde-fous : le super administrateur garde tout ; le Directeur Général garde Paramètres et Membres. Nul n'attribue un rôle
+        au-dessus du sien ni ne modifie un membre au-dessus de lui. Un document porte en plus son propre niveau de visibilité et de
+        téléchargement, et éventuellement un code. Le tableau de bord est ouvert à tout membre autorisé ; la fiche API reste technique.
+      </p>
+    </div>
+  );
+}
+
+// Exceptions par personne : accorder ou retirer un droit à un membre précis, au-delà de son rôle.
+const REGLE_ROLE = "role";
+type ChoixException = typeof REGLE_ROLE | "aucun" | "voir" | "faire";
+const choixDe = (c?: Cellule): ChoixException => (!c ? REGLE_ROLE : c.faire ? "faire" : c.voir ? "voir" : "aucun");
+const celluleDe = (x: Exclude<ChoixException, "role">): Cellule => ({ voir: x !== "aucun", faire: x === "faire" });
+
+function ExceptionsParPersonne({ base, lectureSeule, peutVoirMembres }: { base: Matrice; lectureSeule: boolean; peutVoirMembres: boolean }) {
+  const membres = useQuery(api.users.liste, peutVoirMembres ? {} : "skip");
+  const modifier = useMutation(api.users.modifierDroitsPerso);
+  const [membreId, setMembreId] = React.useState<string>("");
+  const [brouillon, setBrouillon] = React.useState<Record<string, ChoixException>>({});
+  const [enCours, setEnCours] = React.useState(false);
+  const actifs = (membres ?? []).filter((u) => u.isActive && !u.enAttente && u.role !== "super_admin");
+  const membre = actifs.find((u) => String(u._id) === membreId);
+  const enregistre = React.useMemo(() => {
+    const out: Record<string, ChoixException> = {};
+    for (const e of (membre?.droitsPerso ?? []) as Exception[]) out[e.module] = choixDe(e);
+    return out;
+  }, [membre]);
+  React.useEffect(() => { setBrouillon(enregistre); }, [enregistre]);
+
+  if (!peutVoirMembres) return <p className="text-xs text-encre-pale">Les exceptions par personne demandent l'accès au module Membres.</p>;
+  if (membres === undefined) return <SqueletteTexte lignes={3} />;
+
+  const avecExceptions = actifs.filter((u) => (u.droitsPerso ?? []).length > 0);
+  const modifs = MODULES.filter((m) => (brouillon[m.cle] ?? REGLE_ROLE) !== (enregistre[m.cle] ?? REGLE_ROLE)).length;
+  const sauver = async () => {
+    if (!membre) return;
+    setEnCours(true);
+    try {
+      const droits = Object.entries(brouillon).filter(([, x]) => x !== REGLE_ROLE).map(([module, x]) => ({ module, ...celluleDe(x as Exclude<ChoixException, "role">) }));
+      await modifier({ userId: membre._id, droits });
+      toast.success("Droits particuliers enregistrés", { description: `${membre.nom ?? membre.email} · journalisé` });
+    } catch (err) { toast.error("Enregistrement refusé", { description: messageErreur(err) }); }
+    finally { setEnCours(false); }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="min-w-[16rem]">
+          <div className="mb-1 text-2xs font-semibold text-encre-douce">Membre</div>
+          <Select value={membreId} onValueChange={setMembreId}>
+            <SelectTrigger className="w-72"><SelectValue placeholder="Choisir un membre…" /></SelectTrigger>
+            <SelectContent>
+              {actifs.map((u) => (
+                <SelectItem key={String(u._id)} value={String(u._id)}>
+                  {u.nom ?? u.email} · {u.roleLibelle}{(u.droitsPerso ?? []).length ? " · exceptions" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {avecExceptions.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 text-2xs text-encre-douce">
+            Membres avec exceptions :
+            {avecExceptions.map((u) => (
+              <button key={String(u._id)} type="button" onClick={() => setMembreId(String(u._id))} className="rounded-full border border-ocre/50 bg-ocre/10 px-2 py-0.5 font-semibold text-encre hover:bg-ocre/20">
+                {u.nom ?? u.email} ({(u.droitsPerso ?? []).length})
+              </button>
+            ))}
           </div>
-        ))}
+        )}
       </div>
-      <p className="text-2xs text-encre-pale">Règles transverses : nul n'attribue un rôle au-dessus du sien ni ne modifie un membre au-dessus de lui ; le dernier Directeur Général actif ne peut être ni désactivé ni rétrogradé ; les documents et lignes financières portent en plus leur propre niveau de visibilité, de téléchargement et un code d'accès.</p>
+
+      {membre && (
+        <>
+          <Table classNameConteneur="rounded-xl">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Module</TableHead>
+                <TableHead>Par son rôle ({roleCourt(membre.role as Role)})</TableHead>
+                <TableHead>Pour {membre.nom ?? membre.email}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {MODULES.map((m) => {
+                const parRole = base[cleM(membre.role as Role, m.cle)];
+                const choix = brouillon[m.cle] ?? REGLE_ROLE;
+                const verrou = estVerrouille(membre.role as Role, m.cle);
+                const options: [ChoixException, string][] = [
+                  [REGLE_ROLE, `Comme son rôle (${libelleCellule(parRole)})`],
+                  ["aucun", "Aucun accès"],
+                  ...(m.voir !== null ? [["voir", "Voir"] as [ChoixException, string]] : []),
+                  ...(m.faire !== null ? [["faire", m.voir === null ? "Faire" : "Voir + faire"] as [ChoixException, string]] : []),
+                ];
+                const modifie = choix !== (enregistre[m.cle] ?? REGLE_ROLE);
+                return (
+                  <TableRow key={m.cle}>
+                    <TableCell className="text-xs font-semibold">{m.libelle}</TableCell>
+                    <TableCell className="text-xs text-encre-douce">{libelleCellule(parRole)}</TableCell>
+                    <TableCell>
+                      <Select value={choix} onValueChange={(x) => setBrouillon((b) => ({ ...b, [m.cle]: x as ChoixException }))} disabled={lectureSeule || verrou}>
+                        <SelectTrigger size="sm" className={cn("w-60", choix !== REGLE_ROLE && "border-ocean-ciel bg-ocean-brume/40", modifie && "ring-2 ring-ocre")}><SelectValue /></SelectTrigger>
+                        <SelectContent>{options.map(([v, l]) => <SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+          {!lectureSeule && (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {modifs > 0 && <span className="text-xs text-ocre">{modifs} modification(s) non enregistrée(s)</span>}
+              <Button type="button" variant="outline" size="sm" disabled={enCours || !Object.values(brouillon).some((x) => x !== REGLE_ROLE)} onClick={() => setBrouillon({})}><RotateCcwIcon /> Tout ramener à son rôle</Button>
+              <Button type="button" size="sm" disabled={enCours || !modifs} onClick={() => void sauver()}><SaveIcon /> Enregistrer les droits de {membre.nom ?? membre.email}</Button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

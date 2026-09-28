@@ -108,7 +108,7 @@ export function Bareme() {
   // Version précédente (plus ancienne) : sert à signaler ce qui a changé.
   const precedente = selection ? liste.find((v) => v.effectiveFrom < selection.effectiveFrom) ?? null : null;
   const [nouvelle, setNouvelle] = React.useState(false);
-  const peutModifier = !!me && me.niveau >= 7;
+  const peutModifier = !!me?.droits?.["/bareme"]?.faire;
 
   return (
     <div className="space-y-4">

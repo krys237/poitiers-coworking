@@ -1,6 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireLevel } from "./lib/authz";
+import { requireDroit } from "./lib/authz";
 import { reference } from "./lib/commandes";
 
 const PRIORITE = v.union(v.literal("basse"), v.literal("moyenne"), v.literal("haute"));
@@ -14,7 +14,7 @@ const total = (lignes: { quantite: number; prixUnitaire: number }[]) => lignes.r
 export const liste = query({
   args: { statut: v.optional(STATUT), priorite: v.optional(PRIORITE) },
   handler: async (ctx, { statut, priorite }) => {
-    await requireLevel(ctx, 1);
+    await requireDroit(ctx, "/interventions");
     const rows = statut
       ? await ctx.db.query("interventions").withIndex("by_statut", (q) => q.eq("statut", statut)).collect()
       : await ctx.db.query("interventions").withIndex("by_date").order("desc").collect();
@@ -31,7 +31,7 @@ export const liste = query({
 export const detail = query({
   args: { interventionId: v.id("interventions") },
   handler: async (ctx, { interventionId }) => {
-    await requireLevel(ctx, 1);
+    await requireDroit(ctx, "/interventions");
     const i = await ctx.db.get(interventionId);
     if (!i) return null;
     const photosUrls: string[] = [];
@@ -43,7 +43,7 @@ export const detail = query({
 
 export const genererUploadUrl = mutation({
   args: {},
-  handler: async (ctx) => { await requireLevel(ctx, 1); return await ctx.storage.generateUploadUrl(); },
+  handler: async (ctx) => { await requireDroit(ctx, "/interventions"); return await ctx.storage.generateUploadUrl(); },
 });
 
 export const creer = mutation({
@@ -53,7 +53,7 @@ export const creer = mutation({
     lignes: v.optional(v.array(LIGNE)), commentaireInitial: v.optional(v.string()),
   },
   handler: async (ctx, a) => {
-    const user = await requireLevel(ctx, 1);
+    const user = await requireDroit(ctx, "/interventions");
     if (!a.titre.trim()) throw new Error("Titre requis.");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(a.dateDemande)) throw new Error("Date au format AAAA-MM-JJ.");
     const lignes = (a.lignes ?? []).map((l) => ({ ...l, produit: l.produit.trim() })).filter((l) => l.produit && l.quantite > 0);
@@ -73,7 +73,7 @@ export const creer = mutation({
 export const ajouterPhoto = mutation({
   args: { interventionId: v.id("interventions"), storageId: v.id("_storage") },
   handler: async (ctx, { interventionId, storageId }) => {
-    await requireLevel(ctx, 1);
+    await requireDroit(ctx, "/interventions");
     const i = await ctx.db.get(interventionId);
     if (!i) throw new Error("Intervention introuvable.");
     await ctx.db.patch(interventionId, { photos: [...i.photos, storageId] });
@@ -84,7 +84,7 @@ export const ajouterPhoto = mutation({
 export const changerStatut = mutation({
   args: { interventionId: v.id("interventions"), statut: STATUT, commentaire: v.optional(v.string()) },
   handler: async (ctx, { interventionId, statut, commentaire }) => {
-    const user = await requireLevel(ctx, 5);
+    const user = await requireDroit(ctx, "/interventions", "faire");
     const i = await ctx.db.get(interventionId);
     if (!i) throw new Error("Intervention introuvable.");
     if (!TRANSITIONS[i.statut].includes(statut)) throw new Error(`Transition ${i.statut} → ${statut} non autorisée.`);
@@ -99,7 +99,7 @@ export const changerStatut = mutation({
 export const commenter = mutation({
   args: { interventionId: v.id("interventions"), texte: v.string() },
   handler: async (ctx, { interventionId, texte }) => {
-    const user = await requireLevel(ctx, 1);
+    const user = await requireDroit(ctx, "/interventions");
     const i = await ctx.db.get(interventionId);
     if (!i || !texte.trim()) return;
     await ctx.db.patch(interventionId, { commentaires: [...i.commentaires, { auteur: user.nom ?? user.email, texte: texte.trim(), date: new Date().toISOString() }] });

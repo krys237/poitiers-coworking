@@ -53,6 +53,8 @@ export default defineSchema({
     // « désactivé » (compte révoqué). Les deux ont isActive: false, mais seul le premier
     // obtient une session — pour afficher un écran d'attente au lieu d'une erreur opaque.
     enAttente: v.optional(v.boolean()),
+    // Exceptions individuelles aux droits de son rôle, posées par le directeur (rbac.droitsEffectifs).
+    droitsPerso: v.optional(v.array(v.object({ module: v.string(), voir: v.boolean(), faire: v.boolean() }))),
   })
     .index("by_token", ["tokenIdentifier"])
     // `email` et `phone` sont les noms d'index EXIGÉS par Convex Auth
@@ -79,6 +81,8 @@ export default defineSchema({
       envoiReelActive: v.optional(v.boolean()), iaDocumentsActive: v.optional(v.boolean()), pdfAutoCloture: v.optional(v.boolean()),
       joursBaseDefaut: v.optional(v.number()), plafondSaisie: v.optional(v.number()),
     })),
+    // Droits VOIR / FAIRE par rôle et par module, quand ils diffèrent du défaut (rbac.droitsEffectifs).
+    droitsRoles: v.optional(v.array(v.object({ role: v.string(), module: v.string(), voir: v.boolean(), faire: v.boolean() }))),
   }),
 
   // ---- Paie (Phase 1) ----

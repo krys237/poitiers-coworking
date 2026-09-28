@@ -1,7 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { QueryCtx, MutationCtx } from "../_generated/server";
 import { Doc } from "../_generated/dataModel";
-import { NIVEAU, ROLES_AUDIT, Role } from "../rbac";
+import { NIVEAU, Role, droitsEffectifs, type Action, type Droits } from "../rbac";
 
 // Mode développement : si AUTH_DEV_BYPASS=true (variable d'env Convex) et qu'aucune session
 // Convex Auth n'est ouverte, on agit comme le membre DG marqué "dev".
@@ -46,6 +46,30 @@ export async function requireLevel(ctx: Ctx, min: number) {
   return user;
 }
 
+// Droits effectifs d'un membre : défaut de son rôle, surcharges du directeur, exceptions personnelles.
+export async function droitsDuMembre(ctx: Ctx, user: Doc<"users">): Promise<Droits> {
+  const p = await ctx.db.query("parametresEntreprise").first();
+  return droitsEffectifs(user.role as Role, p?.droitsRoles ?? [], user.droitsPerso ?? []);
+}
+
+// Le membre lit-il les documents confidentiels ? (droit « Documents confidentiels », VOIR)
+export async function lireConfidentiel(ctx: Ctx, user: Doc<"users">): Promise<boolean> {
+  return (await droitsDuMembre(ctx, user))["/documents/confidentiels"].voir;
+}
+
+// Exige le droit VOIR ou FAIRE sur un module (clé de rbac.MODULES) ; lève une erreur sinon.
+export async function requireDroit(ctx: Ctx, module: string, action: Action = "voir") {
+  return await requireUnDesDroits(ctx, [module], action);
+}
+
+// Variante pour une donnée partagée par plusieurs écrans : un seul des modules suffit.
+export async function requireUnDesDroits(ctx: Ctx, modules: string[], action: Action = "voir") {
+  const user = verifierCompte(await getCurrentUser(ctx));
+  const d = await droitsDuMembre(ctx, user);
+  if (!modules.some((m) => d[m]?.[action])) throw new Error(action === "voir" ? "Accès refusé : ce module ne vous est pas ouvert." : "Accès refusé : vous pouvez consulter ce module, pas y agir.");
+  return user;
+}
+
 // Amorçage d'un déploiement neuf : tant qu'AUCUN membre n'existe, la fonction est ouverte
 // (c'est elle qui crée le premier DG) ; dès qu'un membre existe, le niveau est exigé normalement.
 // Réservé aux fonctions d'initialisation (seed) — ne jamais l'utiliser sur une fonction métier.
@@ -55,9 +79,7 @@ export async function requireLevelOuAmorcage(ctx: Ctx, min: number) {
   return await requireLevel(ctx, min);
 }
 
-// Module Audit : cloisonné — auditeur externe ou Directeur Général uniquement (un niveau 6 est refusé).
-export async function requireAudit(ctx: Ctx) {
-  const user = verifierCompte(await getCurrentUser(ctx));
-  if (user.role !== "auditeur_externe" && !ROLES_AUDIT.includes(user.role as Role)) throw new Error("Accès refusé : module réservé à l'auditeur externe et au Directeur Général.");
-  return user;
+// Module Audit : cloisonné par défaut (auditeur externe, DG), ajustable comme tout module.
+export async function requireAudit(ctx: Ctx, action: Action = "voir") {
+  return await requireDroit(ctx, "/audit", action);
 }

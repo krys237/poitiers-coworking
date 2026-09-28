@@ -28,14 +28,15 @@ export function Dashboard() {
   const periode = periodeCourante();
   const me = useQuery(api.users.me);
   const niveau = me?.niveau ?? 0;
-  const estAuditeur = me?.role === "auditeur_externe";
+  // Chaque tuile suit le droit VOIR du module d'où vient son chiffre (me.droits, rbac.MODULES).
+  const voit = (m: string) => !!me?.droits?.[m]?.voir;
 
-  const employes = useQuery(api.employes.liste, me && niveau >= 3 ? {} : "skip");
-  const paie = useQuery(api.payroll.bulletinsDuMois, me && niveau >= 4 ? { periode } : "skip");
+  const employes = useQuery(api.employes.liste, me && voit("/employes") ? {} : "skip");
+  const paie = useQuery(api.payroll.bulletinsDuMois, me && voit("/paie/bulletins") ? { periode } : "skip");
   const fin = useQuery(api.financier.kpi, me ? {} : "skip");
-  const cr = useQuery(api.comptesRendus.monEspace, me && !estAuditeur ? {} : "skip");
-  const st = useQuery(api.stats.kpi, me && niveau >= 3 ? { periode } : "skip");
-  const audit = useQuery(api.audit.resume, me && (estAuditeur || me?.role === "dg") ? { periode } : "skip");
+  const cr = useQuery(api.comptesRendus.monEspace, me && voit("/comptes-rendus") ? {} : "skip");
+  const st = useQuery(api.stats.kpi, me && voit("/statistiques") ? { periode } : "skip");
+  const audit = useQuery(api.audit.resume, me && voit("/audit") ? { periode } : "skip");
 
   // Démo / Seed
   const demo = useQuery(api.seed.etatDemo, me ? {} : "skip");
@@ -387,7 +388,7 @@ export function Dashboard() {
           {/* Grille 2x2 des 4 Tuiles Majeures */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Tuile 1 (Vedette) : Chiffre d'Affaires du Mois */}
-            {niveau >= 3 && (
+            {voit("/statistiques") && (
               <Tuile
                 vedette
                 ton="info"
@@ -404,8 +405,8 @@ export function Dashboard() {
               />
             )}
 
-            {/* Tuile 2 : Solde Trésorerie F3 Poitiers (grand livre : niveau 5) */}
-            {niveau >= 5 && (
+            {/* Tuile 2 : Solde Trésorerie F3 Poitiers (grand livre) */}
+            {voit("/financier") && (
             <Tuile
               ton="neutre"
               libelle="Solde Trésorerie F3"
@@ -437,7 +438,7 @@ export function Dashboard() {
             )}
 
             {/* Tuile 3 : Net à Payer (Paie) */}
-            {niveau >= 4 && (
+            {voit("/paie/bulletins") && (
               <Tuile
                 ton="neutre"
                 libelle="Net à payer du mois"
@@ -458,7 +459,7 @@ export function Dashboard() {
             )}
 
             {/* Tuile 4 : Masse Brute & Primes */}
-            {niveau >= 4 && (
+            {voit("/paie/bulletins") && (
               <Tuile
                 ton="neutre"
                 libelle="Masse brute & Charges"
@@ -521,7 +522,7 @@ export function Dashboard() {
             </div>
 
             {/* Action 1 : Compte Rendu du Jour */}
-            {!estAuditeur && (
+            {voit("/comptes-rendus") && (
               <div className="rounded-lg border border-filet bg-papier/60 p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-encre">
@@ -559,7 +560,7 @@ export function Dashboard() {
             )}
 
             {/* Action 2 : Recette Journalière */}
-            {niveau >= 5 && (
+            {!!me?.droits?.["/financier"]?.faire && (
               <div className="rounded-lg border border-filet bg-papier/60 p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-encre">
@@ -587,7 +588,7 @@ export function Dashboard() {
             )}
 
             {/* Action 3 : Score Présence */}
-            {!estAuditeur && (
+            {voit("/comptes-rendus") && (
               <div className="flex items-center justify-between rounded-lg border border-filet bg-papier/60 p-3">
                 <div className="flex items-center gap-2">
                   <Coins className="h-4 w-4 text-amber-600" />

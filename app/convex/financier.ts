@@ -1,9 +1,9 @@
 import { query, mutation, internalMutation, internalQuery, MutationCtx, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Doc } from "./_generated/dataModel";
-import { getCurrentUser, requireLevel } from "./lib/authz";
+import { getCurrentUser, requireDroit, droitsDuMembre } from "./lib/authz";
 import { journaliser } from "./lib/journal";
-import { NIVEAU, NIVEAU_MODULE, Role } from "./rbac";
+
 import { calculerSoldes, recetteTotale, periodeDe, Mouvements, Soldes } from "./lib/tresorerie";
 import { lireReglages } from "./parametres";
 
@@ -36,7 +36,7 @@ async function ouverturePour(ctx: Ctx, date: string, j: Doc<"journeesFinancieres
 export const journee = query({
   args: { date: v.string() },
   handler: async (ctx, { date }) => {
-    const me = await requireLevel(ctx, 5);
+    const me = await requireDroit(ctx, "/financier");
     const j = await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.eq("date", date)).unique();
     const ouverture = await ouverturePour(ctx, date, j);
     const mouvements: Mouvements = j?.mouvements ?? {};
@@ -95,7 +95,7 @@ export async function ecrireJournee(ctx: MutationCtx, args: {
 export const enregistrer = mutation({
   args: { date: v.string(), mouvements: mouvementsV, notes: v.optional(v.string()), soldesOuverture: v.optional(soldesV) },
   handler: async (ctx, a) => {
-    const me = await requireLevel(ctx, 5);
+    const me = await requireDroit(ctx, "/financier", "faire");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(a.date)) throw new Error("Date au format AAAA-MM-JJ.");
     return await ecrireJournee(ctx, { ...a, userId: me._id, userNom: me.nom ?? me.email });
   },
@@ -105,7 +105,7 @@ export const enregistrer = mutation({
 export const prendreVerrou = mutation({
   args: { date: v.string() },
   handler: async (ctx, { date }) => {
-    const me = await requireLevel(ctx, 5);
+    const me = await requireDroit(ctx, "/financier", "faire");
     const j = await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.eq("date", date)).unique();
     if (j && (await verrouActif(ctx, j)) && j.verrouParId !== me._id) throw new Error(`Tableau verrouillé par ${j.verrouNom ?? "un autre membre"}.`);
     const now = new Date().toISOString();
@@ -118,7 +118,7 @@ export const prendreVerrou = mutation({
 export const libererVerrou = mutation({
   args: { date: v.string() },
   handler: async (ctx, { date }) => {
-    await requireLevel(ctx, 5);
+    await requireDroit(ctx, "/financier", "faire");
     const j = await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.eq("date", date)).unique();
     if (j) await ctx.db.patch(j._id, { verrouParId: undefined, verrouAt: undefined, verrouNom: undefined });
   },
@@ -128,7 +128,7 @@ export const libererVerrou = mutation({
 export const cloturerMois = mutation({
   args: { periode: v.string() },
   handler: async (ctx, { periode }) => {
-    const me = await requireLevel(ctx, 5);
+    const me = await requireDroit(ctx, "/financier", "faire");
     if (await moisCloture(ctx, periode)) throw new Error("Mois déjà clôturé.");
     const journees = await ctx.db.query("journeesFinancieres").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
     for (const j of journees) await ctx.db.patch(j._id, { cloture: true, verrouParId: undefined, verrouAt: undefined, verrouNom: undefined });
@@ -140,14 +140,14 @@ export const cloturerMois = mutation({
 
 export const clotures = query({
   args: {},
-  handler: async (ctx) => { await requireLevel(ctx, 5); return await ctx.db.query("cloturesFinancieres").collect(); },
+  handler: async (ctx) => { await requireDroit(ctx, "/financier"); return await ctx.db.query("cloturesFinancieres").collect(); },
 });
 
 // Historique des 14 dernières journées saisies (≤ date).
 export const historique = query({
   args: { date: v.string(), jours: v.optional(v.number()) },
   handler: async (ctx, { date, jours }) => {
-    await requireLevel(ctx, 5);
+    await requireDroit(ctx, "/financier");
     const rows = await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.lte("date", date)).order("desc").take(jours ?? 14);
     return rows.map((j) => ({ date: j.date, recetteTotale: j.recetteTotale, soldes: j.soldes, cloture: j.cloture, notes: j.notes ?? "" }));
   },
@@ -156,13 +156,13 @@ export const historique = query({
 // Justificatifs : upload puis rattachement à une ligne ("bloc.ligne").
 export const genererUploadUrl = mutation({
   args: {},
-  handler: async (ctx) => { await requireLevel(ctx, 5); return await ctx.storage.generateUploadUrl(); },
+  handler: async (ctx) => { await requireDroit(ctx, "/financier", "faire"); return await ctx.storage.generateUploadUrl(); },
 });
 
 export const attacherPiece = mutation({
   args: { date: v.string(), cle: v.string(), storageId: v.id("_storage") },
   handler: async (ctx, { date, cle, storageId }) => {
-    const me = await requireLevel(ctx, 5);
+    const me = await requireDroit(ctx, "/financier", "faire");
     let j = await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.eq("date", date)).unique();
     if (!j) { await ecrireJournee(ctx, { date, mouvements: {}, userId: me._id, userNom: me.nom ?? me.email }); j = (await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.eq("date", date)).unique())!; }
     if (j.cloture) throw new Error("Journée clôturée : immuable.");
@@ -174,10 +174,10 @@ export const attacherPiece = mutation({
 export const kpi = query({
   args: {},
   handler: async (ctx) => {
-    // Le grand livre est un module de niveau 5 : ses soldes ne descendent pas en dessous,
-    // même sur le tableau de bord (découvert en testant le compte « employé »).
+    // Les soldes du grand livre ne s'affichent qu'à qui peut voir le module, même sur le
+    // tableau de bord (découvert en testant le compte « employé »).
     const me = await getCurrentUser(ctx);
-    if (!me || !me.isActive || NIVEAU[me.role as Role] < NIVEAU_MODULE["/financier"]) return null;
+    if (!me || !me.isActive || me.enAttente || !(await droitsDuMembre(ctx, me))["/financier"].voir) return null;
     const aujourdHui = new Date().toISOString().slice(0, 10);
     const jour = await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.eq("date", aujourdHui)).unique();
     const derniere = await ctx.db.query("journeesFinancieres").withIndex("by_date").order("desc").first();

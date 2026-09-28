@@ -1,6 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireLevel } from "./lib/authz";
+import { requireDroit, requireUnDesDroits } from "./lib/authz";
 import { journaliser } from "./lib/journal";
 import { bulletinsPourPeriode } from "./lib/calculBulletins";
 import { internal } from "./_generated/api";
@@ -10,7 +10,7 @@ import { lireReglages } from "./parametres";
 export const bulletinsDuMois = query({
   args: { periode: v.string() },
   handler: async (ctx, { periode }) => {
-    await requireLevel(ctx, 4);
+    await requireUnDesDroits(ctx, ["/paie/bulletins", "/paie/liste", "/paie/saisie", "/paie/archives", "/paie/courrier"]);
     return await bulletinsPourPeriode(ctx, periode);
   },
 });
@@ -19,7 +19,7 @@ export const bulletinsDuMois = query({
 export const genererEtCloturer = mutation({
   args: { periode: v.string() },
   handler: async (ctx, { periode }) => {
-    const user = await requireLevel(ctx, 4);
+    const user = await requireDroit(ctx, "/paie/bulletins", "faire");
     const r = await bulletinsPourPeriode(ctx, periode);
     if (r.cloture) throw new Error("Ce mois est déjà clôturé.");
     if (!r.baremeId) throw new Error(r.erreur ?? "Aucun barème applicable à cette période.");
@@ -45,7 +45,7 @@ export const genererEtCloturer = mutation({
 export const saisiesDuMois = query({
   args: { periode: v.string() },
   handler: async (ctx, { periode }) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/paie/saisie");
     const rows = await ctx.db.query("saisiesMensuelles").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
     return Object.fromEntries(rows.map((r) => [r.employeId, r]));
   },
@@ -62,7 +62,7 @@ const VALEURS = v.object({
 export const saisirMois = mutation({
   args: { employeId: v.id("employes"), periode: v.string(), valeurs: VALEURS },
   handler: async (ctx, { employeId, periode, valeurs }) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/paie/saisie", "faire");
     const clos = await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
     if (clos) throw new Error(`Le mois ${periode} est clôturé : saisie en lecture seule.`);
     // Bornes de saisie : une case de tableau n'a pas de garde-fou, le serveur en a un.

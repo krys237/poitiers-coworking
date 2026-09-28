@@ -1,6 +1,6 @@
 import { query, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireLevel } from "./lib/authz";
+import { requireDroit, requireUnDesDroits } from "./lib/authz";
 import { lireReglages } from "./parametres";
 import { bulletinsPourPeriode } from "./lib/calculBulletins";
 import { MODELE_DEFAUT, rendreLettre, htmlEmail, libellePeriode } from "./lib/courrier";
@@ -13,7 +13,7 @@ import { MODELE_DEFAUT, rendreLettre, htmlEmail, libellePeriode } from "./lib/co
 export const mode = query({
   args: {},
   handler: async (ctx) => {
-    await requireLevel(ctx, 4);
+    await requireUnDesDroits(ctx, ["/paie/courrier", "/parametres"]);
     const cle = !!process.env.RESEND_API_KEY;
     const interrupteur = (await lireReglages(ctx)).envoiReelActive;
     return { reel: cle && interrupteur, cleConfiguree: cle, envoiActive: interrupteur };
@@ -24,7 +24,7 @@ export const mode = query({
 export const apercu = query({
   args: { periode: v.string() },
   handler: async (ctx, { periode }) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/paie/courrier");
     const entreprise = await ctx.db.query("parametresEntreprise").first();
     const modele = entreprise?.modeleCourrier ?? MODELE_DEFAUT;
     const r = await bulletinsPourPeriode(ctx, periode);
@@ -47,16 +47,17 @@ export const apercu = query({
 export const journal = query({
   args: { periode: v.string() },
   handler: async (ctx, { periode }) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/paie/courrier");
     return await ctx.db.query("envois").withIndex("by_periode", (q) => q.eq("periode", periode)).order("desc").collect();
   },
 });
 
 // Charges utiles prêtes à envoyer (appelé par l'action Node). L'auth est propagée depuis l'action.
 export const payloads = internalQuery({
-  args: { periode: v.string(), employeIds: v.optional(v.array(v.id("employes"))) },
-  handler: async (ctx, { periode, employeIds }) => {
-    await requireLevel(ctx, 4);
+  // `envoi` : l'appelant envoie le courrier (droit FAIRE) ; sinon simple aperçu PDF (droit VOIR).
+  args: { periode: v.string(), employeIds: v.optional(v.array(v.id("employes"))), envoi: v.optional(v.boolean()) },
+  handler: async (ctx, { periode, employeIds, envoi }) => {
+    await (envoi ? requireDroit(ctx, "/paie/courrier", "faire") : requireUnDesDroits(ctx, ["/paie/bulletins", "/paie/courrier"]));
     const entreprise = await ctx.db.query("parametresEntreprise").first();
     const modele = entreprise?.modeleCourrier ?? MODELE_DEFAUT;
     const r = await bulletinsPourPeriode(ctx, periode);

@@ -1,13 +1,13 @@
 import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { getCurrentUser, requireLevel } from "./lib/authz";
+import { getCurrentUser, requireDroit, droitsDuMembre, lireConfidentiel } from "./lib/authz";
 import { canView, canDownload, NIVEAU, Role } from "./rbac";
 
 const MODE = v.union(v.literal("ia"), v.literal("heuristique"), v.literal("manuel"));
 
 export const genererUploadUrl = mutation({
   args: {},
-  handler: async (ctx) => { await requireLevel(ctx, 1); return await ctx.storage.generateUploadUrl(); },
+  handler: async (ctx) => { await requireDroit(ctx, "/documents", "faire"); return await ctx.storage.generateUploadUrl(); },
 });
 
 export const deposer = mutation({
@@ -18,9 +18,9 @@ export const deposer = mutation({
     codeAcces: v.optional(v.string()), modeMeta: MODE,
   },
   handler: async (ctx, a) => {
-    const me = await requireLevel(ctx, 1);
+    const me = await requireDroit(ctx, "/documents", "faire");
     if (!a.titre.trim()) throw new Error("Titre requis.");
-    if (a.confidentiel && NIVEAU[me.role as Role] < 5) throw new Error("Seule la direction (niveau 5+) peut déposer un document confidentiel.");
+    if (a.confidentiel && !(await droitsDuMembre(ctx, me))["/documents/confidentiels"].faire) throw new Error("Vous n'avez pas le droit de déposer un document confidentiel.");
     return await ctx.db.insert("documents", {
       ...a, titre: a.titre.trim(), codeAcces: a.codeAcces?.trim() || undefined,
       uploadedBy: me._id, deposeLe: new Date().toISOString(),
@@ -32,11 +32,12 @@ export const deposer = mutation({
 export const liste = query({
   args: { recherche: v.optional(v.string()), categorie: v.optional(v.string()) },
   handler: async (ctx, { recherche, categorie }) => {
-    const me = await requireLevel(ctx, 1);
+    const me = await requireDroit(ctx, "/documents");
     const role = me.role as Role;
+    const conf = await lireConfidentiel(ctx, me);
     const tous = await ctx.db.query("documents").collect();
     const q = (recherche ?? "").trim().toLowerCase();
-    const visibles = tous.filter((d) => canView(role, d));
+    const visibles = tous.filter((d) => canView(role, d, conf));
     const users = new Map<string, string>();
     const out = [];
     for (const d of visibles.sort((a, b) => b.deposeLe.localeCompare(a.deposeLe))) {
@@ -47,10 +48,10 @@ export const liste = query({
         _id: d._id, titre: d.titre, description: d.description, categorie: d.categorie ?? "Divers", nomFichier: d.nomFichier,
         taille: d.taille, typeMime: d.typeMime, deposeLe: d.deposeLe, deposePar: users.get(String(d.uploadedBy)),
         niveauVisible: d.niveauVisible, niveauTelechargement: d.niveauTelechargement, confidentiel: d.confidentiel,
-        codeRequis: !!d.codeAcces, telechargeable: canDownload(role, d), modeMeta: d.modeMeta,
+        codeRequis: !!d.codeAcces, telechargeable: canDownload(role, d, conf), modeMeta: d.modeMeta,
       });
     }
-    return { documents: out, categories: [...new Set(visibles.map((d) => d.categorie ?? "Divers"))].sort(), monNiveau: NIVEAU[role] };
+    return { documents: out, categories: [...new Set(visibles.map((d) => d.categorie ?? "Divers"))].sort(), monNiveau: NIVEAU[role], deposeConfidentiel: (await droitsDuMembre(ctx, me))["/documents/confidentiels"].faire };
   },
 });
 
@@ -58,10 +59,11 @@ export const liste = query({
 export const obtenirUrl = mutation({
   args: { documentId: v.id("documents"), code: v.optional(v.string()) },
   handler: async (ctx, { documentId, code }) => {
-    const me = await requireLevel(ctx, 1);
+    const me = await requireDroit(ctx, "/documents");
     const d = await ctx.db.get(documentId);
-    if (!d || !canView(me.role as Role, d)) throw new Error("Document introuvable.");
-    if (!canDownload(me.role as Role, d)) throw new Error("Téléchargement réservé à un niveau supérieur.");
+    const conf = await lireConfidentiel(ctx, me);
+    if (!d || !canView(me.role as Role, d, conf)) throw new Error("Document introuvable.");
+    if (!canDownload(me.role as Role, d, conf)) throw new Error("Téléchargement réservé à un niveau supérieur.");
     if (d.codeAcces && d.codeAcces !== (code ?? "").trim()) throw new Error("Code d'accès incorrect.");
     const url = await ctx.storage.getUrl(d.fichierId);
     if (!url) throw new Error("Fichier indisponible.");
@@ -74,9 +76,9 @@ export const obtenirUrl = mutation({
 export const apercuUrl = mutation({
   args: { documentId: v.id("documents"), code: v.optional(v.string()) },
   handler: async (ctx, { documentId, code }) => {
-    const me = await requireLevel(ctx, 1);
+    const me = await requireDroit(ctx, "/documents");
     const d = await ctx.db.get(documentId);
-    if (!d || !canView(me.role as Role, d)) throw new Error("Document introuvable.");
+    if (!d || !canView(me.role as Role, d, await lireConfidentiel(ctx, me))) throw new Error("Document introuvable.");
     if (d.codeAcces && d.codeAcces !== (code ?? "").trim()) throw new Error("Code d'accès incorrect.");
     const url = await ctx.storage.getUrl(d.fichierId);
     if (!url) throw new Error("Fichier indisponible.");
@@ -87,7 +89,7 @@ export const apercuUrl = mutation({
 export const supprimer = mutation({
   args: { documentId: v.id("documents") },
   handler: async (ctx, { documentId }) => {
-    const me = await requireLevel(ctx, 1);
+    const me = await requireDroit(ctx, "/documents", "faire");
     const d = await ctx.db.get(documentId);
     if (!d) return;
     if (d.uploadedBy !== me._id && NIVEAU[me.role as Role] < 7) throw new Error("Seul le déposant ou le DG peut supprimer.");
@@ -119,9 +121,9 @@ export const deposerInterne = internalMutation({
 export const controleAccesFichier = internalQuery({
   args: { fichierId: v.id("_storage") },
   handler: async (ctx, { fichierId }) => {
-    const me = await requireLevel(ctx, 1);
+    const me = await requireDroit(ctx, "/documents");
     const doc = await ctx.db.query("documents").withIndex("by_fichier", (q) => q.eq("fichierId", fichierId)).first();
-    if (doc && !canView(me.role as Role, doc)) throw new Error("Accès refusé : ce document ne vous est pas visible.");
+    if (doc && !canView(me.role as Role, doc, await lireConfidentiel(ctx, me))) throw new Error("Accès refusé : ce document ne vous est pas visible.");
     return { userId: me._id };
   },
 });

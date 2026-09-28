@@ -186,6 +186,7 @@ export function Documents() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const monNiveau = liste?.monNiveau ?? 1;
+  const deposeConfidentiel = !!liste?.deposeConfidentiel;
 
   // Tous les documents visibles correspondant à la recherche texte
   const tousDocs = useMemo(() => liste?.documents ?? [], [liste?.documents]);
@@ -683,7 +684,7 @@ export function Documents() {
                       <input
                         type="checkbox"
                         checked={f.confidentiel}
-                        disabled={!f.fichierId || monNiveau < 5 || analyse}
+                        disabled={!f.fichierId || !deposeConfidentiel || analyse}
                         onChange={(e) => setF({ ...f, confidentiel: e.target.checked })}
                         className="h-4 w-4 rounded border-slate-300 text-ocean-profond focus:ring-ocean-ceruleen"
                       />
@@ -691,9 +692,9 @@ export function Documents() {
                         Marquer comme Document Confidentiel (DAF / DG uniquement)
                       </span>
                     </label>
-                    {monNiveau < 5 && (
+                    {!deposeConfidentiel && (
                       <p className="text-3xs text-slate-400 mt-0.5 ml-6">
-                        Réservé aux membres de la direction (Niveau 5 et supérieur)
+                        Réservé aux membres qui ont le droit « Documents confidentiels » (Faire)
                       </p>
                     )}
                   </div>

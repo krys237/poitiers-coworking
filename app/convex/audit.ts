@@ -26,7 +26,7 @@ export const lignes = query({
 export const enregistrerLigne = mutation({
   args: { ligneId: v.optional(v.id("primesMedecins")), periode: v.string(), categorie: v.string(), ...ligneV },
   handler: async (ctx, { ligneId, periode, categorie, ...l }) => {
-    await requireAudit(ctx); verifierCategorie(categorie);
+    await requireAudit(ctx, "faire"); verifierCategorie(categorie);
     if (!l.designation.trim()) throw new Error("Désignation requise.");
     const doc = { contexte: "audit" as const, periode, categorie, designation: l.designation.trim(), dateDebut: l.dateDebut || undefined, dateFin: l.dateFin || undefined, montant: Math.round(l.montant), notes: l.notes || undefined };
     if (ligneId) { await ctx.db.patch(ligneId, doc); return ligneId; }
@@ -36,13 +36,13 @@ export const enregistrerLigne = mutation({
 
 export const supprimerLigne = mutation({
   args: { ligneId: v.id("primesMedecins") },
-  handler: async (ctx, { ligneId }) => { await requireAudit(ctx); const l = await ctx.db.get(ligneId); if (l?.contexte === "audit") await ctx.db.delete(ligneId); },
+  handler: async (ctx, { ligneId }) => { await requireAudit(ctx, "faire"); const l = await ctx.db.get(ligneId); if (l?.contexte === "audit") await ctx.db.delete(ligneId); },
 });
 
 export const importerLignes = mutation({
   args: { periode: v.string(), categorie: v.string(), lignes: v.array(v.object(ligneV)) },
   handler: async (ctx, { periode, categorie, lignes }) => {
-    await requireAudit(ctx); verifierCategorie(categorie);
+    await requireAudit(ctx, "faire"); verifierCategorie(categorie);
     let n = 0;
     for (const l of lignes) {
       if (!l.designation.trim()) continue;
@@ -79,7 +79,7 @@ export const rapport = query({
 export const enregistrerRapport = mutation({
   args: { periode: v.string(), categorie: v.string(), contenu: v.string() },
   handler: async (ctx, { periode, categorie, contenu }) => {
-    const me = await requireAudit(ctx); verifierCategorie(categorie);
+    const me = await requireAudit(ctx, "faire"); verifierCategorie(categorie);
     const majLe = new Date().toISOString();
     const r = await ctx.db.query("rapportsAudit").withIndex("by_categorie_periode", (q) => q.eq("categorie", categorie).eq("periode", periode)).first();
     if (r) await ctx.db.patch(r._id, { contenu, auteurId: me._id, majLe });

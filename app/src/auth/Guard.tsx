@@ -11,7 +11,7 @@
 import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { canAccess, NIVEAU_MODULE, Role } from "../../convex/rbac";
+import { MODULE_PAR_CLE } from "../../convex/rbac";
 import { useMe } from "./useMe";
 import { Login } from "./Login";
 import "./auth.css";
@@ -46,17 +46,27 @@ function EnAttente({ email }: { email: string }) {
   );
 }
 
-/** Accès refusé à un module précis (le membre est bien connecté, mais son niveau ne suffit pas). */
+/** Accès refusé à un module précis (le membre est bien connecté, mais ce module ne lui est pas ouvert). */
 function Refuse({ module }: { module: string }) {
-  const requis = NIVEAU_MODULE[module];
+  const libelle = MODULE_PAR_CLE[module]?.libelle;
   return (
     <div className="auth-refus">
       <h1>Accès refusé</h1>
       <p>
-        Ce module est réservé à un niveau d'habilitation supérieur
-        {requis !== undefined ? ` (niveau ${requis} minimum)` : ""}. Si vous pensez devoir y accéder,
-        demandez à la Direction de relever votre niveau.
+        {libelle ? `Le module « ${libelle} »` : "Ce module"} ne vous est pas ouvert. Si vous pensez devoir y accéder,
+        demandez au Directeur Général de vous l'accorder (Paramètres → Rôles & accès).
       </p>
+    </div>
+  );
+}
+
+/** Le membre a « Voir » sans « Faire » : on dit d'emblée ce qui lui est ouvert, plutôt qu'au premier refus. */
+function DroitsPartiels({ module }: { module: string }) {
+  const m = MODULE_PAR_CLE[module];
+  if (!m) return null;
+  return (
+    <div data-droits="voir" className="mb-3 rounded-lg border border-ocean-ciel/60 bg-ocean-brume/40 px-3 py-2 text-xs text-ocean-nuit print:hidden" role="note">
+      <b>Vos droits ici :</b> {m.voir?.toLowerCase()}. <span className="text-encre-douce">Non ouvert : {m.faire?.toLowerCase()}.</span>
     </div>
   );
 }
@@ -85,11 +95,11 @@ export function PortailAuth({ children }: { children: ReactNode }) {
 }
 
 /**
- * Garde d'un module. `perm` est une clé de `NIVEAU_MODULE` (convex/rbac.ts).
+ * Garde d'un module. `perm` est une clé des droits effectifs (`me.droits`, voir rbac.MODULES).
  *
- * ⚠️ Toute route doit avoir une entrée dans `NIVEAU_MODULE` : une clé absente est refusée
- * à TOUT LE MONDE, Directeur Général compris (`canAccess` renvoie false si le niveau requis
- * est `undefined`). C'est volontaire — mieux vaut fermer une route oubliée que l'ouvrir.
+ * ⚠️ Toute route doit avoir sa clé dans `rbac.MODULES` (ou parmi les clés dérivées de
+ * `droitsEffectifs`) : une clé absente est refusée à TOUT LE MONDE, Directeur Général compris.
+ * C'est volontaire — mieux vaut fermer une route oubliée que l'ouvrir.
  */
 export function Guard({ perm, children }: { perm: string; children: ReactNode }) {
   const me = useMe();
@@ -97,5 +107,8 @@ export function Guard({ perm, children }: { perm: string; children: ReactNode })
   // ce garde-fou couvre le cas où la session tombe pendant la navigation.
   if (me === undefined) return <Patiente message="Chargement…" />;
   if (me === null) return <Login />;
-  return canAccess(me.role as Role, perm) ? <>{children}</> : <Refuse module={perm} />;
+  const d = me.droits?.[perm];
+  if (!d?.voir) return <Refuse module={perm} />;
+  const lectureSeule = !d.faire && !!MODULE_PAR_CLE[perm]?.faire;
+  return <>{lectureSeule && <DroitsPartiels module={perm} />}{children}</>;
 }

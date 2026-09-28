@@ -1,13 +1,13 @@
 import { query, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireLevel } from "./lib/authz";
+import { requireDroit } from "./lib/authz";
 import { bulletinsPourPeriode } from "./lib/calculBulletins";
 
 // Mois clôturés : agrégats, état des envois et des PDF archivés.
 export const liste = query({
   args: {},
   handler: async (ctx) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/paie/archives");
     const clotures = (await ctx.db.query("cloturesPaie").collect()).sort((a, b) => b.periode.localeCompare(a.periode));
     const out = [];
     for (const c of clotures) {
@@ -30,7 +30,7 @@ export const liste = query({
 export const bulletinsDuMois = query({
   args: { periode: v.string() },
   handler: async (ctx, { periode }) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/paie/archives");
     const bulletins = await ctx.db.query("bulletins").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
     const out = [];
     for (const b of bulletins) {

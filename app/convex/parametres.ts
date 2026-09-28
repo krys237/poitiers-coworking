@@ -1,8 +1,9 @@
 import { query, mutation, internalQuery, QueryCtx, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { requireLevel, DEV_BYPASS } from "./lib/authz";
+import { requireLevel, DEV_BYPASS, requireDroit } from "./lib/authz";
 import { journaliser } from "./lib/journal";
 import { reglagesDe, validerReglages, type Reglages } from "./lib/reglages";
+import { LIBELLE, MODULE_PAR_CLE, NIVEAU, celluleParDefaut, droitsEffectifs, estVerrouille, normaliser, type Role, type SurchargeRole } from "./rbac";
 
 // Paramètres entreprise : singleton (première ligne). Apparaissent en en-tête/filigrane des PDF.
 export const get = query({
@@ -19,7 +20,7 @@ export const enregistrer = mutation({
     niu: v.optional(v.string()), numeroCnps: v.optional(v.string()), responsableRH: v.optional(v.string()), jourPaiement: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const me = await requireLevel(ctx, 7);
+    const me = await requireDroit(ctx, "/parametres", "faire");
     const existant = await ctx.db.query("parametresEntreprise").first();
     if (existant) await ctx.db.patch(existant._id, args);
     else await ctx.db.insert("parametresEntreprise", args);
@@ -31,7 +32,7 @@ export const enregistrer = mutation({
 export const modifierCourrier = mutation({
   args: { modeleCourrier: v.optional(v.string()), emailExpediteur: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/paie/courrier", "faire");
     const existant = await ctx.db.query("parametresEntreprise").first();
     if (!existant) throw new Error("Paramètres entreprise non initialisés.");
     await ctx.db.patch(existant._id, args);
@@ -62,7 +63,7 @@ const reglagesV = v.object({
 export const enregistrerReglages = mutation({
   args: { reglages: reglagesV },
   handler: async (ctx, { reglages }) => {
-    const me = await requireLevel(ctx, 7);
+    const me = await requireDroit(ctx, "/parametres", "faire");
     const erreurs = validerReglages(reglages);
     if (erreurs.length) throw new Error(erreurs.join(" "));
     const existant = await ctx.db.query("parametresEntreprise").first();
@@ -71,6 +72,36 @@ export const enregistrerReglages = mutation({
     const changes = (Object.keys(reglages) as (keyof Reglages)[]).filter((k) => avant[k] !== reglages[k]);
     await ctx.db.patch(existant._id, { reglages });
     if (changes.length) await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "parametres_modification", cible: "réglages", detail: changes.map((k) => `${k} : ${String(avant[k])} → ${String(reglages[k])}`).join(" · ") });
+  },
+});
+
+// --- Droits des rôles (Paramètres → Rôles & accès) -----------------------------------------
+// La matrice envoyée est COMPLÈTE (rôle × module) ; on ne stocke que ce qui diffère du défaut,
+// pour qu'un défaut corrigé plus tard dans rbac.ts profite aux cases jamais touchées.
+export const enregistrerDroitsRoles = mutation({
+  args: { droits: v.array(v.object({ role: v.string(), module: v.string(), voir: v.boolean(), faire: v.boolean() })) },
+  handler: async (ctx, { droits }) => {
+    const me = await requireDroit(ctx, "/parametres", "faire");
+    const existant = await ctx.db.query("parametresEntreprise").first();
+    if (!existant) throw new Error("Paramètres entreprise non initialisés.");
+    const avant = existant.droitsRoles ?? [];
+    const surcharges: SurchargeRole[] = [];
+    const changes: string[] = [];
+    for (const d of droits) {
+      const role = d.role as Role;
+      const m = MODULE_PAR_CLE[d.module];
+      if (!m || !(role in NIVEAU)) throw new Error(`Case inconnue : ${d.role} × ${d.module}`);
+      if (estVerrouille(role, d.module)) continue;
+      const c = normaliser(m, d);
+      const defaut = normaliser(m, celluleParDefaut(role, m));
+      if (c.voir !== defaut.voir || c.faire !== defaut.faire) surcharges.push({ role, module: d.module, ...c });
+      const ancien = droitsEffectifs(role, avant)[d.module];
+      if (ancien.voir !== c.voir || ancien.faire !== c.faire)
+        changes.push(`${LIBELLE[role]} · ${m.libelle} : ${c.faire ? "voir + faire" : c.voir ? "voir" : "aucun"}`);
+    }
+    await ctx.db.patch(existant._id, { droitsRoles: surcharges.length ? surcharges : undefined });
+    if (changes.length) await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "droits_roles", cible: "rôles & accès", detail: changes.join(" · ") });
+    return { modifiees: changes.length };
   },
 });
 

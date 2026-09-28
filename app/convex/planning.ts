@@ -1,7 +1,7 @@
 import { query, mutation, QueryCtx, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
-import { requireLevel } from "./lib/authz";
+import { requireDroit } from "./lib/authz";
 import { resumeMois, joursCalendaires, joursDansMois, periodesTouchees, PAYE_PAR_DEFAUT, CONGES_PAR_MOIS_DEFAUT, TypeAbsence } from "./lib/absences";
 
 const TYPE = v.union(v.literal("conge_paye"), v.literal("absence"), v.literal("maladie"), v.literal("autre"));
@@ -15,7 +15,7 @@ async function tauxConges(ctx: QueryCtx | MutationCtx) {
 export const vueMensuelle = query({
   args: { periode: v.string() },
   handler: async (ctx, { periode }) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/paie/planning");
     const congesParMois = await tauxConges(ctx);
     const cloture = await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
     const saisies = await ctx.db.query("saisiesMensuelles").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
@@ -70,7 +70,7 @@ export const ajouterAbsence = mutation({
     paye: v.optional(v.boolean()), motif: v.optional(v.string()),
   },
   handler: async (ctx, a) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/paie/planning", "faire");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(a.dateDebut) || !/^\d{4}-\d{2}-\d{2}$/.test(a.dateFin)) throw new Error("Dates au format AAAA-MM-JJ.");
     if (a.dateFin < a.dateDebut) throw new Error("La date de fin précède la date de début.");
     const jours = joursCalendaires(a.dateDebut, a.dateFin);
@@ -89,7 +89,7 @@ export const modifierAbsence = mutation({
     paye: v.optional(v.boolean()), motif: v.optional(v.string()),
   },
   handler: async (ctx, { absenceId, ...patch }) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/paie/planning", "faire");
     const ev = await ctx.db.get(absenceId);
     if (!ev) throw new Error("Absence introuvable.");
     const dateDebut = patch.dateDebut ?? ev.dateDebut, dateFin = patch.dateFin ?? ev.dateFin;
@@ -109,7 +109,7 @@ export const modifierAbsence = mutation({
 export const supprimerAbsence = mutation({
   args: { absenceId: v.id("absences") },
   handler: async (ctx, { absenceId }) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/paie/planning", "faire");
     const ev = await ctx.db.get(absenceId);
     if (!ev) return { periodes: [] as string[] };
     await ctx.db.delete(absenceId);
@@ -122,7 +122,7 @@ export const supprimerAbsence = mutation({
 export const synchroniserPaie = mutation({
   args: { periode: v.string() },
   handler: async (ctx, { periode }) => {
-    await requireLevel(ctx, 4);
+    await requireDroit(ctx, "/paie/planning", "faire");
     const employes = (await ctx.db.query("employes").collect()).filter((e) => e.actif);
     let n = 0;
     for (const e of employes) { n += (await appliquerAuxSaisies(ctx, e._id, [periode])).length; }

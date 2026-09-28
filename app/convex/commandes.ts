@@ -1,7 +1,7 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Doc } from "./_generated/dataModel";
-import { requireLevel } from "./lib/authz";
+import { requireDroit } from "./lib/authz";
 import { comparer, totalCommande, reference } from "./lib/commandes";
 
 const TYPE = v.union(v.literal("medicale"), v.literal("fourniture"));
@@ -21,7 +21,7 @@ function precedente(c: Doc<"commandes">, toutes: Doc<"commandes">[]) {
 export const liste = query({
   args: { type: v.optional(TYPE) },
   handler: async (ctx, { type }) => {
-    await requireLevel(ctx, 3);
+    await requireDroit(ctx, "/commandes");
     const rows = type
       ? await ctx.db.query("commandes").withIndex("by_type_date", (q) => q.eq("type", type)).order("desc").collect()
       : await ctx.db.query("commandes").withIndex("by_date").order("desc").collect();
@@ -36,7 +36,7 @@ export const liste = query({
 export const detail = query({
   args: { commandeId: v.id("commandes") },
   handler: async (ctx, { commandeId }) => {
-    await requireLevel(ctx, 3);
+    await requireDroit(ctx, "/commandes");
     const c = await ctx.db.get(commandeId);
     if (!c) return null;
     const toutes = await ctx.db.query("commandes").withIndex("by_type", (q) => q.eq("type", c.type)).collect();
@@ -56,7 +56,7 @@ export const creer = mutation({
     lignes: v.array(LIGNE), commentaire: v.optional(v.string()),
   },
   handler: async (ctx, a) => {
-    const user = await requireLevel(ctx, 3);
+    const user = await requireDroit(ctx, "/commandes", "faire");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(a.date)) throw new Error("Date au format AAAA-MM-JJ.");
     const lignes = a.lignes.map((l) => ({ ...l, produit: l.produit.trim(), dci: l.dci?.trim() || undefined })).filter((l) => l.produit);
     if (!lignes.length) throw new Error("Au moins une ligne de produit est requise.");
@@ -78,7 +78,7 @@ export const creer = mutation({
 export const changerStatut = mutation({
   args: { commandeId: v.id("commandes"), statut: STATUT, commentaire: v.optional(v.string()) },
   handler: async (ctx, { commandeId, statut, commentaire }) => {
-    const user = await requireLevel(ctx, statut === "validee" || statut === "rejetee" ? 5 : 3);
+    const user = await (statut === "validee" || statut === "rejetee" ? requireDroit(ctx, "/commandes/validation", "faire") : requireDroit(ctx, "/commandes", "faire"));
     const c = await ctx.db.get(commandeId);
     if (!c) throw new Error("Commande introuvable.");
     if (!TRANSITIONS[c.statut].includes(statut)) throw new Error(`Transition ${c.statut} → ${statut} non autorisée.`);
@@ -97,7 +97,7 @@ export const changerStatut = mutation({
 export const commenter = mutation({
   args: { commandeId: v.id("commandes"), texte: v.string() },
   handler: async (ctx, { commandeId, texte }) => {
-    const user = await requireLevel(ctx, 3);
+    const user = await requireDroit(ctx, "/commandes", "faire");
     const c = await ctx.db.get(commandeId);
     if (!c || !texte.trim()) return;
     await ctx.db.patch(commandeId, { commentaires: [...c.commentaires, { auteur: user.nom ?? user.email, texte: texte.trim(), date: new Date().toISOString() }] });

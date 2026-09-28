@@ -1,8 +1,8 @@
 import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { getCurrentUser, requireLevel, PENDING_PREFIX, DEV_BYPASS } from "./lib/authz";
+import { getCurrentUser, requireLevel, PENDING_PREFIX, DEV_BYPASS, requireDroit, droitsDuMembre } from "./lib/authz";
 import { journaliser } from "./lib/journal";
-import { LIBELLE, NIVEAU, Role, peutAttribuer, peutModifierMembre } from "./rbac";
+import { LIBELLE, NIVEAU, Role, peutAttribuer, peutModifierMembre, MODULE_PAR_CLE, estVerrouille, normaliser, type Action } from "./rbac";
 import { normaliserTelephone, erreurTelephone } from "./lib/telephone";
 
 const ROLE = v.union(
@@ -26,6 +26,8 @@ export const me = query({
       niveau: NIVEAU[u.role as Role],
       enAttente: u.enAttente === true,
       modeDev: DEV_BYPASS && u.tokenIdentifier === "dev:dg",
+      // Droits effectifs VOIR / FAIRE par module : l'interface masque ce que le serveur refuserait.
+      droits: await droitsDuMembre(ctx, u),
     };
   },
 });
@@ -34,7 +36,7 @@ export const me = query({
 export const liste = query({
   args: {},
   handler: async (ctx) => {
-    await requireLevel(ctx, 7);
+    await requireDroit(ctx, "/membres");
     const rows = await ctx.db.query("users").collect();
     return rows.map((u) => ({
       ...u, roleLibelle: LIBELLE[u.role as Role], niveau: NIVEAU[u.role as Role],
@@ -93,7 +95,7 @@ export const modifier = mutation({
     phone: v.optional(v.string()),
   },
   handler: async (ctx, { userId, ...patch }) => {
-    const me = await requireLevel(ctx, 7);
+    const me = await requireDroit(ctx, "/membres", "faire");
     const cible = await ctx.db.get(userId);
     if (!cible) throw new Error("Membre introuvable.");
     if (patch.phone !== undefined) patch.phone = await telephoneValide(ctx, patch.phone, userId);
@@ -127,7 +129,7 @@ export const modifier = mutation({
 export const creer = mutation({
   args: { email: v.string(), nom: v.optional(v.string()), role: ROLE, poste: v.optional(v.string()), departement: v.optional(v.string()), societe: v.optional(SOCIETE), codeAcces: v.optional(v.string()), phone: v.optional(v.string()) },
   handler: async (ctx, a) => {
-    const me = await requireLevel(ctx, 7);
+    const me = await requireDroit(ctx, "/membres", "faire");
     if (!peutAttribuer(me.role as Role, a.role as Role)) throw new Error(`Accès refusé : vous ne pouvez pas attribuer le rôle ${LIBELLE[a.role as Role]}.`);
     const phone = await telephoneValide(ctx, a.phone);
     const email = a.email.trim().toLowerCase();
@@ -147,6 +149,35 @@ export const verifierNiveau = internalQuery({
   handler: async (ctx, { min }) => {
     const u = await requireLevel(ctx, min);
     return { userId: u._id, nom: u.nom ?? u.email, role: u.role };
+  },
+});
+
+// Même chose, par droit de module (rbac.MODULES) plutôt que par niveau.
+export const verifierDroit = internalQuery({
+  args: { module: v.string(), action: v.union(v.literal("voir"), v.literal("faire")) },
+  handler: async (ctx, { module, action }) => {
+    const u = await requireDroit(ctx, module, action as Action);
+    return { userId: u._id, nom: u.nom ?? u.email, role: u.role };
+  },
+});
+
+// Exceptions individuelles aux droits du rôle (Paramètres → Rôles & accès). `droits` remplace
+// toutes les exceptions du membre ; une liste vide le ramène aux droits de son rôle.
+export const modifierDroitsPerso = mutation({
+  args: { userId: v.id("users"), droits: v.array(v.object({ module: v.string(), voir: v.boolean(), faire: v.boolean() })) },
+  handler: async (ctx, { userId, droits }) => {
+    const me = await requireDroit(ctx, "/parametres", "faire");
+    const cible = await ctx.db.get(userId);
+    if (!cible) throw new Error("Membre introuvable.");
+    if (!peutModifierMembre(me.role as Role, cible.role as Role)) throw new Error(`Accès refusé : ${LIBELLE[cible.role as Role]} est au-dessus de votre niveau.`);
+    const propres = droits.flatMap((d) => {
+      const m = MODULE_PAR_CLE[d.module];
+      if (!m) throw new Error(`Module inconnu : ${d.module}`);
+      return estVerrouille(cible.role as Role, d.module) ? [] : [{ module: d.module, ...normaliser(m, d) }];
+    });
+    await ctx.db.patch(userId, { droitsPerso: propres.length ? propres : undefined });
+    await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "membre_droits", cible: cible.nom ?? cible.email,
+      detail: propres.length ? propres.map((d) => `${MODULE_PAR_CLE[d.module].libelle} : ${d.faire ? "voir + faire" : d.voir ? "voir" : "aucun"}`).join(" · ") : "retour aux droits du rôle" });
   },
 });
 

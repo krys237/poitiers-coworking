@@ -234,7 +234,7 @@ export const envoyerCourrier = action({
     const key = process.env.RESEND_API_KEY;
     const reglages: { envoiReelActive: boolean } = await ctx.runQuery(internal.parametres.reglagesInternes, {});
     const modeEnvoi: "reel" | "simulation" = key && reglages.envoiReelActive ? "reel" : "simulation";
-    const lots: any[] = await ctx.runQuery(internal.courrier.payloads, args);
+    const lots: any[] = await ctx.runQuery(internal.courrier.payloads, { ...args, envoi: true });
     let envoyes = 0, echecs = 0, simules = 0, pdfOctets = 0;
 
     for (const p of lots) {
@@ -307,7 +307,7 @@ async function archiver(ctx: any, periode: string): Promise<ResultatArchive> {
 export const archiverPdfs = action({
   args: { periode: v.string() },
   handler: async (ctx, { periode }): Promise<ResultatArchive> => {
-    await ctx.runQuery(internal.users.verifierNiveau, { min: 4 });
+    await ctx.runQuery(internal.users.verifierDroit, { module: "/paie/archives", action: "faire" });
     return await archiver(ctx, periode);
   },
 });
