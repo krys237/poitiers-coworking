@@ -169,7 +169,7 @@ export function Parametres() {
             <TabsContent value="entreprise" className="grid gap-4 lg:grid-cols-[1fr_22rem]">
               <Bloc titre="Identité" description="Reprise en en-tête des bulletins, listes et PDF, et dans les courriers.">
                 <Grille>
-                  <Champ libelle="Raison sociale" requis className={modif(modifieE("nom"))}>{(a) => <Input {...a} value={e.nom} onChange={(x) => majE("nom", x.target.value)} />}</Champ>
+                  <Champ libelle="Nom de l'entreprise" aide="Tel qu'il s'imprime en tête des bulletins, listes et courriers" requis className={modif(modifieE("nom"))}>{(a) => <Input {...a} value={e.nom} onChange={(x) => majE("nom", x.target.value)} />}</Champ>
                   <Champ libelle="Adresse" requis className={cn("sm:col-span-2", modif(modifieE("adresse")))}>{(a) => <Input {...a} value={e.adresse} onChange={(x) => majE("adresse", x.target.value)} />}</Champ>
                   <Champ libelle="NIU (entreprise)" aide="Numéro d'identifiant unique, bloc employeur du bulletin" className={modif(modifieE("niu"))}>{(a) => <Input {...a} value={e.niu} onChange={(x) => majE("niu", x.target.value)} placeholder="M0…" className="font-mono" />}</Champ>
                   <Champ libelle="N° CNPS employeur" className={modif(modifieE("numeroCnps"))}>{(a) => <Input {...a} value={e.numeroCnps} onChange={(x) => majE("numeroCnps", x.target.value)} className="font-mono" />}</Champ>
@@ -180,7 +180,7 @@ export function Parametres() {
                   <div className="flex items-start gap-3 border-b-2 pb-3" style={{ borderColor: e.couleurEntete }}>
                     {e.logoUrl ? <img src={e.logoUrl} alt="" className="h-12 w-12 shrink-0 object-contain" /> : <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-filet-clair text-encre-pale"><Building2Icon className="h-6 w-6" /></div>}
                     <div className="min-w-0">
-                      <div className="truncate text-base font-bold uppercase tracking-wide" style={{ color: e.couleurEntete }}>{e.nom || "Raison sociale"}</div>
+                      <div className="truncate text-base font-bold uppercase tracking-wide" style={{ color: e.couleurEntete }}>{e.nom || "Nom de l'entreprise"}</div>
                       <div className="text-2xs text-encre-douce">{e.adresse || "Adresse"}</div>
                       <div className="font-mono text-2xs text-encre-pale">{[e.niu && `NIU ${e.niu}`, e.numeroCnps && `CNPS ${e.numeroCnps}`].filter(Boolean).join(" · ") || "NIU · N° CNPS"}</div>
                     </div>

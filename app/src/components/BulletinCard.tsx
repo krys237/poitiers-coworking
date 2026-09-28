@@ -55,7 +55,7 @@ export function BulletinCard({ b, entreprise, page }: { b: any; entreprise: any;
       <EnTeteDocument
         raisonSociale={entreprise?.nom ?? "ENTREPRISE"}
         coordonnees={<>{entreprise?.adresse}<br />NIU {entreprise?.niu || "—"} · N° CNPS {entreprise?.numeroCnps || "—"}</>}
-        nature={<>BULLETIN DE PAIE<span className="periode">Période du {b.periodeDu} au {b.periodeAu}</span><span className="paiement">Paiement le {b.datePaiement} par banque</span></>}
+        nature={<>BULLETIN DU MOIS<span className="periode">Période du {b.periodeDu} au {b.periodeAu}</span><span className="paiement">Paiement le {b.datePaiement} par banque</span></>}
       />
 
       <div className="doc-zone">

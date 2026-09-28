@@ -112,7 +112,7 @@ async function buildPdf(input: BulletinPdfInput): Promise<Uint8Array> {
   txt(entreprise.nom, M, y - 13, 13, bold, SCEAU);
   const coord = [entreprise.adresse ?? "", `NIU ${entreprise.niu || "-"} · N° CNPS ${entreprise.numeroCnps || "-"}`];
   coord.forEach((l, i) => txt(l, M, y - 25 - i * 10, 8, font, GRIS));
-  txt("BULLETIN DE PAIE", M, y - 13, 12, bold, INK, "r", IW);
+  txt("BULLETIN DU MOIS", M, y - 13, 12, bold, INK, "r", IW);
   txt(`Période du ${b.periodeDu ?? ""} au ${b.periodeAu ?? ""}`, M, y - 25, 8.5, font, GRIS, "r", IW);
   txt(`Paiement le ${b.datePaiement ?? ""} par banque`, M, y - 36, 8.5, bold, INK, "r", IW);
   row(44);

@@ -468,7 +468,7 @@ export function Charte() {
                 NIU M0123456789A · CNPS 0987654
               </>
             }
-            nature="Bulletin de paie"
+            nature="Bulletin du mois"
             periode="Periode du 01/09/2026 au 30/09/2026 · Paiement le 05/10/2026"
           />
 
