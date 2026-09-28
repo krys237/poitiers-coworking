@@ -80,7 +80,7 @@ export default defineSchema({
     reglages: v.optional(v.object({           // réglages de fonctionnement — voir lib/reglages.ts (défauts = anciennes constantes)
       crHeureOuverture: v.optional(v.number()), crHeureFermeture: v.optional(v.number()), crSamedi: v.optional(v.boolean()),
       verrouFinancierMin: v.optional(v.number()), verrouCaisseMin: v.optional(v.number()),
-      envoiReelActive: v.optional(v.boolean()), iaDocumentsActive: v.optional(v.boolean()), pdfAutoCloture: v.optional(v.boolean()),
+      envoiReelActive: v.optional(v.boolean()), whatsappReelActive: v.optional(v.boolean()), iaDocumentsActive: v.optional(v.boolean()), pdfAutoCloture: v.optional(v.boolean()),
       joursBaseDefaut: v.optional(v.number()), plafondSaisie: v.optional(v.number()),
     })),
     // Droits VOIR / FAIRE par rôle et par module, quand ils diffèrent du défaut (rbac.droitsEffectifs).
@@ -96,6 +96,7 @@ export default defineSchema({
     cnps: v.optional(v.string()),
     niu: v.optional(v.string()),
     email: v.optional(v.string()),    // destinataire du courrier de paie
+    whatsapp: v.optional(v.string()), // numéro WhatsApp (+237…) : courrier de paie par WhatsApp
     societe: SOCIETE,
     salaireBrut: v.number(),          // brut mensuel de référence
     joursBase: v.optional(v.number()),// jours standard (déf. 30)
@@ -221,7 +222,8 @@ export default defineSchema({
   envois: defineTable({
     employeId: v.id("employes"),
     periode: v.string(),
-    email: v.string(),
+    email: v.string(),                // adresse du canal : e-mail, ou numéro WhatsApp
+    canal: v.optional(v.union(v.literal("email"), v.literal("whatsapp"))), // absent = e-mail (envois antérieurs)
     statut: v.union(v.literal("envoye"), v.literal("simule"), v.literal("echec")),
     mode: v.union(v.literal("reel"), v.literal("simulation")),
     envoyeLe: v.string(),

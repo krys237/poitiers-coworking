@@ -22,6 +22,8 @@ export interface Reglages {
   verrouCaisseMin: number;
   /** Courrier de paie : sans cet interrupteur, l'envoi reste simulé même si RESEND_API_KEY est définie. */
   envoiReelActive: boolean;
+  /** Courrier de paie par WhatsApp (UltraMsg) : sans cet interrupteur, simulé même si les clés sont définies. */
+  whatsappReelActive: boolean;
   /** Documents : extraction des métadonnées par IA (si ANTHROPIC_API_KEY est définie), sinon heuristique. */
   iaDocumentsActive: boolean;
   /** Paie : générer et archiver les PDF des bulletins dès la clôture du mois. */
@@ -39,6 +41,7 @@ export const REGLAGES_DEFAUT: Reglages = {
   verrouFinancierMin: 15,
   verrouCaisseMin: 60,
   envoiReelActive: false,
+  whatsappReelActive: false,
   iaDocumentsActive: true,
   pdfAutoCloture: false,
   joursBaseDefaut: 30,

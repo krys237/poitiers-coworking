@@ -56,7 +56,7 @@ export const reglagesInternes = internalQuery({
 const reglagesV = v.object({
   crHeureOuverture: v.number(), crHeureFermeture: v.number(), crSamedi: v.boolean(),
   verrouFinancierMin: v.number(), verrouCaisseMin: v.number(),
-  envoiReelActive: v.boolean(), iaDocumentsActive: v.boolean(), pdfAutoCloture: v.boolean(),
+  envoiReelActive: v.boolean(), whatsappReelActive: v.boolean(), iaDocumentsActive: v.boolean(), pdfAutoCloture: v.boolean(),
   joursBaseDefaut: v.number(), plafondSaisie: v.number(),
 });
 
@@ -122,6 +122,8 @@ export const etatDeploiement = query({
         { cle: "JWKS", definie: definie("JWKS"), role: "Clés publiques de vérification des jetons.", absence: "Idem : sessions impossibles." },
         { cle: "SITE_URL", definie: definie("SITE_URL"), role: "URL du frontend, pour les liens des e-mails d'authentification.", absence: "Liens de connexion cassés." },
         { cle: "RESEND_API_KEY", definie: definie("RESEND_API_KEY"), role: "Envoi des e-mails : courrier de paie et codes à usage unique.", absence: "Courrier simulé (journal seul) ; code OTP écrit dans les logs en mode dev, refusé en production." },
+        { cle: "ULTRAMSG_INSTANCE_ID", definie: definie("ULTRAMSG_INSTANCE_ID"), role: "Instance UltraMsg : courrier de paie par WhatsApp.", absence: "Courrier WhatsApp simulé (journal seul)." },
+        { cle: "ULTRAMSG_TOKEN", definie: definie("ULTRAMSG_TOKEN"), role: "Jeton de l'instance UltraMsg.", absence: "Courrier WhatsApp simulé (journal seul)." },
         { cle: "FINANCIAL_API_KEY", definie: definie("FINANCIAL_API_KEY"), role: "Clé de l'API d'export financier (re-validée à chaque appel).", absence: "Tout appel de l'API répond 503." },
         { cle: "BAREME_SOURCE_URL", definie: definie("BAREME_SOURCE_URL"), role: "Source officielle du barème, contrôlée chaque jour à 06:00 UTC.", absence: "Le contrôle journalise « source non configurée » et conserve le barème actif." },
         { cle: "ANTHROPIC_API_KEY", definie: definie("ANTHROPIC_API_KEY"), role: "Extraction des métadonnées des documents par IA (claude-opus-5).", absence: "Repli heuristique : titre = nom du fichier, catégorie par mots-clés." },

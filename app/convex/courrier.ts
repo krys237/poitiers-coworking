@@ -7,16 +7,20 @@ import { MODELE_DEFAUT, rendreLettre, htmlEmail, libellePeriode } from "./lib/co
 
 // L'envoi (avec PDF en pièce jointe) est une action Node : voir `paiePdf.envoyerCourrier`.
 
-// Mode d'envoi : réel si RESEND_API_KEY est définie ET que l'interrupteur « envoi réel » des
-// paramètres est activé ; sinon simulation (journal seul). Les deux conditions sont renvoyées
-// séparément pour que l'écran dise laquelle manque.
+// Mode d'envoi, par canal : réel si la clé est définie ET que l'interrupteur des paramètres est
+// activé ; sinon simulation (journal seul). Les conditions sont renvoyées séparément pour que l'écran
+// dise laquelle manque. E-mail : RESEND_API_KEY ; WhatsApp : ULTRAMSG_INSTANCE_ID + ULTRAMSG_TOKEN.
 export const mode = query({
   args: {},
   handler: async (ctx) => {
     await requireUnDesDroits(ctx, ["/paie/courrier", "/parametres"]);
+    const r = await lireReglages(ctx);
     const cle = !!process.env.RESEND_API_KEY;
-    const interrupteur = (await lireReglages(ctx)).envoiReelActive;
-    return { reel: cle && interrupteur, cleConfiguree: cle, envoiActive: interrupteur };
+    const cleWa = !!process.env.ULTRAMSG_INSTANCE_ID && !!process.env.ULTRAMSG_TOKEN;
+    return {
+      reel: cle && r.envoiReelActive, cleConfiguree: cle, envoiActive: r.envoiReelActive,
+      whatsapp: { reel: cleWa && r.whatsappReelActive, cleConfiguree: cleWa, envoiActive: r.whatsappReelActive },
+    };
   },
 });
 
@@ -68,7 +72,7 @@ export const payloads = internalQuery({
       .map((b) => {
         const lettre = rendreLettre(modele, { nom: b.nom, periode, net: b.net, entreprise: ent.nom });
         return {
-          employeId: b.employeId, nom: b.nom, email: b.email ?? "",
+          employeId: b.employeId, nom: b.nom, email: b.email ?? "", whatsapp: b.whatsapp ?? "",
           sujet: `Bulletin de paie — ${libellePeriode(periode)} — ${ent.nom}`,
           html: htmlEmail({ lettre, bulletin: b, periode, entreprise: ent }),
           from: entreprise?.emailExpediteur ?? "onboarding@resend.dev",
@@ -81,6 +85,7 @@ export const payloads = internalQuery({
 export const enregistrerEnvoi = internalMutation({
   args: {
     employeId: v.id("employes"), periode: v.string(), email: v.string(),
+    canal: v.optional(v.union(v.literal("email"), v.literal("whatsapp"))),
     statut: v.union(v.literal("envoye"), v.literal("simule"), v.literal("echec")),
     mode: v.union(v.literal("reel"), v.literal("simulation")),
     messageId: v.optional(v.string()), erreur: v.optional(v.string()),

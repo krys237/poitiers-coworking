@@ -153,7 +153,7 @@ export function Parametres() {
             {([
               ["entreprise", "Entreprise & documents", (["nom", "adresse", "niu", "numeroCnps", "logoUrl", "couleurEntete", "filigrane"] as (keyof Entreprise)[]).some(modifieE)],
               ["paie", "Paie & congés", (["responsableRH", "jourPaiement", "congesParMois"] as (keyof Entreprise)[]).some(modifieE) || (["joursBaseDefaut", "plafondSaisie", "pdfAutoCloture"] as (keyof Reglages)[]).some(modifieR)],
-              ["courrier", "Courrier & e-mail", (["emailExpediteur", "modeleCourrier"] as (keyof Entreprise)[]).some(modifieE) || modifieR("envoiReelActive")],
+              ["courrier", "Courrier & e-mail", (["emailExpediteur", "modeleCourrier"] as (keyof Entreprise)[]).some(modifieE) || modifieR("envoiReelActive") || modifieR("whatsappReelActive")],
               ["fonctionnement", "Fonctionnement", (["crHeureOuverture", "crHeureFermeture", "crSamedi", "verrouFinancierMin", "verrouCaisseMin", "iaDocumentsActive"] as (keyof Reglages)[]).some(modifieR)],
               ["roles", "Rôles & accès", modifsD > 0],
               ...(superAdmin ? [["deploiement", "Déploiement", false] as const] : []),
@@ -234,7 +234,7 @@ export function Parametres() {
 
             {/* --- Courrier & e-mail ---------------------------------------------------------- */}
             <TabsContent value="courrier" className="grid gap-4 lg:grid-cols-2">
-              <Bloc titre="Expéditeur & envoi" description="Le courrier de paie part par Resend ; sans clé ou sans l'interrupteur, il est simulé (journal seul).">
+              <Bloc titre="Expéditeur & envoi" description="Le courrier de paie part par e-mail (Resend) et/ou WhatsApp (UltraMsg) ; sans clé ou sans l'interrupteur, chaque canal est simulé (journal seul).">
                 <Grille>
                   <Champ libelle="E-mail expéditeur" aide="Sur un domaine vérifié chez Resend" className={cn("sm:col-span-2", modif(modifieE("emailExpediteur")))}>{(a) => <Input {...a} type="email" value={e.emailExpediteur} onChange={(x) => majE("emailExpediteur", x.target.value)} placeholder="paie@votre-domaine.com" />}</Champ>
                 </Grille>
@@ -244,6 +244,13 @@ export function Parametres() {
                   {modeCourrier === undefined ? "…" : modeCourrier.reel
                     ? <Flag variant="renseigne" size="xs">envoi réel actif</Flag>
                     : <Flag variant="a-renseigner" size="xs">simulation · {!modeCourrier.cleConfiguree ? "clé absente" : "interrupteur fermé"}</Flag>}
+                </div>
+                <Interrupteur libelle="Envoi réel par WhatsApp (UltraMsg)" aide={modeCourrier?.whatsapp.cleConfiguree ? "Les clés UltraMsg sont définies : activer fait réellement partir les messages WhatsApp." : "Sans effet tant que ULTRAMSG_INSTANCE_ID et ULTRAMSG_TOKEN ne sont pas définies (onglet Déploiement)."} valeur={r.whatsappReelActive} onChange={(v) => majR("whatsappReelActive", v)} modifie={modifieR("whatsappReelActive")} />
+                <div className="mt-2 flex items-center gap-2 text-xs">
+                  <span className="text-encre-douce">WhatsApp :</span>
+                  {modeCourrier === undefined ? "…" : modeCourrier.whatsapp.reel
+                    ? <Flag variant="renseigne" size="xs">envoi réel actif</Flag>
+                    : <Flag variant="a-renseigner" size="xs">simulation · {!modeCourrier.whatsapp.cleConfiguree ? "clés absentes" : "interrupteur fermé"}</Flag>}
                 </div>
               </Bloc>
               <Bloc titre="Modèle de lettre" description="Variables : {nom} {periode} {net} {entreprise}. Vide = modèle par défaut. Modifiable aussi depuis Courrier de paie.">

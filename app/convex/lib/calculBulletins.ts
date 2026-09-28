@@ -17,6 +17,7 @@ export interface BulletinPeriode {
   cnps?: string;
   niu?: string;
   email?: string;
+  whatsapp?: string;
   categorie?: string;
   echelon?: string;
   departement?: string;
@@ -63,7 +64,7 @@ export async function baremePourPeriode(ctx: Ctx, periode: string) {
 function identite(e: Doc<"employes">) {
   return {
     employeId: e._id, matricule: e.matricule, nom: e.nom, fonction: e.fonction, adresse: e.adresse, cnps: e.cnps, niu: e.niu,
-    email: e.email, categorie: e.categorie, echelon: e.echelon, departement: undefined as string | undefined, dateDebut: e.dateDebut, societe: e.societe,
+    email: e.email, whatsapp: e.whatsapp, categorie: e.categorie, echelon: e.echelon, departement: undefined as string | undefined, dateDebut: e.dateDebut, societe: e.societe,
     salaireBrut: e.salaireBrut,
   };
 }

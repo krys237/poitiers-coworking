@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Champ, ChampNombre } from "@/components/app/champs";
+import { ChampTelephone } from "@/components/app/champ-telephone";
+import { erreurTelephone } from "../../../convex/lib/telephone";
 import { BoutonConfirmation } from "@/components/app/bouton-action";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
@@ -23,17 +25,17 @@ export type Societe = (typeof SOCIETES)[number];
 /** Ce que la fiche lit et écrit. `employeId` absent = création. */
 export type EmployeFiche = {
   employeId?: string;
-  matricule: string; nom: string; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string;
+  matricule: string; nom: string; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string;
   societe: Societe; salaireBrut: number; dateDebut?: string; congesInitial?: number; actif?: boolean;
 };
 type Champs = Required<Omit<EmployeFiche, "employeId" | "actif">>;
 
-export type CreerEmploye = (a: { matricule: string; nom: string; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; societe: Societe; salaireBrut: number; dateDebut?: string; congesInitial?: number }) => Promise<unknown>;
-export type ModifierEmploye = (a: { employeId: any; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; societe?: Societe; salaireBrut?: number; dateDebut?: string; congesInitial?: number; actif?: boolean }) => Promise<unknown>;
+export type CreerEmploye = (a: { matricule: string; nom: string; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string; societe: Societe; salaireBrut: number; dateDebut?: string; congesInitial?: number }) => Promise<unknown>;
+export type ModifierEmploye = (a: { employeId: any; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string; societe?: Societe; salaireBrut?: number; dateDebut?: string; congesInitial?: number; actif?: boolean }) => Promise<unknown>;
 
 const depuis = (e?: EmployeFiche): Champs => ({
   matricule: e?.matricule ?? "", nom: e?.nom ?? "", fonction: e?.fonction ?? "", adresse: e?.adresse ?? "", cnps: e?.cnps ?? "",
-  niu: e?.niu ?? "", email: e?.email ?? "", societe: e?.societe ?? "SGC", salaireBrut: e?.salaireBrut ?? 0,
+  niu: e?.niu ?? "", email: e?.email ?? "", whatsapp: e?.whatsapp ?? "", societe: e?.societe ?? "SGC", salaireBrut: e?.salaireBrut ?? 0,
   dateDebut: e?.dateDebut ?? "", congesInitial: e?.congesInitial ?? 0,
 });
 
@@ -69,13 +71,15 @@ export function FicheEmploye({
       email: f.email || undefined, societe: f.societe, salaireBrut: Math.round(f.salaireBrut), dateDebut: f.dateDebut || undefined,
       congesInitial: f.congesInitial || undefined,
     };
+    // WhatsApp : transmis seulement s'il a changé (les écrans qui ne le chargent pas ne l'effacent pas).
+    const whatsapp = f.whatsapp !== (employe?.whatsapp ?? "") ? f.whatsapp : undefined;
     try {
       if (creation) {
-        const id = await creer({ matricule: f.matricule.trim(), nom: f.nom.trim().toUpperCase(), ...commun });
+        const id = await creer({ matricule: f.matricule.trim(), nom: f.nom.trim().toUpperCase(), ...commun, whatsapp: whatsapp || undefined });
         toast.success(`${f.nom.trim().toUpperCase()} ajouté à l'effectif`, { description: `${f.matricule} · ${f.societe}` });
         onEnregistre?.(typeof id === "string" ? id : undefined);
       } else {
-        await modifier({ employeId: employe!.employeId, ...commun });
+        await modifier({ employeId: employe!.employeId, ...commun, whatsapp });
         toast.success(`Fiche de ${employe!.nom} enregistrée`);
         onEnregistre?.(employe!.employeId);
       }
@@ -124,6 +128,9 @@ export function FicheEmploye({
             {texte("cnps", "N° CNPS", "351-1213677-6")}
             {texte("niu", "NIU", "M072517858332C")}
             {texte("email", "E-mail (courrier de paie)", "prenom.nom@…", false, "email")}
+            <Champ libelle="WhatsApp (courrier de paie)" aide="Indicatif obligatoire" erreur={f.whatsapp && f.whatsapp !== (employe?.whatsapp ?? "") ? erreurTelephone(f.whatsapp) ?? undefined : undefined}>
+              {(a) => <ChampTelephone id={a.id} aria-describedby={a["aria-describedby"]} aria-invalid={a["aria-invalid"]} valeur={f.whatsapp} onChange={(v) => setF({ ...f, whatsapp: v })} />}
+            </Champ>
             <div className="col-span-2 sm:col-span-3">{texte("adresse", "Adresse", "Akwa, Douala")}</div>
             {texte("dateDebut", "Date d'entrée", undefined, false, "date")}
             <ChampNombre libelle="Congés initiaux" unite="j" min={0} step={0.5} decimales valeur={f.congesInitial} onChange={(n) => setF({ ...f, congesInitial: n })} aide="Solde reporté à l'arrivée" />

@@ -227,18 +227,65 @@ const nomFichier = (entreprise: string, nom: string, periode: string) => `${nomF
 
 type ResultatEnvoi = { mode: "reel" | "simulation"; total: number; envoyes: number; simules: number; echecs: number; pdfOctets: number };
 
-// Envoi du courrier de paie : e-mail HTML + PDF (lettre + bulletin) en pièce jointe, via Resend ou simulation.
+// Envoi par WhatsApp via UltraMsg : le PDF (lettre + bulletin) en document, la lettre en légende.
+// Corps url-encodé, PDF en base64 brut (documentation UltraMsg, « messages/document »).
+async function envoyerWhatsapp(numero: string, pdf: Uint8Array, nomDuFichier: string, legende: string): Promise<string | undefined> {
+  const instance = process.env.ULTRAMSG_INSTANCE_ID!, token = process.env.ULTRAMSG_TOKEN!;
+  const corps = new URLSearchParams({ token, to: numero, filename: nomDuFichier, document: Buffer.from(pdf).toString("base64"), caption: legende.slice(0, 1024) });
+  const res = await fetch(`https://api.ultramsg.com/${encodeURIComponent(instance)}/messages/document`, {
+    method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: corps.toString(),
+  });
+  const texte = await res.text();
+  let json: any = null;
+  try { json = JSON.parse(texte); } catch { /* réponse non JSON : traitée comme une erreur ci-dessous */ }
+  if (!res.ok || !json || json.error || !(json.sent === true || json.sent === "true")) throw new Error(`UltraMsg ${res.status} : ${texte.slice(0, 300)}`);
+  return json.id !== undefined ? String(json.id) : undefined;
+}
+
+// Envoi du courrier de paie, par e-mail (Resend) et/ou WhatsApp (UltraMsg) : PDF (lettre + bulletin).
+// Chaque canal est réel ou simulé selon sa clé et son interrupteur (voir courrier.mode).
 export const envoyerCourrier = action({
-  args: { periode: v.string(), employeIds: v.optional(v.array(v.id("employes"))) },
-  handler: async (ctx, args): Promise<ResultatEnvoi> => {
+  args: {
+    periode: v.string(), employeIds: v.optional(v.array(v.id("employes"))),
+    canaux: v.optional(v.array(v.union(v.literal("email"), v.literal("whatsapp")))),
+  },
+  handler: async (ctx, { canaux, ...args }): Promise<ResultatEnvoi> => {
     const key = process.env.RESEND_API_KEY;
-    const reglages: { envoiReelActive: boolean } = await ctx.runQuery(internal.parametres.reglagesInternes, {});
+    const cleWa = !!process.env.ULTRAMSG_INSTANCE_ID && !!process.env.ULTRAMSG_TOKEN;
+    const reglages: { envoiReelActive: boolean; whatsappReelActive: boolean } = await ctx.runQuery(internal.parametres.reglagesInternes, {});
     const modeEnvoi: "reel" | "simulation" = key && reglages.envoiReelActive ? "reel" : "simulation";
+    const modeWa: "reel" | "simulation" = cleWa && reglages.whatsappReelActive ? "reel" : "simulation";
+    const parEmail = !canaux || canaux.includes("email");
+    const parWhatsapp = !!canaux?.includes("whatsapp");
     const lots: any[] = await ctx.runQuery(internal.courrier.payloads, { ...args, envoi: true });
     let envoyes = 0, echecs = 0, simules = 0, pdfOctets = 0;
 
     for (const p of lots) {
-      const base = { employeId: p.employeId as Id<"employes">, periode: args.periode, email: p.email as string };
+      if (parWhatsapp) {
+        const base = { employeId: p.employeId as Id<"employes">, periode: args.periode, email: p.whatsapp as string, canal: "whatsapp" as const };
+        if (!p.whatsapp) {
+          echecs++;
+          await ctx.runMutation(internal.courrier.enregistrerEnvoi, { ...base, statut: "echec", mode: modeWa, erreur: "Numéro WhatsApp manquant" });
+        } else {
+          try {
+            const pdf = await buildPdf({ bulletin: p.bulletin, periode: args.periode, entreprise: p.entreprise, lettre: p.lettre });
+            pdfOctets += pdf.byteLength;
+            if (modeWa === "reel") {
+              const id = await envoyerWhatsapp(p.whatsapp, pdf, nomFichier(p.entreprise?.nom ?? "PAIE", p.nom, args.periode), p.lettre);
+              await ctx.runMutation(internal.courrier.enregistrerEnvoi, { ...base, statut: "envoye", mode: "reel", messageId: id });
+              envoyes++;
+            } else {
+              await ctx.runMutation(internal.courrier.enregistrerEnvoi, { ...base, statut: "simule", mode: "simulation" });
+              simules++;
+            }
+          } catch (e) {
+            echecs++;
+            await ctx.runMutation(internal.courrier.enregistrerEnvoi, { ...base, statut: "echec", mode: modeWa, erreur: (e as Error).message });
+          }
+        }
+      }
+      if (!parEmail) continue;
+      const base = { employeId: p.employeId as Id<"employes">, periode: args.periode, email: p.email as string, canal: "email" as const };
       if (!p.email) {
         echecs++;
         await ctx.runMutation(internal.courrier.enregistrerEnvoi, { ...base, statut: "echec", mode: modeEnvoi, erreur: "Adresse e-mail manquante" });
@@ -269,7 +316,7 @@ export const envoyerCourrier = action({
         await ctx.runMutation(internal.courrier.enregistrerEnvoi, { ...base, statut: "echec", mode: modeEnvoi, erreur: (e as Error).message });
       }
     }
-    return { mode: modeEnvoi, total: lots.length, envoyes, simules, echecs, pdfOctets };
+    return { mode: parEmail ? modeEnvoi : modeWa, total: lots.length * (Number(parEmail) + Number(parWhatsapp)), envoyes, simules, echecs, pdfOctets };
   },
 });
 

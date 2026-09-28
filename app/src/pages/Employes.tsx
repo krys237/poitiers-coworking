@@ -66,13 +66,13 @@ export function Employes() {
       .map((r) => ({
         matricule: r.matricule ?? "", nom: r.nom ?? r["nom_et_prénoms"] ?? r.noms ?? "",
         fonction: r.fonction || undefined, adresse: r.adresse || undefined,
-        cnps: r.cnps || undefined, niu: r.niu || undefined, email: r.email || undefined,
+        cnps: r.cnps || undefined, niu: r.niu || undefined, email: r.email || undefined, whatsapp: r.whatsapp || undefined,
         societe: (SOCIETES.includes((r.societe ?? "").toUpperCase() as Societe) ? r.societe.toUpperCase() : "SGC") as Societe,
         salaireBrut: toFcfa(r.salaire_brut ?? r.salairebrut ?? r.brut ?? "0"),
         dateDebut: /^\d{4}-\d{2}-\d{2}$/.test(r.date_debut ?? "") ? r.date_debut : undefined,
       }))
       .filter((l) => l.matricule && l.nom);
-    if (!lignes.length) { toast.error("Aucune ligne valide dans ce fichier", { description: "Colonnes attendues : matricule ; nom ; fonction ; societe ; salaire_brut ; date_debut ; cnps ; email" }); return; }
+    if (!lignes.length) { toast.error("Aucune ligne valide dans ce fichier", { description: "Colonnes attendues : matricule ; nom ; fonction ; societe ; salaire_brut ; date_debut ; cnps ; email ; whatsapp" }); return; }
     try {
       const r = await importer({ lignes });
       toast.success(`Import terminé : ${r.crees} créé(s), ${r.majs} mis à jour`, { description: "Reconnaissance par matricule · les bulletins du mois se recalculent" });
@@ -81,7 +81,7 @@ export function Employes() {
 
   const fiche = (e: any): EmployeFiche => ({
     employeId: String(e._id), matricule: e.matricule, nom: e.nom, fonction: e.fonction, adresse: e.adresse, cnps: e.cnps, niu: e.niu,
-    email: e.email, societe: e.societe, salaireBrut: e.salaireBrut, dateDebut: e.dateDebut, congesInitial: e.congesInitial, actif: e.actif,
+    email: e.email, whatsapp: e.whatsapp, societe: e.societe, salaireBrut: e.salaireBrut, dateDebut: e.dateDebut, congesInitial: e.congesInitial, actif: e.actif,
   });
 
   return (

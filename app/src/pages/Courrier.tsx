@@ -2,7 +2,7 @@
  * Courrier de paie — refonte (charte poitiers-ui-ux-system).
  *
  * Le courrier = une lettre d'accompagnement + le bulletin, pour chaque employé
- * du mois. Il s'imprime (une page par personne) ou part par e-mail avec le PDF
+ * du mois. Il s'imprime (une page par personne) ou part en PDF par e-mail et/ou WhatsApp (UltraMsg), avec le PDF
  * (lettre + bulletin) en pièce jointe.
  *
  * Le parcours, dans l'ordre de la page : la période → le modèle de lettre
@@ -37,6 +37,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableVide } from "@/components/ui/table";
 import { EnTeteDocument, Feuille } from "@/components/documents/feuille";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { erreurTelephone, formaterTelephone, normaliserTelephone } from "../../convex/lib/telephone";
 
 const STATUT: Record<string, { label: string; variant: FlagVariant }> = {
   envoye: { label: "Envoyé", variant: "renseigne" },
@@ -64,6 +66,11 @@ export function Courrier() {
   const [selection, setSelection] = React.useState<Set<string>>(new Set());
   const [apercuDe, setApercuDe] = React.useState<string | null>(null);
   const [envoiEnCours, setEnvoiEnCours] = React.useState(false);
+  // Canal d'envoi : e-mail (Resend), WhatsApp (UltraMsg) ou les deux — chacun réel ou simulé (courrier.mode).
+  const [canal, setCanal] = React.useState<"email" | "whatsapp" | "les_deux">("email");
+  const canaux = canal === "les_deux" ? (["email", "whatsapp"] as const) : ([canal] as const);
+  const parEmail = canal !== "whatsapp", parWhatsapp = canal !== "email";
+  const reelCanal = (parEmail ? !!mode?.reel : true) && (parWhatsapp ? !!mode?.whatsapp.reel : true);
 
   const lignes = (apercu?.lignes ?? []) as any[];
   const entreprise = apercu?.entreprise;
@@ -79,6 +86,7 @@ export function Courrier() {
   const selectionnees = lignes.filter((l) => selection.has(String(l.bulletin.employeId)));
   const sansEmail = lignes.filter((l) => !l.bulletin.email);
   const sansEmailSel = selectionnees.filter((l) => !l.bulletin.email).length;
+  const sansWhatsappSel = selectionnees.filter((l) => !l.bulletin.whatsapp).length;
   const envoyes = lignes.filter((l) => l.dernierEnvoi?.statut === "envoye").length;
   const echecs = lignes.filter((l) => l.dernierEnvoi?.statut === "echec").length;
   const toutesVisiblesCochees = visibles.length > 0 && visibles.every((l) => selection.has(String(l.bulletin.employeId)));
@@ -89,7 +97,7 @@ export function Courrier() {
   const lancerEnvoi = async () => {
     setEnvoiEnCours(true);
     try {
-      const r = await envoyer({ periode, employeIds: selectionnees.map((l) => l.bulletin.employeId) });
+      const r = await envoyer({ periode, employeIds: selectionnees.map((l) => l.bulletin.employeId), canaux: [...canaux] });
       return `${r.envoyes} envoyé(s), ${r.simules} simulé(s), ${r.echecs} échec(s) sur ${r.total} · PDF : ${Math.round(r.pdfOctets / 1024)} Ko`;
     } finally { setEnvoiEnCours(false); }
   };
@@ -100,7 +108,7 @@ export function Courrier() {
     <div className="space-y-4">
       <PageEnTete
         titre="Courrier de paie"
-        description="Pour chaque employé du mois, une lettre d'accompagnement et son bulletin : à imprimer (une page par personne) ou à envoyer par e-mail avec le PDF en pièce jointe. Le modèle de lettre est commun ; les adresses se corrigent sur la ligne."
+        description="Pour chaque employé du mois, une lettre d'accompagnement et son bulletin : à imprimer (une page par personne) ou à envoyer en PDF par e-mail et/ou par WhatsApp. Le modèle de lettre est commun ; adresses et numéros se corrigent sur la ligne."
         statut={
           <>
             <StatutMois cloture={apercu === undefined ? undefined : apercu.cloture} />
@@ -109,10 +117,23 @@ export function Courrier() {
                 ? <Flag variant="renseigne" size="sm" icon={<MailIcon className="h-3 w-3" />}>Envoi réel (Resend)</Flag>
                 : <Flag variant="a-renseigner" size="sm" icon={<MailWarningIcon className="h-3 w-3" />} title={!mode.cleConfiguree ? "Aucune clé RESEND_API_KEY sur le déploiement : l'envoi est journalisé sans partir réellement." : "L'envoi réel est désactivé dans Paramètres → Fonctionnement : l'envoi est journalisé sans partir réellement."}>Mode simulation{mode.cleConfiguree ? " · envoi réel désactivé" : " · clé absente"}</Flag>
             ) : null}
+            {mode ? (
+              mode.whatsapp.reel
+                ? <Flag variant="renseigne" size="sm">WhatsApp réel (UltraMsg)</Flag>
+                : <Flag variant="a-renseigner" size="sm" title={!mode.whatsapp.cleConfiguree ? "Clés ULTRAMSG_INSTANCE_ID / ULTRAMSG_TOKEN absentes : l'envoi WhatsApp est journalisé sans partir." : "Interrupteur « WhatsApp réel » fermé (Paramètres → Courrier & e-mail)."}>WhatsApp simulé</Flag>
+            ) : null}
           </>
         }
         actions={
           <>
+            <Select value={canal} onValueChange={(v) => setCanal(v as typeof canal)}>
+              <SelectTrigger size="sm" className="w-40" aria-label="Canal d'envoi"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="email">Par e-mail</SelectItem>
+                <SelectItem value="whatsapp">Par WhatsApp</SelectItem>
+                <SelectItem value="les_deux">E-mail et WhatsApp</SelectItem>
+              </SelectContent>
+            </Select>
             <BoutonImprimer entreprise={entreprise?.nom ?? "POITIERS COWORKING"} document="Courrier de paie" periode={libellePeriode(periode)} desactive={!selectionnees.length}>
               Imprimer {selectionnees.length ? `(${selectionnees.length})` : ""}
             </BoutonImprimer>
@@ -120,16 +141,20 @@ export function Courrier() {
               variant="default"
               size="sm"
               disabled={!selectionnees.length || envoiEnCours || !!apercu?.erreur}
-              libelle={<><SendIcon /> {envoiEnCours ? "Envoi…" : `Envoyer par e-mail (${selectionnees.length})`}</>}
-              titre={mode?.reel ? `Envoyer réellement le courrier de ${libellePeriode(periode)} ?` : `Simuler l'envoi du courrier de ${libellePeriode(periode)} ?`}
+              libelle={<><SendIcon /> {envoiEnCours ? "Envoi…" : `Envoyer (${selectionnees.length})`}</>}
+              titre={reelCanal ? `Envoyer réellement le courrier de ${libellePeriode(periode)} ?` : `Envoyer le courrier de ${libellePeriode(periode)} (simulation incluse) ?`}
               consequence={
                 <>
-                  {selectionnees.length} destinataire(s) recevront la lettre et leur bulletin en PDF{mode?.reel ? "" : " — en simulation : rien ne part, le journal est alimenté"}.
-                  {sansEmailSel ? <> <b>{sansEmailSel} n'ont pas d'adresse e-mail</b> et seront comptés en échec.</> : null}
+                  {selectionnees.length} destinataire(s) recevront la lettre et leur bulletin en PDF
+                  {parEmail && parWhatsapp ? " par e-mail et par WhatsApp" : parWhatsapp ? " par WhatsApp" : " par e-mail"}.
+                  {parEmail && !mode?.reel ? " E-mail en simulation : rien ne part, le journal est alimenté." : null}
+                  {parWhatsapp && !mode?.whatsapp.reel ? " WhatsApp en simulation : rien ne part, le journal est alimenté." : null}
+                  {parEmail && sansEmailSel ? <> <b>{sansEmailSel} n'ont pas d'adresse e-mail</b> et seront comptés en échec.</> : null}
+                  {parWhatsapp && sansWhatsappSel ? <> <b>{sansWhatsappSel} n'ont pas de numéro WhatsApp</b> et seront comptés en échec.</> : null}
                   {!apercu?.cloture ? <> Le mois n'est pas clôturé : les bulletins envoyés sont provisoires.</> : null}
                 </>
               }
-              confirmer={mode?.reel ? "Envoyer" : "Simuler l'envoi"}
+              confirmer={reelCanal ? "Envoyer" : "Envoyer (simulation)"}
               onConfirmer={lancerEnvoi}
               succes={(r: any) => `Courrier de ${libellePeriode(periode)} — ${r}`}
             />
@@ -178,7 +203,7 @@ export function Courrier() {
         <div className="flex flex-col gap-3.5 print:hidden lg:flex-row lg:items-start">
           <div className="min-w-0 flex-1">
             {apercu === undefined ? (
-              <SqueletteTableau colonnes={6} lignes={8} />
+              <SqueletteTableau colonnes={7} lignes={8} />
             ) : (
               <Table classNameConteneur="rounded-xl" hauteurMax={lignesVisibles.hauteurMax(49, 40, 0)}>
                 <TableHeader>
@@ -186,6 +211,7 @@ export function Courrier() {
                     <TableHead className="w-10"><Checkbox checked={toutesVisiblesCochees} onCheckedChange={(v) => cocherVisibles(!!v)} aria-label="Sélectionner les lignes affichées" className="border-white/70 data-[state=checked]:bg-white data-[state=checked]:text-ocean-profond" /></TableHead>
                     <TableHead>Employé</TableHead>
                     <TableHead>Adresse e-mail</TableHead>
+                    <TableHead>WhatsApp</TableHead>
                     <TableHead numerique>Net (FCFA)</TableHead>
                     <TableHead>Dernier envoi</TableHead>
                     <TableHead aria-label="Aperçu" />
@@ -208,6 +234,13 @@ export function Courrier() {
                             onEnregistrer={async (email) => { await modifierEmploye({ employeId: b.employeId, email }); toast.success(`Adresse enregistrée — ${b.nom}`); }}
                           />
                         </TableCell>
+                        <TableCell>
+                          <CelluleWhatsapp
+                            valeur={b.whatsapp ?? ""}
+                            libelle={`Numéro WhatsApp — ${b.nom}`}
+                            onEnregistrer={async (whatsapp) => { await modifierEmploye({ employeId: b.employeId, whatsapp }); toast.success(`Numéro WhatsApp enregistré — ${b.nom}`); }}
+                          />
+                        </TableCell>
                         <TableCell numerique className="font-mono text-xs font-semibold">{num(b.net)}</TableCell>
                         <TableCell className="whitespace-nowrap">
                           {d ? (
@@ -224,7 +257,7 @@ export function Courrier() {
                       </TableRow>
                     );
                   })}
-                  {visibles.length === 0 && <TableVide colonnes={6}>{q || filtre !== "tous" ? "Aucun employé ne correspond aux filtres." : "Aucun employé actif pour ce mois."}</TableVide>}
+                  {visibles.length === 0 && <TableVide colonnes={7}>{q || filtre !== "tous" ? "Aucun employé ne correspond aux filtres." : "Aucun employé actif pour ce mois."}</TableVide>}
                 </TableBody>
               </Table>
             )}
@@ -249,6 +282,7 @@ export function Courrier() {
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Employé</TableHead>
+                  <TableHead>Canal</TableHead>
                   <TableHead>Adresse</TableHead>
                   <TableHead>Mode</TableHead>
                   <TableHead>Résultat</TableHead>
@@ -261,7 +295,8 @@ export function Courrier() {
                     <TableRow key={String(e._id)}>
                       <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums">{fmtDateHeure(e.envoyeLe)}</TableCell>
                       <TableCell className="whitespace-nowrap text-xs font-semibold">{nom}</TableCell>
-                      <TableCell className="font-mono text-xs">{e.email || <span className="text-encre-pale">—</span>}</TableCell>
+                      <TableCell><Flag variant="neutre" size="xs">{e.canal === "whatsapp" ? "WhatsApp" : "e-mail"}</Flag></TableCell>
+                      <TableCell className="font-mono text-xs">{e.email ? (e.canal === "whatsapp" ? formaterTelephone(e.email) : e.email) : <span className="text-encre-pale">—</span>}</TableCell>
                       <TableCell>{e.mode === "reel" ? <Flag variant="renseigne" size="xs">réel</Flag> : <Flag variant="neutre" size="xs">simulation</Flag>}</TableCell>
                       <TableCell className="whitespace-nowrap"><Flag variant={STATUT[e.statut].variant} size="xs">{STATUT[e.statut].label}</Flag>{e.erreur ? <span className="ml-2 text-2xs text-carmin">{e.erreur}</span> : null}{e.messageId ? <span className="ml-2 font-mono text-2xs text-encre-pale">{e.messageId}</span> : null}</TableCell>
                     </TableRow>
@@ -384,6 +419,31 @@ function CelluleEmail({ valeur, libelle, onEnregistrer }: { valeur: string; libe
       placeholder="adresse@domaine.com"
       aria-label={libelle}
       className={cn("h-8 w-52 font-mono text-xs", !valeur && "border-dashed border-amber-300 bg-amber-50/40 placeholder:text-amber-800/70")}
+    />
+  );
+}
+
+// Numéro WhatsApp corrigeable sur la ligne : indicatif obligatoire (lib/telephone), vide = effacer.
+function CelluleWhatsapp({ valeur, libelle, onEnregistrer }: { valeur: string; libelle: string; onEnregistrer: (numero: string) => Promise<void> }) {
+  const [texte, setTexte] = React.useState(formaterTelephone(valeur));
+  React.useEffect(() => setTexte(formaterTelephone(valeur)), [valeur]);
+  const commit = async () => {
+    const v = texte.trim();
+    if ((normaliserTelephone(v) ?? "") === (valeur ?? "")) return;
+    const err = v ? erreurTelephone(v) : null;
+    if (err) { toast.error("Numéro WhatsApp invalide", { description: err }); setTexte(formaterTelephone(valeur)); return; }
+    try { await onEnregistrer(v); } catch (e) { toast.error("Numéro non enregistré", { description: messageErreur(e) }); setTexte(formaterTelephone(valeur)); }
+  };
+  return (
+    <Input
+      type="tel"
+      value={texte}
+      onChange={(e) => setTexte(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur(); if (e.key === "Escape") setTexte(formaterTelephone(valeur)); }}
+      placeholder="+237 6 …"
+      aria-label={libelle}
+      className={cn("h-8 w-40 font-mono text-xs", !valeur && "border-dashed")}
     />
   );
 }
