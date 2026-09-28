@@ -1,0 +1,376 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Rapport du 21 septembre 2026</title>
+<style>
+  @page { size: A4; margin: 15mm 14mm 16mm; }
+  :root { --sceau:#0077b6; --nuit:#03045e; --encre:#0b132b; --douce:#334155; --pale:#64748b; --filet:#8a968d; --bande:#eaf3f8; --brume:#caf0f8; }
+  body { margin:0; font-family:"IBM Plex Sans","Segoe UI",system-ui,sans-serif; font-size:10pt; line-height:1.5; color:var(--encre); }
+  header { display:flex; justify-content:space-between; align-items:flex-start; gap:10mm; padding-bottom:3mm; margin-bottom:5mm; border-bottom:2.5pt solid var(--sceau); }
+  header .raison { font-size:13pt; font-weight:700; color:var(--sceau); }
+  header .coord { font-size:8pt; color:var(--pale); margin-top:1mm; max-width:95mm; }
+  header .nature { text-align:right; font-size:12pt; font-weight:700; }
+  header .nature span { display:block; font-size:8.5pt; font-weight:400; color:var(--pale); }
+  h2 { font-size:11pt; margin:6mm 0 2mm; color:var(--nuit); text-transform:uppercase; letter-spacing:.04em; border-left:3pt solid var(--sceau); padding-left:2.5mm; break-after:avoid; }
+  h3 { font-size:10pt; margin:4mm 0 1.5mm; color:var(--sceau); break-after:avoid; }
+  p { margin:0 0 2.5mm; }
+  ul, ol { margin:0 0 2.5mm; padding-left:5mm; }
+  li { margin-bottom:1mm; }
+  hr { display:none; }
+  table { width:100%; border-collapse:collapse; font-size:8.8pt; margin:1.5mm 0 3.5mm; break-inside:auto; }
+  th, td { border:.5pt solid var(--filet); padding:1.4mm 2mm; vertical-align:top; text-align:left; }
+  thead th { background:var(--bande); font-size:8pt; }
+  tr { break-inside:avoid; }
+  code { font-family:"IBM Plex Mono",Consolas,monospace; font-size:8.5pt; background:var(--bande); padding:0 1.2mm; border-radius:3px; }
+  strong { color:var(--nuit); }
+</style></head><body>
+<header>
+  <div><div class="raison">POITIERS COWORKING</div><div class="coord">POITIERS COWORKING — plateforme unifiée d'administration et de paie</div></div>
+  <div class="nature">RAPPORT DU 21 SEPTEMBRE 2026<span>semaine du lundi 21 septembre (sprint S1 du plan), prolongée jusqu'au lundi 28 septembre 2026 au soir</span><span>Rédigé par krys237</span></div>
+</header>
+<h2>1. En bref</h2>
+<p>Le sprint S1 du plan (« le bulletin fait foi », 21 → 26 septembre) prévoyait <strong>37 tâches</strong> dans le backlog Jira.
+<strong>34 sont faites ou dépassées</strong> ; les trois qui restent dépendent d'un geste hors développement (validation papier
+par le directeur, données réelles de l'effectif).</p>
+<p>La semaine a surtout apporté trois changements de fond :</p>
+<ol>
+<li><strong>Les demandes de M. GAMBOU sont toutes réglées</strong> : bulletin consultable par l'employé, PDF des bulletins en un
+   clic, verrou d'une heure sur la caisse et les primes médecins, destinataires choisis pour un document, courrier
+   de paie par WhatsApp, connexion depuis l'extérieur de la Polyclinique, usage sur téléphone pour l'employé.</li>
+<li><strong>Les droits ne suivent plus une hiérarchie rigide.</strong> Le directeur décide lui-même, d'un clic, qui <strong>voit</strong> et
+   qui <strong>fait</strong> quoi, module par module, et peut accorder ou retirer un droit à une personne précise.</li>
+<li><strong>Le bulletin est prêt pour la validation papier</strong> : il tient sur une seule feuille A4, s'intitule désormais
+   « BULLETIN DU MOIS », et le jeu d'impression destiné au directeur est prêt.</li>
+</ol>
+<p>Achèvement estimé : <strong>82 %</strong> (78 % le 21 au matin). Mise en service visée : <strong>vendredi 10 octobre 2026</strong>.</p>
+<hr />
+<h2>2. Le sprint S1 du Jira : prévu et réalisé</h2>
+<p>Le backlog Jira (<code>jira-backlog-coworking.csv</code>) comptait 37 tâches pour S1. 29 étaient déjà livrées au 23/09 ;
+voici le sort des 8 restantes au 28/09.</p>
+<table>
+<thead>
+<tr>
+<th>Tâche Jira (S1)</th>
+<th>Épopée</th>
+<th>Statut au 23/09</th>
+<th>Statut au 28/09</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Remettre au directeur le jeu d'impression (3 bulletins, liste, courrier)</td>
+<td>Documents imprimables</td>
+<td>En cours</td>
+<td><strong>Fait</strong> — <code>jeu-impression-directeur-2026-09.pdf</code> (6 pages), à imprimer et remettre</td>
+</tr>
+<tr>
+<td>Validation papier du bulletin par le directeur</td>
+<td>Documents imprimables</td>
+<td>À tester</td>
+<td><strong>En attente</strong> du directeur (dépend de la remise du jeu)</td>
+</tr>
+<tr>
+<td>Corrections issues de la validation papier</td>
+<td>Documents imprimables</td>
+<td>À faire</td>
+<td><strong>Anticipées</strong> : bulletin ramené sur une feuille, titre « BULLETIN DU MOIS » ; le reste suivra la relecture</td>
+</tr>
+<tr>
+<td>Vérifier chaque compte de test un par un</td>
+<td>Accès, rôles &amp; sécurité</td>
+<td>À tester</td>
+<td><strong>Fait</strong> — les 8 comptes se connectent avec le bon rôle et le bon menu (<code>design/verif-comptes.mjs</code>)</td>
+</tr>
+<tr>
+<td>Changer le mot de passe du super administrateur</td>
+<td>Accès, rôles &amp; sécurité</td>
+<td>À faire</td>
+<td><strong>Reporté</strong> à la mise en production (décision du 28/09 : on reste en mode test)</td>
+</tr>
+<tr>
+<td>Fournir les attendus de la recette, écran par écran</td>
+<td>Recette &amp; qualité</td>
+<td>À faire</td>
+<td><strong>Réorienté</strong> : les cahiers existants datent d'avant la refonte ; le développement les réécrit (S2)</td>
+</tr>
+<tr>
+<td>Constituer les données de recette réelles (effectif, soldes J0)</td>
+<td>Recette &amp; qualité</td>
+<td>À faire</td>
+<td><strong>En attente</strong> du propriétaire</td>
+</tr>
+<tr>
+<td>Rapport de la semaine du 21 septembre</td>
+<td>Pilotage &amp; documentation</td>
+<td>À faire</td>
+<td><strong>Fait</strong> — le présent rapport</td>
+</tr>
+</tbody>
+</table>
+<p>Rappel des 29 tâches S1 déjà livrées (détaillées dans le rapport du 14) : bulletin refondu (écran, impression, PDF),
+Paramètres en six sections, réglages de fonctionnement sortis du code, DA2 retiré et super administrateur créé,
+écran de connexion par e-mail ou téléphone, téléphone avec indicatif, mode développement coupé, huit comptes de
+test, aperçus en lecture seule (documents, comptes rendus), plan d'avancement, journal des décisions, guide
+interactif, backlog Jira, et quatre anomalies corrigées (solde de trésorerie visible par tous, action d'archivage
+sans contrôle, jeton de session invalide, page blanche sur adresse inconnue).</p>
+<hr />
+<h2>3. Demandes de M. GAMBOU — réglées</h2>
+<table>
+<thead>
+<tr>
+<th>Demande</th>
+<th>Réponse livrée</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Employé</strong> — visualiser son bulletin de paie</td>
+<td>Nouvel écran <strong>« Mes bulletins »</strong> : chaque employé voit ses bulletins des mois clôturés et télécharge le PDF. Pensé d'abord pour le téléphone. Le compte est relié à la fiche employé dans Membres.</td>
+</tr>
+<tr>
+<td><strong>Comptable</strong> — définir qui peut recevoir un document</td>
+<td>Au dépôt d'un document : « Seulement des personnes choisies ». Il n'est alors visible et téléchargeable que par elles et le déposant, quel que soit leur niveau.</td>
+</tr>
+<tr>
+<td><strong>Comptable</strong> — plus de modification après 1 h sur « Caisse et primes médecins », sauf l'administrateur</td>
+<td>Une ligne se verrouille <strong>1 heure après sa saisie</strong> (délai réglable dans Paramètres). Ensuite, seul le droit « modifier après le délai » (le directeur par défaut) la corrige, et la correction est inscrite au journal.</td>
+</tr>
+<tr>
+<td><strong>Administrateur</strong> — bouton pour générer le PDF du salaire dans « Bulletin du mois »</td>
+<td>Boutons <strong>« PDF du mois »</strong> (un fichier, un bulletin par page) et <strong>« PDF »</strong> pour un salarié.</td>
+</tr>
+<tr>
+<td><strong>Administrateur</strong> — envoi du courrier de paie par WhatsApp</td>
+<td>Choix du canal dans le Courrier de paie : <strong>e-mail, WhatsApp ou les deux</strong>, avec le numéro WhatsApp de la personne (fiche employé). Envoi par UltraMsg, PDF joint, lettre en légende ; journal par canal.</td>
+</tr>
+<tr>
+<td><strong>Administrateur et auditeur</strong> — se connecter hors de la Polyclinique</td>
+<td>Déjà possible : l'application n'impose aucune restriction de lieu ni d'adresse.</td>
+</tr>
+<tr>
+<td><strong>Auditeur externe</strong> — mêmes accès que l'administrateur sauf la visualisation des documents</td>
+<td>L'auditeur <strong>consulte</strong> tous les modules sans pouvoir y agir, sauf Paramètres, Journal d'activité, Archives et documents de la structure ; il saisit l'audit. Précisé avec le propriétaire : il n'a pas les droits du directeur.</td>
+</tr>
+<tr>
+<td><strong>NB</strong> — utilisation sur téléphone</td>
+<td>L'écran de l'employé (« Mes bulletins ») est conçu pour le téléphone ; le menu passe en tiroir. L'adaptation du reste de l'ERP, « au moins lisible », est planifiée en S2–S3.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Point en attente</strong> : le premier envoi WhatsApp réel. Les clés UltraMsg sont posées et l'envoi réel est activé,
+mais l'instance UltraMsg est en veille (« standby ») : rien ne part tant qu'elle n'est pas reliée au téléphone.
+D'ici là, l'application <strong>simule</strong> l'envoi et le dit clairement (« Simuler l'envoi », « rien n'est parti »).</p>
+<hr />
+<h2>4. Les droits choisis par le directeur</h2>
+<p>La règle « le niveau N voit et fait tout ce que fait le niveau N−1 » était trop grossière pour l'usage voulu.
+Elle est remplacée :</p>
+<ul>
+<li><strong>Paramètres → Rôles &amp; accès</strong> présente un tableau : une ligne par module (23), une colonne par rôle, et deux
+  cases par croisement, <strong>Voir</strong> (consulter) et <strong>Faire</strong> (saisir, valider, envoyer). Un clic suffit ; les
+  changements partent avec « Enregistrer » et sont journalisés. Le super administrateur, compte technique,
+  n'apparaît pas dans le tableau.</li>
+<li><strong>Exceptions par personne</strong> : accorder ou retirer un droit à un membre précis, au-delà de son rôle.</li>
+<li><strong>Garde-fou</strong> : le directeur ne peut pas se retirer Paramètres ni Membres.</li>
+<li><strong>Droits de départ</strong> = l'ancien fonctionnement (vérifié par 218 contrôles automatiques), plus les décisions de la
+  semaine : le comptable accède au récapitulatif financier et au grand livre ; l'auditeur consulte sans agir.</li>
+<li>Le contrôle est fait <strong>par le serveur</strong> : décocher une case bloque réellement l'action, pas seulement le menu.</li>
+</ul>
+<p><strong>Règle posée pour la suite</strong> : retirer un droit fait disparaître les actions qui en dépendent, pour le rôle ou la
+personne concernés. Le menu et l'accès aux écrans la respectent déjà ; plusieurs écrans montrent encore des
+boutons à qui n'a que « Voir » (le serveur les refuse). La mise en conformité écran par écran est inscrite au
+cahier de recette.</p>
+<hr />
+<h2>5. Bulletin et documents imprimés</h2>
+<ul>
+<li><strong>Une feuille par bulletin</strong> : à l'impression, le bulletin débordait d'un tiers de page (308 mm pour 273 utiles).
+  Il tient désormais sur une feuille, sans changer l'écran.</li>
+<li><strong>« BULLETIN DU MOIS »</strong> remplace « Bulletin de paie » sur l'écran, l'impression et le PDF.</li>
+<li><strong>Jeu d'impression du directeur</strong> : 3 bulletins (cas de référence, cadre à IRPP élevé, retenues diverses), la liste
+  des salaires et un courrier de paie, produits par l'application elle-même (<code>design/jeu-impression.mjs</code>).</li>
+<li>Paramètres : « Raison sociale » devient <strong>« Nom de l'entreprise »</strong>. À corriger dans les données avant la remise :
+  le nom saisi (« P POITIERS COWORKING »), le NIU et le N° CNPS employeur, vides.</li>
+</ul>
+<hr />
+<h2>6. Autres corrections de la semaine</h2>
+<ul>
+<li><strong>Téléphone</strong> : l'indicatif (+237) est <strong>pré-rempli partout, jamais retapé</strong> ; un numéro importé sans indicatif le
+  reçoit automatiquement. Un numéro copié depuis WhatsApp (qui y ajoute des caractères invisibles) était refusé à
+  tort : corrigé. Un numéro complet collé dans la partie nationale doublait l'indicatif sans prévenir : corrigé.</li>
+<li><strong>Courrier</strong> : une simulation ne peut plus passer pour un envoi réel.</li>
+<li><strong>Cahiers de recette</strong> : audités ; ceux du 7 et du 14 septembre sont antérieurs à la refonte (connexion, rôles,
+  écrans) et seront réécrits.</li>
+</ul>
+<hr />
+<h2>7. État d'avancement</h2>
+<table>
+<thead>
+<tr>
+<th>Chantier</th>
+<th>21/09</th>
+<th>28/09</th>
+<th>Commentaire</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Socle &amp; modèle de données</td>
+<td>90 %</td>
+<td>90 %</td>
+<td>Stable ; barème officiel et agrégats d'audit restent au backlog</td>
+</tr>
+<tr>
+<td>Paie automatisée</td>
+<td>95 %</td>
+<td>95 %</td>
+<td>Tests chiffrés au vert</td>
+</tr>
+<tr>
+<td>Exploitation &amp; activité</td>
+<td>95 %</td>
+<td>95 %</td>
+<td>Verrou caisse, destinataires de documents ajoutés</td>
+</tr>
+<tr>
+<td>Finances &amp; grand livre</td>
+<td>90 %</td>
+<td>90 %</td>
+<td>Ouvert au comptable</td>
+</tr>
+<tr>
+<td><strong>Accès, rôles &amp; sécurité</strong></td>
+<td>90 %</td>
+<td><strong>95 %</strong></td>
+<td>Droits configurables par le directeur ; politique de mot de passe à faire</td>
+</tr>
+<tr>
+<td><strong>Documents imprimables</strong></td>
+<td>85 %</td>
+<td><strong>90 %</strong></td>
+<td>Bulletin sur une feuille, PDF à la demande ; validation papier attendue</td>
+</tr>
+<tr>
+<td>Paramètres &amp; réglages</td>
+<td>100 %</td>
+<td>100 %</td>
+<td>+ délai de la caisse, + WhatsApp</td>
+</tr>
+<tr>
+<td>Recette &amp; qualité</td>
+<td>25 %</td>
+<td>30 %</td>
+<td>10 suites de tests au vert ; cahiers à réécrire</td>
+</tr>
+<tr>
+<td>Mise en production</td>
+<td>30 %</td>
+<td>35 %</td>
+<td>Clés UltraMsg posées ; domaine, Resend, production Convex à faire</td>
+</tr>
+<tr>
+<td>Pilotage &amp; documentation</td>
+<td>80 %</td>
+<td>85 %</td>
+<td>État du projet, journal des décisions (30 entrées), ce rapport</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>8. Points de vigilance</h2>
+<table>
+<thead>
+<tr>
+<th>Sujet</th>
+<th>Situation</th>
+<th>Action attendue</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Validation papier du bulletin</td>
+<td>Jeu d'impression prêt</td>
+<td>Le directeur relit et signe ; corriger les écarts (S2)</td>
+</tr>
+<tr>
+<td>Données de l'entreprise</td>
+<td>Nom mal saisi, NIU et N° CNPS vides</td>
+<td>À corriger dans Paramètres avant la remise du jeu</td>
+</tr>
+<tr>
+<td>WhatsApp</td>
+<td>Instance UltraMsg en veille</td>
+<td>Relier l'instance au téléphone, puis faire le premier envoi réel</td>
+</tr>
+<tr>
+<td>E-mail réel</td>
+<td>Simulation (pas de domaine)</td>
+<td>Acheter le domaine, le vérifier chez Resend (butoir 3/10)</td>
+</tr>
+<tr>
+<td>Données réelles</td>
+<td>Recette sur données de démonstration</td>
+<td>Fichier de l'effectif et soldes J0</td>
+</tr>
+<tr>
+<td>Calendrier</td>
+<td>Ajouts de la semaine pris sur la fenêtre de recette</td>
+<td>Recette ramenée à 3 jours (5 → 7/10) ; la date du 10/10 est tendue</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>9. Chiffres de la période</h2>
+<table>
+<thead>
+<tr>
+<th>Indicateur</th>
+<th>Valeur</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Livraisons versionnées (21/09 au soir → 28/09)</td>
+<td>18</td>
+</tr>
+<tr>
+<td>Fichiers modifiés</td>
+<td>73 (≈ 3 450 lignes ajoutées, dont 1 660 dans l'application)</td>
+</tr>
+<tr>
+<td>Tâches S1 du Jira faites ou dépassées</td>
+<td>34 sur 37</td>
+</tr>
+<tr>
+<td>Demandes de M. GAMBOU réglées</td>
+<td>8 sur 8 (envoi WhatsApp réel à confirmer)</td>
+</tr>
+<tr>
+<td>Modules réglables dans la matrice des droits</td>
+<td>23</td>
+</tr>
+<tr>
+<td>Suites de tests automatisés</td>
+<td>10, toutes au vert (dont 218 contrôles des droits et 15 du téléphone)</td>
+</tr>
+<tr>
+<td>Comptes de test vérifiés</td>
+<td>8 sur 8</td>
+</tr>
+<tr>
+<td>Décisions consignées</td>
+<td>30</td>
+</tr>
+<tr>
+<td>Achèvement estimé</td>
+<td>82 %</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>10. Programme de la semaine du 29 septembre (S2 : « la clinique teste »)</h2>
+<ol>
+<li>Réécrire les cahiers de recette : un scénario par écran et par rôle, y compris la règle « un droit retiré, ses
+   actions disparaissent ».</li>
+<li>Mettre les écrans en conformité avec cette règle (boutons d'action masqués sans « Faire »).</li>
+<li>Campagne de tests avec les huit comptes, deux lots de corrections.</li>
+<li>Adapter l'ERP au téléphone, au moins lisible (priorité aux écrans de l'employé).</li>
+<li>Premier envoi WhatsApp réel dès que l'instance UltraMsg est reliée ; domaine et Resend pour l'e-mail.</li>
+<li>Politique de mot de passe (10 caractères), unification des tuiles des cinq écrans refondus en parallèle.</li>
+</ol>
+</body></html>

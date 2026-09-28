@@ -37,18 +37,16 @@ page = f"""<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>{ti
   tr {{ break-inside:avoid; }}
   code {{ font-family:"IBM Plex Mono",Consolas,monospace; font-size:8.5pt; background:var(--bande); padding:0 1.2mm; border-radius:3px; }}
   strong {{ color:var(--nuit); }}
-  footer {{ position:fixed; bottom:-10mm; left:0; right:0; display:flex; justify-content:space-between; font-size:7.5pt; color:var(--pale); }}
 </style></head><body>
 <header>
   <div><div class="raison">POITIERS COWORKING</div><div class="coord">{projet}</div></div>
-  <div class="nature">{titre.replace('Rapport de la semaine', 'RAPPORT DE LA SEMAINE').upper()}<span>{periode}</span><span>Rédigé par {auteur}</span></div>
+  <div class="nature">{titre.upper()}<span>{periode}</span><span>Rédigé par {auteur}</span></div>
 </header>
 {html_corps}
-<footer><span>POITIERS COWORKING · {titre}</span><span>{auteur}</span></footer>
 </body></html>"""
 
 html_path = os.path.join(racine, "design", nom + ".html")
 open(html_path, "w", encoding="utf-8").write(page)
 pdf_path = os.path.join(racine, nom + ".pdf")
-subprocess.run(["node", os.path.join(racine, "design", "print-file.mjs"), html_path, pdf_path], check=True, env={**os.environ, "MSYS_NO_PATHCONV": "1"})
+subprocess.run(["node", os.path.join(racine, "design", "print-file.mjs"), html_path, pdf_path], check=True, env={**os.environ, "MSYS_NO_PATHCONV": "1", "PIED": f"POITIERS COWORKING · {titre} · {auteur}"})
 print(pdf_path)
