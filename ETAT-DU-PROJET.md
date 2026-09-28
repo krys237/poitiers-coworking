@@ -96,6 +96,14 @@ Déploiement Convex de production · domaine, HTTPS et proxy API (**butoir 3/10*
 suppression de `legacy.css` · recette d'impression comparée · passation (guide par rôle, procédure de secours) ·
 répétition de mise en service le 9 · **mise en service le 10** · rapport final.
 
+### À intégrer au cahier de recette (noté le 28/09)
+- **Un écran ne montre que ce à quoi le membre a droit.** Depuis les droits Voir / Faire par module
+  (Paramètres → Rôles & accès), un membre qui n'a que « Voir » voit encore, sur plusieurs écrans, des boutons
+  de saisie ou de validation (ex. Employés pour le comptable). Le serveur refuse l'action et un bandeau
+  « Vos droits ici » prévient, mais **à terme chaque bouton d'action est masqué sans le droit « Faire »**.
+  Scénario de recette par écran et par rôle : aucun bouton qui mène à un refus. Outil : `usePeut(module, "faire")`
+  / `<SiDroit module=… >` (`src/auth/useMe.tsx`) ; contrôle rapide : `node design/verif-droits.mjs`.
+
 ### Backlog non planifié
 Comparaison réelle du barème avec la source officielle · agrégats mensuels stockés pour l'audit au-delà de
 24 mois · réinitialisation de mot de passe (« mot de passe oublié », dépend du compte Resend).

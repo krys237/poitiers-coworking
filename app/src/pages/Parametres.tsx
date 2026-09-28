@@ -390,7 +390,8 @@ function CaseDroit({ actif, libelle, modifie, verrou, desactive, onClick, titre 
 }
 
 function MatriceRoles({ valeur, base, onChange, lectureSeule }: { valeur: Matrice; base: Matrice; onChange: (m: Matrice) => void; lectureSeule: boolean }) {
-  const roles = ROLES_ORDONNES;
+  // Le super administrateur (compte technique du développeur) garde tout et ne se règle pas : pas de colonne.
+  const roles = ROLES_ORDONNES.filter((r) => r !== "super_admin");
   const maj = (r: Role, m: Module, action: Action) => {
     const k = cleM(r, m.cle);
     onChange({ ...valeur, [k]: basculer(m, valeur[k], action) });
@@ -460,7 +461,7 @@ function MatriceRoles({ valeur, base, onChange, lectureSeule }: { valeur: Matric
         </TableBody>
       </Table>
       <p className="text-2xs text-encre-pale">
-        Garde-fous : le super administrateur garde tout ; le Directeur Général garde Paramètres et Membres. Nul n'attribue un rôle
+        Garde-fou : le Directeur Général garde Paramètres et Membres. Nul n'attribue un rôle
         au-dessus du sien ni ne modifie un membre au-dessus de lui. Un document porte en plus son propre niveau de visibilité et de
         téléchargement, et éventuellement un code. Le tableau de bord est ouvert à tout membre autorisé ; la fiche API reste technique.
       </p>
