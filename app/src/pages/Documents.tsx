@@ -122,6 +122,8 @@ type Form = {
   niveauTelechargement: number;
   confidentiel: boolean;
   codeAcces: string;
+  /** Destinataires nominatifs ; vide = accès par niveau. */
+  destinataires: string[];
   mode: "ia" | "heuristique" | "manuel";
   detail?: string;
 };
@@ -138,6 +140,7 @@ const FORM_VIDE: Form = {
   niveauTelechargement: 2,
   confidentiel: false,
   codeAcces: "",
+  destinataires: [],
   mode: "manuel",
 };
 
@@ -283,6 +286,7 @@ export function Documents() {
         confidentiel: f.confidentiel,
         codeAcces: f.codeAcces.trim() || undefined,
         modeMeta: f.mode,
+        destinataires: f.destinataires.length ? (f.destinataires as any) : undefined,
       });
       setMsg({ type: "succes", texte: `Le document « ${f.titre.trim()} » a été déposé et indexé avec succès.` });
       setF(FORM_VIDE);
@@ -679,6 +683,12 @@ export function Documents() {
                     </div>
                   </div>
 
+                  <ChoixDestinataires
+                    actif={!!f.fichierId && !analyse}
+                    valeur={f.destinataires}
+                    onChange={(destinataires) => setF({ ...f, destinataires })}
+                  />
+
                   <div className="pt-2">
                     <label className="flex items-center gap-2.5 cursor-pointer">
                       <input
@@ -924,6 +934,7 @@ export function Documents() {
                       <span className="whitespace-nowrap font-mono text-2xs text-encre-douce" title="Niveau de visibilité / de téléchargement">niv. {d.niveauVisible} / {d.niveauTelechargement}</span>
                       {d.confidentiel && <Flag variant="a-renseigner" size="xs">Confidentiel</Flag>}
                       {d.codeRequis && <Flag variant="verrou" size="xs" icon={<Lock className="h-2.5 w-2.5 text-slate-500" />}>Code</Flag>}
+                      {d.destinataires && <span title={`Réservé à : ${d.destinataires.join(", ")} (et au déposant)`}><Flag variant={d.pourMoi ? "direct" : "neutre"} size="xs">{d.pourMoi ? "Pour vous" : `Nominatif · ${d.destinataires.length}`}</Flag></span>}
                     </div>
                   </TableCell>
                   <TableCell className="leading-tight">
@@ -1194,6 +1205,52 @@ export function Documents() {
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// --- Destinataires nominatifs --------------------------------------------------------
+// Par défaut, un document suit les niveaux choisis au-dessus. « Seulement des personnes choisies » le
+// réserve à ces membres (et au déposant), quel que soit leur niveau — décision du 28/09/2026.
+function ChoixDestinataires({ actif, valeur, onChange }: { actif: boolean; valeur: string[]; onChange: (v: string[]) => void }) {
+  const [nominatif, setNominatif] = useState(valeur.length > 0);
+  const [filtre, setFiltre] = useState("");
+  const membres = useQuery(api.documents.destinatairesPossibles, nominatif ? {} : "skip");
+  const q = filtre.trim().toLowerCase();
+  const visibles = (membres ?? []).filter((m) => !q || `${m.nom} ${m.role}`.toLowerCase().includes(q));
+  const bascule = (id: string) => onChange(valeur.includes(id) ? valeur.filter((x) => x !== id) : [...valeur, id]);
+  return (
+    <div className="rounded-xl border border-filet bg-white p-3">
+      <div className="text-2xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Qui reçoit ce document</div>
+      <div className="flex flex-wrap gap-3 text-xs">
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input type="radio" name="destinataires" disabled={!actif} checked={!nominatif} onChange={() => { setNominatif(false); onChange([]); }} />
+          Selon les niveaux ci-dessus
+        </label>
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input type="radio" name="destinataires" disabled={!actif} checked={nominatif} onChange={() => setNominatif(true)} />
+          Seulement des personnes choisies
+        </label>
+      </div>
+      {nominatif && (
+        <div className="mt-2 space-y-1.5">
+          <Input value={filtre} onChange={(e) => setFiltre(e.target.value)} placeholder="Chercher un membre…" className="h-8 text-xs" disabled={!actif} />
+          <div className="max-h-40 overflow-y-auto rounded-lg border border-filet">
+            {membres === undefined ? <p className="p-2 text-2xs text-encre-pale">Chargement…</p> : visibles.map((m) => (
+              <label key={String(m._id)} className="flex cursor-pointer items-center justify-between gap-2 border-b border-filet/60 px-2 py-1.5 text-xs last:border-0 hover:bg-ocean-brume/30">
+                <span className="flex items-center gap-2">
+                  <input type="checkbox" disabled={!actif} checked={valeur.includes(String(m._id))} onChange={() => bascule(String(m._id))} />
+                  <span className="font-semibold">{m.nom}</span>
+                </span>
+                <span className="text-2xs text-encre-pale">{m.role}</span>
+              </label>
+            ))}
+          </div>
+          <p className="text-3xs text-slate-500">
+            {valeur.length ? `${valeur.length} destinataire(s) : eux seuls (et vous) verront et téléchargeront le document, quel que soit leur niveau.` : "Cochez au moins une personne."}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

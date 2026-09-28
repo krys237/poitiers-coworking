@@ -273,6 +273,9 @@ export default defineSchema({
     modeMeta: v.union(v.literal("ia"), v.literal("heuristique"), v.literal("manuel")),
     uploadedBy: v.id("users"),
     deposeLe: v.string(),
+    // Destinataires nominatifs (demande de M. GAMBOU, 28/09/2026) : si la liste est posée, le document
+    // n'est visible et téléchargeable QUE par eux et le déposant, quel que soit leur niveau.
+    destinataires: v.optional(v.array(v.id("users"))),
   })
     .index("by_categorie", ["categorie"])
     .index("by_depose", ["deposeLe"])

@@ -1,9 +1,18 @@
-import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
+import { query, mutation, internalQuery, internalMutation, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { getCurrentUser, requireDroit, droitsDuMembre, lireConfidentiel } from "./lib/authz";
-import { canView, canDownload, NIVEAU, Role } from "./rbac";
+import { canView, canDownload, NIVEAU, LIBELLE, Role } from "./rbac";
+import { Doc, Id } from "./_generated/dataModel";
 
 const MODE = v.union(v.literal("ia"), v.literal("heuristique"), v.literal("manuel"));
+
+// Accès à un document : nominatif s'il a des destinataires (eux + le déposant, niveau ignoré), sinon par
+// niveau / confidentialité (rbac.canView, canDownload).
+type DocAcces = Doc<"documents">;
+const estNominatif = (d: DocAcces) => (d.destinataires?.length ?? 0) > 0;
+const estDestinataire = (d: DocAcces, moi: Id<"users">) => String(d.uploadedBy) === String(moi) || (d.destinataires ?? []).some((x) => String(x) === String(moi));
+const peutVoir = (d: DocAcces, me: Doc<"users">, conf: boolean) => (estNominatif(d) ? estDestinataire(d, me._id) : canView(me.role as Role, d, conf));
+const peutTelecharger = (d: DocAcces, me: Doc<"users">, conf: boolean) => (estNominatif(d) ? estDestinataire(d, me._id) : canDownload(me.role as Role, d, conf));
 
 export const genererUploadUrl = mutation({
   args: {},
@@ -16,9 +25,15 @@ export const deposer = mutation({
     titre: v.string(), description: v.optional(v.string()), categorie: v.optional(v.string()),
     niveauVisible: v.number(), niveauTelechargement: v.number(), confidentiel: v.boolean(),
     codeAcces: v.optional(v.string()), modeMeta: MODE,
+    destinataires: v.optional(v.array(v.id("users"))),
   },
   handler: async (ctx, a) => {
     const me = await requireDroit(ctx, "/documents", "faire");
+    for (const id of a.destinataires ?? []) {
+      const u = await ctx.db.get(id);
+      if (!u || !u.isActive || u.enAttente) throw new Error("Un destinataire choisi n'est pas un membre actif.");
+    }
+    if (a.destinataires && !a.destinataires.length) a.destinataires = undefined;
     if (!a.titre.trim()) throw new Error("Titre requis.");
     if (a.confidentiel && !(await droitsDuMembre(ctx, me))["/documents/confidentiels"].faire) throw new Error("Vous n'avez pas le droit de déposer un document confidentiel.");
     return await ctx.db.insert("documents", {
@@ -37,7 +52,7 @@ export const liste = query({
     const conf = await lireConfidentiel(ctx, me);
     const tous = await ctx.db.query("documents").collect();
     const q = (recherche ?? "").trim().toLowerCase();
-    const visibles = tous.filter((d) => canView(role, d, conf));
+    const visibles = tous.filter((d) => peutVoir(d, me, conf));
     const users = new Map<string, string>();
     const out = [];
     for (const d of visibles.sort((a, b) => b.deposeLe.localeCompare(a.deposeLe))) {
@@ -48,7 +63,9 @@ export const liste = query({
         _id: d._id, titre: d.titre, description: d.description, categorie: d.categorie ?? "Divers", nomFichier: d.nomFichier,
         taille: d.taille, typeMime: d.typeMime, deposeLe: d.deposeLe, deposePar: users.get(String(d.uploadedBy)),
         niveauVisible: d.niveauVisible, niveauTelechargement: d.niveauTelechargement, confidentiel: d.confidentiel,
-        codeRequis: !!d.codeAcces, telechargeable: canDownload(role, d, conf), modeMeta: d.modeMeta,
+        codeRequis: !!d.codeAcces, telechargeable: peutTelecharger(d, me, conf), modeMeta: d.modeMeta,
+        destinataires: estNominatif(d) ? await nomsDe(ctx, d.destinataires!) : null,
+        pourMoi: estNominatif(d) && String(d.uploadedBy) !== String(me._id),
       });
     }
     return { documents: out, categories: [...new Set(visibles.map((d) => d.categorie ?? "Divers"))].sort(), monNiveau: NIVEAU[role], deposeConfidentiel: (await droitsDuMembre(ctx, me))["/documents/confidentiels"].faire };
@@ -62,8 +79,8 @@ export const obtenirUrl = mutation({
     const me = await requireDroit(ctx, "/documents");
     const d = await ctx.db.get(documentId);
     const conf = await lireConfidentiel(ctx, me);
-    if (!d || !canView(me.role as Role, d, conf)) throw new Error("Document introuvable.");
-    if (!canDownload(me.role as Role, d, conf)) throw new Error("Téléchargement réservé à un niveau supérieur.");
+    if (!d || !peutVoir(d, me, conf)) throw new Error("Document introuvable.");
+    if (!peutTelecharger(d, me, conf)) throw new Error("Téléchargement réservé à un niveau supérieur.");
     if (d.codeAcces && d.codeAcces !== (code ?? "").trim()) throw new Error("Code d'accès incorrect.");
     const url = await ctx.storage.getUrl(d.fichierId);
     if (!url) throw new Error("Fichier indisponible.");
@@ -78,7 +95,7 @@ export const apercuUrl = mutation({
   handler: async (ctx, { documentId, code }) => {
     const me = await requireDroit(ctx, "/documents");
     const d = await ctx.db.get(documentId);
-    if (!d || !canView(me.role as Role, d, await lireConfidentiel(ctx, me))) throw new Error("Document introuvable.");
+    if (!d || !peutVoir(d, me, await lireConfidentiel(ctx, me))) throw new Error("Document introuvable.");
     if (d.codeAcces && d.codeAcces !== (code ?? "").trim()) throw new Error("Code d'accès incorrect.");
     const url = await ctx.storage.getUrl(d.fichierId);
     if (!url) throw new Error("Fichier indisponible.");
@@ -123,7 +140,7 @@ export const controleAccesFichier = internalQuery({
   handler: async (ctx, { fichierId }) => {
     const me = await requireDroit(ctx, "/documents");
     const doc = await ctx.db.query("documents").withIndex("by_fichier", (q) => q.eq("fichierId", fichierId)).first();
-    if (doc && !canView(me.role as Role, doc, await lireConfidentiel(ctx, me))) throw new Error("Accès refusé : ce document ne vous est pas visible.");
+    if (doc && !peutVoir(doc, me, await lireConfidentiel(ctx, me))) throw new Error("Accès refusé : ce document ne vous est pas visible.");
     return { userId: me._id };
   },
 });
@@ -131,4 +148,23 @@ export const controleAccesFichier = internalQuery({
 export const utilisateurDev = query({
   args: {},
   handler: async (ctx) => (await getCurrentUser(ctx))?._id ?? null,
+});
+
+async function nomsDe(ctx: QueryCtx, ids: Id<"users">[]) {
+  const out: string[] = [];
+  for (const id of ids) { const u = await ctx.db.get(id); out.push(u?.nom ?? u?.email ?? "?"); }
+  return out;
+}
+
+// Destinataires possibles d'un dépôt : les membres actifs (nom et rôle, rien d'autre).
+export const destinatairesPossibles = query({
+  args: {},
+  handler: async (ctx) => {
+    const me = await requireDroit(ctx, "/documents", "faire");
+    const tous = await ctx.db.query("users").collect();
+    return tous
+      .filter((u) => u.isActive && !u.enAttente && String(u._id) !== String(me._id) && u.role !== "super_admin")
+      .map((u) => ({ _id: u._id, nom: u.nom ?? u.email, role: LIBELLE[u.role as Role] }))
+      .sort((a, b) => a.nom.localeCompare(b.nom));
+  },
 });
