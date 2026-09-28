@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useAction } from "convex/react";
+import { cn } from "@/lib/utils";
 import { api } from "../../convex/_generated/api";
 import { fcfa, libellePeriode, periodeCourante, messageErreur } from "../lib/format";
 import { Tuile } from "@/components/app/tuile";
@@ -72,29 +73,20 @@ export function Dashboard() {
     }
   };
 
-  // Données du graphique de flux financiers
+  // Données du graphique de flux financiers : chaque barre n'apparaît qu'à qui voit son module d'origine
+  // (chiffre d'affaires et primes : Caisse & primes médecins ; masse brute et net : Bulletins du mois).
   const donneesFlux = [
-    {
-      cle: "recettes",
-      libelle: "Chiffre d'aff.",
-      valeur: st?.chiffreAffaires ?? 0,
-    },
-    {
-      cle: "brut",
-      libelle: "Masse brute",
-      valeur: totalBrut,
-    },
-    {
-      cle: "net",
-      libelle: "Net payé",
-      valeur: totalNet,
-    },
-    {
-      cle: "primes",
-      libelle: "Primes méd.",
-      valeur: st?.primes ?? 0,
-    },
+    ...(voit("/statistiques") ? [{ cle: "recettes", libelle: "Chiffre d'aff.", valeur: st?.chiffreAffaires ?? 0 }] : []),
+    ...(voit("/paie/bulletins") ? [
+      { cle: "brut", libelle: "Masse brute", valeur: totalBrut },
+      { cle: "net", libelle: "Net payé", valeur: totalNet },
+    ] : []),
+    ...(voit("/statistiques") ? [{ cle: "primes", libelle: "Primes méd.", valeur: st?.primes ?? 0 }] : []),
   ];
+  // Le tableau de bord se compose des modules du membre (décision du 28/09/2026) : sans aucun chiffre de
+  // cockpit, la colonne de gauche disparaît et « À faire aujourd'hui » prend la largeur.
+  const aCockpit = voit("/statistiques") || voit("/financier") || voit("/paie/bulletins");
+  const aFaire = voit("/comptes-rendus") || !!me?.droits?.["/financier"]?.faire;
 
   return (
     <div className="space-y-6">
@@ -354,6 +346,7 @@ export function Dashboard() {
               </div>
 
               <div className="flex items-center gap-2">
+                {niveau >= 8 && (<>
                 <button
                   type="button"
                   onClick={() =>
@@ -368,13 +361,14 @@ export function Dashboard() {
                 >
                   Tester une alerte
                 </button>
-                <span className="inline-block h-1 w-1 rounded-full bg-sky-300/40" />
-                <Link
+                </>)}
+                {niveau >= 8 && voit("/journal") && <span className="inline-block h-1 w-1 rounded-full bg-sky-300/40" />}
+                {voit("/journal") && <Link
                   to="/journal"
                   className="rounded-md bg-white/10 hover:bg-white/20 border border-white/20 px-2.5 py-1 text-2xs font-semibold text-sky-200 hover:text-white transition-colors"
                 >
                   Journal d'activité →
-                </Link>
+                </Link>}
               </div>
             </div>
           )}
@@ -384,7 +378,7 @@ export function Dashboard() {
       {/* 3. Organisation principale : Zone Cockpit (Gauche) + Rail d'actions (Droite) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Colonne Gauche : Cockpit 2x2 + Graphique des Flux (8 colonnes sur 12) */}
-        <div className="lg:col-span-8 space-y-6">
+        {aCockpit && <div className="lg:col-span-8 space-y-6">
           {/* Grille 2x2 des 4 Tuiles Majeures */}
           <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
             {/* Tuile 1 (Vedette) : Chiffre d'Affaires du Mois */}
@@ -469,7 +463,7 @@ export function Dashboard() {
                     ? `Primes méd. : ${fcfa(st.primes)} · ${effectifActif ?? 0} actif(s)`
                     : `${effectifActif ?? 0} employé(s) actif(s)`
                 }
-                lienVers="/paie/primes"
+                lienVers={voit("/paie/primes") ? "/paie/primes" : undefined}
                 badge={
                   <Badge variant="neutre">
                     <Users className="mr-1 h-3 w-3" />
@@ -481,7 +475,7 @@ export function Dashboard() {
           </div>
 
           {/* Graphique de Répartition des Flux Financiers (Large Card) */}
-          <div className="rounded-xl border border-filet bg-surface p-5 shadow-sm">
+          {donneesFlux.length > 0 && <div className="rounded-xl border border-filet bg-surface p-5 shadow-sm">
             <div className="flex items-center justify-between pb-4 border-b border-filet mb-4">
               <div>
                 <h2 className="text-sm font-bold tracking-tight text-encre">
@@ -491,13 +485,13 @@ export function Dashboard() {
                   Recettes vs Masse salariale brute vs Net à décaisser vs Primes
                 </p>
               </div>
-              <Link
+              {voit("/financier") && <Link
                 to="/financier"
                 className="flex h-7 w-7 items-center justify-center rounded-full bg-papier text-encre-douce hover:bg-ocean-brume hover:text-ocean-profond transition-colors"
                 title="Voir le grand livre financier"
               >
                 <ArrowUpRight className="h-4 w-4" />
-              </Link>
+              </Link>}
             </div>
 
             <Barres
@@ -507,13 +501,13 @@ export function Dashboard() {
               format={fcfa}
               hauteur={180}
             />
-          </div>
-        </div>
+          </div>}
+        </div>}
 
-        {/* Colonne Droite : Rail « À faire aujourd'hui » (4 colonnes sur 12) */}
-        <div className="lg:col-span-4 space-y-4">
+        {/* Colonne Droite : Rail « À faire aujourd'hui » (4 colonnes sur 12, toute la largeur sans cockpit) */}
+        <div className={cn("space-y-4", aCockpit ? "lg:col-span-4" : "lg:col-span-12")}>
           {/* Card Espace Quotidien */}
-          <div className="rounded-xl border border-filet bg-surface p-5 shadow-sm space-y-4">
+          {aFaire && <div className="rounded-xl border border-filet bg-surface p-5 shadow-sm space-y-4">
             <div className="flex items-center gap-2 border-b border-filet pb-3">
               <CalendarCheck className="h-4 w-4 text-ocean-profond" />
               <h2 className="text-xs font-bold uppercase tracking-wider text-encre">
@@ -601,7 +595,7 @@ export function Dashboard() {
                 </span>
               </div>
             )}
-          </div>
+          </div>}
 
           {/* Bloc Audit Confidentiel (visible pour Auditeur externe ou DG) */}
           {audit && (

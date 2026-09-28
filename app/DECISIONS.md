@@ -38,3 +38,5 @@ a été formulée.
 | 28/09/2026 | Ordre de travail : cahiers de recette, puis responsive, puis masquage des actions selon les droits | Consigne du propriétaire | `ETAT-DU-PROJET.md` |
 | 28/09/2026 | Test d'envoi WhatsApp réel reporté : instance UltraMsg en standby ; on avance en simulation | Constat du propriétaire | `ETAT-DU-PROJET.md` §2 |
 | 28/09/2026 | Bulletins du mois : PDF à la demande (mois entier ou un salarié), généré sans être stocké | Demande de M. GAMBOU | `paiePdf.pdfBulletins` |
+| 28/09/2026 | Le **tableau de bord se compose des modules du membre** : chaque tuile, barre du graphique, lien et action suit le droit de son module ; sans chiffre de cockpit, la colonne disparaît | Consigne du propriétaire | `Dashboard.tsx` |
+| 28/09/2026 | Interventions : « Voir » continue d'inclure déclarer et commenter (pas de ligne séparée pour l'instant, auditeur compris) | Arbitrage du propriétaire | `rbac.MODULES` |
