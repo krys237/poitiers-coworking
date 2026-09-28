@@ -71,7 +71,10 @@ plafond de saisie) sont sortis dans `convex/lib/reglages.ts`.
   l'employé (mois clôturés, téléphone) · verrou 1 h sur Caisse & primes médecins (au-delà : administrateur) ·
   destinataires nominatifs d'un document · courrier de paie par WhatsApp (UltraMsg, simulé sans clés) · connexion
   hors de la Polyclinique (aucune restriction d'adresse : rien à faire).
-- Reste pour ces demandes : **responsive** du reste de l'ERP ; **clé Resend** (après achat du domaine).
+- Reste pour ces demandes : **responsive** du reste de l'ERP.
+- **E-mail réel EN SERVICE (28/09)** : compte Resend du propriétaire, domaine vérifié `edoctor-tim.com`, expéditeur
+  `noreply@edoctor-tim.com` (Paramètres), `RESEND_API_KEY` et `AUTH_EMAIL_FROM` posées ; premier courrier réel envoyé
+  et reçu. À trancher pour la production : garder ce domaine ou en vérifier un au nom de la clinique.
 - **WhatsApp — test d'envoi réel EN ATTENTE (28/09).** Les clés UltraMsg sont posées sur le déploiement de dev
   (`ULTRAMSG_INSTANCE_ID`, `ULTRAMSG_TOKEN`) et l'interrupteur « Envoi réel par WhatsApp » est ouvert, mais
   l'instance UltraMsg est en **standby** (et non « authenticated ») : rien ne part tant qu'elle n'est pas reliée
@@ -164,8 +167,8 @@ Comparaison réelle du barème avec la source officielle · agrégats mensuels s
   `+237 6 90 00 00 0N` (voir `acces-test.pdf`). Le compte technique est `superadmin.test@…` (mot de passe à changer
   à la mise en production). `employe.test` est relié à la fiche E001 (« Mes bulletins »).
 - **Déploiement dev** : `wonderful-shark-673`. Variables définies : `JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL`,
-  `FINANCIAL_API_KEY`. Manquantes : `RESEND_API_KEY`, `ULTRAMSG_INSTANCE_ID`, `ULTRAMSG_TOKEN`, `BAREME_SOURCE_URL`,
-  `ANTHROPIC_API_KEY`. Sans elles, e-mail et WhatsApp restent en simulation (décision du 28/09).
+  `FINANCIAL_API_KEY`. Manquantes : `BAREME_SOURCE_URL`,
+  `ANTHROPIC_API_KEY`. Définies depuis le 28/09 : `RESEND_API_KEY`, `AUTH_EMAIL_FROM`, `ULTRAMSG_INSTANCE_ID`, `ULTRAMSG_TOKEN`.
 - **Serveur de développement** : `npm run dev -- --port 5199` depuis `app/` ; il tombe entre les sessions,
   penser à le relancer avant toute capture Playwright.
 - **Droits** : jamais de `requireLevel` sur une fonction métier ; `requireDroit(ctx, module, "voir"|"faire")` et une
