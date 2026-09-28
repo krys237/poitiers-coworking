@@ -1,7 +1,8 @@
 # État du projet — POITIERS COWORKING
 
-**Arrêté le lundi 28 septembre 2026.** Dernier commit : `c226d2b` (23/09). `main` est en avance de 4 commits
-sur `origin/main` — **à pousser**. Arbre de travail propre.
+**Arrêté le lundi 28 septembre 2026, mis à jour en fin de journée.** Les 5 commits du matin sont poussés ;
+ceux de l'après-midi (jeu d'impression, droits Voir/Faire, demandes de M. GAMBOU) sont **locaux, en attente
+du feu vert du propriétaire pour pousser**. Backend déployé sur le déploiement de dev.
 
 Ce document est le point d'entrée pour reprendre le travail : ce qui est fait, ce qui reste, où se trouve
 chaque chose. Il se lit avec `app/CLAUDE.md` (guide technique du dépôt) et `app/DECISIONS.md` (journal des
@@ -60,6 +61,18 @@ Six sections, un seul enregistrement journalisé ; les réglages de fonctionneme
 (fenêtre des comptes rendus, verrou financier, envoi réel, IA documents, PDF à la clôture, jours de base,
 plafond de saisie) sont sortis dans `convex/lib/reglages.ts`.
 
+### Journée du 28/09 — droits configurables et demandes de M. GAMBOU
+- **Jeu d'impression** du directeur (`jeu-impression-directeur-2026-09.pdf`, générateur `design/jeu-impression.mjs`) ;
+  le bulletin imprimé tient désormais sur une feuille ; titre « BULLETIN DU MOIS » (écran, impression, PDF).
+- **Droits Voir / Faire par module, choisis par le directeur** (Paramètres → Rôles & accès : matrice d'un clic +
+  exceptions par personne). Les niveaux ne donnent plus que les défauts. Auditeur : consulte tout sans agir, sauf
+  Paramètres, Journal, Archives, documents, comptes rendus. Comptable : + récapitulatif financier / grand livre.
+- **Demandes de M. GAMBOU, toutes livrées** : PDF dans Bulletins du mois (mois ou salarié) · « Mes bulletins » pour
+  l'employé (mois clôturés, téléphone) · verrou 1 h sur Caisse & primes médecins (au-delà : administrateur) ·
+  destinataires nominatifs d'un document · courrier de paie par WhatsApp (UltraMsg, simulé sans clés) · connexion
+  hors de la Polyclinique (aucune restriction d'adresse : rien à faire).
+- Reste pour ces demandes : **clés UltraMsg et Resend** (propriétaire), **responsive** du reste de l'ERP.
+
 ### Anomalies corrigées
 Solde de trésorerie visible par tout membre connecté · `archiverPdfs` action publique sans garde · `JWKS`
 invalide (aucune session réelle possible) · PDF archivés recevant un bulletin appauvri · page blanche sur
@@ -72,8 +85,8 @@ adresse inconnue · aperçu manquant dans Documents et Comptes rendus (ajouté l
 ### S1 (21 → 26 septembre) — soldes
 | Reste | Qui | Butoir |
 |---|---|---|
-| Changer le mot de passe du super administrateur | propriétaire | **échu le 23/09** |
-| Remettre au directeur le jeu d'impression (3 bulletins, liste, courrier) | dev | **échu le 24/09** |
+| ~~Changer le mot de passe du super administrateur~~ | propriétaire | reporté à la mise en production (mode test) |
+| ~~Remettre au directeur le jeu d'impression~~ | dev | **prêt le 28/09** — à imprimer et remettre |
 | Validation papier du bulletin | directeur | **échu le 25/09** |
 | Corrections issues de la validation papier | dev | après validation |
 | Fournir les attendus de la recette, écran par écran | propriétaire | **échu le 26/09** |
@@ -81,8 +94,8 @@ adresse inconnue · aperçu manquant dans Documents et Comptes rendus (ajouté l
 | Vérifier chaque compte de test un par un | dev | — |
 | Rapport de la semaine du 21 | dev | — |
 
-> Ces huit points n'ont pas été traités dans la conversation du 23/09 : **à faire le point avec le propriétaire
-> avant de démarrer S2**, car la recette (S2) en dépend.
+> Point fait le 28/09 avec le propriétaire. Le rapport « du 21 » couvrira tout le travail jusqu'au jour de sa
+> rédaction, calé sur le Jira. Les cahiers de recette (07/09 et 14/09) sont antérieurs à la refonte : à réécrire.
 
 ### S2 (29 septembre → 3 octobre) — « la clinique teste »
 Cahier de recette final (un scénario par écran et par rôle) · campagne de tests avec les huit comptes ·
@@ -136,12 +149,15 @@ Comparaison réelle du barème avec la source officielle · agrégats mensuels s
   métier échoue (« Non authentifié »). Pour une opération en console, passer par une mutation *interne* ou
   remettre temporairement le bypass à `true`.
 - **Comptes de test** : `<role>.test@poitiers.local`, mot de passe commun `Poitiers2026`, téléphones
-  `+237 6 90 00 00 0N` (voir `acces-test.pdf`). Le compte technique est `superadmin.test@…` — **son mot de passe
-  doit être changé**.
+  `+237 6 90 00 00 0N` (voir `acces-test.pdf`). Le compte technique est `superadmin.test@…` (mot de passe à changer
+  à la mise en production). `employe.test` est relié à la fiche E001 (« Mes bulletins »).
 - **Déploiement dev** : `wonderful-shark-673`. Variables définies : `JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL`,
-  `FINANCIAL_API_KEY`. Manquantes : `RESEND_API_KEY`, `BAREME_SOURCE_URL`, `ANTHROPIC_API_KEY`.
+  `FINANCIAL_API_KEY`. Manquantes : `RESEND_API_KEY`, `ULTRAMSG_INSTANCE_ID`, `ULTRAMSG_TOKEN`, `BAREME_SOURCE_URL`,
+  `ANTHROPIC_API_KEY`. Sans elles, e-mail et WhatsApp restent en simulation (décision du 28/09).
 - **Serveur de développement** : `npm run dev -- --port 5199` depuis `app/` ; il tombe entre les sessions,
   penser à le relancer avant toute capture Playwright.
+- **Droits** : jamais de `requireLevel` sur une fonction métier ; `requireDroit(ctx, module, "voir"|"faire")` et une
+  entrée dans `rbac.MODULES` pour tout nouvel écran. Contrôle rapide : `node design/verif-droits.mjs`, `npm run test:droits`.
 - **Travail à deux agents** : ne commiter que ses propres fichiers (voir `app/CONSIGNES-MULTI-AGENTS.md`).
   Le tableau de bord, le financier, les commandes, les documents et les comptes rendus ont été refondus en
   parallèle — leurs tuiles restent à unifier.
