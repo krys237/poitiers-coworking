@@ -229,8 +229,10 @@
     margin: var(--doc-marge);
   }
 
-  body {
-    background: #fff;
+  /* Le papier de listing de la coquille (.bg-papier) sortait en aplat sous le document. */
+  body,
+  .bg-papier {
+    background: #fff !important;
   }
 
   /* Tout ce qui n'est pas le document disparait. */
@@ -455,5 +457,41 @@
   .doc-rubriques tr.groupe td {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+
+  /* Un bulletin tient sur UNE feuille (273 mm utiles) : ~36 lignes de rubriques a 7 mm
+     le portaient a 340 mm. A l'impression : lignes a ~3,8 mm, zones et visa resserres. */
+  .doc-bulletin .doc-table th,
+  .doc-bulletin .doc-table td {
+    padding-top: 0.3mm;
+    padding-bottom: 0.3mm;
+    line-height: 1.2;
+  }
+
+  .doc-bulletin .doc-rubriques {
+    font-size: 8.5pt;
+    line-height: 1.12;
+  }
+
+  .doc-bulletin .doc-rubriques td {
+    line-height: inherit;
+  }
+
+  .doc-bulletin .doc-rubriques tr.groupe td {
+    padding-top: 0.3mm;
+    padding-bottom: 0.3mm;
+  }
+
+  .doc-bulletin .doc-zone + .doc-zone,
+  .doc-bulletin .doc-mention {
+    margin-top: 1.8mm;
+  }
+
+  .doc-bulletin .doc-entete {
+    margin-bottom: 3mm;
+  }
+
+  .doc-case .signature {
+    height: 6mm;
   }
 }
