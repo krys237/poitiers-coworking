@@ -55,6 +55,8 @@ export default defineSchema({
     enAttente: v.optional(v.boolean()),
     // Exceptions individuelles aux droits de son rôle, posées par le directeur (rbac.droitsEffectifs).
     droitsPerso: v.optional(v.array(v.object({ module: v.string(), voir: v.boolean(), faire: v.boolean() }))),
+    // Fiche employé du membre (« Mes bulletins ») ; à défaut, rapprochement par e-mail.
+    employeId: v.optional(v.id("employes")),
   })
     .index("by_token", ["tokenIdentifier"])
     // `email` et `phone` sont les noms d'index EXIGÉS par Convex Auth

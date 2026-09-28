@@ -81,7 +81,8 @@ function SelectRole({ valeur, onChange, auteur, id, taille = "md", className, ar
   );
 }
 
-type Fiche = { userId: string | null; email: string; nom: string; role: Role; poste: string; departement: string; societe: string; codeAcces: string; phone: string; isActive: boolean; enAttente: boolean };
+type Fiche = { userId: string | null; email: string; nom: string; role: Role; poste: string; departement: string; societe: string; codeAcces: string; phone: string; isActive: boolean; enAttente: boolean; employeId: string };
+type EmployeLie = { _id: string; nom: string; matricule: string; email?: string; actif: boolean };
 const sansAccents = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 // --- Page -------------------------------------------------------------------------
@@ -91,6 +92,8 @@ export function Membres() {
   const me = useQuery(api.users.me);
   const modifier = useMutation(api.users.modifier);
   const creer = useMutation(api.users.creer);
+  // Sans accès aux employés : pas de liste (donc pas de lien possible) plutôt qu'une erreur.
+  const employes = useQuery(api.employes.liste, me?.droits?.["/employes"]?.voir ? {} : "skip") as EmployeLie[] | undefined;
 
   const [persistant, setPersistant] = useSaisiePersistante("membres", false);
   const lignesVisibles = useLignesVisibles("membres", 15);
@@ -113,8 +116,9 @@ export function Membres() {
   const ouvrir = (m: any, autoriser = false): Fiche => ({
     userId: String(m._id), email: m.email, nom: m.nom ?? "", role: m.role, poste: m.poste ?? "", departement: m.departement ?? "",
     societe: m.societe ?? "", codeAcces: "", phone: m.phone ?? "", isActive: autoriser ? true : !!m.isActive, enAttente: !!m.enAttente,
+    employeId: m.employeId ? String(m.employeId) : "",
   });
-  const nouvelle = (): Fiche => ({ userId: null, email: "", nom: "", role: "employe", poste: "", departement: "", societe: "", codeAcces: "", phone: "", isActive: true, enAttente: false });
+  const nouvelle = (): Fiche => ({ userId: null, email: "", nom: "", role: "employe", poste: "", departement: "", societe: "", codeAcces: "", phone: "", isActive: true, enAttente: false, employeId: "" });
 
   const monRole = me?.role as Role | undefined;
   // Changement de rôle directement dans la ligne : journalisé côté serveur, borné au niveau de l'auteur.
@@ -128,10 +132,10 @@ export function Membres() {
 
   const enregistrer = async (f: Fiche) => {
     if (f.userId) {
-      await modifier({ userId: f.userId as any, role: f.role, nom: f.nom || undefined, poste: f.poste || undefined, departement: f.departement || undefined, societe: (f.societe || undefined) as any, codeAcces: f.codeAcces || undefined, phone: f.phone.trim() || undefined, isActive: f.isActive });
+      await modifier({ userId: f.userId as any, role: f.role, nom: f.nom || undefined, poste: f.poste || undefined, departement: f.departement || undefined, societe: (f.societe || undefined) as any, codeAcces: f.codeAcces || undefined, phone: f.phone.trim() || undefined, isActive: f.isActive, employeId: (f.employeId || null) as any });
       toast.success(f.enAttente && f.isActive ? `Accès accordé à ${f.nom || f.email}` : `Membre ${f.nom || f.email} mis à jour`, { description: libelleRole(f.role) });
     } else {
-      await creer({ email: f.email.trim(), nom: f.nom || undefined, role: f.role, poste: f.poste || undefined, departement: f.departement || undefined, societe: (f.societe || undefined) as any, codeAcces: f.codeAcces || undefined, phone: f.phone.trim() || undefined });
+      await creer({ email: f.email.trim(), nom: f.nom || undefined, role: f.role, poste: f.poste || undefined, departement: f.departement || undefined, societe: (f.societe || undefined) as any, codeAcces: f.codeAcces || undefined, phone: f.phone.trim() || undefined, employeId: (f.employeId || undefined) as any });
       toast.success(`Membre ${f.email.trim()} pré-provisionné`, { description: `${libelleRole(f.role)} · reprendra ce rôle à sa première connexion` });
     }
   };
@@ -246,6 +250,7 @@ export function Membres() {
           {fiche && (
             <FormFiche
               fiche={fiche}
+              employes={employes ?? []}
               auteur={monRole}
               estMoi={!!(me && fiche.userId && String(me._id) === fiche.userId)}
               dernierDg={dgActifs <= 1 && fiche.role === "dg" && fiche.isActive}
@@ -262,8 +267,8 @@ export function Membres() {
 
 // --- Fiche membre ------------------------------------------------------------------
 
-function FormFiche({ fiche, auteur, estMoi, dernierDg, onFermer, onEnregistrer, onDesactiver }: {
-  fiche: Fiche; auteur: Role | undefined; estMoi: boolean; dernierDg: boolean; onFermer: () => void; onEnregistrer: (f: Fiche) => Promise<void>; onDesactiver: () => Promise<void>;
+function FormFiche({ fiche, auteur, estMoi, dernierDg, employes, onFermer, onEnregistrer, onDesactiver }: {
+  fiche: Fiche; auteur: Role | undefined; estMoi: boolean; dernierDg: boolean; employes: EmployeLie[]; onFermer: () => void; onEnregistrer: (f: Fiche) => Promise<void>; onDesactiver: () => Promise<void>;
 }) {
   const [f, setF] = React.useState(fiche);
   const [enCours, setEnCours] = React.useState(false);
@@ -307,6 +312,17 @@ function FormFiche({ fiche, auteur, estMoi, dernierDg, onFermer, onEnregistrer, 
             <Select value={f.societe || AUCUNE} onValueChange={(v) => setF({ ...f, societe: v === AUCUNE ? "" : v })}>
               <SelectTrigger id={a.id} className="w-full" aria-label="Société"><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value={AUCUNE}>— aucune —</SelectItem>{SOCIETES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+          )}
+        </Champ>
+        <Champ libelle="Fiche employé" aide={f.employeId ? "Ses bulletins apparaissent dans « Mes bulletins »" : "À relier pour qu'il voie ses bulletins (sinon : même e-mail que la fiche)"}>
+          {(a) => (
+            <Select value={f.employeId || AUCUNE} onValueChange={(v) => setF({ ...f, employeId: v === AUCUNE ? "" : v })}>
+              <SelectTrigger id={a.id} className="w-full" aria-label="Fiche employé"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={AUCUNE}>— aucune —</SelectItem>
+                {employes.filter((e) => e.actif || String(e._id) === f.employeId).map((e) => <SelectItem key={e._id} value={String(e._id)}>{e.nom} · {e.matricule}{e.email && e.email.toLowerCase() === f.email.toLowerCase() ? " · même e-mail" : ""}</SelectItem>)}
+              </SelectContent>
             </Select>
           )}
         </Champ>
@@ -357,7 +373,7 @@ function FormFiche({ fiche, auteur, estMoi, dernierDg, onFermer, onEnregistrer, 
 const CS = "bg-ocean-brume/40 align-middle";
 
 function LigneSaisie({ auteur, onEnregistrer }: { auteur: Role | undefined; onEnregistrer: (f: Fiche) => Promise<void> }) {
-  const vierge = (): Fiche => ({ userId: null, email: "", nom: "", role: "employe", poste: "", departement: "", societe: "", codeAcces: "", phone: "", isActive: true, enAttente: false });
+  const vierge = (): Fiche => ({ userId: null, email: "", nom: "", role: "employe", poste: "", departement: "", societe: "", codeAcces: "", phone: "", isActive: true, enAttente: false, employeId: "" });
   const [f, setF] = React.useState<Fiche>(vierge);
   const [enCours, setEnCours] = React.useState(false);
   const premier = React.useRef<HTMLInputElement>(null);

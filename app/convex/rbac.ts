@@ -87,6 +87,7 @@ export const MODULES: Module[] = [
   { cle: "/commandes/validation", libelle: "Validation des commandes", categorie: "Exploitation", voir: null, faire: "Valider ou rejeter une commande", niveauVoir: 5, niveauFaire: 5 },
   { cle: "/statistiques", libelle: "Caisse & primes médecins", categorie: "Exploitation", voir: "Consulter", faire: "Saisir, importer, supprimer", niveauVoir: 3, niveauFaire: 3 },
   { cle: "/statistiques/deverrouillage", libelle: "Caisse & primes : modifier après le délai", categorie: "Exploitation", voir: null, faire: "Corriger ou supprimer une ligne verrouillée (délai réglé dans Paramètres)", niveauVoir: 7, niveauFaire: 7 },
+  { cle: "/mes-bulletins", libelle: "Mes bulletins", categorie: "Paie", voir: "Consulter et télécharger ses propres bulletins (mois clôturés)", faire: null, niveauVoir: 1, niveauFaire: 1 },
   { cle: "/paie/saisie", libelle: "Récapitulatif salaires", categorie: "Paie", voir: "Consulter", faire: "Saisir le mois", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/paie/bulletins", libelle: "Bulletins du mois", categorie: "Paie", voir: "Consulter, imprimer, PDF", faire: "Générer et clôturer le mois", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/paie/liste", libelle: "Liste des salaires", categorie: "Paie", voir: "Consulter, imprimer", faire: null, niveauVoir: 4, niveauFaire: 4 },
@@ -105,7 +106,7 @@ export const MODULE_PAR_CLE: Record<string, Module> = Object.fromEntries(MODULES
 
 // Ce que l'auditeur externe ne voit pas (décision du 28/09/2026 ; comptes rendus : ce sont des rapports
 // quotidiens du personnel, sans objet pour un externe) ; ailleurs il consulte sans agir.
-const AUDITEUR_EXCLUS = new Set(["/parametres", "/journal", "/paie/archives", "/documents", "/documents/confidentiels", "/comptes-rendus"]);
+const AUDITEUR_EXCLUS = new Set(["/parametres", "/journal", "/paie/archives", "/documents", "/documents/confidentiels", "/comptes-rendus", "/mes-bulletins"]);
 // Rôles qui voient l'audit en plus de l'auditeur : cloisonné (un niveau 5 est refusé).
 export const ROLES_AUDIT: Role[] = ["dg", "super_admin"];
 
@@ -148,7 +149,7 @@ export function droitsEffectifs(role: Role, surcharges: SurchargeRole[] = [], ex
   }
   // Clés dérivées, hors matrice.
   d["/"] = { voir: true, faire: false }; // tableau de bord : tout membre autorisé
-  const paie = MODULES.filter((m) => m.cle.startsWith("/paie/")).some((m) => d[m.cle].voir);
+  const paie = MODULES.filter((m) => m.cle.startsWith("/paie/")).some((m) => d[m.cle].voir); // « Mes bulletins » n'en fait pas partie
   d["/paie"] = { voir: paie, faire: false };
   const tech = role === "super_admin";
   d["/api-readme"] = { voir: tech, faire: tech }; // technique, jamais délégué

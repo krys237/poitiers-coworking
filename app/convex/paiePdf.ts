@@ -299,6 +299,16 @@ export const pdfBulletins = action({
   },
 });
 
+// « Mes bulletins » : le PDF de SON bulletin d'un mois clôturé (contrôle dans mesBulletins.pourPdf).
+export const pdfMonBulletin = action({
+  args: { periode: v.string() },
+  handler: async (ctx, { periode }): Promise<{ pdf: ArrayBuffer; nomFichier: string }> => {
+    const r: any = await ctx.runQuery(internal.mesBulletins.pourPdf, { periode });
+    const octets = await buildPdf({ bulletin: r.bulletin, periode, entreprise: r.entreprise });
+    return { pdf: octets.buffer.slice(octets.byteOffset, octets.byteOffset + octets.byteLength) as ArrayBuffer, nomFichier: nomFichier(r.entreprise?.nom ?? "PAIE", r.nom, periode) };
+  },
+});
+
 type ResultatArchive = { periode: string; generes: number; dejaPresents: number; octets: number };
 
 // Génère et stocke le PDF de chaque bulletin figé d'un mois clôturé (idempotent : ignore ceux déjà archivés).

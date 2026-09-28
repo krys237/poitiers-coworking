@@ -29,6 +29,8 @@ for (const r of HIERARCHIE) {
   verifie(`${r} : tableau de bord`, d["/"].voir);
 }
 
+verifie("tout membre voit ses bulletins", HIERARCHIE.every((r) => droitsEffectifs(r)["/mes-bulletins"].voir));
+
 // 2. Anciennes actions à niveau propre, reprises en FAIRE.
 verifie("chef d'équipe supervise les comptes rendus", droitsEffectifs("chef_equipe")["/comptes-rendus"].faire);
 verifie("employé ne supervise pas", !droitsEffectifs("employe")["/comptes-rendus"].faire);
@@ -45,7 +47,7 @@ verifie("DAF lit le confidentiel", droitsEffectifs("da1")["/documents/confidenti
 // 3. Auditeur externe : consulte tout, n'agit nulle part sauf l'audit ; exclusions du 28/09.
 const aud = droitsEffectifs("auditeur_externe");
 for (const m of MODULES) {
-  const exclu = ["/parametres", "/journal", "/paie/archives", "/documents", "/documents/confidentiels", "/comptes-rendus"].includes(m.cle);
+  const exclu = ["/parametres", "/journal", "/paie/archives", "/documents", "/documents/confidentiels", "/comptes-rendus", "/mes-bulletins"].includes(m.cle);
   if (m.cle === "/audit") { verifie("auditeur : audit voir + faire", aud[m.cle].voir && aud[m.cle].faire); continue; }
   verifie(`auditeur ${exclu ? "ne voit pas" : "voit"} ${m.cle}`, aud[m.cle].voir === (!exclu && m.voir !== null));
   verifie(`auditeur n'agit pas sur ${m.cle}`, !aud[m.cle].faire);

@@ -93,8 +93,10 @@ export const modifier = mutation({
     userId: v.id("users"), role: v.optional(ROLE), poste: v.optional(v.string()), departement: v.optional(v.string()),
     societe: v.optional(SOCIETE), codeAcces: v.optional(v.string()), nom: v.optional(v.string()), isActive: v.optional(v.boolean()),
     phone: v.optional(v.string()),
+    // Fiche employé liée (« Mes bulletins ») ; null = retirer le lien.
+    employeId: v.optional(v.union(v.id("employes"), v.null())),
   },
-  handler: async (ctx, { userId, ...patch }) => {
+  handler: async (ctx, { userId, employeId, ...patch }) => {
     const me = await requireDroit(ctx, "/membres", "faire");
     const cible = await ctx.db.get(userId);
     if (!cible) throw new Error("Membre introuvable.");
@@ -106,6 +108,12 @@ export const modifier = mutation({
     await verifierDernierDg(ctx, cible, patch);
     const propre = Object.fromEntries(Object.entries(patch).filter(([, val]) => val !== undefined));
     await ctx.db.patch(userId, propre);
+    if (employeId !== undefined && String(employeId ?? "") !== String(cible.employeId ?? "")) {
+      if (employeId && !(await ctx.db.get(employeId))) throw new Error("Fiche employé introuvable.");
+      await ctx.db.patch(userId, { employeId: employeId ?? undefined });
+      const emp = employeId ? await ctx.db.get(employeId) : null;
+      await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "membre_modification", cible: cible.nom ?? cible.email, detail: emp ? `fiche employé liée : ${emp.nom} (${emp.matricule})` : "fiche employé déliée" });
+    }
     const qui = cible.nom ?? cible.email;
     // Autorisation d'une inscription spontanée : l'activation lève le drapeau d'attente et
     // donne réellement accès (jusque-là, le compte avait une session mais aucun droit).
@@ -127,7 +135,7 @@ export const modifier = mutation({
 // `auth.createOrUpdateUser` la rattache alors à son compte (voir auth.ts). C'est le chemin
 // nominal — une inscription non pré-provisionnée n'obtient aucun droit.
 export const creer = mutation({
-  args: { email: v.string(), nom: v.optional(v.string()), role: ROLE, poste: v.optional(v.string()), departement: v.optional(v.string()), societe: v.optional(SOCIETE), codeAcces: v.optional(v.string()), phone: v.optional(v.string()) },
+  args: { email: v.string(), nom: v.optional(v.string()), role: ROLE, poste: v.optional(v.string()), departement: v.optional(v.string()), societe: v.optional(SOCIETE), codeAcces: v.optional(v.string()), phone: v.optional(v.string()), employeId: v.optional(v.id("employes")) },
   handler: async (ctx, a) => {
     const me = await requireDroit(ctx, "/membres", "faire");
     if (!peutAttribuer(me.role as Role, a.role as Role)) throw new Error(`Accès refusé : vous ne pouvez pas attribuer le rôle ${LIBELLE[a.role as Role]}.`);
@@ -135,7 +143,7 @@ export const creer = mutation({
     const email = a.email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Adresse e-mail invalide.");
     if (await ctx.db.query("users").withIndex("email", (q) => q.eq("email", email)).first()) throw new Error("Un membre existe déjà avec cet e-mail.");
-    const id = await ctx.db.insert("users", { tokenIdentifier: `${PENDING_PREFIX}${email}`, email, nom: a.nom?.trim() || undefined, role: a.role, poste: a.poste || undefined, departement: a.departement || undefined, societe: a.societe, codeAcces: a.codeAcces || undefined, phone, isActive: true });
+    const id = await ctx.db.insert("users", { tokenIdentifier: `${PENDING_PREFIX}${email}`, email, nom: a.nom?.trim() || undefined, role: a.role, poste: a.poste || undefined, departement: a.departement || undefined, societe: a.societe, codeAcces: a.codeAcces || undefined, phone, employeId: a.employeId, isActive: true });
     await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "membre_creation", cible: a.nom?.trim() || email, detail: `${LIBELLE[a.role as Role]} · en attente de rattachement` });
     return id;
   },

@@ -10,6 +10,7 @@ import { Courrier } from "./pages/Courrier";
 import { Planning } from "./pages/Planning";
 import { Primes } from "./pages/Primes";
 import { Archives } from "./pages/Archives";
+import { MesBulletins } from "./pages/MesBulletins";
 import { ListeSalaires } from "./pages/ListeSalaires";
 import { Financier } from "./pages/Financier";
 import { Documents } from "./pages/Documents";
@@ -42,6 +43,7 @@ const ROUTES: { path: string; perm: string; element: JSX.Element }[] = [
   { path: "/paie/planning", perm: "/paie/planning", element: <Planning /> },
   { path: "/paie/primes", perm: "/paie/primes", element: <Primes /> },
   { path: "/paie/archives", perm: "/paie/archives", element: <Archives /> },
+  { path: "/mes-bulletins", perm: "/mes-bulletins", element: <MesBulletins /> },
   { path: "/financier", perm: "/financier", element: <Financier /> },
   { path: "/documents", perm: "/documents", element: <Documents /> },
   { path: "/commandes", perm: "/commandes", element: <Commandes /> },
