@@ -77,8 +77,9 @@ export const importer = mutation({
     const joursBase = (await lireReglages(ctx)).joursBaseDefaut;
     let crees = 0, majs = 0;
     for (const brute of lignes) {
-      const l = { ...brute, whatsapp: numeroWhatsapp(brute.whatsapp) };
-      if (!l.whatsapp) delete l.whatsapp; // une colonne vide n'efface pas un numéro déjà saisi
+      // Une colonne vide ne doit RIEN effacer : dans un patch Convex, un champ `undefined` supprime la
+      // valeur existante (e-mail, CNPS, NIU… perdus à la réimportation d'un fichier partiel).
+      const l = Object.fromEntries(Object.entries({ ...brute, whatsapp: numeroWhatsapp(brute.whatsapp) }).filter(([, v]) => v !== undefined && v !== "")) as typeof brute;
       const existant = await ctx.db
         .query("employes")
         .withIndex("by_matricule", (q) => q.eq("matricule", l.matricule))

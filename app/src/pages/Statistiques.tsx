@@ -248,7 +248,7 @@ export function Statistiques() {
                     />
                   )}
                   {(caisse.lignes as any[]).map((l) => (
-                    <TableRow key={String(l._id)} className="cursor-pointer" onClick={() => setFormCaisse({ ...CAISSE_VIDE(), ...l, horaires: l.horaires ?? "", ligneId: String(l._id) })}>
+                    <TableRow key={String(l._id)} className={verrouillee(l, caisse) ? undefined : "cursor-pointer"} onClick={() => !verrouillee(l, caisse) && setFormCaisse({ ...CAISSE_VIDE(), ...l, horaires: l.horaires ?? "", ligneId: String(l._id) })}>
                       <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums">{fmtDate(l.dateDebut)} → {fmtDate(l.dateFin)}</TableCell>
                       <TableCell className="whitespace-nowrap text-xs">{l.horaires || <span className="text-encre-pale">—</span>}</TableCell>
                       {detailPostes && POSTES_ESPECES.map((k) => <TableCell key={k} numerique className="font-mono text-xs"><N v={l[k]} /></TableCell>)}
@@ -366,7 +366,7 @@ export function Statistiques() {
                       />
                     )}
                     {primesVisibles.map((p) => (
-                      <TableRow key={String(p._id)} className="cursor-pointer" onClick={() => setFormPrime({ primeId: String(p._id), categorie: p.categorie, designation: p.designation, dateDebut: p.dateDebut ?? "", dateFin: p.dateFin ?? "", actes: p.actes ?? 0, montantUnitaire: p.montantUnitaire ?? 0, notes: p.notes ?? "" })}>
+                      <TableRow key={String(p._id)} className={verrouillee(p, primes) ? undefined : "cursor-pointer"} onClick={() => !verrouillee(p, primes) && setFormPrime({ primeId: String(p._id), categorie: p.categorie, designation: p.designation, dateDebut: p.dateDebut ?? "", dateFin: p.dateFin ?? "", actes: p.actes ?? 0, montantUnitaire: p.montantUnitaire ?? 0, notes: p.notes ?? "" })}>
                         <TableCell className="whitespace-nowrap text-[13px] font-semibold">{p.designation}</TableCell>
                         <TableCell><Flag variant="neutre" size="xs" title={LIBELLE_CATEGORIE[p.categorie]}>{LIBELLE_COURT[p.categorie as CategoriePrime]}</Flag></TableCell>
                         <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums">{p.dateDebut || p.dateFin ? `${fmtDate(p.dateDebut)} → ${fmtDate(p.dateFin)}` : <span className="text-encre-pale">—</span>}</TableCell>

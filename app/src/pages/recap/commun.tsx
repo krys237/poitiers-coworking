@@ -20,7 +20,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import type { BulletinPeriode } from "../../../convex/lib/calculBulletins";
 import { computeBulletin, type Bareme, type Bulletin, type SaisieMois } from "../../../convex/lib/paie";
 import { bornesPeriode, joursDuMois } from "../../../convex/lib/periode";
-import { fcfa, libellePeriode, messageErreur, num } from "@/lib/format";
+import { fcfa, libellePeriode, messageErreur, num, pct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -273,15 +273,15 @@ export function TauxDuMois({ bareme, periode, long }: { bareme: any; periode: st
   if (!bareme) return null;
   const items: [string, string][] = [
     ["Plafond CNPS", fcfa(bareme.plafondCnps)],
-    ["CNPS salarié (PVID)", `${bareme.tauxPvidSal} %`],
-    ["CFC salarié", `${bareme.tauxCfcSal} %`],
+    ["CNPS salarié (PVID)", pct(bareme.tauxPvidSal, 2)],
+    ["CFC salarié", pct(bareme.tauxCfcSal, 2)],
     ["Abattement IRPP annuel", fcfa(bareme.abattementIrppAnnuel ?? 500000)],
-    ["CAC (sur IRPP)", `${bareme.tauxCac} %`],
-    ["Prestations familiales", `${bareme.tauxPf} %`],
-    ["PVID patronal", `${bareme.tauxPvidPat} %`],
-    ["Accidents du travail", `${bareme.tauxAtmp} %`],
-    ["FNE", `${bareme.tauxFne} %`],
-    ["CFC patronal", `${bareme.tauxCfcPat} %`],
+    ["CAC (sur IRPP)", pct(bareme.tauxCac, 2)],
+    ["Prestations familiales", pct(bareme.tauxPf, 2)],
+    ["PVID patronal", pct(bareme.tauxPvidPat, 2)],
+    ["Accidents du travail", pct(bareme.tauxAtmp, 2)],
+    ["FNE", pct(bareme.tauxFne, 2)],
+    ["CFC patronal", pct(bareme.tauxCfcPat, 2)],
     ["TDL", (bareme.tdlActif ?? true) ? "appliquée" : "non appliquée"],
     ["RAV", (bareme.ravActif ?? true) ? "appliquée" : "non appliquée"],
   ];
@@ -290,11 +290,11 @@ export function TauxDuMois({ bareme, periode, long }: { bareme: any; periode: st
       <span className="font-semibold text-encre">Taux du mois</span>
       {long ? (
         <span className="hidden items-center gap-2 2xl:inline-flex">
-          <span className="font-mono tabular-nums">CNPS {bareme.tauxPvidSal} %</span>
+          <span className="font-mono tabular-nums">CNPS {pct(bareme.tauxPvidSal, 2)}</span>
           <span className="text-encre-pale">·</span>
-          <span className="font-mono tabular-nums">CFC {bareme.tauxCfcSal} %</span>
+          <span className="font-mono tabular-nums">CFC {pct(bareme.tauxCfcSal, 2)}</span>
           <span className="text-encre-pale">·</span>
-          <span className="font-mono tabular-nums">CAC {bareme.tauxCac} %</span>
+          <span className="font-mono tabular-nums">CAC {pct(bareme.tauxCac, 2)}</span>
         </span>
       ) : null}
       <Popover>

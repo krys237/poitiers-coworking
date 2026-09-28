@@ -124,6 +124,8 @@ type Form = {
   codeAcces: string;
   /** Destinataires nominatifs ; vide = accès par niveau. */
   destinataires: string[];
+  /** « Seulement des personnes choisies » : il faut alors au moins un destinataire. */
+  nominatif: boolean;
   mode: "ia" | "heuristique" | "manuel";
   detail?: string;
 };
@@ -141,6 +143,7 @@ const FORM_VIDE: Form = {
   confidentiel: false,
   codeAcces: "",
   destinataires: [],
+  nominatif: false,
   mode: "manuel",
 };
 
@@ -686,7 +689,8 @@ export function Documents() {
                   <ChoixDestinataires
                     actif={!!f.fichierId && !analyse}
                     valeur={f.destinataires}
-                    onChange={(destinataires) => setF({ ...f, destinataires })}
+                    nominatif={f.nominatif}
+                    onChange={(destinataires, nominatif) => setF({ ...f, destinataires, nominatif })}
                   />
 
                   <div className="pt-2">
@@ -728,7 +732,8 @@ export function Documents() {
                 <Button
                   type="submit"
                   size="sm"
-                  disabled={!f.fichierId || !f.titre.trim() || analyse}
+                  disabled={!f.fichierId || !f.titre.trim() || analyse || (f.nominatif && !f.destinataires.length)}
+                  title={f.nominatif && !f.destinataires.length ? "Cochez au moins un destinataire, ou choisissez « Selon les niveaux »" : undefined}
                   className="bg-ocean-profond hover:bg-ocean-nuit text-white text-xs font-bold shadow-xs gap-1.5"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
@@ -770,7 +775,7 @@ export function Documents() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
             <div role="group" aria-label="Mode d'affichage" className="flex items-center gap-0.5 rounded-lg border border-filet bg-slate-100/80 p-0.5">
               {([["tableau", Rows3, "Tableau"], ["cartes", LayoutGrid, "Cartes"]] as const).map(([v, Icone, libelle]) => (
                 <button
@@ -1212,23 +1217,22 @@ export function Documents() {
 // --- Destinataires nominatifs --------------------------------------------------------
 // Par défaut, un document suit les niveaux choisis au-dessus. « Seulement des personnes choisies » le
 // réserve à ces membres (et au déposant), quel que soit leur niveau — décision du 28/09/2026.
-function ChoixDestinataires({ actif, valeur, onChange }: { actif: boolean; valeur: string[]; onChange: (v: string[]) => void }) {
-  const [nominatif, setNominatif] = useState(valeur.length > 0);
+function ChoixDestinataires({ actif, valeur, nominatif, onChange }: { actif: boolean; valeur: string[]; nominatif: boolean; onChange: (v: string[], nominatif: boolean) => void }) {
   const [filtre, setFiltre] = useState("");
   const membres = useQuery(api.documents.destinatairesPossibles, nominatif ? {} : "skip");
   const q = filtre.trim().toLowerCase();
   const visibles = (membres ?? []).filter((m) => !q || `${m.nom} ${m.role}`.toLowerCase().includes(q));
-  const bascule = (id: string) => onChange(valeur.includes(id) ? valeur.filter((x) => x !== id) : [...valeur, id]);
+  const bascule = (id: string) => onChange(valeur.includes(id) ? valeur.filter((x) => x !== id) : [...valeur, id], true);
   return (
     <div className="rounded-xl border border-filet bg-white p-3">
       <div className="text-2xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Qui reçoit ce document</div>
       <div className="flex flex-wrap gap-3 text-xs">
         <label className="flex items-center gap-1.5 cursor-pointer">
-          <input type="radio" name="destinataires" disabled={!actif} checked={!nominatif} onChange={() => { setNominatif(false); onChange([]); }} />
+          <input type="radio" name="destinataires" disabled={!actif} checked={!nominatif} onChange={() => onChange([], false)} />
           Selon les niveaux ci-dessus
         </label>
         <label className="flex items-center gap-1.5 cursor-pointer">
-          <input type="radio" name="destinataires" disabled={!actif} checked={nominatif} onChange={() => setNominatif(true)} />
+          <input type="radio" name="destinataires" disabled={!actif} checked={nominatif} onChange={() => onChange(valeur, true)} />
           Seulement des personnes choisies
         </label>
       </div>
@@ -1247,7 +1251,7 @@ function ChoixDestinataires({ actif, valeur, onChange }: { actif: boolean; valeu
             ))}
           </div>
           <p className="text-3xs text-slate-500">
-            {valeur.length ? `${valeur.length} destinataire(s) : eux seuls (et vous) verront et téléchargeront le document, quel que soit leur niveau.` : "Cochez au moins une personne."}
+            {valeur.length ? `${valeur.length} destinataire(s) : eux seuls (et vous) verront et téléchargeront le document, quel que soit leur niveau.` : <span className="font-semibold text-carmin">Cochez au moins une personne : l'enregistrement reste bloqué d'ici là.</span>}
           </p>
         </div>
       )}
