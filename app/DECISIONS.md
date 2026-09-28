@@ -33,4 +33,6 @@ a été formulée.
 | 28/09/2026 | « Mes bulletins » : l'employé voit ses bulletins des **mois clôturés** seulement ; compte relié à sa fiche dans Membres (sinon par e-mail) | Un bulletin provisoire peut changer | `mesBulletins.ts`, `MesBulletins.tsx` |
 | 28/09/2026 | Caisse & primes médecins : ligne modifiable 60 min après saisie (réglable), ensuite seul le droit « modifier après le délai » (DG) ; correction tardive journalisée | Demande de M. GAMBOU | `stats.ts`, `lib/reglages.ts` |
 | 28/09/2026 | Documents : destinataires nominatifs possibles — le document n'est alors visible que par eux et le déposant, quel que soit leur niveau | Demande de M. GAMBOU | `documents.ts`, `Documents.tsx` |
+| 28/09/2026 | **L'indicatif du pays est pré-rempli (+237), jamais retapé** : partout, on ne saisit que le numéro ; un numéro importé sans indicatif reçoit +237. (Complète la consigne du 21/09 : l'indicatif reste stocké avec chaque numéro.) | Consigne du propriétaire | `ChampTelephone`, `lib/telephone.avecIndicatif` |
+| 28/09/2026 | Test d'envoi WhatsApp réel reporté : instance UltraMsg en standby ; on avance en simulation | Constat du propriétaire | `ETAT-DU-PROJET.md` §2 |
 | 28/09/2026 | Bulletins du mois : PDF à la demande (mois entier ou un salarié), généré sans être stocké | Demande de M. GAMBOU | `paiePdf.pdfBulletins` |

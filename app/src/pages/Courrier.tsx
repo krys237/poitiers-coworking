@@ -38,7 +38,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableVide } from "@/components/ui/table";
 import { EnTeteDocument, Feuille } from "@/components/documents/feuille";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { erreurTelephone, formaterTelephone, normaliserTelephone } from "../../convex/lib/telephone";
+import { erreurTelephone, formaterTelephone } from "../../convex/lib/telephone";
+import { ChampTelephone } from "@/components/app/champ-telephone";
 
 const STATUT: Record<string, { label: string; variant: FlagVariant }> = {
   envoye: { label: "Envoyé", variant: "renseigne" },
@@ -425,27 +426,33 @@ function CelluleEmail({ valeur, libelle, onEnregistrer }: { valeur: string; libe
   );
 }
 
-// Numéro WhatsApp corrigeable sur la ligne : indicatif obligatoire (lib/telephone), vide = effacer.
+// Numéro WhatsApp corrigeable sur la ligne : indicatif pré-rempli (+237) comme partout, on ne tape que le
+// numéro ; enregistré en quittant la case (ou Entrée), vide = effacer.
 function CelluleWhatsapp({ valeur, libelle, onEnregistrer }: { valeur: string; libelle: string; onEnregistrer: (numero: string) => Promise<void> }) {
-  const [texte, setTexte] = React.useState(formaterTelephone(valeur));
-  React.useEffect(() => setTexte(formaterTelephone(valeur)), [valeur]);
+  const [numero, setNumero] = React.useState(valeur);
+  const [cle, setCle] = React.useState(0); // pour remettre le champ à la valeur enregistrée après un refus
+  React.useEffect(() => setNumero(valeur), [valeur]);
   const commit = async () => {
-    const v = texte.trim();
-    if ((normaliserTelephone(v) ?? "") === (valeur ?? "")) return;
-    const err = v ? erreurTelephone(v) : null;
-    if (err) { toast.error("Numéro WhatsApp invalide", { description: err }); setTexte(formaterTelephone(valeur)); return; }
-    try { await onEnregistrer(v); } catch (e) { toast.error("Numéro non enregistré", { description: messageErreur(e) }); setTexte(formaterTelephone(valeur)); }
+    if ((numero ?? "") === (valeur ?? "")) return;
+    const err = numero ? erreurTelephone(numero) : null;
+    if (err) { toast.error("Numéro WhatsApp incomplet", { description: err }); setNumero(valeur); setCle((k) => k + 1); return; }
+    try { await onEnregistrer(numero); } catch (e) { toast.error("Numéro non enregistré", { description: messageErreur(e) }); setNumero(valeur); setCle((k) => k + 1); }
   };
   return (
-    <Input
-      type="tel"
-      value={texte}
-      onChange={(e) => setTexte(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => { if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur(); if (e.key === "Escape") setTexte(formaterTelephone(valeur)); }}
-      placeholder="+237 6 …"
-      aria-label={libelle}
-      className={cn("h-8 w-40 font-mono text-xs", !valeur && "border-dashed")}
-    />
+    <div
+      className={cn("w-52", !valeur && "[&_input]:border-dashed")}
+      // Quitter tout le champ (indicatif + numéro) déclenche l'enregistrement ; passer de l'un à l'autre, non.
+      onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) void commit(); }}
+    >
+      <ChampTelephone
+        key={cle}
+        valeur={numero}
+        onChange={setNumero}
+        taille="sm"
+        ariaLabel={libelle}
+        placeholder="6 90 00 00 00"
+        onKeyDown={(e) => { if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur(); if (e.key === "Escape") { setNumero(valeur); setCle((k) => k + 1); } }}
+      />
+    </div>
   );
 }

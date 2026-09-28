@@ -2,16 +2,18 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireDroit, requireUnDesDroits } from "./lib/authz";
 import { lireReglages } from "./parametres";
-import { normaliserTelephone, erreurTelephone } from "./lib/telephone";
+import { normaliserTelephone, erreurTelephone, avecIndicatif } from "./lib/telephone";
 
 const SOCIETE = v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"));
 
 // Numéro WhatsApp : même règle que tout téléphone de l'application (indicatif obligatoire, lib/telephone).
+// Sans indicatif (import d'un fichier, par exemple), on complète avec +237 (lib/telephone.avecIndicatif).
 function numeroWhatsapp(brut: string | undefined): string | undefined {
   if (!brut || !brut.trim()) return undefined;
-  const err = erreurTelephone(brut);
+  const complet = avecIndicatif(brut);
+  const err = erreurTelephone(complet);
   if (err) throw new Error(`WhatsApp : ${err}`);
-  return normaliserTelephone(brut)!;
+  return normaliserTelephone(complet)!;
 }
 
 export const liste = query({

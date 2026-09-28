@@ -128,7 +128,7 @@ export function FicheEmploye({
             {texte("cnps", "N° CNPS", "351-1213677-6")}
             {texte("niu", "NIU", "M072517858332C")}
             {texte("email", "E-mail (courrier de paie)", "prenom.nom@…", false, "email")}
-            <Champ libelle="WhatsApp (courrier de paie)" aide="Indicatif obligatoire" erreur={f.whatsapp && f.whatsapp !== (employe?.whatsapp ?? "") ? erreurTelephone(f.whatsapp) ?? undefined : undefined}>
+            <Champ libelle="WhatsApp (courrier de paie)" aide="Indicatif pré-rempli : saisir seulement le numéro" erreur={f.whatsapp && f.whatsapp !== (employe?.whatsapp ?? "") ? erreurTelephone(f.whatsapp) ?? undefined : undefined}>
               {(a) => <ChampTelephone id={a.id} aria-describedby={a["aria-describedby"]} aria-invalid={a["aria-invalid"]} valeur={f.whatsapp} onChange={(v) => setF({ ...f, whatsapp: v })} />}
             </Champ>
             <div className="col-span-2 sm:col-span-3">{texte("adresse", "Adresse", "Akwa, Douala")}</div>

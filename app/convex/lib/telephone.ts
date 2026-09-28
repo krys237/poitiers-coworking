@@ -21,6 +21,18 @@ export function normaliserTelephone(brut: string | null | undefined): string | n
   return s;
 }
 
+/**
+ * L'indicatif est pré-rempli, jamais retapé (consigne du 28/09/2026) : un numéro saisi sans indicatif
+ * (« 6 58 20 79 31 », colonne d'un fichier importé…) reçoit l'indicatif par défaut (+237). Un numéro qui
+ * commence par « + » ou « 00 » est gardé tel quel.
+ */
+export function avecIndicatif(brut: string | null | undefined, indicatif = INDICATIF_DEFAUT): string {
+  if (!brut) return "";
+  const s = nettoyer(brut);
+  if (!s || s.startsWith("+") || s.startsWith("00")) return s;
+  return `${indicatif}${s.replace(/^0+/, "")}`;
+}
+
 /** Message d'erreur à afficher si le numéro n'est pas au format attendu, sinon null. */
 export function erreurTelephone(brut: string | null | undefined): string | null {
   if (!brut || !brut.trim()) return null;

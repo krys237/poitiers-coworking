@@ -1,7 +1,7 @@
 // Numéros de téléphone / WhatsApp (convex/lib/telephone.ts) : indicatif obligatoire, mais un numéro
 // copié depuis WhatsApp (marques de direction invisibles) ou saisi avec espaces insécables est accepté.
 // Lancer : npm run test:telephone
-import { erreurTelephone, normaliserTelephone, separerTelephone, formaterTelephone } from "../convex/lib/telephone.ts";
+import { erreurTelephone, normaliserTelephone, separerTelephone, formaterTelephone, avecIndicatif } from "../convex/lib/telephone.ts";
 
 let ok = 0, ko = 0;
 const verifie = (nom: string, cond: boolean) => { if (cond) ok++; else { ko++; console.log("ÉCHEC", nom); } };
@@ -19,6 +19,10 @@ verifie("affichage → relu à l'identique", normaliserTelephone(formaterTelepho
 const s = separerTelephone("\u202A+237 6 58 20 79 31\u202C");
 verifie("séparation d'un numéro collé", s.indicatif === "237" && s.national === "658207931");
 verifie("séparation 00…", separerTelephone("00237658207931").indicatif === "237");
+verifie("numéro national → +237 ajouté", avecIndicatif("6 58 20 79 31") === ATTENDU);
+verifie("numéro national avec 0 initial", avecIndicatif("0658207931") === ATTENDU);
+verifie("numéro déjà complet gardé", avecIndicatif("+33 6 12 34 56 78") === "+33612345678");
+verifie("vide reste vide", avecIndicatif("  ") === "");
 
 console.log(`telephone : ${ok} contrôles OK, ${ko} échec(s)`);
 if (ko) process.exit(1);

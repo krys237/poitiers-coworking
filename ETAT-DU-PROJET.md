@@ -71,7 +71,14 @@ plafond de saisie) sont sortis dans `convex/lib/reglages.ts`.
   l'employé (mois clôturés, téléphone) · verrou 1 h sur Caisse & primes médecins (au-delà : administrateur) ·
   destinataires nominatifs d'un document · courrier de paie par WhatsApp (UltraMsg, simulé sans clés) · connexion
   hors de la Polyclinique (aucune restriction d'adresse : rien à faire).
-- Reste pour ces demandes : **clés UltraMsg et Resend** (propriétaire), **responsive** du reste de l'ERP.
+- Reste pour ces demandes : **responsive** du reste de l'ERP ; **clé Resend** (après achat du domaine).
+- **WhatsApp — test d'envoi réel EN ATTENTE (28/09).** Les clés UltraMsg sont posées sur le déploiement de dev
+  (`ULTRAMSG_INSTANCE_ID`, `ULTRAMSG_TOKEN`) et l'interrupteur « Envoi réel par WhatsApp » est ouvert, mais
+  l'instance UltraMsg est en **standby** (et non « authenticated ») : rien ne part tant qu'elle n'est pas reliée
+  au téléphone. Dès qu'elle l'est : Courrier → « Par WhatsApp » → un seul destinataire (le numéro du propriétaire,
+  fiche E009) → le bouton doit dire « Envoyer » (pas « Simuler l'envoi ») ; en cas d'échec, la réponse d'UltraMsg
+  est dans la colonne Résultat du journal. Contrôle de l'instance (lecture seule) : `GET /instance/status`.
+  À noter : les clés placées dans `app/.env.local` ne sont PAS vues par les fonctions Convex (`npx convex env set`).
 
 ### Anomalies corrigées
 Solde de trésorerie visible par tout membre connecté · `archiverPdfs` action publique sans garde · `JWKS`
