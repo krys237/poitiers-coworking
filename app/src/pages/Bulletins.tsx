@@ -13,7 +13,7 @@
  */
 import * as React from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { ArchiveIcon, FileCheck2Icon, PrinterIcon, SearchIcon, TableIcon, XIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { fcfa, libellePeriode, num, periodeCourante } from "@/lib/format";
@@ -24,6 +24,8 @@ import { StatutMois } from "@/components/app/statut";
 import { SelecteurPeriode } from "@/components/app/selecteur-periode";
 import { BoutonConfirmation } from "@/components/app/bouton-action";
 import { BoutonImprimer, useImpression } from "@/components/app/imprimer";
+import { BoutonPdf } from "@/components/app/bouton-pdf";
+import { usePeut } from "../auth/useMe";
 import { SqueletteTableau } from "@/components/app/chargement";
 import { EtatVide } from "@/components/app/etat-vide";
 import { SelecteurLignes, useLignesVisibles } from "@/components/app/lignes-visibles";
@@ -43,6 +45,8 @@ export function Bulletins() {
   const paie = useQuery(api.payroll.bulletinsDuMois, { periode });
   const entreprise = useQuery(api.parametres.get);
   const generer = useMutation(api.payroll.genererEtCloturer);
+  const pdfBulletins = useAction(api.paiePdf.pdfBulletins);
+  const peutCloturer = usePeut("/paie/bulletins", "faire");
   const lignesVisibles = useLignesVisibles("bulletins", 15);
   const [q, setQ] = React.useState("");
   const [ouvert, setOuvert] = React.useState<string | null>(filtre);
@@ -87,7 +91,14 @@ export function Bulletins() {
             <BoutonImprimer entreprise={nomEntreprise} document={filtre && aImprimer[0] ? aImprimer[0].nom : "Bulletins"} periode={libellePeriode(periode)} desactive={!aImprimer.length}>
               Imprimer {filtre ? "le bulletin" : `(${tous.length})`}
             </BoutonImprimer>
-            {paie && !paie.cloture && tous.length > 0 && (
+            <BoutonPdf
+              desactive={!aImprimer.length}
+              titre={filtre ? "PDF du bulletin de ce salarié" : "Un seul PDF : tous les bulletins du mois, un par page"}
+              generer={() => pdfBulletins({ periode, employeId: filtre && aImprimer[0] ? aImprimer[0].employeId : undefined })}
+            >
+              {filtre ? "PDF du bulletin" : `PDF du mois (${tous.length})`}
+            </BoutonPdf>
+            {peutCloturer && paie && !paie.cloture && tous.length > 0 && (
               <BoutonConfirmation
                 libelle={<><FileCheck2Icon /> Générer et clôturer</>}
                 titre={`Clôturer la paie de ${libellePeriode(periode)} ?`}
@@ -186,6 +197,7 @@ export function Bulletins() {
                   {filtre === selection.matricule
                     ? <Button variant="outline" size="sm" onClick={() => filtrer(null)} title="Revenir à l'impression de tous les bulletins"><XIcon /> Tous à l'impression</Button>
                     : <Button variant="outline" size="sm" onClick={() => { filtrer(selection.matricule); setImprimerSeul(selection.matricule); }} title="Imprimer uniquement ce bulletin"><PrinterIcon /> Imprimer seul</Button>}
+                  <BoutonPdf titre="Télécharger le PDF de ce bulletin" generer={() => pdfBulletins({ periode, employeId: selection.employeId })}>PDF</BoutonPdf>
                   {paie.cloture && <Button variant="outline" size="sm" asChild><Link to="/paie/archives"><ArchiveIcon /> Archives</Link></Button>}
                 </div>
               )}

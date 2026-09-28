@@ -273,17 +273,29 @@ export const envoyerCourrier = action({
   },
 });
 
-// Aperçu PDF d'un bulletin (mois ouvert ou clôturé) : généré à la demande, stocké, URL renvoyée.
-export const apercuPdf = action({
-  args: { periode: v.string(), employeId: v.id("employes") },
-  handler: async (ctx, { periode, employeId }): Promise<{ url: string | null; nomFichier: string; octets: number }> => {
-    const lots: any[] = await ctx.runQuery(internal.courrier.payloads, { periode, employeIds: [employeId] });
-    if (!lots.length) throw new Error("Bulletin introuvable pour cette période.");
-    const p = lots[0];
-    const pdf = await buildPdf({ bulletin: p.bulletin, periode, entreprise: p.entreprise });
-    const pdfId = await ctx.storage.store(new Blob([new Uint8Array(pdf)], { type: "application/pdf" }));
-    const url = await ctx.storage.getUrl(pdfId);
-    return { url, nomFichier: nomFichier(p.entreprise?.nom ?? "PAIE", p.nom, periode), octets: pdf.byteLength };
+// PDF des bulletins, à la demande (Bulletins du mois → « PDF ») : un salarié, ou tout le mois (un bulletin
+// par page). Mois ouvert ou clôturé. Le fichier est renvoyé tel quel, sans être stocké : le PDF archivé
+// d'un mois clôturé reste celui des Archives. Droit : voir les bulletins (courrier.payloads).
+export const pdfBulletins = action({
+  args: { periode: v.string(), employeId: v.optional(v.id("employes")) },
+  handler: async (ctx, { periode, employeId }): Promise<{ pdf: ArrayBuffer; nomFichier: string; bulletins: number }> => {
+    const lots: any[] = await ctx.runQuery(internal.courrier.payloads, { periode, employeIds: employeId ? [employeId] : undefined });
+    if (!lots.length) throw new Error("Aucun bulletin pour cette période.");
+    const pdfs = await Promise.all(lots.map((p) => buildPdf({ bulletin: p.bulletin, periode, entreprise: p.entreprise })));
+    let octets: Uint8Array;
+    if (pdfs.length === 1) octets = pdfs[0];
+    else {
+      const doc = await PDFDocument.create();
+      for (const un of pdfs) {
+        const src = await PDFDocument.load(un);
+        for (const page of await doc.copyPages(src, src.getPageIndices())) doc.addPage(page);
+      }
+      doc.setTitle(clean(`Bulletins - ${libellePeriode(periode)}`));
+      octets = await doc.save();
+    }
+    const entreprise = lots[0].entreprise?.nom ?? "PAIE";
+    const nom = employeId ? nomFichier(entreprise, lots[0].nom, periode) : `${nomFichierPdf(entreprise, "Bulletins", libellePeriode(periode))}.pdf`;
+    return { pdf: octets.buffer.slice(octets.byteOffset, octets.byteOffset + octets.byteLength) as ArrayBuffer, nomFichier: nom, bulletins: lots.length };
   },
 });
 
