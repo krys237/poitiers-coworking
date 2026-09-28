@@ -71,7 +71,10 @@ plafond de saisie) sont sortis dans `convex/lib/reglages.ts`.
   l'employé (mois clôturés, téléphone) · verrou 1 h sur Caisse & primes médecins (au-delà : administrateur) ·
   destinataires nominatifs d'un document · courrier de paie par WhatsApp (UltraMsg, simulé sans clés) · connexion
   hors de la Polyclinique (aucune restriction d'adresse : rien à faire).
-- Reste pour ces demandes : **responsive** du reste de l'ERP.
+- **Responsive (28/09)** : les 21 écrans passent à 390 px sans débordement horizontal (relevé `design/etat-mobile.mjs`) ;
+  tuiles deux par ligne sur téléphone ; fiches employé / membre / caisse en une colonne ; parcours de l'employé vérifié
+  (connexion, tableau de bord, comptes rendus, interventions, documents, mes bulletins). Les grands tableaux défilent
+  dans leur cadre (lisibles, pas confortables) — acceptable selon la consigne « au moins lisible ».
 - **E-mail réel EN SERVICE (28/09)** : compte Resend du propriétaire, domaine vérifié `edoctor-tim.com`, expéditeur
   `noreply@edoctor-tim.com` (Paramètres), `RESEND_API_KEY` et `AUTH_EMAIL_FROM` posées ; premier courrier réel envoyé
   et reçu. À trancher pour la production : garder ce domaine ou en vérifier un au nom de la clinique.

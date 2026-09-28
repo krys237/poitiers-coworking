@@ -108,11 +108,11 @@ export function FicheEmploye({
                 : `Matricule ${employe!.matricule}. Le brut de référence alimente le salaire journalier (brut ÷ 30).`}
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="mt-4 grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 sm:grid-cols-3">
             {creation ? (
               <>
                 {texte("matricule", "Matricule", "E009", true)}
-                <div className="col-span-2">{texte("nom", "Noms et prénoms", "TARGNE Jean Beau", true)}</div>
+                <div className="min-[480px]:col-span-2">{texte("nom", "Noms et prénoms", "TARGNE Jean Beau", true)}</div>
               </>
             ) : null}
             {texte("fonction", "Fonction", "Agent commercial")}
@@ -131,7 +131,7 @@ export function FicheEmploye({
             <Champ libelle="WhatsApp (courrier de paie)" aide="Indicatif pré-rempli : saisir seulement le numéro" erreur={f.whatsapp && f.whatsapp !== (employe?.whatsapp ?? "") ? erreurTelephone(f.whatsapp) ?? undefined : undefined}>
               {(a) => <ChampTelephone id={a.id} aria-describedby={a["aria-describedby"]} aria-invalid={a["aria-invalid"]} valeur={f.whatsapp} onChange={(v) => setF({ ...f, whatsapp: v })} />}
             </Champ>
-            <div className="col-span-2 sm:col-span-3">{texte("adresse", "Adresse", "Akwa, Douala")}</div>
+            <div className="min-[480px]:col-span-2 sm:col-span-3">{texte("adresse", "Adresse", "Akwa, Douala")}</div>
             {texte("dateDebut", "Date d'entrée", undefined, false, "date")}
             <ChampNombre libelle="Congés initiaux" unite="j" min={0} step={0.5} decimales valeur={f.congesInitial} onChange={(n) => setF({ ...f, congesInitial: n })} aide="Solde reporté à l'arrivée" />
           </div>

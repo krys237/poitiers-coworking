@@ -445,7 +445,7 @@ export function Statistiques() {
                 <DialogDescription>{libellePeriode(periode)} · total espèces et chiffre d'affaires se calculent pendant la saisie.</DialogDescription>
               </DialogHeader>
               <div className="mt-4 flex flex-col gap-4">
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   <Champ libelle="Du" requis>{(a) => <Input {...a} type="date" required value={formCaisse.dateDebut} onChange={(e) => setFormCaisse({ ...formCaisse, dateDebut: e.target.value })} />}</Champ>
                   <Champ libelle="Au" requis>{(a) => <Input {...a} type="date" required value={formCaisse.dateFin} onChange={(e) => setFormCaisse({ ...formCaisse, dateFin: e.target.value })} />}</Champ>
                   <Champ libelle="Horaires">{(a) => <Input {...a} placeholder="8h–18h" value={formCaisse.horaires ?? ""} onChange={(e) => setFormCaisse({ ...formCaisse, horaires: e.target.value })} />}</Champ>
@@ -458,7 +458,7 @@ export function Statistiques() {
                 </section>
                 <section>
                   <h3 className="mb-2 text-2xs font-bold uppercase tracking-[0.08em] text-ocean-profond">Autres recettes & sorties</h3>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3">
                     {(["assurance", "tepScan", "sortiesDuJour"] as Col[]).map((k) => <ChampNombre key={k} libelle={LIBELLES_CAISSE[k]} unite="FCFA" min={0} step={1000} valeur={formCaisse[k]} onChange={(n) => setFormCaisse({ ...formCaisse, [k]: n })} />)}
                   </div>
                 </section>

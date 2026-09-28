@@ -296,8 +296,8 @@ function FormFiche({ fiche, auteur, estMoi, dernierDg, employes, onFermer, onEnr
               : `${fiche.email} · le rôle fixe le niveau d'accès (1 à 8, cumulatifs).`}
         </DialogDescription>
       </DialogHeader>
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        {creation ? <div className="col-span-2">{texte("email", "E-mail", "prenom.nom@domaine.com", true, "email")}</div> : null}
+      <div className="mt-4 grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
+        {creation ? <div className="min-[480px]:col-span-2">{texte("email", "E-mail", "prenom.nom@domaine.com", true, "email")}</div> : null}
         {texte("nom", "Nom")}
         <Champ libelle="Rôle · niveau d'accès" requis aide={DESCRIPTION[f.role]}>
           {(a) => <SelectRole id={a.id} valeur={f.role} onChange={(r) => setF({ ...f, role: r })} auteur={estMoi ? undefined : auteur} />}
@@ -335,7 +335,7 @@ function FormFiche({ fiche, auteur, estMoi, dernierDg, employes, onFermer, onEnr
           )}
         </Champ>
         {!creation ? (
-          <div className="col-span-2 flex items-center justify-between rounded-lg border border-filet bg-papier px-3 py-2">
+          <div className="flex items-center justify-between rounded-lg border border-filet bg-papier px-3 py-2 min-[480px]:col-span-2">
             <div>
               <div className="text-xs font-semibold">{f.isActive ? "Compte actif" : "Compte désactivé"}</div>
               <div className="text-2xs text-encre-pale">{autorisation ? "L'enregistrement ouvre l'accès." : f.isActive ? "Le membre peut se connecter avec ses droits." : "Bloqué dès la connexion, la fiche est conservée."}</div>
@@ -358,7 +358,7 @@ function FormFiche({ fiche, auteur, estMoi, dernierDg, employes, onFermer, onEnr
             ) : null}
           </div>
         ) : null}
-        {(estMoi || dernierDg) && !creation ? <p className="col-span-2 text-2xs text-encre-pale">{estMoi ? "Vous ne pouvez pas désactiver votre propre compte. " : ""}{dernierDg ? "Dernier Directeur Général actif : ni désactivation ni rétrogradation possible." : ""}</p> : null}
+        {(estMoi || dernierDg) && !creation ? <p className="text-2xs text-encre-pale min-[480px]:col-span-2">{estMoi ? "Vous ne pouvez pas désactiver votre propre compte. " : ""}{dernierDg ? "Dernier Directeur Général actif : ni désactivation ni rétrogradation possible." : ""}</p> : null}
       </div>
       <DialogFooter className="mt-5">
         <Button type="button" variant="outline" onClick={onFermer} disabled={enCours}>Annuler</Button>

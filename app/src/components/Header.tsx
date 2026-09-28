@@ -16,6 +16,7 @@ const TITRES_PAGES: Record<string, { titre: string; sousTitre: string }> = {
   "/financier": { titre: "Récapitulatif financier", sousTitre: "Trésorerie et recettes journalières" },
   "/documents": { titre: "Documents", sousTitre: "Pièces justificatives et archivage" },
   "/comptes-rendus": { titre: "Comptes rendus", sousTitre: "Activité et présences quotidiennes" },
+  "/mes-bulletins": { titre: "Mes bulletins", sousTitre: "Bulletins de paie des mois clôturés" },
   "/commandes": { titre: "Commandes", sousTitre: "Gestion des commandes clients" },
   "/interventions": { titre: "Interventions", sousTitre: "Prestations et suivi terrain" },
   "/statistiques": { titre: "Caisse & primes médecins", sousTitre: "Recettes mensuelles et rétrocessions (hors paie)" },
