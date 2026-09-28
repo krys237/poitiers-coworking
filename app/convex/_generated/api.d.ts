@@ -40,6 +40,7 @@ import type * as lib_reglages from "../lib/reglages.js";
 import type * as lib_stats from "../lib/stats.js";
 import type * as lib_telephone from "../lib/telephone.js";
 import type * as lib_tresorerie from "../lib/tresorerie.js";
+import type * as mesBulletins from "../mesBulletins.js";
 import type * as paiePdf from "../paiePdf.js";
 import type * as parametres from "../parametres.js";
 import type * as payroll from "../payroll.js";
@@ -91,6 +92,7 @@ declare const fullApi: ApiFromModules<{
   "lib/stats": typeof lib_stats;
   "lib/telephone": typeof lib_telephone;
   "lib/tresorerie": typeof lib_tresorerie;
+  mesBulletins: typeof mesBulletins;
   paiePdf: typeof paiePdf;
   parametres: typeof parametres;
   payroll: typeof payroll;
