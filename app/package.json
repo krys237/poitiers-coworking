@@ -17,6 +17,7 @@
     "test:api": "node --experimental-strip-types tests/apiSecurite.test.ts",
     "test:proxy": "node --experimental-strip-types tests/proxy.test.ts",
     "test:droits": "node --experimental-strip-types tests/droits.test.ts",
+    "test:telephone": "node --experimental-strip-types tests/telephone.test.ts",
     "proxy": "node api-proxy/server.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },

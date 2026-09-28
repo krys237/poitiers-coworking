@@ -6,10 +6,16 @@
 
 export const INDICATIF_DEFAUT = "+237"; // Cameroun — proposé, jamais imposé
 
+// Caractères invisibles qu'ajoutent les copier-coller (WhatsApp encadre un numéro copié de marques de
+// direction U+202A…U+202C ; certains claviers insèrent des espaces de largeur nulle) : on les retire
+// avant toute validation, sinon le « + » n'est plus en tête et le numéro est refusé à tort.
+const INVISIBLES = /[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
+const nettoyer = (brut: string) => brut.replace(INVISIBLES, "").replace(/[\s.\-()]/g, "");
+
 /** Chiffres et « + » seulement ; « 00 » international devient « + ». */
 export function normaliserTelephone(brut: string | null | undefined): string | null {
   if (!brut) return null;
-  let s = brut.replace(/[\s.\-()]/g, "");
+  let s = nettoyer(brut);
   if (s.startsWith("00")) s = "+" + s.slice(2);
   if (!/^\+[1-9]\d{7,14}$/.test(s)) return null;
   return s;
@@ -18,7 +24,7 @@ export function normaliserTelephone(brut: string | null | undefined): string | n
 /** Message d'erreur à afficher si le numéro n'est pas au format attendu, sinon null. */
 export function erreurTelephone(brut: string | null | undefined): string | null {
   if (!brut || !brut.trim()) return null;
-  const s = brut.replace(/[\s.\-()]/g, "");
+  const s = nettoyer(brut);
   if (!s.startsWith("+") && !s.startsWith("00")) return `Indiquez l'indicatif du pays : ${INDICATIF_DEFAUT} 6 90 00 00 00.`;
   if (!normaliserTelephone(brut)) return "Numéro invalide : indicatif suivi de 8 à 14 chiffres.";
   return null;
@@ -57,7 +63,8 @@ export const INDICATIFS: { code: string; pays: string; indicatif: string }[] = [
 
 /** Sépare un numéro stocké en indicatif (le plus long qui correspond) et partie nationale. */
 export function separerTelephone(e164: string | null | undefined): { indicatif: string; national: string } {
-  const s = (e164 ?? "").replace(/[\s.\-()]/g, "");
+  let s = nettoyer(e164 ?? "");
+  if (s.startsWith("00")) s = "+" + s.slice(2);
   if (!s.startsWith("+")) return { indicatif: INDICATIF_DEFAUT.slice(1), national: s.replace(/\D/g, "") };
   const chiffres = s.slice(1);
   const connu = [...INDICATIFS].map((i) => i.indicatif).sort((a, b) => b.length - a.length).find((i) => chiffres.startsWith(i));

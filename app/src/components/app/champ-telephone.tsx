@@ -72,7 +72,17 @@ export function ChampTelephone({ valeur, onChange, id, taille = "md", className,
         autoFocus={autoFocus}
         aria-label={ariaLabel ?? "Numéro sans l'indicatif"}
         value={national}
-        onChange={(e) => { const nat = e.target.value.replace(/[^\d\s]/g, ""); setNational(nat); emettre(indicatif, nat); }}
+        onChange={(e) => {
+          // Numéro complet tapé ou collé (« +237 6… », « 00237… », copié de WhatsApp) : on en tire l'indicatif
+          // au lieu de le doubler (sinon « +237 » + « 237 6… » donnerait un faux numéro, accepté sans bruit).
+          const brut = e.target.value.replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g, "").trim();
+          if (/^(\+|00)/.test(brut)) {
+            const s = separerTelephone(brut);
+            setIndicatif(s.indicatif); setNational(s.national); emettre(s.indicatif, s.national);
+            return;
+          }
+          const nat = brut.replace(/[^\d\s]/g, ""); setNational(nat); emettre(indicatif, nat);
+        }}
         onKeyDown={onKeyDown}
         placeholder={props.placeholder ?? "6 90 00 00 00"}
         className={cn("font-mono", petit && "h-8 text-xs")}
