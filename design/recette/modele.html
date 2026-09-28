@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cahier de recette — Poitiers Coworking</title>
+<style>
+  :root {
+    --sceau:#0077b6; --nuit:#03045e; --ciel:#90e0ef; --brume:#caf0f8; --bande:#eaf3f8; --papier:#f6f9fb;
+    --encre:#0b132b; --douce:#334155; --pale:#64748b; --filet:#dbe3ea;
+    --ok:#15803d; --ok-f:#dcfce7; --ko:#b91c1c; --ko-f:#fee2e2; --bloque:#8a5d12; --bloque-f:#fef3c7;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--papier); color:var(--encre); font:14px/1.5 "IBM Plex Sans","Segoe UI",system-ui,sans-serif; }
+  header.tete { background:var(--nuit); color:#fff; padding:22px 16px 18px; }
+  .enveloppe { max-width:1180px; margin:0 auto; padding:0 16px; }
+  header.tete .sur { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--ciel); font-weight:700; }
+  header.tete h1 { margin:6px 0 4px; font-size:26px; }
+  header.tete p { margin:0; color:var(--brume); max-width:820px; }
+  .progression { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+  .compteur { background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.18); border-radius:10px; padding:6px 12px; font-size:13px; }
+  .compteur b { font-size:18px; margin-right:4px; }
+  .barre { height:6px; background:rgba(255,255,255,.15); border-radius:6px; margin-top:12px; overflow:hidden; }
+  .barre > i { display:block; height:100%; background:var(--ciel); width:0; transition:width .3s; }
+  nav.outils { position:sticky; top:0; z-index:5; background:#fff; border-bottom:1px solid var(--filet); box-shadow:0 1px 3px rgba(3,4,94,.05); }
+  nav.outils .enveloppe { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding-top:10px; padding-bottom:10px; }
+  select, input[type=search], button, textarea { font:inherit; }
+  select, input[type=search] { border:1px solid var(--filet); border-radius:8px; padding:6px 8px; background:#fff; min-width:0; }
+  input[type=search] { flex:1 1 180px; }
+  button { border:1px solid var(--filet); background:#fff; border-radius:8px; padding:6px 12px; cursor:pointer; }
+  button.primaire { background:var(--sceau); color:#fff; border-color:var(--sceau); }
+  button:hover { border-color:var(--sceau); }
+  section.bloc { background:#fff; border:1px solid var(--filet); border-radius:14px; margin:18px 0; padding:16px 18px; }
+  section.bloc h2 { margin:0 0 8px; font-size:16px; color:var(--nuit); border-left:3px solid var(--sceau); padding-left:8px; }
+  .grille2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { border:1px solid var(--filet); padding:5px 8px; text-align:left; vertical-align:top; }
+  thead th { background:var(--bande); font-size:12px; }
+  .defile { overflow-x:auto; }
+  .puce { display:inline-block; border-radius:999px; padding:1px 8px; font-size:11.5px; font-weight:600; border:1px solid var(--filet); background:#fff; white-space:nowrap; }
+  .puce.compte { background:var(--bande); border-color:var(--ciel); color:var(--nuit); }
+  .puce.bloquant { background:var(--ko-f); color:var(--ko); border-color:#fecaca; }
+  .puce.majeur { background:var(--bloque-f); color:var(--bloque); border-color:#fde68a; }
+  .puce.mineur { color:var(--pale); }
+  .puce.tag { color:var(--douce); background:var(--papier); }
+  .puce.conformite-droits, .puce.en-attente { background:#ede9fe; color:#5b21b6; border-color:#ddd6fe; }
+  details.scenario { background:#fff; border:1px solid var(--filet); border-radius:12px; margin:10px 0; }
+  details.scenario[data-statut=ok] { border-left:5px solid var(--ok); }
+  details.scenario[data-statut=ko] { border-left:5px solid var(--ko); }
+  details.scenario[data-statut=bloque] { border-left:5px solid var(--bloque); }
+  details.scenario > summary { list-style:none; cursor:pointer; padding:10px 14px; display:grid; grid-template-columns:auto 1fr auto; gap:4px 12px; align-items:center; }
+  details.scenario > summary::-webkit-details-marker { display:none; }
+  .sid { font-family:"IBM Plex Mono",Consolas,monospace; font-size:12px; color:var(--sceau); font-weight:700; }
+  .stitre { font-weight:600; }
+  .smeta { grid-column:2 / 4; display:flex; flex-wrap:wrap; gap:4px; }
+  .etat { font-size:12px; font-weight:700; white-space:nowrap; }
+  .etat.ok { color:var(--ok); } .etat.ko { color:var(--ko); } .etat.bloque { color:var(--bloque); } .etat.afaire { color:var(--pale); }
+  .corps { padding:0 14px 14px; display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .corps h4 { margin:8px 0 4px; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--pale); }
+  .corps ol, .corps ul { margin:0; padding-left:20px; }
+  .corps li { margin-bottom:3px; }
+  .objectif { grid-column:1 / 3; color:var(--douce); font-style:italic; margin-top:4px; }
+  .resultat { grid-column:1 / 3; display:grid; grid-template-columns:1fr 1fr; gap:10px; background:var(--papier); border-radius:10px; padding:10px; }
+  .resultat label { font-size:12px; font-weight:600; color:var(--douce); display:block; margin-bottom:3px; }
+  textarea { width:100%; min-height:54px; border:1px solid var(--filet); border-radius:8px; padding:6px 8px; resize:vertical; background:#fff; }
+  .statuts { grid-column:1 / 3; display:flex; flex-wrap:wrap; gap:6px; }
+  .statuts button[aria-pressed=true].ok { background:var(--ok); border-color:var(--ok); color:#fff; }
+  .statuts button[aria-pressed=true].ko { background:var(--ko); border-color:var(--ko); color:#fff; }
+  .statuts button[aria-pressed=true].bloque { background:var(--bloque); border-color:var(--bloque); color:#fff; }
+  .statuts button[aria-pressed=true].afaire { background:var(--pale); border-color:var(--pale); color:#fff; }
+  .groupe-titre { margin:26px 0 6px; font-size:18px; color:var(--nuit); }
+  .v { color:var(--ok); font-weight:700; } .n { color:#cbd5e1; }
+  .droit-f { background:var(--ok-f); } .droit-v { background:#eff6ff; }
+  .note { color:var(--pale); font-size:12.5px; }
+  @media (max-width: 720px) {
+    nav.outils { position:static; } /* quatre lignes de filtres : collantes, elles masqueraient le contenu */
+    .corps, .resultat { grid-template-columns:1fr; }
+    .objectif, .resultat, .statuts { grid-column:auto; }
+    header.tete h1 { font-size:21px; }
+  }
+  @media print {
+    body { background:#fff; font-size:11px; }
+    nav.outils, .statuts button:not([aria-pressed=true]), .pas-imprime { display:none !important; }
+    header.tete { background:#fff; color:var(--encre); border-bottom:2px solid var(--sceau); padding:0 0 8px; }
+    header.tete p, header.tete .sur { color:var(--pale); }
+    .compteur { border-color:var(--filet); background:#fff; }
+    details.scenario { break-inside:avoid; }
+    details.scenario:not([open]) > .corps { display:grid !important; }
+    section.bloc { break-inside:avoid-page; }
+  }
+</style>
+</head>
+<body>
+<header class="tete">
+  <div class="enveloppe">
+    <div class="sur">Poitiers Coworking · plateforme unifiée de gestion & paie</div>
+    <h1>Cahier de recette — n°3</h1>
+    <p>Écrit sur les écrans en service le <span id="date-gen"></span>. Remplace les cahiers n°1 et n°2 (7 et 14 septembre), antérieurs à la refonte.
+       Chaque scénario dit <b>avec quel compte</b> le jouer, <b>quoi faire</b> et <b>ce qui doit se passer</b>. Vos résultats restent dans ce navigateur ; « Exporter » les envoie en CSV.</p>
+    <div class="progression" id="compteurs"></div>
+    <div class="barre"><i id="barre"></i></div>
+  </div>
+</header>
+
+<nav class="outils" aria-label="Filtres">
+  <div class="enveloppe">
+    <select id="f-groupe" aria-label="Groupe"><option value="">Tous les groupes</option></select>
+    <select id="f-compte" aria-label="Compte"><option value="">Tous les comptes</option></select>
+    <select id="f-gravite" aria-label="Gravité"><option value="">Toutes gravités</option><option>bloquant</option><option>majeur</option><option>mineur</option></select>
+    <select id="f-statut" aria-label="Statut"><option value="">Tous statuts</option><option value="afaire">À tester</option><option value="ok">OK</option><option value="ko">KO</option><option value="bloque">Bloqué</option></select>
+    <input type="search" id="f-texte" placeholder="Chercher (écran, mot, tag…)">
+    <button id="b-deplier">Tout déplier</button>
+    <button id="b-export" class="primaire">Exporter (CSV)</button>
+    <button id="b-imprimer">Imprimer</button>
+    <button id="b-raz" title="Efface vos résultats enregistrés dans ce navigateur">Réinitialiser</button>
+  </div>
+</nav>
+
+<main class="enveloppe">
+  <section class="bloc">
+    <h2>Comment procéder</h2>
+    <div class="grille2">
+      <div>
+        <ol>
+          <li>Ouvrez l'application (lien de recette) et gardez ce cahier dans un autre onglet.</li>
+          <li>Filtrez par <b>compte</b> : jouez tous les scénarios d'un compte avant de changer de compte (déconnexion en bas de la barre latérale).</li>
+          <li>Pour chaque scénario : dépliez, suivez les <b>étapes</b>, comparez au <b>résultat attendu</b>, puis marquez <b>OK</b>, <b>KO</b> ou <b>Bloqué</b>. Sur un KO, notez ce que vous avez vu.</li>
+          <li>La colonne <b>« Attendu du propriétaire »</b> est à remplir par la Direction quand l'attendu diffère de ce qui est écrit.</li>
+          <li>À la fin : <b>Exporter (CSV)</b> et envoyez le fichier au développement.</li>
+        </ol>
+      </div>
+      <div>
+        <p class="note">Repères :</p>
+        <ul class="note">
+          <li><span class="puce bloquant">bloquant</span> empêche la mise en service ; <span class="puce majeur">majeur</span> gêne l'usage ; <span class="puce mineur">mineur</span> confort.</li>
+          <li><span class="puce conformite-droits">conformite-droits</span> : vérifie qu'une action sans droit est <b>masquée</b>. Mise en conformité prévue après la recette : un KO est attendu pour l'instant.</li>
+          <li><span class="puce en-attente">en-attente</span> : dépend d'un élément externe (ex. instance WhatsApp reliée).</li>
+          <li><span class="puce tag">irreversible</span> : l'action ne se défait pas (clôture) — utilisez un mois de test.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="bloc">
+    <h2>Comptes de test</h2>
+    <p class="note">Mot de passe commun : <code>Poitiers2026</code>. Connexion par e-mail, ou par téléphone (+237 déjà affiché : taper seulement le numéro).</p>
+    <div class="defile"><table id="t-comptes"><thead><tr><th>Compte</th><th>E-mail</th><th>Téléphone</th><th>Rôle</th><th>Modules visibles</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="bloc">
+    <h2>Droits attendus par compte (générés depuis le code)</h2>
+    <p class="note">Règle de la Direction : <b>retirer un droit fait disparaître les actions qui en dépendent</b> — pour le rôle entier ou pour la personne visée par une exception. <span class="v">V+F</span> = voir et agir · <span class="v">V</span> = consulter seulement (bannière « Vos droits ici ») · <span class="n">—</span> = « Accès refusé ». Les droits se modifient dans Paramètres → Rôles & accès ; ce tableau montre les réglages <b>par défaut</b>.</p>
+    <div class="defile"><table id="t-droits"></table></div>
+  </section>
+
+  <div id="scenarios"></div>
+</main>
+
+<script id="donnees" type="application/json">__DONNEES__</script>
+<script>
+(() => {
+  const D = JSON.parse(document.getElementById("donnees").textContent);
+  const CLE = "recette-poitiers-n3";
+  const lire = () => { try { return JSON.parse(localStorage.getItem(CLE)) || {}; } catch { return {}; } };
+  const ecrire = (v) => { try { localStorage.setItem(CLE, JSON.stringify(v)); } catch {} };
+  let R = lire();
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  document.getElementById("date-gen").textContent = new Date(D.genereLe).toLocaleDateString("fr-FR", { dateStyle: "long" });
+
+  // Comptes
+  const tb = document.querySelector("#t-comptes tbody");
+  D.droits.comptes.forEach((c) => {
+    const n = Object.values(c.droits).filter((x) => x.voir).length;
+    tb.insertAdjacentHTML("beforeend", `<tr><td><b>${c.id}</b></td><td><code>${c.id}.test@poitiers.local</code></td><td><code>${esc(c.telephone)}</code></td><td>${esc(c.libelle)}</td><td>${n}</td></tr>`);
+  });
+
+  // Matrice des droits
+  const td = document.getElementById("t-droits");
+  let h = "<thead><tr><th>Module</th>" + D.droits.comptes.map((c) => `<th>${c.id}</th>`).join("") + "</tr></thead><tbody>";
+  for (const l of D.droits.lignes) {
+    h += `<tr><td><b>${esc(l.libelle)}</b>${l.menu ? "" : ' <span class="note">(pas d\'entrée de menu)</span>'}</td>`;
+    for (const c of D.droits.comptes) {
+      const x = c.droits[l.cle];
+      h += x.faire ? '<td class="droit-f"><span class="v">V+F</span></td>' : x.voir ? '<td class="droit-v"><span class="v">V</span></td>' : '<td><span class="n">—</span></td>';
+    }
+    h += "</tr>";
+  }
+  td.innerHTML = h + "</tbody>";
+
+  // Filtres
+  const groupes = [...new Set(D.scenarios.map((s) => s.groupe))];
+  const fg = document.getElementById("f-groupe"), fc = document.getElementById("f-compte");
+  groupes.forEach((g) => fg.insertAdjacentHTML("beforeend", `<option>${esc(g)}</option>`));
+  D.droits.comptes.forEach((c) => fc.insertAdjacentHTML("beforeend", `<option value="${c.id}">${c.id}</option>`));
+
+  // Scénarios
+  const zone = document.getElementById("scenarios");
+  const libelleStatut = { afaire: "À tester", ok: "OK", ko: "KO", bloque: "Bloqué" };
+  const carte = (s) => {
+    const r = R[s.id] || {};
+    const st = r.statut || "afaire";
+    const tags = (s.tags || []).map((t) => `<span class="puce tag ${esc(t)}">${esc(t)}</span>`).join("");
+    return `<details class="scenario" id="${esc(s.id)}" data-statut="${st}">
+      <summary>
+        <span class="sid">${esc(s.id)}</span><span class="stitre">${esc(s.titre)}</span><span class="etat ${st}">${libelleStatut[st]}</span>
+        <span class="smeta"><span class="puce">${esc(s.ecran)}</span><span class="puce compte">compte : ${esc(s.compte)}</span><span class="puce ${esc(s.gravite)}">${esc(s.gravite)}</span>${tags}</span>
+      </summary>
+      <div class="corps">
+        <div class="objectif">${esc(s.objectif)}</div>
+        <div>${s.prealable ? `<h4>Préalable</h4><p>${esc(s.prealable)}</p>` : ""}<h4>Étapes</h4><ol>${s.etapes.map((e) => `<li>${esc(e)}</li>`).join("")}</ol></div>
+        <div><h4>Résultat attendu</h4><ul>${s.attendu.map((e) => `<li>${esc(e)}</li>`).join("")}</ul></div>
+        <div class="statuts" role="group" aria-label="Statut">
+          ${["afaire", "ok", "ko", "bloque"].map((k) => `<button type="button" class="${k}" data-statut="${k}" aria-pressed="${st === k}">${libelleStatut[k]}</button>`).join("")}
+        </div>
+        <div class="resultat">
+          <div><label for="obs-${esc(s.id)}">Constaté / remarque</label><textarea id="obs-${esc(s.id)}" data-champ="remarque">${esc(r.remarque)}</textarea></div>
+          <div><label for="att-${esc(s.id)}">Attendu du propriétaire (si différent)</label><textarea id="att-${esc(s.id)}" data-champ="attenduProprietaire">${esc(r.attenduProprietaire)}</textarea></div>
+        </div>
+      </div>
+    </details>`;
+  };
+  let html = "";
+  for (const g of groupes) {
+    html += `<h2 class="groupe-titre" data-groupe="${esc(g)}">${esc(g)}</h2>`;
+    html += D.scenarios.filter((s) => s.groupe === g).map(carte).join("");
+  }
+  zone.innerHTML = html;
+
+  const maj = () => {
+    const tous = D.scenarios.length;
+    const n = (k) => D.scenarios.filter((s) => (R[s.id]?.statut || "afaire") === k).length;
+    const faits = tous - n("afaire");
+    document.getElementById("compteurs").innerHTML =
+      `<span class="compteur"><b>${faits}</b>/ ${tous} joués</span><span class="compteur"><b>${n("ok")}</b>OK</span><span class="compteur"><b>${n("ko")}</b>KO</span><span class="compteur"><b>${n("bloque")}</b>bloqués</span>`;
+    document.getElementById("barre").style.width = `${Math.round((faits / tous) * 100)}%`;
+  };
+  zone.addEventListener("click", (e) => {
+    const b = e.target.closest(".statuts button"); if (!b) return;
+    const d = b.closest("details"); const id = d.id; const st = b.dataset.statut;
+    R[id] = { ...(R[id] || {}), statut: st, le: new Date().toISOString() }; ecrire(R);
+    d.dataset.statut = st;
+    d.querySelectorAll(".statuts button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    const etat = d.querySelector(".etat"); etat.className = `etat ${st}`; etat.textContent = libelleStatut[st];
+    maj(); filtrer();
+  });
+  zone.addEventListener("input", (e) => {
+    const t = e.target.closest("textarea"); if (!t) return;
+    const id = t.closest("details").id;
+    R[id] = { ...(R[id] || {}), [t.dataset.champ]: t.value }; ecrire(R);
+  });
+
+  const filtrer = () => {
+    const g = fg.value, c = fc.value, gr = document.getElementById("f-gravite").value, st = document.getElementById("f-statut").value;
+    const q = document.getElementById("f-texte").value.trim().toLowerCase();
+    for (const s of D.scenarios) {
+      const el = document.getElementById(s.id);
+      const texte = `${s.id} ${s.titre} ${s.ecran} ${(s.tags || []).join(" ")} ${s.etapes.join(" ")} ${s.attendu.join(" ")}`.toLowerCase();
+      const ok = (!g || s.groupe === g) && (!c || s.compte === c) && (!gr || s.gravite === gr) && (!st || (R[s.id]?.statut || "afaire") === st) && (!q || texte.includes(q));
+      el.hidden = !ok;
+    }
+    document.querySelectorAll(".groupe-titre").forEach((t) => {
+      t.hidden = !D.scenarios.some((s) => s.groupe === t.dataset.groupe && !document.getElementById(s.id).hidden);
+    });
+  };
+  ["f-groupe", "f-compte", "f-gravite", "f-statut"].forEach((id) => document.getElementById(id).addEventListener("change", filtrer));
+  document.getElementById("f-texte").addEventListener("input", filtrer);
+
+  let deplie = false;
+  document.getElementById("b-deplier").addEventListener("click", (e) => {
+    deplie = !deplie; document.querySelectorAll("details.scenario").forEach((d) => { if (!d.hidden) d.open = deplie; });
+    e.target.textContent = deplie ? "Tout replier" : "Tout déplier";
+  });
+  document.getElementById("b-imprimer").addEventListener("click", () => { document.querySelectorAll("details.scenario").forEach((d) => (d.open = true)); window.print(); });
+  document.getElementById("b-raz").addEventListener("click", () => {
+    if (!confirm("Effacer tous vos résultats enregistrés dans ce navigateur ?")) return;
+    R = {}; ecrire(R); location.reload();
+  });
+  document.getElementById("b-export").addEventListener("click", () => {
+    const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const lignes = [["id", "groupe", "ecran", "compte", "gravite", "titre", "statut", "remarque", "attendu_proprietaire", "joue_le"].join(";")];
+    for (const s of D.scenarios) {
+      const r = R[s.id] || {};
+      lignes.push([s.id, s.groupe, s.ecran, s.compte, s.gravite, s.titre, libelleStatut[r.statut || "afaire"], r.remarque, r.attenduProprietaire, r.le].map(cell).join(";"));
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(["﻿" + lignes.join("\r\n")], { type: "text/csv;charset=utf-8" }));
+    a.download = `recette-poitiers-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+  });
+  maj();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1141 @@
+[
+ {
+  "id": "ADM-01",
+  "groupe": "Accès & administration",
+  "ecran": "Connexion",
+  "module": "/connexion",
+  "compte": "employe",
+  "titre": "Connexion par adresse e-mail",
+  "objectif": "Le chemin nominal d'entrée dans l'application doit fonctionner pour un compte pré-provisionné.",
+  "prealable": "Être déconnecté.",
+  "etapes": [
+   "Ouvrir /connexion.",
+   "Vérifier que l'onglet « Adresse e-mail » est actif.",
+   "Saisir employe.test@poitiers.local dans « Adresse e-mail » et Poitiers2026 dans « Mot de passe ».",
+   "Cliquer « Se connecter »."
+  ],
+  "attendu": [
+   "Le bouton affiche « Connexion… » pendant la vérification.",
+   "Le Tableau de bord s'ouvre (titre « Tableau de bord » dans l'en-tête).",
+   "Le pied de la barre latérale affiche « Employé · niv. 1 »."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "connexion"
+  ]
+ },
+ {
+  "id": "ADM-02",
+  "groupe": "Accès & administration",
+  "ecran": "Connexion",
+  "module": "/connexion",
+  "compte": "chef",
+  "titre": "Connexion par numéro de téléphone avec indicatif pré-rempli",
+  "objectif": "La connexion par téléphone est prévue pour le personnel qui n'utilise pas l'e-mail.",
+  "prealable": "Être déconnecté ; connaître le numéro de chef.test affiché dans Membres (+237 6 90 00 00 0N).",
+  "etapes": [
+   "Ouvrir /connexion et cliquer l'onglet « Numéro de téléphone ».",
+   "Vérifier que l'indicatif +237 est déjà rempli et lire l'aide sous le champ.",
+   "Saisir la partie nationale du numéro de chef.test, puis Poitiers2026.",
+   "Cliquer « Se connecter »."
+  ],
+  "attendu": [
+   "L'aide indique « Le même numéro que sur WhatsApp : l'indicatif est déjà rempli. »",
+   "L'indicatif n'a pas à être retapé.",
+   "La session s'ouvre sur le Tableau de bord ; le pied du menu affiche « Chef d'équipe · niv. 2 »."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "connexion",
+   "telephone"
+  ]
+ },
+ {
+  "id": "ADM-03",
+  "groupe": "Accès & administration",
+  "ecran": "Connexion",
+  "module": "/connexion",
+  "compte": "employe",
+  "titre": "Mot de passe erroné refusé sans détail",
+  "objectif": "Un échec ne doit pas révéler si l'identifiant existe.",
+  "prealable": "Être déconnecté.",
+  "etapes": [
+   "Ouvrir /connexion, onglet « Adresse e-mail ».",
+   "Saisir employe.test@poitiers.local et le mot de passe Faux2026.",
+   "Cliquer « Se connecter ».",
+   "Recommencer avec l'e-mail inconnu inconnu.test@poitiers.local et Poitiers2026."
+  ],
+  "attendu": [
+   "Dans les deux cas, le message « Identifiant ou mot de passe incorrect. » apparaît sous le formulaire.",
+   "Aucune session ne s'ouvre ; l'écran de connexion reste affiché.",
+   "Modifier un champ efface le message d'erreur."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "connexion",
+   "securite"
+  ]
+ },
+ {
+  "id": "ADM-04",
+  "groupe": "Accès & administration",
+  "ecran": "Connexion",
+  "module": "/connexion",
+  "compte": "employe",
+  "titre": "Numéro de téléphone incomplet signalé avant envoi",
+  "objectif": "L'utilisateur doit comprendre son erreur de saisie sans appel au serveur.",
+  "prealable": "Être déconnecté.",
+  "etapes": [
+   "Ouvrir /connexion, onglet « Numéro de téléphone ».",
+   "Saisir seulement « 6 90 » après l'indicatif, puis un mot de passe.",
+   "Cliquer « Se connecter »."
+  ],
+  "attendu": [
+   "L'aide sous le champ passe en erreur : « Numéro invalide : indicatif suivi de 8 à 14 chiffres. »",
+   "Le même message s'affiche en alerte ; aucune connexion n'est tentée."
+  ],
+  "gravite": "mineur",
+  "tags": [
+   "connexion",
+   "telephone"
+  ]
+ },
+ {
+  "id": "ADM-05",
+  "groupe": "Accès & administration",
+  "ecran": "Connexion",
+  "module": "/connexion",
+  "compte": "employe",
+  "titre": "Contrôles de l'écran de connexion : bouton, œil, mode mémorisé",
+  "objectif": "Éviter les envois vides et faciliter la saisie du mot de passe.",
+  "prealable": "Être déconnecté.",
+  "etapes": [
+   "Ouvrir /connexion avec les deux champs vides.",
+   "Saisir un mot de passe puis cliquer l'icône œil « Afficher le mot de passe ».",
+   "Cliquer l'onglet « Numéro de téléphone », puis recharger la page (F5)."
+  ],
+  "attendu": [
+   "« Se connecter » est grisé tant que l'identifiant ou le mot de passe est vide.",
+   "Le mot de passe s'affiche en clair ; l'icône devient « Masquer le mot de passe ».",
+   "Après rechargement, l'onglet « Numéro de téléphone » est toujours sélectionné.",
+   "Le pied rappelle : « Les accès sont attribués par la Direction… adressez-vous au Directeur Général. »"
+  ],
+  "gravite": "mineur",
+  "tags": [
+   "connexion",
+   "ergonomie"
+  ]
+ },
+ {
+  "id": "ADM-06",
+  "groupe": "Accès & administration",
+  "ecran": "Connexion",
+  "module": "/connexion",
+  "compte": "employe",
+  "titre": "Compte en attente d'autorisation",
+  "objectif": "Une inscription spontanée ne doit donner accès à rien tant que le DG ne l'a pas autorisée.",
+  "prealable": "À préparer par le développement : un compte « en attente » (l'écran de connexion n'a pas d'inscription libre). Visible dans Membres → « En attente ».",
+  "etapes": [
+   "Se connecter avec ce compte en attente.",
+   "Observer l'écran affiché.",
+   "Cliquer « Se déconnecter »."
+  ],
+  "attendu": [
+   "Titre « Compte en attente d'autorisation » avec l'e-mail du compte en gras.",
+   "Aucun menu ni module n'est accessible.",
+   "Le texte indique qu'un Directeur Général doit l'autoriser depuis l'écran « Membres ».",
+   "« Se déconnecter » ramène à l'écran de connexion."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "connexion",
+   "droits",
+   "en-attente"
+  ]
+ },
+ {
+  "id": "ADM-07",
+  "groupe": "Accès & administration",
+  "ecran": "Membres",
+  "module": "/membres",
+  "compte": "dg",
+  "titre": "Autoriser un compte en attente",
+  "objectif": "Le DG doit pouvoir ouvrir l'accès d'une inscription spontanée en choisissant son rôle.",
+  "prealable": "Le compte en attente d'ADM-06 existe.",
+  "etapes": [
+   "Ouvrir Membres, filtre « En attente ».",
+   "Sur la ligne (État « à autoriser »), cliquer « Autoriser ».",
+   "Dans la fiche « Autoriser … », choisir le rôle « Niv. 1 · Employé ».",
+   "Cliquer « Accorder l'accès »."
+  ],
+  "attendu": [
+   "Toast « Accès accordé à … ».",
+   "Le compte passe dans « Actifs », État « Actif ».",
+   "L'écran d'attente de ce compte se met à jour de lui-même vers l'application.",
+   "Le Journal contient un événement d'autorisation « accès accordé · Employé »."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "droits",
+   "journal",
+   "en-attente"
+  ]
+ },
+ {
+  "id": "ADM-08",
+  "groupe": "Accès & administration",
+  "ecran": "Connexion",
+  "module": "/connexion",
+  "compte": "chef",
+  "titre": "Compte désactivé refusé à la connexion",
+  "objectif": "Un membre désactivé ne doit plus pouvoir entrer.",
+  "prealable": "Le DG a désactivé chef.test (Membres → fiche → « Désactiver » → confirmer).",
+  "etapes": [
+   "Se déconnecter, ouvrir /connexion.",
+   "Se connecter avec chef.test@poitiers.local / Poitiers2026.",
+   "Essayer aussi par téléphone avec le numéro de chef.test.",
+   "Nettoyage : en DG, rouvrir la fiche de chef.test, cliquer « Réactiver à l'enregistrement » puis « Enregistrer »."
+  ],
+  "attendu": [
+   "Par e-mail : message indiquant que le compte a été désactivé (« Contactez le Directeur Général »).",
+   "Par téléphone : « Identifiant ou mot de passe incorrect. »",
+   "Aucune session ne s'ouvre.",
+   "Après nettoyage, chef.test se connecte de nouveau."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "connexion",
+   "droits",
+   "journal"
+  ]
+ },
+ {
+  "id": "ADM-09",
+  "groupe": "Accès & administration",
+  "ecran": "Coquille — menu",
+  "module": "/",
+  "compte": "employe",
+  "titre": "Menu d'un employé limité à ses modules",
+  "objectif": "Le menu ne doit montrer que ce que le rôle peut ouvrir.",
+  "prealable": "Droits par défaut, aucune exception pour employe.test.",
+  "etapes": [
+   "Se connecter en employe.test.",
+   "Relever les entrées de la barre latérale."
+  ],
+  "attendu": [
+   "Groupe « Exploitation » seul : Tableau de bord, Documents, Comptes rendus, Mes bulletins, Interventions.",
+   "Aucun groupe « Paie » ni « Contrôle ».",
+   "Pied du menu : nom ou e-mail, « Employé · niv. 1 », bouton « Se déconnecter »."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "droits",
+   "menu"
+  ]
+ },
+ {
+  "id": "ADM-10",
+  "groupe": "Accès & administration",
+  "ecran": "Coquille — menu",
+  "module": "/",
+  "compte": "dg",
+  "titre": "Menu du DG et du super administrateur",
+  "objectif": "Vérifier la frontière entre la direction et le technique.",
+  "prealable": "Droits par défaut.",
+  "etapes": [
+   "Se connecter en dg.test ; relever le groupe « Contrôle ».",
+   "Se déconnecter, se connecter en superadmin.test ; relever le groupe « Contrôle »."
+  ],
+  "attendu": [
+   "DG : Audit confidentiel, Barème, Membres, Journal d'activité, Paramètres ; pas de « Fiche API ».",
+   "Super admin : les mêmes entrées plus « Fiche API ».",
+   "Pied du menu super admin : « Super administrateur (technique) · niv. 8 »."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "droits",
+   "menu"
+  ]
+ },
+ {
+  "id": "ADM-11",
+  "groupe": "Accès & administration",
+  "ecran": "Coquille — menu",
+  "module": "/",
+  "compte": "auditeur",
+  "titre": "Menu de l'auditeur externe",
+  "objectif": "L'auditeur consulte presque tout mais ne voit ni Paramètres, ni Journal, ni Archives, ni documents.",
+  "prealable": "Droits par défaut.",
+  "etapes": [
+   "Se connecter en auditeur.test.",
+   "Relever les entrées des trois groupes du menu."
+  ],
+  "attendu": [
+   "Absents : Documents, Comptes rendus, Mes bulletins, Archives, Journal d'activité, Paramètres, Fiche API.",
+   "Présents notamment : Récapitulatif financier, Employés, Bulletins du mois, Audit confidentiel, Barème, Membres.",
+   "Pied du menu : « Auditeur Externe · niv. 0 »."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "droits",
+   "menu"
+  ]
+ },
+ {
+  "id": "ADM-12",
+  "groupe": "Accès & administration",
+  "ecran": "Coquille — garde d'accès",
+  "module": "/parametres",
+  "compte": "employe",
+  "titre": "URL tapée à la main vers un module refusé",
+  "objectif": "Masquer une entrée de menu ne suffit pas : la route elle-même doit être fermée.",
+  "prealable": "Connecté en employe.test.",
+  "etapes": [
+   "Taper /parametres dans la barre d'adresse.",
+   "Taper /membres, puis /journal, puis /api-readme."
+  ],
+  "attendu": [
+   "« Accès refusé » avec « Le module « Paramètres » ne vous est pas ouvert… demandez au Directeur Général de vous l'accorder (Paramètres → Rôles & accès). »",
+   "Même écran pour Membres et Journal d'activité.",
+   "Pour /api-readme : « Ce module ne vous est pas ouvert… »",
+   "Aucune donnée du module n'apparaît."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "droits",
+   "securite"
+  ]
+ },
+ {
+  "id": "ADM-13",
+  "groupe": "Accès & administration",
+  "ecran": "Coquille — en-tête",
+  "module": "/",
+  "compte": "comptable",
+  "titre": "En-tête : titre de page, période, guide, déconnexion",
+  "objectif": "L'en-tête situe l'utilisateur et sa période de travail.",
+  "prealable": "Connecté en comptable.test, écran large.",
+  "etapes": [
+   "Ouvrir le Tableau de bord puis Commandes ; lire le titre de l'en-tête.",
+   "Lire la pastille de période et le témoin « En direct ».",
+   "Cliquer « Guide des Rôles & Calculs ».",
+   "Cliquer l'icône « Se déconnecter » en bas du menu."
+  ],
+  "attendu": [
+   "Le titre suit la page (« Tableau de bord / Cockpit et vue d'ensemble », puis « Commandes »).",
+   "La pastille affiche « Septembre 2026 ».",
+   "Le guide s'ouvre dans un nouvel onglet.",
+   "La déconnexion ramène à l'écran de connexion."
+  ],
+  "gravite": "mineur",
+  "tags": [
+   "menu"
+  ]
+ },
+ {
+  "id": "ADM-14",
+  "groupe": "Accès & administration",
+  "ecran": "Tableau de bord",
+  "module": "/",
+  "compte": "employe",
+  "titre": "Tableau de bord de l'employé sans chiffres financiers",
+  "objectif": "Les chiffres de caisse, de trésorerie et de paie ne doivent pas fuiter vers un employé.",
+  "prealable": "Connecté en employe.test.",
+  "etapes": [
+   "Ouvrir le Tableau de bord.",
+   "Relever les tuiles et le bloc « À faire aujourd'hui »."
+  ],
+  "attendu": [
+   "Pas de tuile « Chiffre d'affaires du mois », « Solde Trésorerie F3 », « Net à payer du mois » ni « Masse brute & Charges ».",
+   "« À faire aujourd'hui » : « Compte rendu du jour » et « Points de présence » ; pas de « Recette journalière ».",
+   "Le bouton « Rédiger mon compte rendu → » ou « Consulter mes comptes rendus » mène à Comptes rendus."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "droits"
+  ]
+ },
+ {
+  "id": "ADM-15",
+  "groupe": "Accès & administration",
+  "ecran": "Tableau de bord",
+  "module": "/",
+  "compte": "employe",
+  "titre": "Aucun lien vers un module refusé depuis le tableau de bord",
+  "objectif": "Règle du propriétaire : ce qui n'est pas ouvert ne doit pas être proposé.",
+  "prealable": "Connecté en employe.test.",
+  "etapes": [
+   "Sur le Tableau de bord, repérer la carte « Répartition des flux du mois ».",
+   "Cliquer sa flèche « Voir le grand livre financier »."
+  ],
+  "attendu": [
+   "La carte des flux (et sa flèche vers le grand livre) n'est pas affichée pour un membre sans droit « Récapitulatif financier ».",
+   "Si elle l'est : anomalie, le clic mène à « Accès refusé »."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "droits",
+   "conformite-droits"
+  ]
+ },
+ {
+  "id": "ADM-16",
+  "groupe": "Accès & administration",
+  "ecran": "Tableau de bord",
+  "module": "/",
+  "compte": "comptable",
+  "titre": "Tableau de bord du comptable",
+  "objectif": "Le comptable voit ses chiffres et sa tâche du jour sur le grand livre.",
+  "prealable": "Droits par défaut.",
+  "etapes": [
+   "Se connecter en comptable.test et ouvrir le Tableau de bord."
+  ],
+  "attendu": [
+   "Tuiles « Chiffre d'affaires du mois » et « Solde Trésorerie F3 » visibles.",
+   "Pas de « Net à payer du mois » (pas de droit Bulletins).",
+   "« À faire aujourd'hui » contient « Recette journalière » avec « Saisir la recette du jour → » ou « Consulter le journal ».",
+   "Pas de bloc « Audit confidentiel »."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "droits"
+  ]
+ },
+ {
+  "id": "ADM-17",
+  "groupe": "Accès & administration",
+  "ecran": "Membres",
+  "module": "/membres",
+  "compte": "dg",
+  "titre": "Pré-provisionner un nouveau membre",
+  "objectif": "Un compte créé par le DG reprend son rôle dès la première connexion.",
+  "prealable": "Aucun membre recette.membre@poitiers.local.",
+  "etapes": [
+   "Ouvrir Membres, cliquer « Nouveau membre ».",
+   "E-mail recette.membre@poitiers.local, Nom « Recette Membre », rôle « Niv. 3 · Comptable », Téléphone +237 6 99 00 00 99.",
+   "Cliquer « Pré-provisionner »."
+  ],
+  "attendu": [
+   "Toast « Membre recette.membre@poitiers.local pré-provisionné ».",
+   "La ligne apparaît, Origine « Pré-provisionné », État « Actif » ; la tuile « Pré-provisionnés » augmente de 1.",
+   "Le Journal contient « … · en attente de rattachement »."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "journal",
+   "telephone"
+  ]
+ },
+ {
+  "id": "ADM-18",
+  "groupe": "Accès & administration",
+  "ecran": "Membres",
+  "module": "/membres",
+  "compte": "dg",
+  "titre": "Doublons d'e-mail et de téléphone refusés",
+  "objectif": "Un identifiant de connexion doit rester unique.",
+  "prealable": "ADM-17 réalisé.",
+  "etapes": [
+   "« Nouveau membre » avec l'e-mail recette.membre@poitiers.local → « Pré-provisionner ».",
+   "« Nouveau membre » avec recette.bis@poitiers.local et le téléphone de chef.test → « Pré-provisionner ».",
+   "Saisir l'e-mail « recette@ » → « Pré-provisionner »."
+  ],
+  "attendu": [
+   "« Enregistrement refusé » : « Un membre existe déjà avec cet e-mail. »",
+   "« Enregistrement refusé » : « Ce numéro est déjà attribué à … ».",
+   "Toast « Adresse e-mail invalide. » ; aucune ligne créée."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "telephone"
+  ]
+ },
+ {
+  "id": "ADM-19",
+  "groupe": "Accès & administration",
+  "ecran": "Membres",
+  "module": "/membres",
+  "compte": "dg",
+  "titre": "Changer un rôle depuis la ligne",
+  "objectif": "Le rôle se change en un geste et reste tracé.",
+  "prealable": "ADM-17 réalisé.",
+  "etapes": [
+   "Sur la ligne « Recette Membre », ouvrir le sélecteur de rôle.",
+   "Vérifier les options, puis choisir « Niv. 4 · Gestionnaire RH ».",
+   "Ouvrir le Journal d'activité."
+  ],
+  "attendu": [
+   "« Niv. 8 · Super administrateur (technique) » est grisé, non sélectionnable.",
+   "Toast « Recette Membre : Gestionnaire RH » avec la description du rôle.",
+   "Journal : « Comptable → Gestionnaire RH » pour Recette Membre."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "droits",
+   "journal"
+  ]
+ },
+ {
+  "id": "ADM-20",
+  "groupe": "Accès & administration",
+  "ecran": "Membres",
+  "module": "/membres",
+  "compte": "dg",
+  "titre": "Garde-fous : soi-même, membre au-dessus, dernier DG",
+  "objectif": "Le DG ne doit ni s'enfermer dehors ni toucher au compte technique.",
+  "prealable": "Connecté en dg.test.",
+  "etapes": [
+   "Repérer sa propre ligne (marque « vous ») et survoler le rôle.",
+   "Repérer la ligne du super administrateur.",
+   "Ouvrir sa propre fiche et regarder « Désactiver ».",
+   "Lire la tuile « Directeurs Généraux actifs »."
+  ],
+  "attendu": [
+   "Sa ligne n'a pas de sélecteur : « Votre propre rôle ne se change pas ici. »",
+   "Le super admin affiche un cadenas : « Ce membre est au-dessus de votre niveau. »",
+   "« Désactiver » est grisé ; « Vous ne pouvez pas désactiver votre propre compte. »",
+   "S'il n'y a qu'un DG actif : « Dernier Directeur Général actif : ni désactivation ni rétrogradation possible. »"
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "droits",
+   "securite"
+  ]
+ },
+ {
+  "id": "ADM-21",
+  "groupe": "Accès & administration",
+  "ecran": "Membres",
+  "module": "/membres",
+  "compte": "dg",
+  "titre": "Filtres, recherche et saisie en série",
+  "objectif": "Retrouver un membre et en créer plusieurs sans rouvrir une fiche à chaque fois.",
+  "prealable": "Plusieurs membres existent.",
+  "etapes": [
+   "Cliquer les filtres « Actifs », « En attente », « Désactivés », « Tous ».",
+   "Choisir « Niv. 3 · Comptable » dans le filtre de rôle ; taper « recette » dans « Nom, e-mail, poste… ».",
+   "Activer la saisie persistante ; taper un e-mail dans la ligne de tête et appuyer sur Entrée ; appuyer sur Échap."
+  ],
+  "attendu": [
+   "Chaque filtre affiche son compteur ; aucun résultat : « Aucun membre ne correspond aux filtres. »",
+   "La recherche ignore les accents.",
+   "Entrée crée le membre et garde rôle, société et département pour le suivant ; Échap vide la ligne.",
+   "« Nouveau membre » est masqué tant que la saisie persistante est active."
+  ],
+  "gravite": "mineur",
+  "tags": [
+   "ergonomie"
+  ]
+ },
+ {
+  "id": "ADM-22",
+  "groupe": "Accès & administration",
+  "ecran": "Membres",
+  "module": "/membres",
+  "compte": "auditeur",
+  "titre": "L'auditeur consulte Membres sans pouvoir agir",
+  "objectif": "Règle du propriétaire : sans « Faire », aucune action ne doit être proposée.",
+  "prealable": "Droits par défaut (auditeur : Membres en Voir seul).",
+  "etapes": [
+   "Se connecter en auditeur.test, ouvrir Membres.",
+   "Lire le bandeau en haut de page.",
+   "Chercher « Nouveau membre », la saisie persistante et les sélecteurs de rôle.",
+   "Si « Nouveau membre » est visible : remplir une fiche et cliquer « Pré-provisionner »."
+  ],
+  "attendu": [
+   "Bandeau « Vos droits ici : consulter. Non ouvert : créer, modifier, rôles (jusqu'à son niveau). »",
+   "Aucun bouton « Nouveau membre », « Autoriser », « Désactiver » ni sélecteur de rôle.",
+   "Si un bouton subsiste : anomalie, le serveur refuse avec « Accès refusé : vous pouvez consulter ce module, pas y agir. »"
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "droits",
+   "conformite-droits"
+  ]
+ },
+ {
+  "id": "ADM-23",
+  "groupe": "Accès & administration",
+  "ecran": "Paramètres — Entreprise & documents",
+  "module": "/parametres",
+  "compte": "dg",
+  "titre": "Modifier l'identité et voir l'aperçu en direct",
+  "objectif": "L'identité imprimée sur bulletins et PDF se règle ici, avec aperçu immédiat.",
+  "prealable": "Noter les valeurs actuelles du filigrane.",
+  "etapes": [
+   "Ouvrir Paramètres, onglet « Entreprise & documents ».",
+   "Taper « RECETTE » dans « Filigrane des PDF ».",
+   "Observer l'« Aperçu de l'en-tête » et la barre d'actions.",
+   "Cliquer « Enregistrer ».",
+   "Nettoyage : vider le filigrane (ou remettre l'ancien) et « Enregistrer »."
+  ],
+  "attendu": [
+   "Le filigrane apparaît en diagonale dans l'aperçu ; le champ est surligné ; l'onglet porte un point.",
+   "« 1 modification(s) non enregistrée(s) » ; « Annuler » et « Enregistrer » actifs.",
+   "Toast « Paramètres enregistrés — 1 modification(s) appliquée(s) — journalisées. »",
+   "La tuile « Dernier enregistrement » montre l'heure et « dg »."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "journal",
+   "impression"
+  ]
+ },
+ {
+  "id": "ADM-24",
+  "groupe": "Accès & administration",
+  "ecran": "Paramètres — Entreprise & Paie",
+  "module": "/parametres",
+  "compte": "dg",
+  "titre": "Champs invalides bloquent l'enregistrement",
+  "objectif": "Empêcher une valeur absurde d'atteindre les bulletins.",
+  "prealable": "Aucune modification en cours.",
+  "etapes": [
+   "Onglet « Entreprise & documents » : vider « Nom de l'entreprise ».",
+   "Onglet « Paie & congés » : saisir 30 dans « Jour de paiement (mois suivant) ».",
+   "Observer la barre d'actions.",
+   "Cliquer « Annuler »."
+  ],
+  "attendu": [
+   "Liste d'erreurs : « Le nom de l'entreprise est obligatoire. » et « Jour de paiement : entre 1 et 28. »",
+   "« 2 erreur(s) » en rouge ; « Enregistrer » grisé.",
+   "« Annuler » rétablit les valeurs enregistrées et vide les erreurs."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "validation"
+  ]
+ },
+ {
+  "id": "ADM-25",
+  "groupe": "Accès & administration",
+  "ecran": "Paramètres — Fonctionnement",
+  "module": "/parametres",
+  "compte": "dg",
+  "titre": "Fenêtre des comptes rendus incohérente, puis valeurs par défaut",
+  "objectif": "Les réglages ERP sont bornés et réversibles.",
+  "prealable": "Aucune modification en cours.",
+  "etapes": [
+   "Onglet « Fonctionnement » : Ouverture 20, Fermeture 16.",
+   "Lire les erreurs.",
+   "Cliquer « Remettre les valeurs par défaut ».",
+   "Cliquer « Annuler » si une modification reste."
+  ],
+  "attendu": [
+   "Erreur « La fenêtre des comptes rendus doit se fermer après son ouverture. » ; « Enregistrer » grisé.",
+   "Le bloc « Valeurs par défaut » affiche 16h–20h, lun–ven ; 15 min ; 60 min ; 30 j · 100 000 000 FCFA.",
+   "Après remise par défaut, plus d'erreur."
+  ],
+  "gravite": "mineur",
+  "tags": [
+   "validation"
+  ]
+ },
+ {
+  "id": "ADM-26",
+  "groupe": "Accès & administration",
+  "ecran": "Paramètres — Courrier & e-mail",
+  "module": "/parametres",
+  "compte": "dg",
+  "titre": "État d'envoi réel cohérent avec la tuile",
+  "objectif": "Le DG doit savoir si les courriers partent réellement.",
+  "prealable": "—",
+  "etapes": [
+   "Lire la tuile « Courrier de paie ».",
+   "Ouvrir « Courrier & e-mail » et lire « État : » et « WhatsApp : ».",
+   "Basculer « Envoi réel des e-mails » sans enregistrer, puis « Annuler »."
+  ],
+  "attendu": [
+   "Tuile et drapeau concordent (« Envoi réel » / « envoi réel actif » ou « Simulation » / « simulation · … »).",
+   "WhatsApp affiche « simulation · … » tant que l'instance UltraMsg est en veille.",
+   "La bascule marque l'onglet modifié ; « Annuler » la rétablit, rien n'est enregistré."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "courrier"
+  ]
+ },
+ {
+  "id": "ADM-27",
+  "groupe": "Accès & administration",
+  "ecran": "Paramètres — Rôles & accès",
+  "module": "/parametres",
+  "compte": "dg",
+  "titre": "Lecture de la matrice et garde-fous du DG",
+  "objectif": "Le DG ne peut pas se retirer Paramètres ni Membres.",
+  "prealable": "Droits par défaut.",
+  "etapes": [
+   "Ouvrir Paramètres → « Rôles & accès ».",
+   "Relever les colonnes.",
+   "Sur la ligne « Paramètres », colonne « Directeur Général », cliquer V puis F.",
+   "Faire de même sur la ligne « Membres »."
+  ],
+  "attendu": [
+   "Colonnes : Employé, Chef d'équipe, Comptable, Gestionnaire RH, Directeur Administratif, Directeur Général, Auditeur Externe ; pas de super administrateur.",
+   "Les cases V/F du DG pour Paramètres et Membres sont grisées, avec un cadenas ; infobulle « … (garde-fou) ».",
+   "Le clic ne change rien ; aucune modification n'est comptée."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "droits",
+   "securite"
+  ]
+ },
+ {
+  "id": "ADM-28",
+  "groupe": "Accès & administration",
+  "ecran": "Paramètres — Rôles & accès",
+  "module": "/parametres",
+  "compte": "dg",
+  "titre": "Retirer un module à un rôle : effet sur un autre compte",
+  "objectif": "La matrice doit réellement fermer le module côté menu, écran et serveur.",
+  "prealable": "Droits par défaut ; comptable.test voit Commandes.",
+  "etapes": [
+   "En DG, « Rôles & accès », ligne « Commandes », colonne « Comptable » : cliquer V.",
+   "Vérifier que F s'éteint aussi ; lire « 1 modification(s) non enregistrée(s) » ; cliquer « Enregistrer ».",
+   "Dans une autre fenêtre, se connecter en comptable.test.",
+   "Taper /commandes dans la barre d'adresse."
+  ],
+  "attendu": [
+   "Case entourée (« modifié, pas encore enregistré ») ; toast « Paramètres enregistrés ».",
+   "Menu du comptable sans « Commandes ».",
+   "/commandes : « Accès refusé — Le module « Commandes » ne vous est pas ouvert… »",
+   "Journal : action « Droits des rôles », détail « Comptable · Commandes : aucun »."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "droits",
+   "journal"
+  ]
+ },
+ {
+  "id": "ADM-29",
+  "groupe": "Accès & administration",
+  "ecran": "Paramètres — Rôles & accès",
+  "module": "/parametres",
+  "compte": "dg",
+  "titre": "Voir sans Faire : bandeau et actions masquées",
+  "objectif": "Règle du propriétaire : un droit retiré doit faire disparaître les actions liées.",
+  "prealable": "Après ADM-28.",
+  "etapes": [
+   "En DG, ligne « Commandes », colonne « Comptable » : cliquer V (Voir seul) → « Enregistrer ».",
+   "En comptable.test, ouvrir Commandes.",
+   "Chercher les boutons de création, modification, commentaire, livraison."
+  ],
+  "attendu": [
+   "Bandeau « Vos droits ici : consulter. Non ouvert : créer, modifier, commenter, livrer. »",
+   "Aucun bouton de création/modification/commentaire/livraison n'est visible.",
+   "Si un bouton subsiste : anomalie ; son action doit être refusée par le serveur."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "droits",
+   "conformite-droits"
+  ]
+ },
+ {
+  "id": "ADM-30",
+  "groupe": "Accès & administration",
+  "ecran": "Paramètres — Rôles & accès",
+  "module": "/parametres",
+  "compte": "dg",
+  "titre": "Nettoyage : revenir aux droits par défaut",
+  "objectif": "Remettre la matrice dans l'état de référence après la recette.",
+  "prealable": "ADM-28/29 réalisés.",
+  "etapes": [
+   "Dans « Rôles & accès », cliquer « Revenir aux droits par défaut ».",
+   "Cliquer « Enregistrer ».",
+   "En comptable.test, recharger la page."
+  ],
+  "attendu": [
+   "Toutes les cases modifiées reviennent ; le bouton se grise.",
+   "Toast « Paramètres enregistrés » ; Journal « Droits des rôles » avec « Comptable · Commandes : voir + faire ».",
+   "« Commandes » réapparaît dans le menu du comptable, sans bandeau."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "droits",
+   "journal",
+   "nettoyage"
+  ]
+ },
+ {
+  "id": "ADM-31",
+  "groupe": "Accès & administration",
+  "ecran": "Paramètres — Rôles & accès",
+  "module": "/parametres",
+  "compte": "dg",
+  "titre": "Exception par personne : retirer Mes bulletins à un employé",
+  "objectif": "Un droit se retire à une seule personne sans toucher à son rôle.",
+  "prealable": "Droits par défaut ; employe.test sans exception.",
+  "etapes": [
+   "« Exceptions par personne » : choisir employe.test dans « Choisir un membre… ».",
+   "Ligne « Mes bulletins » : passer de « Comme son rôle (voir) » à « Aucun accès ».",
+   "Cliquer « Enregistrer les droits de … ».",
+   "En employe.test : relire le menu, puis taper /mes-bulletins."
+  ],
+  "attendu": [
+   "« 1 modification(s) non enregistrée(s) » puis toast « Droits particuliers enregistrés … · journalisé ».",
+   "Pastille « Membres avec exceptions : … (1) ».",
+   "Menu sans « Mes bulletins » ; /mes-bulletins : « Accès refusé ».",
+   "Journal : « Droits particuliers d'un membre », « Mes bulletins : aucun »."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "droits",
+   "journal"
+  ]
+ },
+ {
+  "id": "ADM-32",
+  "groupe": "Accès & administration",
+  "ecran": "Paramètres — Rôles & accès",
+  "module": "/parametres",
+  "compte": "dg",
+  "titre": "Exception accordée puis ramenée au rôle",
+  "objectif": "On peut aussi accorder un droit au-delà du rôle, et l'annuler.",
+  "prealable": "ADM-31 réalisé.",
+  "etapes": [
+   "Choisir chef.test ; ligne « Employés » : « Voir » → « Enregistrer les droits de … ».",
+   "En chef.test : ouvrir « Employés » (menu Paie).",
+   "En DG : reprendre employe.test puis chef.test, cliquer « Tout ramener à son rôle » puis « Enregistrer les droits de … » pour chacun."
+  ],
+  "attendu": [
+   "Le chef voit « Employés » avec le bandeau « Vos droits ici : consulter les fiches. Non ouvert : créer, modifier, importer. »",
+   "Après nettoyage : Journal « retour aux droits du rôle » ; plus de pastille d'exceptions.",
+   "employe.test retrouve « Mes bulletins », chef.test perd « Employés »."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "droits",
+   "journal",
+   "nettoyage"
+  ]
+ },
+ {
+  "id": "ADM-33",
+  "groupe": "Accès & administration",
+  "ecran": "Paramètres — Rôles & accès",
+  "module": "/parametres",
+  "compte": "daf",
+  "titre": "Paramètres en Voir seul : tout doit être en lecture",
+  "objectif": "Règle du propriétaire appliquée à l'écran des paramètres lui-même.",
+  "prealable": "En DG, matrice : ligne « Paramètres », colonne « Directeur Administratif » → V seul, enregistré.",
+  "etapes": [
+   "Se connecter en daf.test, ouvrir Paramètres.",
+   "Lire le libellé à droite des onglets et le bandeau.",
+   "Essayer de modifier un champ de « Entreprise & documents » ; regarder « Annuler » / « Enregistrer ».",
+   "Onglet « Rôles & accès ».",
+   "Nettoyage : en DG, « Revenir aux droits par défaut » → « Enregistrer »."
+  ],
+  "attendu": [
+   "« consultation seule » ; bandeau « Vos droits ici : consulter. Non ouvert : modifier, dont ces droits. »",
+   "Les champs sont en lecture et « Enregistrer » / « Annuler » ne sont pas proposés ; sinon anomalie (le serveur refuse l'enregistrement).",
+   "Matrice grisée, sans « Revenir aux droits par défaut ».",
+   "Exceptions : « Les exceptions par personne demandent l'accès au module Membres. »"
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "droits",
+   "conformite-droits",
+   "nettoyage"
+  ]
+ },
+ {
+  "id": "ADM-34",
+  "groupe": "Accès & administration",
+  "ecran": "Paramètres",
+  "module": "/parametres",
+  "compte": "auditeur",
+  "titre": "L'auditeur n'a pas accès aux Paramètres",
+  "objectif": "Les réglages et la matrice restent hors de portée d'un externe.",
+  "prealable": "Droits par défaut.",
+  "etapes": [
+   "Se connecter en auditeur.test.",
+   "Taper /parametres?onglet=roles."
+  ],
+  "attendu": [
+   "« Accès refusé » : « Le module « Paramètres » ne vous est pas ouvert… »",
+   "Aucune case de la matrice n'est visible."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "droits",
+   "securite"
+  ]
+ },
+ {
+  "id": "ADM-35",
+  "groupe": "Accès & administration",
+  "ecran": "Paramètres — Déploiement",
+  "module": "/parametres",
+  "compte": "superadmin",
+  "titre": "Onglet Déploiement : variables sans leurs valeurs",
+  "objectif": "Le technique voit ce qui est configuré sans jamais exposer un secret.",
+  "prealable": "—",
+  "etapes": [
+   "Se connecter en superadmin.test, ouvrir Paramètres, onglet « Déploiement ».",
+   "Lire le tableau.",
+   "Se connecter en dg.test et ouvrir /parametres?onglet=deploiement."
+  ],
+  "attendu": [
+   "Libellé « super administrateur · lecture seule » ; colonnes Variable, État, Rôle, Si absente.",
+   "États « définie », « non définie » ou « active » ; aucune valeur de clé affichée.",
+   "AUTH_DEV_BYPASS « non définie » et pas de drapeau « AUTH_DEV_BYPASS actif ».",
+   "DG : pas d'onglet « Déploiement », aucun contenu technique."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "securite",
+   "droits"
+  ]
+ },
+ {
+  "id": "ADM-36",
+  "groupe": "Accès & administration",
+  "ecran": "Journal d'activité",
+  "module": "/journal",
+  "compte": "dg",
+  "titre": "Filtrer, ouvrir et exporter le journal",
+  "objectif": "Tracer qui a fait quoi, et le remettre à l'auditeur.",
+  "prealable": "Les scénarios de droits précédents ont produit des événements.",
+  "etapes": [
+   "Ouvrir Journal d'activité (fenêtre « 30 derniers jours »).",
+   "Famille « Accès » puis action « Droits des rôles » ; taper « Comptable » dans « Cible, détail, IP… ».",
+   "Cliquer une ligne.",
+   "Cliquer « Exporter (n) »."
+  ],
+  "attendu": [
+   "Drapeau « Lecture seule · niveau 7 » ; aucun bouton de modification ou de suppression.",
+   "Filtres cumulés ; compteur « n événement(s) ».",
+   "Détail : Auteur, Cible, Détail, Statut HTTP, Adresse IP, Identifiant.",
+   "Fichier journal-2026-09-28.csv, point-virgule, accents corrects sous Excel."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "journal",
+   "export"
+  ]
+ },
+ {
+  "id": "ADM-37",
+  "groupe": "Accès & administration",
+  "ecran": "Journal d'activité",
+  "module": "/journal",
+  "compte": "dg",
+  "titre": "Connexions tracées, dont les tentatives en attente",
+  "objectif": "Chaque ouverture de session doit laisser une trace.",
+  "prealable": "ADM-01 et ADM-06 réalisés aujourd'hui.",
+  "etapes": [
+   "Fenêtre « 24 dernières heures », action « Connexion ».",
+   "Puis action « Connexion (compte en attente) »."
+  ],
+  "attendu": [
+   "Une ligne par connexion, auteur = le membre, détail = son rôle (ex. « Employé »).",
+   "La connexion du compte en attente porte « en attente d'autorisation ».",
+   "Un mot de passe erroné (ADM-03) ne crée pas de connexion."
+  ],
+  "gravite": "mineur",
+  "tags": [
+   "journal",
+   "connexion"
+  ]
+ },
+ {
+  "id": "ADM-38",
+  "groupe": "Accès & administration",
+  "ecran": "Journal d'activité",
+  "module": "/journal",
+  "compte": "auditeur",
+  "titre": "L'auditeur n'ouvre pas le journal",
+  "objectif": "Décision du 28/09 : le journal est réservé à la direction.",
+  "prealable": "Droits par défaut.",
+  "etapes": [
+   "Se connecter en auditeur.test ; taper /journal."
+  ],
+  "attendu": [
+   "« Accès refusé » : « Le module « Journal d'activité » ne vous est pas ouvert… »",
+   "Aucune entrée « Journal d'activité » dans le menu."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "droits"
+  ]
+ },
+ {
+  "id": "ADM-39",
+  "groupe": "Accès & administration",
+  "ecran": "Fiche API",
+  "module": "/api-readme",
+  "compte": "superadmin",
+  "titre": "Fiche API réservée au technique",
+  "objectif": "La documentation d'export financier n'est pas un outil métier.",
+  "prealable": "—",
+  "etapes": [
+   "En superadmin.test, ouvrir « Fiche API ».",
+   "Parcourir les onglets « Utiliser l'API », « Codes de réponse », « Proxy & sécurité », « Derniers appels ».",
+   "Cliquer « Copier » sur un extrait, puis « Journal des appels ».",
+   "En dg.test, taper /api-readme."
+  ],
+  "attendu": [
+   "Drapeau « Clé backend configurée » ou « Clé backend absente — API en 503 » ; la clé n'est jamais affichée.",
+   "« Copier » devient « Copié ».",
+   "« Journal des appels » ouvre le journal pré-filtré sur les appels API.",
+   "DG : « Accès refusé — Ce module ne vous est pas ouvert… »"
+  ],
+  "gravite": "mineur",
+  "tags": [
+   "droits",
+   "securite"
+  ]
+ },
+ {
+  "id": "ADM-40",
+  "groupe": "Accès & administration",
+  "ecran": "Mes bulletins",
+  "module": "/mes-bulletins",
+  "compte": "employe",
+  "titre": "Consulter et télécharger son bulletin clôturé",
+  "objectif": "L'employé récupère lui-même ses bulletins validés.",
+  "prealable": "employe.test relié à E001 (ABAMI) ; août 2026 clôturé, septembre 2026 ouvert.",
+  "etapes": [
+   "En employe.test, ouvrir « Mes bulletins ».",
+   "Lire la description et la liste « Mois disponibles ».",
+   "Cliquer « Août 2026 », puis « Télécharger le PDF »."
+  ],
+  "attendu": [
+   "Description « ABAMI … · E001 · … ».",
+   "« Août 2026 » présent avec Net à payer, brut et retenues ; « Septembre 2026 » absent (mois ouvert).",
+   "Aperçu « Bulletin de Août 2026 » au format A4.",
+   "Le PDF téléchargé est celui d'ABAMI pour août 2026."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "impression",
+   "paie"
+  ]
+ },
+ {
+  "id": "ADM-41",
+  "groupe": "Accès & administration",
+  "ecran": "Mes bulletins",
+  "module": "/mes-bulletins",
+  "compte": "chef",
+  "titre": "Compte non relié à une fiche employé, puis lien par le DG",
+  "objectif": "Sans lien, l'écran explique quoi faire ; le DG fait le lien dans Membres.",
+  "prealable": "chef.test sans fiche employé liée ni fiche au même e-mail.",
+  "etapes": [
+   "En chef.test, ouvrir « Mes bulletins ».",
+   "En DG, Membres → fiche de chef.test → « Fiche employé » : choisir un employé → « Enregistrer ».",
+   "En chef.test, revenir sur « Mes bulletins ».",
+   "Nettoyage : en DG, remettre « Fiche employé » à « — aucune — » et « Enregistrer »."
+  ],
+  "attendu": [
+   "« Votre compte n'est relié à aucune fiche employé » avec la consigne de s'adresser à la Direction.",
+   "Après le lien, les bulletins clôturés de cet employé apparaissent.",
+   "Journal : « fiche employé liée : … » puis « fiche employé déliée »."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "paie",
+   "journal",
+   "nettoyage"
+  ]
+ },
+ {
+  "id": "ADM-42",
+  "groupe": "Accès & administration",
+  "ecran": "Mes bulletins",
+  "module": "/mes-bulletins",
+  "compte": "auditeur",
+  "titre": "Mes bulletins fermé à l'auditeur",
+  "objectif": "Un externe n'a pas de bulletin personnel.",
+  "prealable": "Droits par défaut.",
+  "etapes": [
+   "En auditeur.test, taper /mes-bulletins."
+  ],
+  "attendu": [
+   "« Accès refusé » : « Le module « Mes bulletins » ne vous est pas ouvert… »"
+  ],
+  "gravite": "mineur",
+  "tags": [
+   "droits"
+  ]
+ },
+ {
+  "id": "ADM-43",
+  "groupe": "Accès & administration — Mobile",
+  "ecran": "Connexion (mobile)",
+  "module": "/connexion",
+  "compte": "employe",
+  "titre": "Connexion sur téléphone (390 px)",
+  "objectif": "Le personnel se connecte d'abord depuis son téléphone.",
+  "prealable": "Navigateur réglé à 390 px de large (ou téléphone réel).",
+  "etapes": [
+   "Ouvrir /connexion.",
+   "Onglet « Numéro de téléphone », saisir le numéro d'employe.test et Poitiers2026.",
+   "Cliquer « Se connecter »."
+  ],
+  "attendu": [
+   "La modale tient dans la largeur, sans défilement horizontal ; les deux onglets sont lisibles.",
+   "Le clavier numérique s'ouvre pour le téléphone.",
+   "Le Tableau de bord s'affiche sans défilement horizontal, tuiles de chiffres deux par ligne."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "mobile",
+   "connexion"
+  ]
+ },
+ {
+  "id": "ADM-44",
+  "groupe": "Accès & administration — Mobile",
+  "ecran": "Coquille — menu (mobile)",
+  "module": "/",
+  "compte": "rh",
+  "titre": "Menu en tiroir sur téléphone",
+  "objectif": "La navigation reste possible sans barre latérale.",
+  "prealable": "Connecté en rh.test, largeur 390 px.",
+  "etapes": [
+   "Vérifier l'absence de barre latérale fixe.",
+   "Toucher l'icône « Ouvrir le menu de navigation ».",
+   "Toucher « Bulletins du mois ».",
+   "Rouvrir le tiroir et toucher « Se déconnecter »."
+  ],
+  "attendu": [
+   "Le tiroir s'ouvre à gauche avec les mêmes groupes que sur ordinateur (dont « Paie »).",
+   "Le tiroir se ferme au toucher d'une entrée ; la page s'ouvre, titre dans l'en-tête.",
+   "La déconnexion ramène à la connexion."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "mobile",
+   "menu"
+  ]
+ },
+ {
+  "id": "ADM-45",
+  "groupe": "Accès & administration — Mobile",
+  "ecran": "Mes bulletins (mobile)",
+  "module": "/mes-bulletins",
+  "compte": "employe",
+  "titre": "Mes bulletins sur téléphone",
+  "objectif": "Un bulletin se consulte et se télécharge en un geste sur mobile.",
+  "prealable": "Comme ADM-40 ; largeur 390 px.",
+  "etapes": [
+   "Ouvrir « Mes bulletins » via le tiroir.",
+   "Toucher la carte « Août 2026 ».",
+   "Toucher « Télécharger le PDF »."
+  ],
+  "attendu": [
+   "Une carte par mois, pleine largeur, montant net lisible.",
+   "L'aperçu A4 se réduit à la largeur de l'écran, sans défilement horizontal de la page.",
+   "Le PDF s'ouvre ou se télécharge sur le téléphone."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "mobile",
+   "impression"
+  ]
+ }
+]

@@ -1,0 +1,1046 @@
+{
+ "genereLe": "2026-09-28T15:03:24.223Z",
+ "lignes": [
+  {
+   "cle": "/",
+   "libelle": "Tableau de bord",
+   "menu": "Tableau de bord",
+   "voir": "Tableau de bord",
+   "faire": null
+  },
+  {
+   "cle": "/comptes-rendus",
+   "libelle": "Comptes rendus",
+   "menu": "Comptes rendus",
+   "voir": "Rédiger et suivre ses comptes rendus",
+   "faire": "Superviser l'équipe (taux, validation)"
+  },
+  {
+   "cle": "/interventions",
+   "libelle": "Interventions",
+   "menu": "Interventions",
+   "voir": "Consulter, déclarer, commenter",
+   "faire": "Valider, clôturer, rejeter"
+  },
+  {
+   "cle": "/documents",
+   "libelle": "Documents",
+   "menu": "Documents",
+   "voir": "Consulter (selon le niveau de chaque document)",
+   "faire": "Déposer, supprimer ses dépôts"
+  },
+  {
+   "cle": "/documents/confidentiels",
+   "libelle": "Documents confidentiels",
+   "menu": null,
+   "voir": "Lire les documents confidentiels",
+   "faire": "Déposer un document confidentiel"
+  },
+  {
+   "cle": "/employes",
+   "libelle": "Employés",
+   "menu": "Employés",
+   "voir": "Consulter les fiches",
+   "faire": "Créer, modifier, importer"
+  },
+  {
+   "cle": "/commandes",
+   "libelle": "Commandes",
+   "menu": "Commandes",
+   "voir": "Consulter",
+   "faire": "Créer, modifier, commenter, livrer"
+  },
+  {
+   "cle": "/commandes/validation",
+   "libelle": "Validation des commandes",
+   "menu": null,
+   "voir": null,
+   "faire": "Valider ou rejeter une commande"
+  },
+  {
+   "cle": "/statistiques",
+   "libelle": "Caisse & primes médecins",
+   "menu": "Caisse & primes médecins",
+   "voir": "Consulter",
+   "faire": "Saisir, importer, supprimer"
+  },
+  {
+   "cle": "/statistiques/deverrouillage",
+   "libelle": "Caisse & primes : modifier après le délai",
+   "menu": null,
+   "voir": null,
+   "faire": "Corriger ou supprimer une ligne verrouillée (délai réglé dans Paramètres)"
+  },
+  {
+   "cle": "/mes-bulletins",
+   "libelle": "Mes bulletins",
+   "menu": "Mes bulletins",
+   "voir": "Consulter et télécharger ses propres bulletins (mois clôturés)",
+   "faire": null
+  },
+  {
+   "cle": "/paie/saisie",
+   "libelle": "Récapitulatif salaires",
+   "menu": "Récapitulatif salaires",
+   "voir": "Consulter",
+   "faire": "Saisir le mois"
+  },
+  {
+   "cle": "/paie/bulletins",
+   "libelle": "Bulletins du mois",
+   "menu": "Bulletins du mois",
+   "voir": "Consulter, imprimer, PDF",
+   "faire": "Générer et clôturer le mois"
+  },
+  {
+   "cle": "/paie/liste",
+   "libelle": "Liste des salaires",
+   "menu": "Liste des salaires",
+   "voir": "Consulter, imprimer",
+   "faire": null
+  },
+  {
+   "cle": "/paie/courrier",
+   "libelle": "Courrier de paie",
+   "menu": "Courrier de paie",
+   "voir": "Consulter, imprimer",
+   "faire": "Envoyer, modifier la lettre"
+  },
+  {
+   "cle": "/paie/planning",
+   "libelle": "Planning des absences",
+   "menu": "Planning des absences",
+   "voir": "Consulter",
+   "faire": "Saisir, synchroniser la paie"
+  },
+  {
+   "cle": "/paie/primes",
+   "libelle": "Primes & retenues",
+   "menu": "Primes & retenues (paie)",
+   "voir": "Consulter",
+   "faire": "Ajouter, modifier, supprimer"
+  },
+  {
+   "cle": "/paie/archives",
+   "libelle": "Archives de paie",
+   "menu": "Archives",
+   "voir": "Consulter les mois clôturés",
+   "faire": "Générer les PDF"
+  },
+  {
+   "cle": "/bareme",
+   "libelle": "Barème",
+   "menu": "Barème",
+   "voir": "Consulter, contrôler la source",
+   "faire": "Publier une nouvelle version"
+  },
+  {
+   "cle": "/financier",
+   "libelle": "Récapitulatif financier (grand livre)",
+   "menu": "Récapitulatif financier",
+   "voir": "Consulter",
+   "faire": "Saisir la journée, justificatifs, clôturer"
+  },
+  {
+   "cle": "/audit",
+   "libelle": "Audit",
+   "menu": "Audit confidentiel",
+   "voir": "Consulter",
+   "faire": "Saisir, rapports"
+  },
+  {
+   "cle": "/membres",
+   "libelle": "Membres",
+   "menu": "Membres",
+   "voir": "Consulter",
+   "faire": "Créer, modifier, rôles (jusqu'à son niveau)"
+  },
+  {
+   "cle": "/parametres",
+   "libelle": "Paramètres",
+   "menu": "Paramètres",
+   "voir": "Consulter",
+   "faire": "Modifier, dont ces droits"
+  },
+  {
+   "cle": "/journal",
+   "libelle": "Journal d'activité",
+   "menu": "Journal d'activité",
+   "voir": "Consulter, exporter",
+   "faire": null
+  },
+  {
+   "cle": "/api-readme",
+   "libelle": "Fiche API",
+   "menu": "Fiche API",
+   "voir": "Technique",
+   "faire": null
+  }
+ ],
+ "comptes": [
+  {
+   "id": "employe",
+   "role": "employe",
+   "libelle": "Employé",
+   "telephone": "+237 6 90 00 00 06",
+   "droits": {
+    "/": {
+     "voir": true,
+     "faire": false
+    },
+    "/comptes-rendus": {
+     "voir": true,
+     "faire": false
+    },
+    "/interventions": {
+     "voir": true,
+     "faire": false
+    },
+    "/documents": {
+     "voir": true,
+     "faire": true
+    },
+    "/documents/confidentiels": {
+     "voir": false,
+     "faire": false
+    },
+    "/employes": {
+     "voir": false,
+     "faire": false
+    },
+    "/commandes": {
+     "voir": false,
+     "faire": false
+    },
+    "/commandes/validation": {
+     "voir": false,
+     "faire": false
+    },
+    "/statistiques": {
+     "voir": false,
+     "faire": false
+    },
+    "/statistiques/deverrouillage": {
+     "voir": false,
+     "faire": false
+    },
+    "/mes-bulletins": {
+     "voir": true,
+     "faire": false
+    },
+    "/paie/saisie": {
+     "voir": false,
+     "faire": false
+    },
+    "/paie/bulletins": {
+     "voir": false,
+     "faire": false
+    },
+    "/paie/liste": {
+     "voir": false,
+     "faire": false
+    },
+    "/paie/courrier": {
+     "voir": false,
+     "faire": false
+    },
+    "/paie/planning": {
+     "voir": false,
+     "faire": false
+    },
+    "/paie/primes": {
+     "voir": false,
+     "faire": false
+    },
+    "/paie/archives": {
+     "voir": false,
+     "faire": false
+    },
+    "/bareme": {
+     "voir": false,
+     "faire": false
+    },
+    "/financier": {
+     "voir": false,
+     "faire": false
+    },
+    "/audit": {
+     "voir": false,
+     "faire": false
+    },
+    "/membres": {
+     "voir": false,
+     "faire": false
+    },
+    "/parametres": {
+     "voir": false,
+     "faire": false
+    },
+    "/journal": {
+     "voir": false,
+     "faire": false
+    },
+    "/api-readme": {
+     "voir": false,
+     "faire": false
+    }
+   }
+  },
+  {
+   "id": "chef",
+   "role": "chef_equipe",
+   "libelle": "Chef d'équipe",
+   "telephone": "+237 6 90 00 00 02",
+   "droits": {
+    "/": {
+     "voir": true,
+     "faire": false
+    },
+    "/comptes-rendus": {
+     "voir": true,
+     "faire": true
+    },
+    "/interventions": {
+     "voir": true,
+     "faire": false
+    },
+    "/documents": {
+     "voir": true,
+     "faire": true
+    },
+    "/documents/confidentiels": {
+     "voir": false,
+     "faire": false
+    },
+    "/employes": {
+     "voir": false,
+     "faire": false
+    },
+    "/commandes": {
+     "voir": false,
+     "faire": false
+    },
+    "/commandes/validation": {
+     "voir": false,
+     "faire": false
+    },
+    "/statistiques": {
+     "voir": false,
+     "faire": false
+    },
+    "/statistiques/deverrouillage": {
+     "voir": false,
+     "faire": false
+    },
+    "/mes-bulletins": {
+     "voir": true,
+     "faire": false
+    },
+    "/paie/saisie": {
+     "voir": false,
+     "faire": false
+    },
+    "/paie/bulletins": {
+     "voir": false,
+     "faire": false
+    },
+    "/paie/liste": {
+     "voir": false,
+     "faire": false
+    },
+    "/paie/courrier": {
+     "voir": false,
+     "faire": false
+    },
+    "/paie/planning": {
+     "voir": false,
+     "faire": false
+    },
+    "/paie/primes": {
+     "voir": false,
+     "faire": false
+    },
+    "/paie/archives": {
+     "voir": false,
+     "faire": false
+    },
+    "/bareme": {
+     "voir": false,
+     "faire": false
+    },
+    "/financier": {
+     "voir": false,
+     "faire": false
+    },
+    "/audit": {
+     "voir": false,
+     "faire": false
+    },
+    "/membres": {
+     "voir": false,
+     "faire": false
+    },
+    "/parametres": {
+     "voir": false,
+     "faire": false
+    },
+    "/journal": {
+     "voir": false,
+     "faire": false
+    },
+    "/api-readme": {
+     "voir": false,
+     "faire": false
+    }
+   }
+  },
+  {
+   "id": "comptable",
+   "role": "comptable",
+   "libelle": "Comptable",
+   "telephone": "+237 6 90 00 00 03",
+   "droits": {
+    "/": {
+     "voir": true,
+     "faire": false
+    },
+    "/comptes-rendus": {
+     "voir": true,
+     "faire": true
+    },
+    "/interventions": {
+     "voir": true,
+     "faire": false
+    },
+    "/documents": {
+     "voir": true,
+     "faire": true
+    },
+    "/documents/confidentiels": {
+     "voir": false,
+     "faire": false
+    },
+    "/employes": {
+     "voir": true,
+     "faire": false
+    },
+    "/commandes": {
+     "voir": true,
+     "faire": true
+    },
+    "/commandes/validation": {
+     "voir": false,
+     "faire": false
+    },
+    "/statistiques": {
+     "voir": true,
+     "faire": true
+    },
+    "/statistiques/deverrouillage": {
+     "voir": false,
+     "faire": false
+    },
+    "/mes-bulletins": {
+     "voir": true,
+     "faire": false
+    },
+    "/paie/saisie": {
+     "voir": false,
+     "faire": false
+    },
+    "/paie/bulletins": {
+     "voir": false,
+     "faire": false
+    },
+    "/paie/liste": {
+     "voir": false,
+     "faire": false
+    },
+    "/paie/courrier": {
+     "voir": false,
+     "faire": false
+    },
+    "/paie/planning": {
+     "voir": false,
+     "faire": false
+    },
+    "/paie/primes": {
+     "voir": false,
+     "faire": false
+    },
+    "/paie/archives": {
+     "voir": false,
+     "faire": false
+    },
+    "/bareme": {
+     "voir": false,
+     "faire": false
+    },
+    "/financier": {
+     "voir": true,
+     "faire": true
+    },
+    "/audit": {
+     "voir": false,
+     "faire": false
+    },
+    "/membres": {
+     "voir": false,
+     "faire": false
+    },
+    "/parametres": {
+     "voir": false,
+     "faire": false
+    },
+    "/journal": {
+     "voir": false,
+     "faire": false
+    },
+    "/api-readme": {
+     "voir": false,
+     "faire": false
+    }
+   }
+  },
+  {
+   "id": "rh",
+   "role": "gestionnaire_rh",
+   "libelle": "Gestionnaire RH",
+   "telephone": "+237 6 90 00 00 07",
+   "droits": {
+    "/": {
+     "voir": true,
+     "faire": false
+    },
+    "/comptes-rendus": {
+     "voir": true,
+     "faire": true
+    },
+    "/interventions": {
+     "voir": true,
+     "faire": false
+    },
+    "/documents": {
+     "voir": true,
+     "faire": true
+    },
+    "/documents/confidentiels": {
+     "voir": false,
+     "faire": false
+    },
+    "/employes": {
+     "voir": true,
+     "faire": true
+    },
+    "/commandes": {
+     "voir": true,
+     "faire": true
+    },
+    "/commandes/validation": {
+     "voir": false,
+     "faire": false
+    },
+    "/statistiques": {
+     "voir": true,
+     "faire": true
+    },
+    "/statistiques/deverrouillage": {
+     "voir": false,
+     "faire": false
+    },
+    "/mes-bulletins": {
+     "voir": true,
+     "faire": false
+    },
+    "/paie/saisie": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/bulletins": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/liste": {
+     "voir": true,
+     "faire": false
+    },
+    "/paie/courrier": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/planning": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/primes": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/archives": {
+     "voir": true,
+     "faire": true
+    },
+    "/bareme": {
+     "voir": true,
+     "faire": false
+    },
+    "/financier": {
+     "voir": false,
+     "faire": false
+    },
+    "/audit": {
+     "voir": false,
+     "faire": false
+    },
+    "/membres": {
+     "voir": false,
+     "faire": false
+    },
+    "/parametres": {
+     "voir": false,
+     "faire": false
+    },
+    "/journal": {
+     "voir": false,
+     "faire": false
+    },
+    "/api-readme": {
+     "voir": false,
+     "faire": false
+    }
+   }
+  },
+  {
+   "id": "daf",
+   "role": "da1",
+   "libelle": "Directeur Administratif (DAF)",
+   "telephone": "+237 6 90 00 00 04",
+   "droits": {
+    "/": {
+     "voir": true,
+     "faire": false
+    },
+    "/comptes-rendus": {
+     "voir": true,
+     "faire": true
+    },
+    "/interventions": {
+     "voir": true,
+     "faire": true
+    },
+    "/documents": {
+     "voir": true,
+     "faire": true
+    },
+    "/documents/confidentiels": {
+     "voir": true,
+     "faire": true
+    },
+    "/employes": {
+     "voir": true,
+     "faire": true
+    },
+    "/commandes": {
+     "voir": true,
+     "faire": true
+    },
+    "/commandes/validation": {
+     "voir": true,
+     "faire": true
+    },
+    "/statistiques": {
+     "voir": true,
+     "faire": true
+    },
+    "/statistiques/deverrouillage": {
+     "voir": false,
+     "faire": false
+    },
+    "/mes-bulletins": {
+     "voir": true,
+     "faire": false
+    },
+    "/paie/saisie": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/bulletins": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/liste": {
+     "voir": true,
+     "faire": false
+    },
+    "/paie/courrier": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/planning": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/primes": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/archives": {
+     "voir": true,
+     "faire": true
+    },
+    "/bareme": {
+     "voir": true,
+     "faire": false
+    },
+    "/financier": {
+     "voir": true,
+     "faire": true
+    },
+    "/audit": {
+     "voir": false,
+     "faire": false
+    },
+    "/membres": {
+     "voir": false,
+     "faire": false
+    },
+    "/parametres": {
+     "voir": false,
+     "faire": false
+    },
+    "/journal": {
+     "voir": false,
+     "faire": false
+    },
+    "/api-readme": {
+     "voir": false,
+     "faire": false
+    }
+   }
+  },
+  {
+   "id": "dg",
+   "role": "dg",
+   "libelle": "Directeur Général (Admin)",
+   "telephone": "+237 6 90 00 00 05",
+   "droits": {
+    "/": {
+     "voir": true,
+     "faire": false
+    },
+    "/comptes-rendus": {
+     "voir": true,
+     "faire": true
+    },
+    "/interventions": {
+     "voir": true,
+     "faire": true
+    },
+    "/documents": {
+     "voir": true,
+     "faire": true
+    },
+    "/documents/confidentiels": {
+     "voir": true,
+     "faire": true
+    },
+    "/employes": {
+     "voir": true,
+     "faire": true
+    },
+    "/commandes": {
+     "voir": true,
+     "faire": true
+    },
+    "/commandes/validation": {
+     "voir": true,
+     "faire": true
+    },
+    "/statistiques": {
+     "voir": true,
+     "faire": true
+    },
+    "/statistiques/deverrouillage": {
+     "voir": true,
+     "faire": true
+    },
+    "/mes-bulletins": {
+     "voir": true,
+     "faire": false
+    },
+    "/paie/saisie": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/bulletins": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/liste": {
+     "voir": true,
+     "faire": false
+    },
+    "/paie/courrier": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/planning": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/primes": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/archives": {
+     "voir": true,
+     "faire": true
+    },
+    "/bareme": {
+     "voir": true,
+     "faire": true
+    },
+    "/financier": {
+     "voir": true,
+     "faire": true
+    },
+    "/audit": {
+     "voir": true,
+     "faire": true
+    },
+    "/membres": {
+     "voir": true,
+     "faire": true
+    },
+    "/parametres": {
+     "voir": true,
+     "faire": true
+    },
+    "/journal": {
+     "voir": true,
+     "faire": false
+    },
+    "/api-readme": {
+     "voir": false,
+     "faire": false
+    }
+   }
+  },
+  {
+   "id": "superadmin",
+   "role": "super_admin",
+   "libelle": "Super administrateur (technique)",
+   "telephone": "+237 6 90 00 00 08",
+   "droits": {
+    "/": {
+     "voir": true,
+     "faire": false
+    },
+    "/comptes-rendus": {
+     "voir": true,
+     "faire": true
+    },
+    "/interventions": {
+     "voir": true,
+     "faire": true
+    },
+    "/documents": {
+     "voir": true,
+     "faire": true
+    },
+    "/documents/confidentiels": {
+     "voir": true,
+     "faire": true
+    },
+    "/employes": {
+     "voir": true,
+     "faire": true
+    },
+    "/commandes": {
+     "voir": true,
+     "faire": true
+    },
+    "/commandes/validation": {
+     "voir": true,
+     "faire": true
+    },
+    "/statistiques": {
+     "voir": true,
+     "faire": true
+    },
+    "/statistiques/deverrouillage": {
+     "voir": true,
+     "faire": true
+    },
+    "/mes-bulletins": {
+     "voir": true,
+     "faire": false
+    },
+    "/paie/saisie": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/bulletins": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/liste": {
+     "voir": true,
+     "faire": false
+    },
+    "/paie/courrier": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/planning": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/primes": {
+     "voir": true,
+     "faire": true
+    },
+    "/paie/archives": {
+     "voir": true,
+     "faire": true
+    },
+    "/bareme": {
+     "voir": true,
+     "faire": true
+    },
+    "/financier": {
+     "voir": true,
+     "faire": true
+    },
+    "/audit": {
+     "voir": true,
+     "faire": true
+    },
+    "/membres": {
+     "voir": true,
+     "faire": true
+    },
+    "/parametres": {
+     "voir": true,
+     "faire": true
+    },
+    "/journal": {
+     "voir": true,
+     "faire": false
+    },
+    "/api-readme": {
+     "voir": true,
+     "faire": true
+    }
+   }
+  },
+  {
+   "id": "auditeur",
+   "role": "auditeur_externe",
+   "libelle": "Auditeur Externe",
+   "telephone": "+237 6 90 00 00 01",
+   "droits": {
+    "/": {
+     "voir": true,
+     "faire": false
+    },
+    "/comptes-rendus": {
+     "voir": false,
+     "faire": false
+    },
+    "/interventions": {
+     "voir": true,
+     "faire": false
+    },
+    "/documents": {
+     "voir": false,
+     "faire": false
+    },
+    "/documents/confidentiels": {
+     "voir": false,
+     "faire": false
+    },
+    "/employes": {
+     "voir": true,
+     "faire": false
+    },
+    "/commandes": {
+     "voir": true,
+     "faire": false
+    },
+    "/commandes/validation": {
+     "voir": false,
+     "faire": false
+    },
+    "/statistiques": {
+     "voir": true,
+     "faire": false
+    },
+    "/statistiques/deverrouillage": {
+     "voir": false,
+     "faire": false
+    },
+    "/mes-bulletins": {
+     "voir": false,
+     "faire": false
+    },
+    "/paie/saisie": {
+     "voir": true,
+     "faire": false
+    },
+    "/paie/bulletins": {
+     "voir": true,
+     "faire": false
+    },
+    "/paie/liste": {
+     "voir": true,
+     "faire": false
+    },
+    "/paie/courrier": {
+     "voir": true,
+     "faire": false
+    },
+    "/paie/planning": {
+     "voir": true,
+     "faire": false
+    },
+    "/paie/primes": {
+     "voir": true,
+     "faire": false
+    },
+    "/paie/archives": {
+     "voir": false,
+     "faire": false
+    },
+    "/bareme": {
+     "voir": true,
+     "faire": false
+    },
+    "/financier": {
+     "voir": true,
+     "faire": false
+    },
+    "/audit": {
+     "voir": true,
+     "faire": true
+    },
+    "/membres": {
+     "voir": true,
+     "faire": false
+    },
+    "/parametres": {
+     "voir": false,
+     "faire": false
+    },
+    "/journal": {
+     "voir": false,
+     "faire": false
+    },
+    "/api-readme": {
+     "voir": false,
+     "faire": false
+    }
+   }
+  }
+ ]
+}

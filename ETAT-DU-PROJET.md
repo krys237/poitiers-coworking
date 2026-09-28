@@ -119,6 +119,14 @@ Déploiement Convex de production · domaine, HTTPS et proxy API (**butoir 3/10*
 suppression de `legacy.css` · recette d'impression comparée · passation (guide par rôle, procédure de secours) ·
 répétition de mise en service le 9 · **mise en service le 10** · rapport final.
 
+### Cahier de recette n°3 (28/09) — prêt
+`cahier-de-recette.html` à la racine : **152 scénarios** (8 « droits par compte » générés depuis `rbac.ts`, 42+3 accès &
+administration dont mobile, 49 paie, 50 exploitation & finances), chacun avec le compte de test à utiliser, les étapes,
+le résultat attendu, une colonne « Attendu du propriétaire », le statut OK / KO / bloqué et une remarque ; progression
+gardée dans le navigateur, **export CSV** des résultats, impression. 18 scénarios `conformite-droits` échoueront tant
+que le masquage des actions n'est pas fait (attendu). Régénérer : `node design/recette/build.mjs` (sources :
+`design/recette/scenarios-*.json`, `modele.html`). Les cahiers n°1 et n°2 sont archivés dans `design/recette/anciens/`.
+
 ### À intégrer au cahier de recette (noté le 28/09)
 - **Règle du propriétaire : retirer un droit, c'est faire disparaître les actions qui en dépendent.** Quand le
   directeur retire un droit (Paramètres → Rôles & accès), que ce soit **à un rôle** (donc à tout ce niveau d'accès)

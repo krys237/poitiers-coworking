@@ -1,0 +1,1293 @@
+[
+  {
+    "id": "PAIE-01",
+    "groupe": "Paie",
+    "ecran": "Employés",
+    "module": "/employes",
+    "compte": "rh",
+    "titre": "Registre des employés : tuiles, filtres et recherche",
+    "objectif": "Le registre qui alimente toute la paie doit s'afficher complet et se filtrer sans erreur.",
+    "prealable": "Connecté en rh.test@poitiers.local. 10 employés actifs (E001 à E010).",
+    "etapes": [
+      "Ouvrir /employes.",
+      "Lire les quatre tuiles puis les en-têtes de colonnes du tableau.",
+      "Cliquer successivement les onglets « Toutes », « SESAME », « SOFINA », « SGC ».",
+      "Revenir sur « Toutes », choisir « Inactifs » puis « Tous » dans la liste d'état, puis revenir sur « Actifs ».",
+      "Taper « abami » (sans majuscule) dans « Nom, matricule, fonction, CNPS… »."
+    ],
+    "attendu": [
+      "Titre « Employés » ; tuiles « Effectif actif » (10), « Par société » (au format SESAME · SOFINA · SGC), « Masse brute de référence », « Fiches à compléter ».",
+      "Colonnes : Matricule, Noms et prénoms, Fonction, Société, Brut mensuel (FCFA), Date d'entrée, N° CNPS, État.",
+      "Chaque onglet société affiche son compteur et ne montre que les employés de la société choisie.",
+      "La recherche ne garde qu'une ligne : E001 · ABAMI Rosine Belie · SESAME · 106 950 · 01/03/2021 · « Actif ».",
+      "Un employé sans n° CNPS affiche la pastille « à renseigner »."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "employes",
+      "lecture"
+    ]
+  },
+  {
+    "id": "PAIE-02",
+    "groupe": "Paie",
+    "ecran": "Employés",
+    "module": "/employes",
+    "compte": "rh",
+    "titre": "Saisie en série : deux employés de recette par la ligne permanente",
+    "objectif": "Créer plusieurs fiches à la suite sans rouvrir de fenêtre (ligne de saisie en tête du tableau).",
+    "prealable": "Le bouton « Masquer les champs » est visible (champs persistants actifs, réglage par défaut de l'écran). Les matricules R01 et R02 n'existent pas.",
+    "etapes": [
+      "Dans la ligne de saisie : Matricule « R01 », Noms et prénoms « recette paie un », Fonction « Agent test », Société « SGC », Brut 150 000, Date d'entrée 01/01/2026, puis appuyer sur Entrée.",
+      "Sans rien cliquer d'autre : Matricule « R02 », Noms et prénoms « recette paie deux », Brut 200 000, laisser la date d'entrée vide, cliquer le bouton « + » (« Ajouter l'employé »)."
+    ],
+    "attendu": [
+      "Notification « RECETTE PAIE UN ajouté à l'effectif » avec « R01 · SGC · complétez CNPS et adresse dans la fiche ».",
+      "Le nom est enregistré en majuscules ; la ligne se vide, la société SGC est conservée et le curseur revient dans « Matricule ».",
+      "R02 est créé de la même façon ; « Effectif actif » passe à 12.",
+      "L'en-tête affiche un signal « … sans date d'entrée · … sans n° CNPS » qui compte R02 (et R01 pour la CNPS)."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "employes",
+      "saisie-en-serie"
+    ]
+  },
+  {
+    "id": "PAIE-03",
+    "groupe": "Paie",
+    "ecran": "Employés",
+    "module": "/employes",
+    "compte": "rh",
+    "titre": "Garde-fous de la ligne de saisie",
+    "objectif": "Une fiche incomplète ou à salaire nul ne doit jamais entrer dans le registre.",
+    "prealable": "PAIE-02 exécuté.",
+    "etapes": [
+      "Laisser Matricule vide, saisir un nom et un brut de 100 000, appuyer sur Entrée.",
+      "Saisir Matricule « R09 », un nom, laisser le brut à 0, appuyer sur Entrée.",
+      "Saisir quelques caractères dans la ligne puis appuyer sur Échap."
+    ],
+    "attendu": [
+      "Notification d'erreur « Matricule et nom sont requis. » ; aucune ligne créée.",
+      "Notification d'erreur « Le salaire brut doit être supérieur à 0. » ; aucune ligne créée.",
+      "Échap vide toute la ligne et replace le curseur dans « Matricule ».",
+      "« Effectif actif » reste à 12."
+    ],
+    "gravite": "mineur",
+    "tags": [
+      "employes",
+      "controle"
+    ]
+  },
+  {
+    "id": "PAIE-04",
+    "groupe": "Paie",
+    "ecran": "Employés",
+    "module": "/employes",
+    "compte": "rh",
+    "titre": "Date d'entrée saisie directement sur la ligne",
+    "objectif": "Une fiche active sans date d'entrée se complète sur place, sans ouvrir la fiche.",
+    "prealable": "R02 créé sans date d'entrée (PAIE-02).",
+    "etapes": [
+      "Repérer la ligne R02 : la colonne « Date d'entrée » contient un champ date à bordure orangée.",
+      "Choisir la date 01/01/2026 dans ce champ."
+    ],
+    "attendu": [
+      "Notification « Date d'entrée enregistrée — RECETTE PAIE DEUX ».",
+      "La cellule affiche désormais 01/01/2026 en texte.",
+      "Le compteur « sans date d'entrée » de l'en-tête et la tuile « Fiches à compléter » diminuent de 1."
+    ],
+    "gravite": "mineur",
+    "tags": [
+      "employes",
+      "saisie-en-serie"
+    ]
+  },
+  {
+    "id": "PAIE-05",
+    "groupe": "Paie",
+    "ecran": "Employés",
+    "module": "/employes",
+    "compte": "rh",
+    "titre": "Fiche complète : CNPS, e-mail et WhatsApp à indicatif pré-rempli",
+    "objectif": "La fiche complète enregistre les coordonnées utilisées par le bulletin et le courrier de paie.",
+    "prealable": "R01 existe. Disposer d'une boîte e-mail de test accessible au recetteur.",
+    "etapes": [
+      "Cliquer l'icône « Fiche — RECETTE PAIE UN » en fin de ligne.",
+      "Vérifier que Matricule et Noms et prénoms ne sont pas modifiables.",
+      "Saisir N° CNPS « 351-1213677-6 », NIU « M072517858332C », E-mail (courrier de paie) = la boîte de test.",
+      "Dans « WhatsApp (courrier de paie) », constater l'indicatif déjà présent et taper seulement 690000000.",
+      "Cliquer « Enregistrer la fiche », puis rouvrir la fiche."
+    ],
+    "attendu": [
+      "Titre de la fenêtre « Fiche employé — RECETTE PAIE UN » ; description « Matricule R01. Le brut de référence alimente le salaire journalier (brut ÷ 30). ».",
+      "Aide sous le champ WhatsApp : « Indicatif pré-rempli : saisir seulement le numéro » ; l'indicatif +237 n'a pas à être retapé.",
+      "Notification « Fiche de RECETTE PAIE UN enregistrée ».",
+      "À la réouverture : CNPS, NIU, e-mail et le numéro +237 690000000 sont conservés ; dans le tableau, la colonne N° CNPS de R01 affiche le numéro."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "employes",
+      "whatsapp",
+      "telephone"
+    ]
+  },
+  {
+    "id": "PAIE-06",
+    "groupe": "Paie",
+    "ecran": "Employés",
+    "module": "/employes",
+    "compte": "rh",
+    "titre": "Numéro WhatsApp incomplet refusé dans la fiche",
+    "objectif": "Un numéro WhatsApp inexploitable ne doit pas être enregistré.",
+    "prealable": "R02 existe sans numéro WhatsApp.",
+    "etapes": [
+      "Ouvrir la fiche de R02.",
+      "Dans « WhatsApp (courrier de paie) », taper seulement « 69 ».",
+      "Cliquer « Enregistrer la fiche »."
+    ],
+    "attendu": [
+      "Sous le champ, le message « Numéro invalide : indicatif suivi de 8 à 14 chiffres. » s'affiche.",
+      "À l'enregistrement : notification « Fiche non enregistrée » avec le motif du numéro WhatsApp ; la fenêtre reste ouverte.",
+      "Après « Annuler », la fiche de R02 n'a toujours pas de numéro WhatsApp."
+    ],
+    "gravite": "mineur",
+    "tags": [
+      "employes",
+      "whatsapp",
+      "telephone",
+      "controle"
+    ]
+  },
+  {
+    "id": "PAIE-07",
+    "groupe": "Paie",
+    "ecran": "Employés",
+    "module": "/employes",
+    "compte": "rh",
+    "titre": "Import CSV : mise à jour par matricule et WhatsApp sans indicatif",
+    "objectif": "L'import de masse met à jour les fiches existantes, crée les nouvelles et complète l'indicatif +237.",
+    "prealable": "Préparer un fichier recette.csv (séparateur « ; ») avec l'en-tête matricule;nom;fonction;societe;salaire_brut;date_debut;cnps;email;whatsapp et deux lignes : « R01;RECETTE PAIE UN;Agent test importé;SGC;150000;2026-01-01;351-1213677-6;<boîte de test>; » (whatsapp vide) et « R03;RECETTE PAIE TROIS;Agent test;SOFINA;120000;2026-02-01;;;677112233 ». Préparer aussi un fichier vide.csv ne contenant que l'en-tête.",
+    "etapes": [
+      "Cliquer « Importer CSV / Excel » et choisir vide.csv.",
+      "Cliquer « Importer CSV / Excel » et choisir recette.csv.",
+      "Ouvrir la fiche de R03, puis celle de R01."
+    ],
+    "attendu": [
+      "Avec vide.csv : notification d'erreur « Aucune ligne valide dans ce fichier », qui rappelle les colonnes attendues (matricule ; nom ; … ; whatsapp).",
+      "Avec recette.csv : notification « Import terminé : 1 créé(s), 1 mis à jour » avec « Reconnaissance par matricule · les bulletins du mois se recalculent ».",
+      "R03 apparaît (SOFINA, 120 000, 01/02/2026) ; sa fiche porte le WhatsApp +237 677112233 (indicatif ajouté automatiquement).",
+      "R01 porte la fonction « Agent test importé » ; son numéro WhatsApp saisi en PAIE-05 est conservé malgré la colonne vide."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "employes",
+      "import",
+      "whatsapp"
+    ]
+  },
+  {
+    "id": "PAIE-08",
+    "groupe": "Paie",
+    "ecran": "Employés",
+    "module": "/employes",
+    "compte": "rh",
+    "titre": "Retirer un employé de l'effectif puis le réintégrer",
+    "objectif": "Le retrait conserve la fiche et l'historique mais sort l'employé des mois ouverts ; il est réversible.",
+    "prealable": "R03 existe (PAIE-07).",
+    "etapes": [
+      "Ouvrir la fiche de R03 et cliquer « Retirer de l'effectif ».",
+      "Lire la fenêtre de confirmation puis cliquer « Retirer ».",
+      "Ouvrir /paie/saisie (septembre 2026) et chercher « trois ».",
+      "Revenir sur /employes, choisir l'état « Inactifs », ouvrir la fiche de R03 et cliquer « Réintégrer à l'effectif »."
+    ],
+    "attendu": [
+      "Confirmation titrée « Retirer RECETTE PAIE TROIS de l'effectif ? » expliquant que la fiche est conservée et réintégrable.",
+      "Notification « RECETTE PAIE TROIS retiré de l'effectif » ; la ligne disparaît de la vue « Actifs ».",
+      "Dans le récapitulatif de septembre, la recherche « trois » ne renvoie aucune ligne.",
+      "En vue « Inactifs », R03 est grisé avec l'état « Inactif » ; après réintégration : notification « RECETTE PAIE TROIS réintégré à l'effectif » et retour dans le récapitulatif."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "employes"
+    ]
+  },
+  {
+    "id": "PAIE-09",
+    "groupe": "Paie",
+    "ecran": "Employés",
+    "module": "/employes",
+    "compte": "comptable",
+    "titre": "Comptable : consultation des fiches sans droit de création",
+    "objectif": "Le comptable consulte le registre mais ne peut ni créer, ni modifier, ni importer.",
+    "prealable": "Connecté en comptable.test@poitiers.local (droits par défaut : Employés Voir, pas Faire).",
+    "etapes": [
+      "Ouvrir /employes.",
+      "Si la ligne de saisie est affichée, saisir Matricule « R99 », un nom, un brut de 100 000 et appuyer sur Entrée."
+    ],
+    "attendu": [
+      "Le registre s'affiche, précédé du bandeau « Vos droits ici : consulter les fiches. Non ouvert : créer, modifier, importer. ».",
+      "La tentative de création échoue : notification « Employé non ajouté » avec le motif « Accès refusé : vous pouvez consulter ce module, pas y agir. ».",
+      "Aucune fiche R99 n'est créée."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "droits",
+      "employes"
+    ]
+  },
+  {
+    "id": "PAIE-10",
+    "groupe": "Paie",
+    "ecran": "Barème",
+    "module": "/bareme",
+    "compte": "rh",
+    "titre": "Barème applicable au mois et concordance avec le récapitulatif",
+    "objectif": "Les taux affichés au barème sont ceux qu'utilise la paie du mois ; le rh consulte sans publier.",
+    "prealable": "Connecté en rh. Période septembre 2026.",
+    "etapes": [
+      "Ouvrir /bareme et lire le signal d'en-tête, les tuiles et le détail de la version.",
+      "Cliquer « Vérifier la source ».",
+      "Ouvrir /paie/saisie et cliquer le lien « Barème AAAA-MM » à côté de « Taux du mois »."
+    ],
+    "attendu": [
+      "Titre « Barème CNPS / CGI » ; signal « Applicable à septembre 2026 : version du … » ; bandeau « Vos droits ici : consulter, contrôler la source. Non ouvert : publier une nouvelle version. » ; pas de bouton « Nouvelle version ».",
+      "Le détail affiche TDL et RAV « appliquée » et les tranches IRPP ; plafond CNPS 750 000, CNPS salarié 4,2 %, CAC 10 %.",
+      "« Vérifier la source » : notification « Contrôle planifié : le résultat apparaît dans « Dernier contrôle » et dans le journal d'activité. ».",
+      "Le panneau « Taux du mois — septembre 2026 » du récapitulatif affiche les mêmes valeurs : Plafond CNPS 750 000, CNPS salarié (PVID) 4,2 % (écrit « 4.2 % » par le panneau — séparateur décimal à signaler s'il diffère du barème), Abattement IRPP annuel 500 000, CAC (sur IRPP) 10 %, TDL et RAV « appliquée »."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "bareme",
+      "calcul",
+      "droits"
+    ]
+  },
+  {
+    "id": "PAIE-11",
+    "groupe": "Paie",
+    "ecran": "Barème",
+    "module": "/bareme",
+    "compte": "dg",
+    "titre": "Nouvelle version du barème : formulaire et confirmation (sans publier)",
+    "objectif": "Seul le niveau DG publie une version ; la confirmation annonce le recalcul des mois ouverts.",
+    "prealable": "Connecté en dg. Ne PAS enregistrer la version en production : une version publiée recalcule les mois ouverts. L'enregistrement réel se teste sur le déploiement de recette.",
+    "etapes": [
+      "Ouvrir /bareme et cliquer « Nouvelle version ».",
+      "Vérifier le pré-remplissage, les cases « Appliquer la TDL » / « Appliquer la RAV » et les « Tranches IRPP (base mensuelle) ».",
+      "Saisir une date dans « Effective à partir du » puis cliquer « Enregistrer la version ».",
+      "Lire la confirmation, puis cliquer « Annuler » dans la confirmation et dans la fenêtre."
+    ],
+    "attendu": [
+      "Fenêtre « Nouvelle version du barème », pré-remplie avec la version en vigueur (« Pré-remplie avec la version du … »).",
+      "La dernière tranche IRPP est ouverte (« au-delà ») ; « Retirer la tranche » est grisé s'il ne reste qu'une tranche.",
+      "Confirmation « Enregistrer la version effective au … ? » annonçant que les mois ouverts seront recalculés, que les mois clôturés ne bougent pas, et que l'opération est journalisée.",
+      "Après annulation, le nombre de versions (tuile « Versions ») est inchangé."
+    ],
+    "gravite": "mineur",
+    "tags": [
+      "bareme",
+      "droits"
+    ]
+  },
+  {
+    "id": "PAIE-12",
+    "groupe": "Paie",
+    "ecran": "Planning des absences",
+    "module": "/paie/planning",
+    "compte": "rh",
+    "titre": "Congé payé de 5 jours : jours travaillés et indemnité de congés",
+    "objectif": "Un congé payé sort des jours travaillés et génère l'indemnité de congés (journalier × jours pris).",
+    "prealable": "R02 (brut 200 000, entrée 01/01/2026) existe, sans absence en septembre 2026.",
+    "etapes": [
+      "Ouvrir /paie/planning, période septembre 2026, onglet « Absences du mois ».",
+      "Dans la ligne « Nouvelle absence » : Employé RECETTE PAIE DEUX, Type « Congé payé », Du 07/09/2026, Au 11/09/2026, Rémunérée « Oui », puis « Ajouter l'absence ».",
+      "Ouvrir l'onglet « Soldes & jours travaillés ».",
+      "Ouvrir /paie/saisie et lire la ligne de R02."
+    ],
+    "attendu": [
+      "Notification « Congé payé enregistrée — RECETTE PAIE DEUX » précisant la durée et « paie recalée : septembre 2026 ».",
+      "Soldes : Congés pris (ce mois) 5, « Jours travaillés » 25 / 30, colonne « Saisie de paie » « 25 j · 0 abs · à jour ».",
+      "Récapitulatif (règle journalier = brut ÷ 30) : salaire de base 166 667 (200 000 × 25/30) et indemnité de congés 33 333 ; le Total 1 de R02 reste 200 000 hors primes."
+    ],
+    "gravite": "bloquant",
+    "tags": [
+      "planning",
+      "calcul",
+      "conges"
+    ]
+  },
+  {
+    "id": "PAIE-13",
+    "groupe": "Paie",
+    "ecran": "Planning des absences",
+    "module": "/paie/planning",
+    "compte": "rh",
+    "titre": "Absence non justifiée déduite, puis supprimée",
+    "objectif": "Une absence non payée réduit les jours travaillés ; sa suppression recale la paie.",
+    "prealable": "R01 (brut 150 000) sans absence en septembre 2026.",
+    "etapes": [
+      "Ajouter pour RECETTE PAIE UN une « Absence non justifiée » du 14/09/2026 au 15/09/2026 (Rémunérée « Non — déduite » proposée par défaut).",
+      "Lire la tuile « Absences non payées » et l'onglet « Soldes & jours travaillés ».",
+      "Dans /paie/saisie, lire la ligne de R01.",
+      "Revenir au planning, cliquer la corbeille de cette absence, lire la confirmation et valider."
+    ],
+    "attendu": [
+      "La ligne de l'absence affiche « Non — déduite » ; la tuile « Absences non payées » compte 2 jours.",
+      "Soldes de R01 : Non payées 2, Jours travaillés 28 / 30.",
+      "Récapitulatif : R01 à 28 jours, salaire de base 140 000 (journalier 5 000 × 28).",
+      "Confirmation « Supprimer cette absence ? » annonçant le recalage des mois ouverts ; après validation, R01 revient à 30 jours et 150 000 de base."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "planning",
+      "calcul"
+    ]
+  },
+  {
+    "id": "PAIE-14",
+    "groupe": "Paie",
+    "ecran": "Planning des absences",
+    "module": "/paie/planning",
+    "compte": "rh",
+    "titre": "Planning : dates incohérentes refusées et synchronisation du mois",
+    "objectif": "Les dates inversées sont refusées et « Synchroniser la paie du mois » recale toutes les saisies.",
+    "prealable": "Septembre 2026 ouvert. Attention : la synchronisation remplace les jours travaillés saisis à la main par ceux du planning.",
+    "etapes": [
+      "Cliquer « Masquer les champs », puis « Ajouter une absence ».",
+      "Choisir un employé, Du 10/09/2026, Au 08/09/2026, cliquer le bouton d'enregistrement de la fenêtre.",
+      "Fermer la fenêtre sans enregistrer ; cliquer « Rendre les champs persistants » pour revenir à la ligne de saisie.",
+      "Cliquer « Synchroniser la paie du mois »."
+    ],
+    "attendu": [
+      "Notification « Enregistrement refusé » avec « La date de fin précède la date de début. » ; aucune absence créée.",
+      "Le bouton « Ajouter une absence » n'existe qu'en mode champs masqués ; la ligne de saisie revient en mode persistant.",
+      "Notification « Paie recalée pour N employé(s) — septembre 2026 » ; le signal « … saisie(s) de paie à recaler » disparaît et chaque ligne des soldes affiche « à jour »."
+    ],
+    "gravite": "mineur",
+    "tags": [
+      "planning",
+      "controle"
+    ]
+  },
+  {
+    "id": "PAIE-15",
+    "groupe": "Paie",
+    "ecran": "Primes & retenues",
+    "module": "/paie/primes",
+    "compte": "rh",
+    "titre": "Prime et retenue libres intégrées au bulletin",
+    "objectif": "Une prime du registre s'ajoute au Total 1, une retenue se déduit du net, et toutes deux apparaissent sur le bulletin.",
+    "prealable": "Septembre 2026 ouvert. R02 existe.",
+    "etapes": [
+      "Ouvrir /paie/primes, période septembre 2026.",
+      "Ligne de saisie : Employé RECETTE PAIE DEUX, Type « Prime », Libellé « Prime de rendement » (suggestion), Montant 15 000, Date du jour, puis « Ajouter la ligne ».",
+      "Ajouter une ligne Type « Retenue », Libellé « Retenue sur avance », Montant 8 000.",
+      "Ouvrir /paie/bulletins?periode=2026-09&employe=R02."
+    ],
+    "attendu": [
+      "Notification « Prime « Prime de rendement » enregistrée » avec « RECETTE PAIE DEUX · 15 000 FCFA — bulletin recalculé ».",
+      "Tuiles : « Primes du mois » augmente de 15 000, « Retenues du mois » de −8 000, « Effet net sur la paie » de +7 000 ; « Employés concernés » compte R02.",
+      "Bulletin de R02 : ligne « Prime de rendement » 15 000 dans les Gains et comprise dans « TOTAL BRUT (Total 1) » (215 000 avec la base 166 667 et les congés 33 333 de PAIE-12) ; ligne « Retenue sur avance » 8 000 dans « Autres retenues »."
+    ],
+    "gravite": "bloquant",
+    "tags": [
+      "primes",
+      "calcul"
+    ]
+  },
+  {
+    "id": "PAIE-16",
+    "groupe": "Paie",
+    "ecran": "Primes & retenues",
+    "module": "/paie/primes",
+    "compte": "rh",
+    "titre": "Primes & retenues : libellé et montant obligatoires",
+    "objectif": "Aucune ligne sans libellé (il figure sur le bulletin) ni à montant nul n'est acceptée.",
+    "prealable": "Septembre 2026 ouvert.",
+    "etapes": [
+      "Ligne de saisie : choisir un employé, laisser le libellé vide, montant 5 000, cliquer « Ajouter la ligne ».",
+      "Saisir un libellé, mettre le montant à 0, cliquer « Ajouter la ligne ».",
+      "Ne choisir aucun employé et cliquer « Ajouter la ligne »."
+    ],
+    "attendu": [
+      "« Le libellé est requis : c'est lui qui figure sur le bulletin. »",
+      "« Le montant doit être supérieur à 0. »",
+      "« Choisissez l'employé. »",
+      "Aucune ligne n'est ajoutée ; les tuiles sont inchangées."
+    ],
+    "gravite": "mineur",
+    "tags": [
+      "primes",
+      "controle"
+    ]
+  },
+  {
+    "id": "PAIE-17",
+    "groupe": "Paie",
+    "ecran": "Récapitulatif salaires",
+    "module": "/paie/saisie",
+    "compte": "rh",
+    "titre": "Août 2026 clôturé : saisie, planning et primes en lecture seule",
+    "objectif": "Un mois clôturé est gelé sur tous les écrans de saisie.",
+    "prealable": "Août 2026 est clôturé.",
+    "etapes": [
+      "Ouvrir /paie/saisie, reculer d'un mois avec « Mois précédent » jusqu'à août 2026, cliquer un employé.",
+      "Ouvrir /paie/planning puis /paie/primes sur août 2026."
+    ],
+    "attendu": [
+      "Statut « Cloture — lecture seule » sur les trois écrans ; aucun bouton « Générer et clôturer le mois ».",
+      "Volet de saisie : message « Mois clôturé : valeurs figées, lecture seule. » ; tous les champs et « Enregistrer la saisie » sont grisés.",
+      "Planning : pas de « Ajouter une absence » ni de bouton de persistance ; « Synchroniser la paie du mois » grisé.",
+      "Primes & retenues : pas de « Ajouter une ligne » ni de ligne de saisie."
+    ],
+    "gravite": "bloquant",
+    "tags": [
+      "cloture",
+      "recap",
+      "planning",
+      "primes"
+    ]
+  },
+  {
+    "id": "PAIE-18",
+    "groupe": "Paie",
+    "ecran": "Récapitulatif salaires",
+    "module": "/paie/saisie",
+    "compte": "rh",
+    "titre": "Présentation synthèse : cas de référence ABAMI (106 950 → 95 530)",
+    "objectif": "Sans saisie, le récapitulatif reproduit au franc près le cas réel de la liste du directeur.",
+    "prealable": "Présentation par défaut (bouton « Rendre les champs persistants » visible). ABAMI (E001) sans saisie, absence ni prime en septembre 2026.",
+    "etapes": [
+      "Ouvrir /paie/saisie (septembre 2026).",
+      "Lire la barre de contrôle, les quatre tuiles et les en-têtes du tableau.",
+      "Lire la ligne ABAMI Rosine Belie, puis la légende sous le tableau."
+    ],
+    "attendu": [
+      "Statut « Ouvert — recalcul en direct » ; tuiles « Effectif payé » (note « 30 jours calendaires · paiement le … »), « Masse brute · Total 1 », « Retenues du mois », « Net à payer · Total 2 » (répartition SESAME · SOFINA · SGC).",
+      "Colonnes : Noms et prénoms, Jours, Salaire de base, Total 1, Retenues, Total 2 · net, Société.",
+      "ABAMI : Jours 30, Salaire de base 106 950, Total 1 106 950, Retenues −11 420, Total 2 · net 95 530.",
+      "Le volet droit invite « Sélectionnez un employé pour ouvrir sa fiche de saisie du mois. » ; la légende rappelle « Journalier = brut ÷ 30 · transport exonéré de cotisations »."
+    ],
+    "gravite": "bloquant",
+    "tags": [
+      "recap",
+      "calcul",
+      "reference"
+    ]
+  },
+  {
+    "id": "PAIE-19",
+    "groupe": "Paie",
+    "ecran": "Récapitulatif salaires",
+    "module": "/paie/saisie",
+    "compte": "rh",
+    "titre": "Volet de saisie : transport exonéré (cas 150 000 + 15 000)",
+    "objectif": "Le transport entre dans le Total 1 mais sort de la base taxable ; l'aperçu en direct et le bulletin donnent le cas de référence.",
+    "prealable": "R01 : brut 150 000, 30 jours, aucune autre saisie en septembre 2026 (absence de PAIE-13 supprimée).",
+    "etapes": [
+      "Cliquer la ligne RECETTE PAIE UN.",
+      "Dans le groupe « Gains », saisir « Prime transport » 15 000 et lire l'« Aperçu en direct ».",
+      "Cliquer « Enregistrer la saisie ».",
+      "Cliquer « Ouvrir le bulletin » et lire les lignes de cotisations."
+    ],
+    "attendu": [
+      "Volet « Saisie du mois — RECETTE PAIE UN » en trois groupes (Temps de travail, Gains, Retenues) ; « Congés pris » est grisé avec l'aide « Planning des absences ».",
+      "Aperçu : Salaire de base 150 000, Total 1 165 000, Impôts & CNPS + acompte −17 023, Net à payer · Total 2 147 977.",
+      "Notification « Saisie enregistrée — RECETTE PAIE UN » avec « septembre 2026 » ; la ligne affiche « Enregistré ✓ ».",
+      "Bulletin : journalier 5 000 ; CNPS salarié 6 300 (4,2 % de 150 000), IRPP 5 703, CAC 570, TDL 1 000, RAV 1 950, CFC 1 500 ; Charges salariales 17 023 ; Net à payer (Total 2) 147 977."
+    ],
+    "gravite": "bloquant",
+    "tags": [
+      "recap",
+      "calcul",
+      "reference",
+      "bulletin"
+    ]
+  },
+  {
+    "id": "PAIE-20",
+    "groupe": "Paie",
+    "ecran": "Récapitulatif salaires",
+    "module": "/paie/saisie",
+    "compte": "rh",
+    "titre": "Bornes de saisie : jours et pourcentage de mutuelle",
+    "objectif": "Les valeurs impossibles sont signalées avant tout enregistrement.",
+    "prealable": "Présentation synthèse, septembre 2026 ouvert.",
+    "etapes": [
+      "Sélectionner un employé ; saisir « Jours travaillés » 32 et « Mutuelle » 150, cliquer « Enregistrer la saisie ».",
+      "Cliquer « Annuler » dans le volet.",
+      "Passer en « Rendre les champs persistants », taper 150 dans la cellule « Mut. % » d'un employé, puis vider la cellule et remettre 0."
+    ],
+    "attendu": [
+      "Notification « Corrigez les champs en rouge. » ; sous les champs : « Entre 0 et 31 jours. » et « Pourcentage entre 0 et 100. » ; rien n'est enregistré.",
+      "« Annuler » restaure les valeurs enregistrées.",
+      "En grille, la valeur tapée est ramenée automatiquement à 100 (jamais au-delà) ; aucune valeur négative n'est acceptée."
+    ],
+    "gravite": "mineur",
+    "tags": [
+      "recap",
+      "controle"
+    ]
+  },
+  {
+    "id": "PAIE-21",
+    "groupe": "Paie",
+    "ecran": "Récapitulatif salaires",
+    "module": "/paie/saisie",
+    "compte": "rh",
+    "titre": "Champs persistants : grille complète de la liste papier",
+    "objectif": "Le mode « champs persistants » donne toutes les colonnes du modèle papier et se mémorise.",
+    "prealable": "Présentation synthèse affichée.",
+    "etapes": [
+      "Cliquer « Rendre les champs persistants ».",
+      "Lire les en-têtes et la ligne ABAMI.",
+      "Recharger la page (F5)."
+    ],
+    "attendu": [
+      "Le bouton devient « Masquer les champs » ; la barre latérale se replie.",
+      "Colonnes : Noms et prénoms, Sal. journalier, Jours trav., Salaire de base, Primes fixes / congé, H. sup / ancienneté, Total 1, Sanctions, Absence, Dettes de soins, Acompte / dette / impôts & CNPS, Mut. %, Mutuelle, Total 2, Sal. SESAME, Sal. SOFINA, Sal. SGC, puis l'icône du bulletin.",
+      "ABAMI : Sal. journalier 3 565 (mention « brut 106 950 »), Total 2 95 530, 95 530 dans « Sal. SESAME » et un tiret dans SOFINA et SGC.",
+      "Après rechargement, la grille reste affichée (préférence mémorisée sur l'appareil)."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "recap",
+      "saisie-en-serie"
+    ]
+  },
+  {
+    "id": "PAIE-22",
+    "groupe": "Paie",
+    "ecran": "Récapitulatif salaires",
+    "module": "/paie/saisie",
+    "compte": "rh",
+    "titre": "Saisie en série dans la grille : enregistrement automatique et Total 2",
+    "objectif": "Chaque cellule s'enregistre seule, sans bouton, et les retenues se déduisent au franc près.",
+    "prealable": "Grille affichée. R02 : 25 jours et 5 jours de congé (PAIE-12), prime 15 000 et retenue 8 000 (PAIE-15).",
+    "etapes": [
+      "Sur la ligne R02, taper Sanctions 5 000, Absence 3 000, Acompte 20 000, Mut. % 2, en passant d'une cellule à l'autre au clavier.",
+      "Observer la mention sous le nom pendant la saisie.",
+      "Cliquer la cellule « Primes fixes / congé » de R02 pour ouvrir son détail, puis « Annuler ».",
+      "Ouvrir le bulletin de R02 (icône en fin de ligne)."
+    ],
+    "attendu": [
+      "La mention passe par « Modifié… », « Enregistrement… » puis « Enregistré ✓ » sans aucun clic sur un bouton.",
+      "Total 1 de R02 = 215 000 (166 667 + 33 333 + 15 000) ; Mutuelle = 4 300 (2 % du Total 1).",
+      "Sous « Acompte », la mention « = … avec impôts » affiche l'acompte 20 000 augmenté des charges salariales.",
+      "Le détail « Primes fixes / congé » propose Primes fixes, Prime transport, Prime assiduité, Indemnité logement et le sous-titre « 5 j congés ».",
+      "Sur le bulletin, TOTAL COTISATIONS ET RETENUES = somme des lignes listées (sanctions, absences, acompte, mutuelle, « Retenue sur avance » comprises) et Net à payer (Total 2) = Total 1 − ce total, identique au Total 2 de la grille."
+    ],
+    "gravite": "bloquant",
+    "tags": [
+      "recap",
+      "calcul",
+      "saisie-en-serie"
+    ]
+  },
+  {
+    "id": "PAIE-23",
+    "groupe": "Paie",
+    "ecran": "Récapitulatif salaires",
+    "module": "/paie/saisie",
+    "compte": "rh",
+    "titre": "Recherche, lignes visibles et changement de période",
+    "objectif": "Filtrer ne modifie pas les données et un brouillon ne passe jamais d'un mois à l'autre.",
+    "prealable": "Septembre 2026 ouvert.",
+    "etapes": [
+      "Taper « sage » dans « Rechercher un employé (nom, fonction, matricule)… ».",
+      "Cliquer la croix « Effacer la recherche ».",
+      "Choisir « Toutes » dans « Lignes visibles », puis « 5 lignes ».",
+      "Commencer à taper une valeur dans une cellule, puis immédiatement cliquer « Mois suivant » (octobre 2026), puis revenir en septembre."
+    ],
+    "attendu": [
+      "Seule BILOA ELOUNDOU Gertrude (Sage-femme) reste ; le compteur indique « 1 sur N employés » et le pied « TOTAL · 1 / N employés ».",
+      "La croix rétablit toutes les lignes.",
+      "« Toutes » affiche toutes les lignes ; « 5 lignes » limite la hauteur du tableau, qui défile seul (en-tête et pied restent visibles).",
+      "La valeur tapée n'apparaît pas en octobre 2026."
+    ],
+    "gravite": "mineur",
+    "tags": [
+      "recap"
+    ]
+  },
+  {
+    "id": "PAIE-24",
+    "groupe": "Paie",
+    "ecran": "Récapitulatif salaires",
+    "module": "/paie/saisie",
+    "compte": "auditeur",
+    "titre": "Auditeur : récapitulatif en consultation seule",
+    "objectif": "L'auditeur voit la paie du mois mais aucune saisie n'est enregistrée.",
+    "prealable": "Connecté en auditeur.test@poitiers.local (paie : Voir seulement).",
+    "etapes": [
+      "Ouvrir /paie/saisie (septembre 2026).",
+      "Sélectionner un employé, modifier un champ du volet et cliquer « Enregistrer la saisie ».",
+      "Chercher le bouton « Générer et clôturer le mois » dans la barre."
+    ],
+    "attendu": [
+      "Bandeau « Vos droits ici : consulter. Non ouvert : saisir le mois. ».",
+      "L'enregistrement échoue : notification « La saisie n'a pas été enregistrée » avec « Accès refusé : vous pouvez consulter ce module, pas y agir. ».",
+      "« Générer et clôturer le mois » n'est pas proposé (sinon : anomalie à consigner ; la confirmation doit être refusée par le serveur et le mois rester « Ouvert — recalcul en direct »)."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "droits",
+      "recap"
+    ]
+  },
+  {
+    "id": "PAIE-25",
+    "groupe": "Paie",
+    "ecran": "Liste des salaires",
+    "module": "/paie/liste",
+    "compte": "rh",
+    "titre": "Liste des salaires : net par société et cohérence des totaux",
+    "objectif": "La liste papier reprend exactement les nets des bulletins, rangés dans la colonne de la société.",
+    "prealable": "Septembre 2026 ouvert.",
+    "etapes": [
+      "Ouvrir /paie/liste.",
+      "Lire les tuiles, les colonnes et la ligne ABAMI.",
+      "Cliquer les onglets « SGC » puis « Toutes » ; taper « abami » dans la recherche.",
+      "Comparer la tuile « Total perçu » avec la tuile « Net à payer · Total 2 » du récapitulatif et « Net à payer » des Bulletins du mois."
+    ],
+    "attendu": [
+      "Titre « Liste des salaires » ; tuiles « Total perçu » (note « N employé(s) · calcul en direct »), « Net SESAME », « Net SOFINA », « Net SGC ».",
+      "Colonnes : N°, Noms et prénoms, SESAME, SOFINA, SGC, Primes, Total perçu (FCFA) ; ABAMI a 95 530 sous SESAME, 0 ailleurs, Total perçu 95 530.",
+      "L'onglet SGC ne garde que les employés SGC, compteur à l'appui.",
+      "Les trois écrans donnent le même montant net total ; Total perçu = Net SESAME + Net SOFINA + Net SGC."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "liste",
+      "calcul"
+    ]
+  },
+  {
+    "id": "PAIE-26",
+    "groupe": "Paie",
+    "ecran": "Liste des salaires",
+    "module": "/paie/liste",
+    "compte": "rh",
+    "titre": "Impression A4 de la liste des salaires (mois ouvert)",
+    "objectif": "La liste s'imprime sur une feuille A4 propre, marquée provisoire tant que le mois est ouvert.",
+    "prealable": "Septembre 2026 ouvert ; paramètres entreprise : nom « P POITIERS COWORKING », NIU et CNPS vides.",
+    "etapes": [
+      "Cliquer « Imprimer » et observer l'aperçu du navigateur (format A4).",
+      "Annuler, choisir l'onglet « SGC », imprimer à nouveau."
+    ],
+    "attendu": [
+      "Seule la feuille sort (aucun menu ni bouton) : en-tête « P POITIERS COWORKING », nature « Liste des salaires », sous-titre « Récapitulatif général salaire et primes perçus — septembre 2026 ».",
+      "Filigrane « PROVISOIRE » et mention de document non validé ; ligne « TOTAUX (N employés) » ; cases « Établi par… » et « Visa de la Direction ».",
+      "NIU et N° CNPS de l'entreprise n'apparaissent pas dans les coordonnées (champs vides).",
+      "Avec le filtre SGC, le sous-titre se termine par « · SGC » et seuls les employés SGC sont imprimés."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "impression",
+      "liste"
+    ]
+  },
+  {
+    "id": "PAIE-27",
+    "groupe": "Paie",
+    "ecran": "Liste des salaires",
+    "module": "/paie/liste",
+    "compte": "auditeur",
+    "titre": "Auditeur : pas de clôture depuis la liste des salaires",
+    "objectif": "Sans droit Faire sur les bulletins, la clôture n'est accessible depuis aucun écran.",
+    "prealable": "Connecté en auditeur.",
+    "etapes": [
+      "Ouvrir /paie/liste (septembre 2026).",
+      "Chercher le bouton « Générer et clôturer le mois ».",
+      "Uniquement s'il est affiché : cliquer, taper CLOTURER et confirmer « Générer et clôturer »."
+    ],
+    "attendu": [
+      "La liste et l'impression sont accessibles.",
+      "« Générer et clôturer le mois » n'est pas proposé.",
+      "S'il est affiché (anomalie à consigner) : notification « L'operation n'a pas abouti » avec « Accès refusé : vous pouvez consulter ce module, pas y agir. » ; septembre 2026 reste « Ouvert — recalcul en direct »."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "droits",
+      "liste",
+      "cloture"
+    ]
+  },
+  {
+    "id": "PAIE-28",
+    "groupe": "Paie",
+    "ecran": "Bulletins du mois",
+    "module": "/paie/bulletins",
+    "compte": "rh",
+    "titre": "Bulletin du mois à l'écran : présentation et mentions provisoires",
+    "objectif": "Chaque bulletin reprend le format de référence et signale clairement qu'il est provisoire.",
+    "prealable": "Septembre 2026 ouvert, ABAMI sans saisie.",
+    "etapes": [
+      "Ouvrir /paie/bulletins et lire les tuiles et les colonnes.",
+      "Cliquer la ligne ABAMI Rosine Belie et lire le bulletin affiché à droite de haut en bas."
+    ],
+    "attendu": [
+      "Tuiles « Bulletins » (note « calculés en direct »), « Masse brute », « Retenues », « Net à payer » ; colonnes N°, Salarié, Société, Brut (FCFA), Retenues, Net à payer.",
+      "En-tête du bulletin : « P POITIERS COWORKING », « NIU — · N° CNPS — », titre « BULLETIN DU MOIS », « Période du 01/09/2026 au 30/09/2026 », « Paiement le … par banque ».",
+      "Identité : ABAMI Rosine Belie · E001 · SESAME, Date d'embauche 01/03/2021, « Payé par SALAIRE SESAME » ; Jours travaillés 30 / 30, Salaire journalier 3 565.",
+      "TOTAL BRUT (Total 1) 106 950 ; TOTAL COTISATIONS ET RETENUES 11 420 ; Net à payer (Total 2) 95 530.",
+      "Filigrane « PROVISOIRE » et mention « BULLETIN NON VALIDÉ — document provisoire, le mois est encore ouvert »."
+    ],
+    "gravite": "bloquant",
+    "tags": [
+      "bulletin",
+      "calcul",
+      "reference"
+    ]
+  },
+  {
+    "id": "PAIE-29",
+    "groupe": "Paie",
+    "ecran": "Bulletins du mois",
+    "module": "/paie/bulletins",
+    "compte": "rh",
+    "titre": "Plafond CNPS à 750 000 et lignes codées toujours présentes",
+    "objectif": "Au-delà de 750 000, la base CNPS est plafonnée ; les lignes codées figurent même à zéro.",
+    "prealable": "TCHIDJO Magloire (E008, brut 2 500 000) actif en septembre 2026.",
+    "etapes": [
+      "Sélectionner TCHIDJO Magloire et lire la ligne CNPS salarié.",
+      "Sélectionner ABAMI Rosine Belie et repérer les codes de lignes du bulletin."
+    ],
+    "attendu": [
+      "Ligne CNPS salarié : base 750 000, retenue 31 500 (4,2 % de la base plafonnée), quel que soit le brut.",
+      "Sur ABAMI, les lignes codées 66111, 6613, 43131 et 44725 sont présentes, y compris celles à zéro (affichées estompées)."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "bulletin",
+      "calcul"
+    ]
+  },
+  {
+    "id": "PAIE-30",
+    "groupe": "Paie",
+    "ecran": "Bulletins du mois",
+    "module": "/paie/bulletins",
+    "compte": "rh",
+    "titre": "« PDF du mois (n) » : un seul PDF, un bulletin par page",
+    "objectif": "Le PDF du mois se télécharge à la demande, sans être stocké.",
+    "prealable": "Septembre 2026 ouvert, aucun filtre d'employé dans l'adresse.",
+    "etapes": [
+      "Cliquer « PDF du mois (n) » (n = nombre de bulletins).",
+      "Ouvrir le fichier téléchargé.",
+      "Ouvrir /paie/archives."
+    ],
+    "attendu": [
+      "Pendant la génération, le bouton affiche « Génération… » et est grisé.",
+      "Notification « PDF généré » avec le nom du fichier ; le fichier contient n pages, un bulletin complet par page A4, titre « BULLETIN DU MOIS ».",
+      "Rien n'est ajouté aux Archives (septembre 2026 n'y figure pas ; tuile « PDF à générer » inchangée)."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "pdf",
+      "bulletin"
+    ]
+  },
+  {
+    "id": "PAIE-31",
+    "groupe": "Paie",
+    "ecran": "Bulletins du mois",
+    "module": "/paie/bulletins",
+    "compte": "rh",
+    "titre": "« PDF du bulletin » filtré et bouton « PDF » d'un salarié",
+    "objectif": "Le PDF d'un seul salarié s'obtient depuis le récapitulatif ou depuis l'aperçu.",
+    "prealable": "Septembre 2026 ouvert.",
+    "etapes": [
+      "Dans /paie/saisie, cliquer « Ouvrir le bulletin » de ABAMI (volet ou icône de fin de ligne).",
+      "Lire l'adresse et les boutons d'en-tête, puis cliquer « PDF du bulletin ».",
+      "Cliquer la croix « Imprimer tous les bulletins » du signal de filtre.",
+      "Sélectionner un autre salarié et cliquer « PDF » dans l'en-tête de son aperçu."
+    ],
+    "attendu": [
+      "L'adresse contient ?periode=2026-09&employe=E001 ; signal « Impression limitée à ABAMI Rosine Belie » ; boutons « Imprimer le bulletin » et « PDF du bulletin ».",
+      "Le PDF téléchargé ne contient qu'une page A4 : le bulletin d'ABAMI ; son nom de fichier cite le salarié et la période.",
+      "La croix rétablit « Imprimer (n) » et « PDF du mois (n) ».",
+      "« PDF » télécharge le seul bulletin du salarié sélectionné (notification « PDF généré »)."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "pdf",
+      "bulletin"
+    ]
+  },
+  {
+    "id": "PAIE-32",
+    "groupe": "Paie",
+    "ecran": "Bulletins du mois",
+    "module": "/paie/bulletins",
+    "compte": "rh",
+    "titre": "Impression A4 : récapitulatif puis un bulletin par page",
+    "objectif": "Chaque bulletin imprimé tient sur UNE seule page A4.",
+    "prealable": "Septembre 2026 ouvert, aucun filtre d'employé.",
+    "etapes": [
+      "Cliquer « Imprimer (n) » et parcourir l'aperçu d'impression (A4, marges par défaut).",
+      "Annuler ; sélectionner RECETTE PAIE DEUX (bulletin le plus chargé en lignes) et cliquer « Imprimer seul »."
+    ],
+    "attendu": [
+      "Page 1 : « RÉCAPITULATIF DE PAIE », « septembre 2026 · n bulletin(s) », tableau N° / Nom et prénoms / Matricule / Société / Brut / Retenues / Net à payer et ligne « TOTAUX ».",
+      "Puis un bulletin par page : aucun bulletin ne déborde sur une deuxième page ; le pied porte « page i/n ».",
+      "« Imprimer seul » n'imprime que le bulletin de R02, sur une seule page A4, avec filigrane « PROVISOIRE »."
+    ],
+    "gravite": "bloquant",
+    "tags": [
+      "impression",
+      "bulletin"
+    ]
+  },
+  {
+    "id": "PAIE-33",
+    "groupe": "Paie",
+    "ecran": "Bulletins du mois",
+    "module": "/paie/bulletins",
+    "compte": "rh",
+    "titre": "Bulletins d'août 2026 : figés et validés",
+    "objectif": "Un mois clôturé affiche des bulletins définitifs, sans action de clôture.",
+    "prealable": "Août 2026 clôturé.",
+    "etapes": [
+      "Ouvrir /paie/bulletins et choisir août 2026.",
+      "Sélectionner un salarié et lire le bas du bulletin et l'en-tête de l'aperçu."
+    ],
+    "attendu": [
+      "Statut « Cloture — lecture seule » ; tuile « Bulletins » avec la note « figés à la clôture » ; pas de bouton « Générer et clôturer ».",
+      "Pas de filigrane ; mention « BULLETIN VALIDÉ le … — mois clôturé, document définitif ».",
+      "Un bouton « Archives » apparaît à côté de « PDF » dans l'en-tête de l'aperçu.",
+      "Les bulletins sont des instantanés de la clôture : R01 à R03, créés après, n'y figurent pas, et les montants ne bougent pas quand on modifie une fiche ou une saisie de septembre."
+    ],
+    "gravite": "bloquant",
+    "tags": [
+      "bulletin",
+      "cloture"
+    ]
+  },
+  {
+    "id": "PAIE-34",
+    "groupe": "Paie",
+    "ecran": "Bulletins du mois",
+    "module": "/paie/bulletins",
+    "compte": "rh",
+    "titre": "« Générer et clôturer » : confirmation par mot-clé (sans clôturer)",
+    "objectif": "La clôture, irréversible, exige de recopier CLOTURER ; on vérifie la protection sans clôturer septembre.",
+    "prealable": "Septembre 2026 ouvert. NE PAS confirmer : septembre est le mois de paie réel.",
+    "etapes": [
+      "Cliquer « Générer et clôturer ».",
+      "Lire la fenêtre ; constater l'état du bouton « Clôturer le mois ».",
+      "Taper « clot » puis compléter en « cloturer » (minuscules).",
+      "Cliquer « Annuler »."
+    ],
+    "attendu": [
+      "Fenêtre « Clôturer la paie de septembre 2026 ? » : « n bulletin(s) seront figés tels qu'ils sont affichés … Le mois passera en lecture seule et rejoindra les archives. ».",
+      "Invite « Pour confirmer, tapez CLOTURER » ; « Clôturer le mois » reste grisé tant que le mot n'est pas complet.",
+      "« cloturer » en minuscules suffit à activer le bouton.",
+      "Après « Annuler », septembre 2026 reste « Ouvert — recalcul en direct »."
+    ],
+    "gravite": "bloquant",
+    "tags": [
+      "cloture",
+      "irreversible",
+      "droits"
+    ]
+  },
+  {
+    "id": "PAIE-35",
+    "groupe": "Paie",
+    "ecran": "Bulletins du mois",
+    "module": "/paie/bulletins",
+    "compte": "auditeur",
+    "titre": "Auditeur : bulletins en consultation, impression et PDF, sans clôture",
+    "objectif": "Le droit Voir ouvre la consultation, l'impression et le PDF, jamais la clôture.",
+    "prealable": "Connecté en auditeur.",
+    "etapes": [
+      "Ouvrir /paie/bulletins (septembre 2026).",
+      "Sélectionner un salarié ; cliquer « PDF du mois (n) » puis « Imprimer (n) »."
+    ],
+    "attendu": [
+      "Bandeau « Vos droits ici : consulter, imprimer, pdf. Non ouvert : générer et clôturer le mois. ».",
+      "Aucun bouton « Générer et clôturer ».",
+      "Le PDF du mois se télécharge (« PDF généré ») et l'aperçu d'impression s'ouvre normalement."
+    ],
+    "gravite": "bloquant",
+    "tags": [
+      "droits",
+      "bulletin",
+      "pdf"
+    ]
+  },
+  {
+    "id": "PAIE-36",
+    "groupe": "Paie",
+    "ecran": "Bulletins du mois",
+    "module": "/paie/bulletins",
+    "compte": "comptable",
+    "titre": "Comptable : modules de paie refusés",
+    "objectif": "Le comptable n'a aucun accès aux écrans de paie.",
+    "prealable": "Connecté en comptable.",
+    "etapes": [
+      "Saisir directement l'adresse /paie/bulletins.",
+      "Recommencer avec /paie/saisie, /paie/liste, /paie/courrier, /paie/planning, /paie/primes et /paie/archives."
+    ],
+    "attendu": [
+      "Page « Accès refusé » : « Le module « Bulletins du mois » ne vous est pas ouvert. Si vous pensez devoir y accéder, demandez au Directeur Général de vous l'accorder (Paramètres → Rôles & accès). ».",
+      "Même refus pour chacune des autres adresses, avec le nom du module concerné (Récapitulatif salaires, Liste des salaires, Courrier de paie, Planning des absences, Primes & retenues, Archives de paie).",
+      "Aucun montant de paie n'est affiché."
+    ],
+    "gravite": "bloquant",
+    "tags": [
+      "droits"
+    ]
+  },
+  {
+    "id": "PAIE-37",
+    "groupe": "Paie",
+    "ecran": "Courrier de paie",
+    "module": "/paie/courrier",
+    "compte": "rh",
+    "titre": "Courrier de paie : canaux d'envoi et libellé du bouton",
+    "objectif": "L'écran dit, canal par canal, si l'envoi est réel ou simulé, et le bouton suit.",
+    "prealable": "E-mail réel actif (Resend) ; WhatsApp en simulation (instance UltraMsg en attente).",
+    "etapes": [
+      "Ouvrir /paie/courrier (septembre 2026) et lire les signaux d'en-tête et les tuiles.",
+      "Dans la liste « Canal d'envoi », choisir successivement « Par e-mail », « Par WhatsApp », « E-mail et WhatsApp » en lisant le bouton d'envoi."
+    ],
+    "attendu": [
+      "Signaux « Envoi réel (Resend) » et « WhatsApp simulé » à côté du statut du mois.",
+      "Tuiles « Destinataires sélectionnés » (tous cochés par défaut : n / n), « Sans adresse e-mail », « Envoyés ce mois », « Échecs » ; filtres Tous, Sans e-mail, Non envoyés, Échecs.",
+      "Colonnes : Employé, Adresse e-mail, WhatsApp, Net (FCFA), Dernier envoi.",
+      "« Par e-mail » : bouton « Envoyer (n) » ; « Par WhatsApp » et « E-mail et WhatsApp » : bouton « Simuler l'envoi (n) »."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "courrier",
+      "email",
+      "whatsapp"
+    ]
+  },
+  {
+    "id": "PAIE-38",
+    "groupe": "Paie",
+    "ecran": "Courrier de paie",
+    "module": "/paie/courrier",
+    "compte": "rh",
+    "titre": "Adresse e-mail corrigée sur la ligne",
+    "objectif": "L'adresse se corrige sans quitter l'écran et une adresse invalide est refusée.",
+    "prealable": "R03 existe sans e-mail.",
+    "etapes": [
+      "Dans la cellule « Adresse e-mail — RECETTE PAIE TROIS », taper « abc » et appuyer sur Entrée.",
+      "Taper une adresse valide et quitter la case (Tab).",
+      "Ouvrir la fiche de R03 dans /employes.",
+      "Revenir au courrier, vider la cellule et quitter la case."
+    ],
+    "attendu": [
+      "Notification « Adresse e-mail invalide » ; la cellule revient à sa valeur précédente (vide, bordure orangée en pointillé).",
+      "Notification « Adresse enregistrée — RECETTE PAIE TROIS » ; la tuile « Sans adresse e-mail » diminue de 1.",
+      "La fiche employé affiche la même adresse dans « E-mail (courrier de paie) ».",
+      "Cellule vidée : R03 retourne dans le filtre « Sans e-mail »."
+    ],
+    "gravite": "mineur",
+    "tags": [
+      "courrier",
+      "email"
+    ]
+  },
+  {
+    "id": "PAIE-39",
+    "groupe": "Paie",
+    "ecran": "Courrier de paie",
+    "module": "/paie/courrier",
+    "compte": "rh",
+    "titre": "Numéro WhatsApp saisi sur la ligne, indicatif pré-rempli",
+    "objectif": "On ne tape que le numéro national ; un numéro incomplet ou collé en double est traité proprement.",
+    "prealable": "R02 sans numéro WhatsApp.",
+    "etapes": [
+      "Dans la cellule « Numéro WhatsApp — RECETTE PAIE DEUX », constater l'indicatif +237 déjà présent ; taper 690000000 dans la partie numéro et appuyer sur Tab.",
+      "Remplacer le numéro par « 69 » et quitter la case.",
+      "Coller « +237 6 90 00 00 00 » (copié depuis WhatsApp) dans la partie numéro et quitter la case."
+    ],
+    "attendu": [
+      "Notification « Numéro WhatsApp enregistré — RECETTE PAIE DEUX » ; la fiche employé porte +237 690000000.",
+      "« 69 » : notification « Numéro WhatsApp incomplet » avec « Numéro invalide : indicatif suivi de 8 à 14 chiffres. » ; la cellule revient au numéro enregistré.",
+      "Le numéro collé n'est pas doublé (pas de +237 +237) et reste +237 690000000."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "courrier",
+      "whatsapp",
+      "telephone"
+    ]
+  },
+  {
+    "id": "PAIE-40",
+    "groupe": "Paie",
+    "ecran": "Courrier de paie",
+    "module": "/paie/courrier",
+    "compte": "rh",
+    "titre": "Modèle de lettre et aperçu lettre + bulletin",
+    "objectif": "Le modèle commun remplace les variables par les données de chaque salarié.",
+    "prealable": "Copier le texte actuel du « Modèle de lettre » pour le restaurer en fin de scénario.",
+    "etapes": [
+      "Placer le curseur en fin de texte du modèle, cliquer « {net} » dans « Insérer : ».",
+      "Cliquer « Enregistrer le modèle ».",
+      "Cliquer l'œil « Aperçu du courrier — ABAMI Rosine Belie ».",
+      "Restaurer le texte d'origine et enregistrer."
+    ],
+    "attendu": [
+      "« {net} » s'insère à la position du curseur ; l'état passe de « À jour » à « Modifications non enregistrées ».",
+      "Notification « Modèle de lettre enregistré » avec « Appliqué à tous les courriers à venir ».",
+      "Fenêtre « Courrier de ABAMI Rosine Belie — septembre 2026 » : la lettre (entête « Courrier de paie ») où {nom}, {periode}, {net} (95 530) et {entreprise} (P POITIERS COWORKING) sont remplacés, puis le bulletin « BULLETIN DU MOIS ».",
+      "Aucune accolade de variable ne reste visible dans l'aperçu."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "courrier"
+    ]
+  },
+  {
+    "id": "PAIE-41",
+    "groupe": "Paie",
+    "ecran": "Courrier de paie",
+    "module": "/paie/courrier",
+    "compte": "rh",
+    "titre": "Envoi réel par e-mail à un destinataire de test",
+    "objectif": "Le courrier part réellement par e-mail avec le PDF lettre + bulletin, et le journal le trace.",
+    "prealable": "R01 porte l'adresse de la boîte de test (PAIE-05). Aucun autre destinataire réel ne doit être coché.",
+    "etapes": [
+      "Décocher « Sélectionner les lignes affichées », puis cocher uniquement RECETTE PAIE UN.",
+      "Canal « Par e-mail » ; cliquer « Envoyer (1) » ; lire la confirmation et cliquer « Envoyer ».",
+      "Ouvrir la boîte de test.",
+      "Ouvrir l'onglet « Journal des envois »."
+    ],
+    "attendu": [
+      "Confirmation « Envoyer réellement le courrier de septembre 2026 ? » : « 1 destinataire(s) recevront la lettre et leur bulletin en PDF par e-mail. Le mois n'est pas clôturé : les bulletins envoyés sont provisoires. ».",
+      "Notification « Courrier de septembre 2026 — 1 réellement envoyé(s), 0 échec(s) sur 1 · PDF : … Ko ».",
+      "E-mail reçu, objet « Bulletin de paie — septembre 2026 — P POITIERS COWORKING », avec un PDF joint (lettre puis bulletin provisoire).",
+      "Colonne « Dernier envoi » de R01 : « Envoyé » et l'heure ; tuile « Envoyés ce mois » +1 ; journal : Canal « e-mail », Adresse de test, Mode « réel », Résultat « Envoyé »."
+    ],
+    "gravite": "bloquant",
+    "tags": [
+      "courrier",
+      "email",
+      "pdf"
+    ]
+  },
+  {
+    "id": "PAIE-42",
+    "groupe": "Paie",
+    "ecran": "Courrier de paie",
+    "module": "/paie/courrier",
+    "compte": "rh",
+    "titre": "Destinataire sans adresse e-mail : compté en échec",
+    "objectif": "Un salarié sans adresse n'est pas envoyé et l'échec est visible et motivé.",
+    "prealable": "R02 sans adresse e-mail.",
+    "etapes": [
+      "Ne cocher que RECETTE PAIE DEUX ; canal « Par e-mail » ; cliquer « Envoyer (1) ».",
+      "Lire la confirmation puis cliquer « Envoyer ».",
+      "Cliquer le filtre « Échecs »."
+    ],
+    "attendu": [
+      "La confirmation prévient : « 1 n'ont pas d'adresse e-mail et seront comptés en échec. ».",
+      "Notification « … 0 réellement envoyé(s), 1 échec(s) sur 1 … ».",
+      "« Dernier envoi » de R02 : « Échec » avec le motif « Adresse e-mail manquante » ; le filtre « Échecs » et la tuile « Échecs » comptent R02."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "courrier",
+      "email",
+      "controle"
+    ]
+  },
+  {
+    "id": "PAIE-43",
+    "groupe": "Paie",
+    "ecran": "Courrier de paie",
+    "module": "/paie/courrier",
+    "compte": "rh",
+    "titre": "Envoi par WhatsApp : simulation aujourd'hui, envoi réel à la réactivation d'UltraMsg",
+    "objectif": "Le canal WhatsApp est tracé en simulation tant que l'instance est en attente, puis envoie réellement le PDF une fois réactivé.",
+    "prealable": "R02 porte le numéro WhatsApp du téléphone de test (PAIE-39). Partie B à exécuter plus tard : instance UltraMsg réactivée (ULTRAMSG_INSTANCE_ID / ULTRAMSG_TOKEN) et interrupteur « WhatsApp réel » ouvert dans Paramètres.",
+    "etapes": [
+      "A. Ne cocher que RECETTE PAIE DEUX ; canal « Par WhatsApp » ; cliquer « Simuler l'envoi (1) » puis « Envoyer (simulation) ».",
+      "A. Ouvrir « Journal des envois ».",
+      "B. (plus tard) Recharger l'écran, refaire la même sélection et cliquer « Envoyer (1) » puis « Envoyer ».",
+      "B. Vérifier le téléphone de test et le journal."
+    ],
+    "attendu": [
+      "A. Confirmation mentionnant « WhatsApp en simulation : rien ne part, le journal est alimenté. » ; notification « … 0 réellement envoyé(s), 0 échec(s) sur 1 — 1 simulé(s) : RIEN n'est parti pour ceux-là … ».",
+      "A. Journal : Canal « WhatsApp », Adresse +237 6 90 00 00 00, Mode « simulation », Résultat « Simulé ».",
+      "B. Signal d'en-tête « WhatsApp réel (UltraMsg) » ; bouton « Envoyer (1) » ; notification « 1 réellement envoyé(s) ».",
+      "B. Le téléphone reçoit le PDF (lettre + bulletin) avec la lettre en légende ; journal : Mode « réel », Résultat « Envoyé »."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "courrier",
+      "whatsapp",
+      "en-attente"
+    ]
+  },
+  {
+    "id": "PAIE-44",
+    "groupe": "Paie",
+    "ecran": "Courrier de paie",
+    "module": "/paie/courrier",
+    "compte": "rh",
+    "titre": "Impression du courrier : lettre puis bulletin pour chaque destinataire",
+    "objectif": "Le courrier imprimé sort, pour chaque destinataire coché, sa lettre puis son bulletin sur des pages A4.",
+    "prealable": "Septembre 2026 ouvert.",
+    "etapes": [
+      "Ne cocher que deux salariés (ex. ABAMI et RECETTE PAIE UN).",
+      "Cliquer « Imprimer (2) » et parcourir l'aperçu."
+    ],
+    "attendu": [
+      "Quatre pages A4 dans l'ordre : lettre ABAMI, bulletin ABAMI, lettre RECETTE PAIE UN, bulletin RECETTE PAIE UN.",
+      "Chaque lettre porte l'entête « Courrier de paie » et « septembre 2026 » ; chaque bulletin tient sur une seule page avec filigrane « PROVISOIRE ».",
+      "Les salariés non cochés ne sont pas imprimés."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "impression",
+      "courrier"
+    ]
+  },
+  {
+    "id": "PAIE-45",
+    "groupe": "Paie",
+    "ecran": "Courrier de paie",
+    "module": "/paie/courrier",
+    "compte": "auditeur",
+    "titre": "Auditeur : courrier en consultation, envoi refusé",
+    "objectif": "L'auditeur voit le courrier mais ne peut ni envoyer ni modifier la lettre.",
+    "prealable": "Connecté en auditeur.",
+    "etapes": [
+      "Ouvrir /paie/courrier.",
+      "Ne cocher qu'un salarié et cliquer le bouton d'envoi puis confirmer.",
+      "Modifier une lettre du modèle et cliquer « Enregistrer le modèle »."
+    ],
+    "attendu": [
+      "Bandeau « Vos droits ici : consulter, imprimer. Non ouvert : envoyer, modifier la lettre. ».",
+      "Envoi : notification « L'operation n'a pas abouti » avec « Accès refusé : vous pouvez consulter ce module, pas y agir. » ; aucune ligne ajoutée au journal.",
+      "Modèle : notification « Modèle non enregistré » ; le modèle reste inchangé pour les autres comptes."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "droits",
+      "courrier"
+    ]
+  },
+  {
+    "id": "PAIE-46",
+    "groupe": "Paie",
+    "ecran": "Archives",
+    "module": "/paie/archives",
+    "compte": "rh",
+    "titre": "Archives : août 2026 figé, aperçu et PDF archivés",
+    "objectif": "Les mois clôturés se retrouvent, se prévisualisent et gardent leurs PDF en stockage.",
+    "prealable": "Août 2026 clôturé.",
+    "etapes": [
+      "Ouvrir /paie/archives.",
+      "Lire les tuiles et la ligne août 2026 (sélectionnée d'office si c'est la dernière clôture).",
+      "Cliquer l'œil « Aperçu du bulletin — … » d'un salarié.",
+      "Si le bouton « Générer les PDF manquants (n) » est présent : cliquer, lire la confirmation, cliquer « Générer ».",
+      "Cliquer l'icône de téléchargement d'un salarié, puis « Tous les bulletins »."
+    ],
+    "attendu": [
+      "Titre « Archives de paie », signal « Lecture seule » ; tuiles « Mois archivés », « Bulletins figés », « PDF à générer », « Dernière clôture ».",
+      "Ligne août 2026 : date et auteur de clôture, nombre de bulletins, Brut, Net, « Envoyés x / y », « PDF archivés x / y ».",
+      "Aperçu : « Tel qu'il a été arrêté à la clôture du mois ; il ne sera plus recalculé. » et mention « BULLETIN VALIDÉ le … ».",
+      "Génération : notification « août 2026 : n PDF généré(s), m déjà archivé(s) (… Ko) » ; le bouton disparaît et « PDF à générer » tombe à 0.",
+      "Le PDF archivé s'ouvre ; « Tous les bulletins » ouvre /paie/bulletins sur août 2026."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "archives",
+      "pdf",
+      "cloture"
+    ]
+  },
+  {
+    "id": "PAIE-47",
+    "groupe": "Paie",
+    "ecran": "Archives",
+    "module": "/paie/archives",
+    "compte": "auditeur",
+    "titre": "Auditeur : archives de paie refusées",
+    "objectif": "Les archives de paie sont fermées à l'auditeur externe.",
+    "prealable": "Connecté en auditeur.",
+    "etapes": [
+      "Saisir l'adresse /paie/archives."
+    ],
+    "attendu": [
+      "Page « Accès refusé » : « Le module « Archives de paie » ne vous est pas ouvert. … ».",
+      "Aucun mois ni bulletin archivé n'est affiché."
+    ],
+    "gravite": "majeur",
+    "tags": [
+      "droits",
+      "archives"
+    ]
+  },
+  {
+    "id": "PAIE-48",
+    "groupe": "Paie",
+    "ecran": "Employés",
+    "module": "/employes",
+    "compte": "rh",
+    "titre": "Remise en état après recette",
+    "objectif": "Les données de recette sont retirées avant toute clôture pour ne pas figer de faux bulletins.",
+    "prealable": "Scénarios PAIE-02 à PAIE-45 terminés.",
+    "etapes": [
+      "Dans /paie/primes (septembre 2026), supprimer « Prime de rendement » et « Retenue sur avance » de R02 (corbeille, confirmation « Supprimer « … » ? »).",
+      "Dans /paie/planning, supprimer le congé payé de R02.",
+      "Dans /employes, retirer R01, R02 et R03 de l'effectif (« Retirer de l'effectif » puis « Retirer »).",
+      "Vérifier que le modèle de lettre est revenu au texte d'origine.",
+      "Ouvrir /paie/saisie (septembre 2026)."
+    ],
+    "attendu": [
+      "Chaque suppression affiche sa notification et recalcule la paie.",
+      "Les fiches R01 à R03 restent consultables en « Inactifs ».",
+      "Le récapitulatif de septembre 2026 compte de nouveau 10 employés ; ABAMI reste à 95 530."
+    ],
+    "gravite": "mineur",
+    "tags": [
+      "nettoyage"
+    ]
+  },
+  {
+    "id": "PAIE-49",
+    "groupe": "Paie",
+    "ecran": "Récapitulatif salaires",
+    "module": "/paie/saisie",
+    "compte": "rh",
+    "titre": "Cycle complet : saisie → bulletin → clôture → archives → Mes bulletins",
+    "objectif": "Un mois de paie va de la saisie jusqu'au bulletin validé que le salarié télécharge lui-même.",
+    "prealable": "CLÔTURE IRRÉVERSIBLE. À exécuter de préférence sur le déploiement de recette. À défaut, utiliser un mois de test futur convenu avec le DG et jamais utilisé pour la vraie paie (ex. décembre 2030) : une fois clôturé, ce mois ne pourra plus jamais être saisi et restera dans les Archives. PAIE-48 fait (aucun employé de recette actif). employe.test est relié à la fiche E001 (ABAMI).",
+    "etapes": [
+      "rh : ouvrir /paie/saisie et amener la période sur le mois de test (listes « Mois » et « Annee »). Vérifier le statut « Ouvert — recalcul en direct » et le barème applicable.",
+      "Sélectionner ABAMI Rosine Belie, saisir « Acompte » 5 000, cliquer « Enregistrer la saisie ».",
+      "Ouvrir /paie/bulletins sur le mois de test et lire le bulletin d'ABAMI.",
+      "Cliquer « Générer et clôturer », taper CLOTURER, cliquer « Clôturer le mois ».",
+      "Relire le bulletin d'ABAMI, puis le récapitulatif du mois de test.",
+      "Ouvrir /paie/archives, sélectionner le mois de test ; générer les PDF manquants si le bouton est présent.",
+      "Se déconnecter, se connecter avec employe.test@poitiers.local / Poitiers2026, ouvrir /mes-bulletins, choisir le mois de test et cliquer « Télécharger le PDF »."
+    ],
+    "attendu": [
+      "Avant clôture : Total 1 d'ABAMI 106 950 ; Total 2 95 530 − 5 000 = 90 530 (l'acompte se déduit franc pour franc, les impôts et la CNPS restent 11 420) ; bulletin « PROVISOIRE ».",
+      "Notification « <mois de test> clôturé : n bulletin(s) figé(s) » ; statut « Cloture — lecture seule » ; plus de bouton « Générer et clôturer ».",
+      "Bulletin sans filigrane, mention « BULLETIN VALIDÉ le <date du jour> — mois clôturé, document définitif », net 90 530 ; volet de saisie en lecture seule (« Mois clôturé : valeurs figées, lecture seule. »).",
+      "Archives : le mois de test en tête, « Clôturé le … · par » le compte rh, n bulletins ; « PDF archivés n / n » après génération.",
+      "Mes bulletins : en-tête « ABAMI Rosine Belie · E001 · SESAME », le mois de test listé avec « Net à payer » 90 530 ; le PDF téléchargé est le bulletin validé, sur une page A4."
+    ],
+    "gravite": "bloquant",
+    "tags": [
+      "cycle-complet",
+      "cloture",
+      "irreversible",
+      "archives",
+      "pdf",
+      "calcul"
+    ]
+  }
+]
