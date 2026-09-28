@@ -98,8 +98,8 @@ adresse inconnue · aperçu manquant dans Documents et Comptes rendus (ajouté l
 | Corrections issues de la validation papier | dev | après validation |
 | Fournir les attendus de la recette, écran par écran | propriétaire | **échu le 26/09** |
 | Constituer les données de recette réelles (effectif, soldes J0) | propriétaire | **échu le 26/09** |
-| Vérifier chaque compte de test un par un | dev | — |
-| Rapport de la semaine du 21 | dev | — |
+| ~~Vérifier chaque compte de test un par un~~ | dev | **fait le 28/09** (`design/verif-comptes.mjs`, 8/8) |
+| ~~Rapport de la semaine du 21~~ | dev | **fait le 28/09** : `rapport-du-21.{md,pdf,pptx}` |
 
 > Point fait le 28/09 avec le propriétaire. Le rapport « du 21 » couvrira tout le travail jusqu'au jour de sa
 > rédaction, calé sur le Jira. Les cahiers de recette (07/09 et 14/09) sont antérieurs à la refonte : à réécrire.
@@ -144,7 +144,7 @@ Comparaison réelle du barème avec la source officielle · agrégats mensuels s
 | Feuille de route de la refonte, « à faire plus tard » | `app/REFONTE-UX.md` |
 | Plan d'avancement 3 semaines (tâches, décisions, risques) | `plan-avancement-3-semaines.pdf` · [version en ligne](https://claude.ai/code/artifact/52dce462-0d0d-475c-a93c-8f9cf9d91d4c) |
 | **Backlog Jira** (10 epics, 101 tickets, sprints datés) | `jira-backlog-coworking.csv` + `-LISEZMOI.md` |
-| Rapports hebdomadaires | `rapport-semaine-36.pptx`, `rapport-de-la-semaine-du-7.md`, `rapport-de-la-semaine-du-14.{md,pdf,pptx}` |
+| Rapports hebdomadaires | `rapport-semaine-36.pptx`, `rapport-de-la-semaine-du-7.md`, `rapport-de-la-semaine-du-14.{md,pdf,pptx}`, `rapport-du-21.{md,pdf,pptx}` |
 | Accès de test pour les testeurs | `acces-test.pdf` |
 | Maquette validée du bulletin | [artefact](https://claude.ai/artifact/KKmP8LY6us94N9M9ANuA8R) |
 | Charte visuelle et règles d'écran | `.agents/skills/poitiers-ui-ux-system/SKILL.md`, `flag-design-system` |
