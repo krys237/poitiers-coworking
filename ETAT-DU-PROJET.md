@@ -110,12 +110,17 @@ suppression de `legacy.css` · recette d'impression comparée · passation (guid
 répétition de mise en service le 9 · **mise en service le 10** · rapport final.
 
 ### À intégrer au cahier de recette (noté le 28/09)
-- **Un écran ne montre que ce à quoi le membre a droit.** Depuis les droits Voir / Faire par module
-  (Paramètres → Rôles & accès), un membre qui n'a que « Voir » voit encore, sur plusieurs écrans, des boutons
-  de saisie ou de validation (ex. Employés pour le comptable). Le serveur refuse l'action et un bandeau
-  « Vos droits ici » prévient, mais **à terme chaque bouton d'action est masqué sans le droit « Faire »**.
-  Scénario de recette par écran et par rôle : aucun bouton qui mène à un refus. Outil : `usePeut(module, "faire")`
-  / `<SiDroit module=… >` (`src/auth/useMe.tsx`) ; contrôle rapide : `node design/verif-droits.mjs`.
+- **Règle du propriétaire : retirer un droit, c'est faire disparaître les actions qui en dépendent.** Quand le
+  directeur retire un droit (Paramètres → Rôles & accès), que ce soit **à un rôle** (donc à tout ce niveau d'accès)
+  ou **à une personne** (exception individuelle), toutes les actions liées à ce droit **ne doivent plus être
+  visibles** pour ce rôle ou cette personne : boutons, liens, champs de saisie, cases à cocher, menus d'action.
+  Retirer « Faire » masque les actions d'un module (il reste consultable) ; retirer « Voir » retire le module du
+  menu et de l'écran. Aujourd'hui le menu et l'accès aux écrans suivent déjà cette règle et le serveur refuse
+  toute action non autorisée, mais **plusieurs écrans affichent encore des boutons d'action** à qui n'a que « Voir »
+  (ex. Employés pour le comptable) : à corriger écran par écran.
+  Scénario de recette, par écran : pour chaque rôle, et pour une exception posée sur une personne, retirer le droit
+  puis vérifier qu'aucune action liée n'apparaît. Outil : `usePeut(module, "faire")` / `<SiDroit module=…>`
+  (`src/auth/useMe.tsx`) ; contrôle rapide : `node design/verif-droits.mjs`.
 
 ### Backlog non planifié
 Comparaison réelle du barème avec la source officielle · agrégats mensuels stockés pour l'audit au-delà de

@@ -98,7 +98,9 @@ export function Courrier() {
     setEnvoiEnCours(true);
     try {
       const r = await envoyer({ periode, employeIds: selectionnees.map((l) => l.bulletin.employeId), canaux: [...canaux] });
-      return `${r.envoyes} envoyé(s), ${r.simules} simulé(s), ${r.echecs} échec(s) sur ${r.total} · PDF : ${Math.round(r.pdfOctets / 1024)} Ko`;
+      // Une simulation ne doit jamais passer pour un envoi : on le dit en toutes lettres.
+      const simulation = r.simules ? ` — ${r.simules} simulé(s) : RIEN n'est parti pour ceux-là (clé absente du déploiement ou interrupteur fermé)` : "";
+      return `${r.envoyes} réellement envoyé(s), ${r.echecs} échec(s) sur ${r.total}${simulation} · PDF : ${Math.round(r.pdfOctets / 1024)} Ko`;
     } finally { setEnvoiEnCours(false); }
   };
 
@@ -141,7 +143,7 @@ export function Courrier() {
               variant="default"
               size="sm"
               disabled={!selectionnees.length || envoiEnCours || !!apercu?.erreur}
-              libelle={<><SendIcon /> {envoiEnCours ? "Envoi…" : `Envoyer (${selectionnees.length})`}</>}
+              libelle={<><SendIcon /> {envoiEnCours ? "Envoi…" : `${reelCanal ? "Envoyer" : "Simuler l'envoi"} (${selectionnees.length})`}</>}
               titre={reelCanal ? `Envoyer réellement le courrier de ${libellePeriode(periode)} ?` : `Envoyer le courrier de ${libellePeriode(periode)} (simulation incluse) ?`}
               consequence={
                 <>
