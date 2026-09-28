@@ -19,6 +19,7 @@ export const ACTIONS_LIBELLES = [
   ["audit_rapport", "Rapport d'audit"],
   ["verrous_purge", "Purge des verrous"],
   ["parametres_modification", "Modification des paramètres"],
+  ["caisse_modification_tardive", "Caisse / prime médecin modifiée après le délai"],
 ] as const;
 export type ActionJournal = typeof ACTIONS_LIBELLES[number][0];
 
@@ -38,4 +39,5 @@ export const FAMILLE_ACTION: Record<ActionJournal, FamilleJournal> = {
   membre_droits: "acces", droits_roles: "acces",
   cloture_paie: "paie", cloture_financier: "finances", verrous_purge: "finances", api_financial: "api",
   bareme_controle: "bareme", bareme_version: "bareme", audit_rapport: "audit", parametres_modification: "acces",
+  caisse_modification_tardive: "finances",
 };

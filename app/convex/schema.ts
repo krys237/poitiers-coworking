@@ -77,7 +77,7 @@ export default defineSchema({
     jourPaiement: v.optional(v.number()),     // jour de paiement du mois suivant (déf. 5)
     reglages: v.optional(v.object({           // réglages de fonctionnement — voir lib/reglages.ts (défauts = anciennes constantes)
       crHeureOuverture: v.optional(v.number()), crHeureFermeture: v.optional(v.number()), crSamedi: v.optional(v.boolean()),
-      verrouFinancierMin: v.optional(v.number()),
+      verrouFinancierMin: v.optional(v.number()), verrouCaisseMin: v.optional(v.number()),
       envoiReelActive: v.optional(v.boolean()), iaDocumentsActive: v.optional(v.boolean()), pdfAutoCloture: v.optional(v.boolean()),
       joursBaseDefaut: v.optional(v.number()), plafondSaisie: v.optional(v.number()),
     })),

@@ -86,6 +86,7 @@ export const MODULES: Module[] = [
   { cle: "/commandes", libelle: "Commandes", categorie: "Exploitation", voir: "Consulter", faire: "Créer, modifier, commenter, livrer", niveauVoir: 3, niveauFaire: 3 },
   { cle: "/commandes/validation", libelle: "Validation des commandes", categorie: "Exploitation", voir: null, faire: "Valider ou rejeter une commande", niveauVoir: 5, niveauFaire: 5 },
   { cle: "/statistiques", libelle: "Caisse & primes médecins", categorie: "Exploitation", voir: "Consulter", faire: "Saisir, importer, supprimer", niveauVoir: 3, niveauFaire: 3 },
+  { cle: "/statistiques/deverrouillage", libelle: "Caisse & primes : modifier après le délai", categorie: "Exploitation", voir: null, faire: "Corriger ou supprimer une ligne verrouillée (délai réglé dans Paramètres)", niveauVoir: 7, niveauFaire: 7 },
   { cle: "/paie/saisie", libelle: "Récapitulatif salaires", categorie: "Paie", voir: "Consulter", faire: "Saisir le mois", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/paie/bulletins", libelle: "Bulletins du mois", categorie: "Paie", voir: "Consulter, imprimer, PDF", faire: "Générer et clôturer le mois", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/paie/liste", libelle: "Liste des salaires", categorie: "Paie", voir: "Consulter, imprimer", faire: null, niveauVoir: 4, niveauFaire: 4 },

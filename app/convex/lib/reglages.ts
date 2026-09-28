@@ -1,7 +1,8 @@
 // Réglages de fonctionnement de l'ERP (logique PURE, importable par les pages).
 //
 // Tout ce qui, avant, était une constante enfouie dans le code et que l'utilisateur ne voyait
-// pas : fenêtre des comptes rendus, durée du verrou financier, interrupteurs d'envoi réel et
+// pas : fenêtre des comptes rendus, durée du verrou financier, délai de modification de la caisse,
+// interrupteurs d'envoi réel et
 // d'IA, PDF à la clôture, jours de base, plafond de saisie. Stockés dans
 // `parametresEntreprise.reglages` (tous optionnels) ; `reglagesDe()` complète avec les défauts,
 // qui sont exactement les anciennes constantes — un déploiement existant ne change pas de
@@ -16,6 +17,9 @@ export interface Reglages {
   crSamedi: boolean;
   /** Grand livre : minutes d'inactivité avant qu'un verrou expire. */
   verrouFinancierMin: number;
+  /** Caisse & primes médecins : minutes après la saisie pendant lesquelles une ligne reste modifiable ;
+   *  au-delà, seul le droit « Caisse & primes : modifier après le délai » peut la corriger ou la supprimer. */
+  verrouCaisseMin: number;
   /** Courrier de paie : sans cet interrupteur, l'envoi reste simulé même si RESEND_API_KEY est définie. */
   envoiReelActive: boolean;
   /** Documents : extraction des métadonnées par IA (si ANTHROPIC_API_KEY est définie), sinon heuristique. */
@@ -33,6 +37,7 @@ export const REGLAGES_DEFAUT: Reglages = {
   crHeureFermeture: 20,
   crSamedi: false,
   verrouFinancierMin: 15,
+  verrouCaisseMin: 60,
   envoiReelActive: false,
   iaDocumentsActive: true,
   pdfAutoCloture: false,
@@ -58,6 +63,7 @@ export function validerReglages(r: Reglages): string[] {
   if (!entier(r.crHeureFermeture) || r.crHeureFermeture < 1 || r.crHeureFermeture > 24) e.push("Heure de fermeture des comptes rendus : entre 1 et 24.");
   if (r.crHeureFermeture <= r.crHeureOuverture) e.push("La fenêtre des comptes rendus doit se fermer après son ouverture.");
   if (!entier(r.verrouFinancierMin) || r.verrouFinancierMin < 1 || r.verrouFinancierMin > 240) e.push("Durée du verrou financier : entre 1 et 240 minutes.");
+  if (!entier(r.verrouCaisseMin) || r.verrouCaisseMin < 5 || r.verrouCaisseMin > 1440) e.push("Délai de modification de la caisse : entre 5 et 1 440 minutes.");
   if (!entier(r.joursBaseDefaut) || r.joursBaseDefaut < 20 || r.joursBaseDefaut > 31) e.push("Jours de base : entre 20 et 31.");
   if (!entier(r.plafondSaisie) || r.plafondSaisie < 1_000_000) e.push("Plafond de saisie : au moins 1 000 000 FCFA.");
   return e;

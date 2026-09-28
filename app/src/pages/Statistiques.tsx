@@ -13,7 +13,7 @@
 import * as React from "react";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
-import { Columns3Icon, DownloadIcon, PencilIcon, PlusIcon, SearchIcon, Trash2Icon, UploadIcon } from "lucide-react";
+import { Columns3Icon, DownloadIcon, LockIcon, PencilIcon, PlusIcon, SearchIcon, Trash2Icon, UploadIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import {
   CATEGORIES_PRIMES, LIBELLES_CAISSE, LIBELLE_CATEGORIE, POSTES_ESPECES, chiffreAffaires, exportCsvCaisse, exportCsvPrimes,
@@ -102,6 +102,16 @@ export function Statistiques() {
   const enregistrerPrime = useMutation(api.stats.enregistrerPrime);
   const supprimerPrime = useMutation(api.stats.supprimerPrime);
   const importerPrimes = useMutation(api.stats.importerPrimes);
+  // Verrou de saisie : une ligne n'est plus modifiable `verrouMin` minutes après sa saisie, sauf pour un
+  // administrateur (droit « modifier après le délai »). Recalculé chaque minute, sans attendre le serveur.
+  const maintenant = useMaintenant();
+  const verrouillee = (l: { _creationTime: number }, v?: { verrouMin: number; peutDeverrouiller: boolean }) =>
+    !!v && !v.peutDeverrouiller && maintenant - l._creationTime > v.verrouMin * 60_000;
+  const cadenas = (l: { _creationTime: number }, v?: { verrouMin: number }) => (
+    <span className="inline-flex items-center gap-1 px-1.5 text-2xs text-encre-pale" title={`Saisie le ${new Date(l._creationTime).toLocaleString("fr-FR")} : modifiable ${v?.verrouMin ?? 60} min après la saisie. Seul un administrateur peut désormais la corriger.`}>
+      <LockIcon className="h-3.5 w-3.5" /> verrouillée
+    </span>
+  );
 
   const [formCaisse, setFormCaisse] = React.useState<FormCaisse | null>(null);
   const [formPrime, setFormPrime] = React.useState<FormPrime | null>(null);
@@ -247,7 +257,7 @@ export function Statistiques() {
                       <TableCell numerique className="font-mono text-xs text-carmin">{l.sortiesDuJour ? `−${num(l.sortiesDuJour)}` : <span className="text-encre-pale">0</span>}</TableCell>
                       <TableCell numerique className="bg-ocean-brume font-mono text-xs font-semibold"><N v={l.chiffreAffaires} /></TableCell>
                       <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-0.5">
+                        {verrouillee(l, caisse) ? <div className="flex justify-end">{cadenas(l, caisse)}</div> : <div className="flex items-center justify-end gap-0.5">
                           <Button variant="ghost" size="icon-sm" aria-label="Modifier l'intervalle" onClick={() => setFormCaisse({ ...CAISSE_VIDE(), ...l, horaires: l.horaires ?? "", ligneId: String(l._id) })}><PencilIcon /></Button>
                           <BoutonConfirmation
                             variant="ghost" size="icon-sm" className="text-encre-pale hover:bg-carmin-clair hover:text-carmin"
@@ -258,7 +268,7 @@ export function Statistiques() {
                             onConfirmer={() => supprimerLigne({ ligneId: l._id })}
                             succes="Intervalle supprimé"
                           />
-                        </div>
+                        </div>}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -365,7 +375,7 @@ export function Statistiques() {
                         <TableCell numerique className="bg-ocean-brume font-mono text-xs font-semibold"><N v={p.montant} /></TableCell>
                         <TableCell className="max-w-[16rem] truncate text-xs text-encre-douce" title={p.notes}>{p.notes || <span className="text-encre-pale">—</span>}</TableCell>
                         <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-end gap-0.5">
+                          {verrouillee(p, primes) ? <div className="flex justify-end">{cadenas(p, primes)}</div> : <div className="flex items-center justify-end gap-0.5">
                             <Button variant="ghost" size="icon-sm" aria-label={`Modifier la prime de ${p.designation}`} onClick={() => setFormPrime({ primeId: String(p._id), categorie: p.categorie, designation: p.designation, dateDebut: p.dateDebut ?? "", dateFin: p.dateFin ?? "", actes: p.actes ?? 0, montantUnitaire: p.montantUnitaire ?? 0, notes: p.notes ?? "" })}><PencilIcon /></Button>
                             <BoutonConfirmation
                               variant="ghost" size="icon-sm" className="text-encre-pale hover:bg-carmin-clair hover:text-carmin"
@@ -376,7 +386,7 @@ export function Statistiques() {
                               onConfirmer={() => supprimerPrime({ primeId: p._id })}
                               succes="Prime supprimée"
                             />
-                          </div>
+                          </div>}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -652,4 +662,11 @@ function LigneSaisieCaisse({ detailPostes, onEnregistrer }: { detailPostes: bool
       </TableCell>
     </TableRow>
   );
+}
+
+/** Heure courante, rafraîchie chaque minute (pour les verrous qui tombent avec le temps). */
+function useMaintenant() {
+  const [t, setT] = React.useState(() => Date.now());
+  React.useEffect(() => { const id = setInterval(() => setT(Date.now()), 60_000); return () => clearInterval(id); }, []);
+  return t;
 }

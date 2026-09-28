@@ -154,7 +154,7 @@ export function Parametres() {
               ["entreprise", "Entreprise & documents", (["nom", "adresse", "niu", "numeroCnps", "logoUrl", "couleurEntete", "filigrane"] as (keyof Entreprise)[]).some(modifieE)],
               ["paie", "Paie & congés", (["responsableRH", "jourPaiement", "congesParMois"] as (keyof Entreprise)[]).some(modifieE) || (["joursBaseDefaut", "plafondSaisie", "pdfAutoCloture"] as (keyof Reglages)[]).some(modifieR)],
               ["courrier", "Courrier & e-mail", (["emailExpediteur", "modeleCourrier"] as (keyof Entreprise)[]).some(modifieE) || modifieR("envoiReelActive")],
-              ["fonctionnement", "Fonctionnement", (["crHeureOuverture", "crHeureFermeture", "crSamedi", "verrouFinancierMin", "iaDocumentsActive"] as (keyof Reglages)[]).some(modifieR)],
+              ["fonctionnement", "Fonctionnement", (["crHeureOuverture", "crHeureFermeture", "crSamedi", "verrouFinancierMin", "verrouCaisseMin", "iaDocumentsActive"] as (keyof Reglages)[]).some(modifieR)],
               ["roles", "Rôles & accès", modifsD > 0],
               ...(superAdmin ? [["deploiement", "Déploiement", false] as const] : []),
             ] as [Onglet, string, boolean][]).map(([k, l, modifie]) => (
@@ -266,6 +266,11 @@ export function Parametres() {
                   <ChampNombre libelle="Expiration d'un verrou inactif" aide="Passé ce délai sans activité, un autre membre peut reprendre la journée." unite="min" valeur={r.verrouFinancierMin} onChange={(v) => majR("verrouFinancierMin", v)} className={modif(modifieR("verrouFinancierMin"))} />
                 </Grille>
               </Bloc>
+              <Bloc titre="Caisse & primes médecins" description="Une ligne saisie reste modifiable un temps ; ensuite, seul un administrateur la corrige (droit « modifier après le délai », Rôles & accès).">
+                <Grille>
+                  <ChampNombre libelle="Délai de modification après saisie" aide="Passé ce délai, la ligne est verrouillée : correction ou suppression par un administrateur seulement, journalisée." unite="min" valeur={r.verrouCaisseMin} onChange={(v) => majR("verrouCaisseMin", v)} className={modif(modifieR("verrouCaisseMin"))} />
+                </Grille>
+              </Bloc>
               <Bloc titre="Documents" description="Extraction automatique du titre, de la description et de la catégorie au dépôt.">
                 <Interrupteur libelle="Extraction par IA" aide="Si ANTHROPIC_API_KEY est définie. Désactivé : repli heuristique (nom du fichier, mots-clés)." valeur={r.iaDocumentsActive} onChange={(v) => majR("iaDocumentsActive", v)} modifie={modifieR("iaDocumentsActive")} />
               </Bloc>
@@ -273,6 +278,7 @@ export function Parametres() {
                 <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-xs">
                   <dt className="text-encre-douce">Comptes rendus</dt><dd className="font-mono">{REGLAGES_DEFAUT.crHeureOuverture}h–{REGLAGES_DEFAUT.crHeureFermeture}h, lun–ven</dd>
                   <dt className="text-encre-douce">Verrou financier</dt><dd className="font-mono">{REGLAGES_DEFAUT.verrouFinancierMin} min</dd>
+                  <dt className="text-encre-douce">Caisse modifiable après saisie</dt><dd className="font-mono">{REGLAGES_DEFAUT.verrouCaisseMin} min</dd>
                   <dt className="text-encre-douce">Envoi réel · IA · PDF à la clôture</dt><dd className="font-mono">non · oui · non</dd>
                   <dt className="text-encre-douce">Jours de base · plafond</dt><dd className="font-mono">{REGLAGES_DEFAUT.joursBaseDefaut} j · {num(REGLAGES_DEFAUT.plafondSaisie)} FCFA</dd>
                 </dl>

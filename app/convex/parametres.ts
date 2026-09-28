@@ -55,7 +55,7 @@ export const reglagesInternes = internalQuery({
 
 const reglagesV = v.object({
   crHeureOuverture: v.number(), crHeureFermeture: v.number(), crSamedi: v.boolean(),
-  verrouFinancierMin: v.number(),
+  verrouFinancierMin: v.number(), verrouCaisseMin: v.number(),
   envoiReelActive: v.boolean(), iaDocumentsActive: v.boolean(), pdfAutoCloture: v.boolean(),
   joursBaseDefaut: v.number(), plafondSaisie: v.number(),
 });
