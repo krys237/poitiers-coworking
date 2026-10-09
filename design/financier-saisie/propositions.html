@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Récapitulatif financier — mode saisie, deux propositions</title>
+<style>
+  :root {
+    --ocean-nuit:#03045e; --ocean-profond:#0077b6; --ocean-ceruleen:#00b4d8; --ocean-ciel:#90e0ef; --ocean-brume:#caf0f8;
+    --papier:#f6f9fb; --surface:#fff; --filet:#e2e8f0;
+    --encre:#0b132b; --encre-douce:#334155; --encre-pale:#64748b;
+    --carmin:#b91c1c; --carmin-clair:#fee2e2; --vert:#15803d; --vert-clair:#dcfce7; --ocre:#8a5d12; --ocre-clair:#fef3c7;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--papier); color:var(--encre); font:13px/1.45 "IBM Plex Sans","Segoe UI",system-ui,sans-serif; }
+  .mono { font-family:"IBM Plex Mono",Consolas,monospace; font-variant-numeric:tabular-nums; }
+  header.tete { background:var(--ocean-nuit); color:#fff; padding:18px 20px 16px; }
+  header.tete .sur { font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ocean-ciel); font-weight:700; }
+  header.tete h1 { margin:5px 0 4px; font-size:21px; }
+  header.tete p { margin:0; color:var(--ocean-brume); max-width:1000px; font-size:13px; }
+  .enveloppe { max-width:1480px; margin:0 auto; padding:0 20px; }
+  nav.onglets { position:sticky; top:0; z-index:20; background:#fff; border-bottom:1px solid var(--filet); box-shadow:0 1px 3px rgba(3,4,94,.06); }
+  nav.onglets .enveloppe { display:flex; gap:8px; align-items:center; padding:9px 20px; flex-wrap:wrap; }
+  nav.onglets button { font:inherit; font-weight:600; border:1px solid var(--filet); background:#fff; color:var(--encre-douce); border-radius:9px; padding:7px 14px; cursor:pointer; }
+  nav.onglets button[aria-selected=true] { background:var(--ocean-profond); border-color:var(--ocean-profond); color:#fff; }
+  nav.onglets .note { margin-left:auto; font-size:11.5px; color:var(--encre-pale); }
+  main { padding-bottom:40px; }
+  section.option > h2 { font-size:17px; margin:22px 0 2px; color:var(--ocean-nuit); }
+  section.option > .pitch { color:var(--encre-douce); margin:0 0 14px; max-width:980px; }
+
+  /* --- maquette d'application --- */
+  .app { border:1px solid var(--filet); border-radius:16px; overflow:hidden; background:var(--papier); box-shadow:0 2px 10px rgba(3,4,94,.05); }
+  .barre { display:flex; flex-wrap:wrap; align-items:center; gap:10px; background:var(--surface); border-bottom:1px solid var(--filet); padding:9px 14px; }
+  .pastille { display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:3px 10px; font-size:11.5px; font-weight:600; border:1px solid var(--filet); background:#fff; white-space:nowrap; }
+  .pastille.main { background:var(--vert-clair); color:var(--vert); border-color:#bbf7d0; }
+  .pastille.date { background:var(--ocean-brume); color:var(--ocean-nuit); border-color:var(--ocean-ciel); }
+  .pastille.alerte { background:var(--ocre-clair); color:var(--ocre); border-color:#fde68a; }
+  .btn { font:inherit; font-weight:600; font-size:12px; border:1px solid var(--filet); background:#fff; color:var(--encre-douce); border-radius:9px; padding:6px 12px; cursor:default; }
+  .btn.primaire { background:var(--ocean-profond); border-color:var(--ocean-profond); color:#fff; }
+  .btn.danger { color:var(--carmin); border-color:#fecaca; background:#fff; }
+  .pousse { margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; }
+
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; padding:12px 14px 0; }
+  .kpi { background:var(--surface); border:1px solid var(--filet); border-radius:12px; padding:9px 12px; }
+  .kpi .l { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--encre-pale); font-weight:600; }
+  .kpi .v { font-size:17px; font-weight:800; margin-top:2px; }
+  .kpi.vedette { background:var(--ocean-nuit); border-color:var(--ocean-nuit); color:#fff; }
+  .kpi.vedette .l { color:var(--ocean-ciel); }
+
+  .zone { padding:12px 14px 14px; }
+  .feuille { background:var(--surface); border:1px solid var(--filet); border-radius:14px; overflow:hidden; }
+  .feuille > header { display:flex; flex-wrap:wrap; align-items:center; gap:10px; padding:9px 12px; border-bottom:1px solid var(--filet); background:#fbfdfe; }
+  .feuille > header h3 { margin:0; font-size:13px; }
+  .feuille > header .aide { font-size:11.5px; color:var(--encre-pale); }
+  .defile { max-height:470px; overflow:auto; }
+  table { width:100%; border-collapse:separate; border-spacing:0; font-size:12.5px; }
+  thead th { position:sticky; top:0; z-index:3; background:var(--ocean-profond); color:#fff; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; font-weight:700; text-align:left; padding:7px 9px; white-space:nowrap; }
+  thead th.num { text-align:right; }
+  thead th.sombre { background:var(--ocean-nuit); }
+  tbody td { border-bottom:1px solid #eef2f6; padding:4px 9px; }
+  tbody tr.groupe td { background:var(--ocean-brume); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ocean-nuit); padding:5px 9px; position:sticky; top:30px; z-index:2; }
+  tfoot td { position:sticky; bottom:0; background:#eef6fb; border-top:2px solid var(--ocean-ciel); font-weight:800; padding:7px 9px; }
+  .fige { position:sticky; left:0; background:var(--surface); z-index:1; }
+  tbody tr:hover .fige { background:#f8fbfd; }
+  tbody tr.groupe .fige { background:var(--ocean-brume); }
+  .num { text-align:right; }
+
+  /* champ de saisie en cellule */
+  .cell { width:100%; border:1px solid transparent; border-radius:7px; padding:5px 7px; text-align:right; font-family:"IBM Plex Mono",Consolas,monospace; font-variant-numeric:tabular-nums; font-size:12.5px; background:#fff; }
+  .cell:hover { border-color:var(--ocean-ciel); }
+  .cell.actif { border-color:var(--ocean-profond); box-shadow:0 0 0 3px rgba(0,180,216,.25); background:#fff; }
+  .cell.retrait { color:var(--carmin); }
+  .cell.vide { color:#cbd5e1; }
+  .cell.inactif { background:repeating-linear-gradient(135deg,#f8fafc,#f8fafc 5px,#f1f5f9 5px,#f1f5f9 10px); border-color:transparent; color:#cbd5e1; }
+  .sens { display:inline-block; border-radius:999px; font-size:9.5px; font-weight:700; padding:1px 6px; }
+  .sens.e { background:var(--vert-clair); color:var(--vert); }
+  .sens.r { background:var(--carmin-clair); color:var(--carmin); }
+  .trombone { border:1px solid var(--filet); background:#fff; border-radius:7px; width:26px; height:26px; line-height:22px; text-align:center; color:var(--encre-pale); font-size:13px; cursor:default; }
+  .trombone.ok { color:var(--vert); border-color:#bbf7d0; background:var(--vert-clair); }
+  .total { font-weight:800; }
+  .pos { color:var(--vert); } .neg { color:var(--carmin); }
+
+  /* rail de caisses (option B) */
+  .rail { display:flex; gap:6px; overflow-x:auto; padding:9px 12px; border-bottom:1px solid var(--filet); background:#fbfdfe; }
+  .rail button { font:inherit; font-size:11.5px; font-weight:600; white-space:nowrap; border:1px solid var(--filet); background:#fff; color:var(--encre-douce); border-radius:9px; padding:6px 11px; cursor:default; display:flex; align-items:center; gap:6px; }
+  .rail button[aria-current=true] { background:var(--ocean-nuit); border-color:var(--ocean-nuit); color:#fff; }
+  .rail .jauge { font-size:9.5px; border-radius:999px; padding:0 5px; background:var(--vert-clair); color:var(--vert); font-weight:700; }
+  .rail button[aria-current=true] .jauge { background:rgba(255,255,255,.18); color:#fff; }
+  .rail .jauge.vide { background:#f1f5f9; color:var(--encre-pale); }
+
+  .cols3 { display:grid; grid-template-columns:repeat(3,1fr); gap:0; }
+  .cols3 > div { border-right:1px solid #eef2f6; }
+  .cols3 > div:last-child { border-right:0; }
+  .ligne { display:grid; grid-template-columns:1fr 132px 34px; align-items:center; gap:8px; padding:7px 11px; border-bottom:1px solid #eef2f6; }
+  .ligne:hover { background:#f8fbfd; }
+  .ligne .lib { font-size:12px; font-weight:600; }
+  .ligne .lib small { display:block; font-weight:400; color:var(--encre-pale); font-size:10.5px; }
+
+  .apres { display:flex; flex-wrap:wrap; gap:10px; padding:10px 12px; border-top:1px solid var(--filet); background:#fbfdfe; align-items:center; }
+  .apres .tot { font-size:12px; color:var(--encre-douce); }
+  .apres .tot b { font-family:"IBM Plex Mono",Consolas,monospace; font-variant-numeric:tabular-nums; }
+
+  .avant-apres { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:10px 0 18px; }
+  .avant-apres > div { border:1px solid var(--filet); border-radius:12px; background:var(--surface); padding:11px 13px; }
+  .avant-apres h4 { margin:0 0 5px; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--encre-pale); }
+  .avant-apres ul { margin:0; padding-left:17px; }
+  .avant-apres li { margin-bottom:3px; font-size:12.5px; }
+  .ok::marker { color:var(--vert); }
+  .ko::marker { color:var(--carmin); }
+  @media (max-width:900px) { .avant-apres, .kpis { grid-template-columns:1fr 1fr; } .cols3 { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header class="tete">
+  <div class="enveloppe">
+    <div class="sur">Poitiers Coworking · récapitulatif financier</div>
+    <h1>Mode saisie : deux propositions</h1>
+    <p>Aujourd'hui, prendre la main ne change rien à la mise en page : on saisit une caisse à la fois, dans une colonne étroite,
+       avec la carte « Encaissements du jour » qui occupe la moitié gauche. Les deux propositions font de la prise en main un
+       <b>vrai mode de travail</b> : la feuille prend toute la largeur, les cartes de consultation s'effacent, et la saisie se fait
+       <b>dans la cellule, au clavier</b> (règle §7 du système de conception : le financier est un écran « grille »).</p>
+  </div>
+</header>
+
+<nav class="onglets">
+  <div class="enveloppe">
+    <button id="bA" aria-selected="true">Proposition A — Feuille unique</button>
+    <button id="bB" aria-selected="false">Proposition B — Matrice caisses × flux</button>
+    <span class="note">Maquette statique · montants et libellés réels des 8 caisses</span>
+  </div>
+</nav>
+
+<main class="enveloppe">
+
+<!-- ============================================================ OPTION A -->
+<section class="option" id="A">
+  <h2>Proposition A — La feuille unique</h2>
+  <p class="pitch">Les <b>33 flux des 8 caisses</b> dans un seul tableau, groupés par caisse. On descend au clavier du premier
+     montant au dernier, sans jamais choisir une caisse ni changer d'écran. Chaque groupe porte son sous-total ; le pied collant
+     affiche la recette du jour en permanence.</p>
+
+  <div class="app">
+    <div class="barre">
+      <span class="pastille date">◀ Lundi 5 octobre 2026 ▶</span>
+      <span class="pastille main">● Vous avez la main · 14 min restantes</span>
+      <span class="pastille">12 / 33 flux saisis</span>
+      <div class="pousse">
+        <button class="btn">Soldes d'ouverture</button>
+        <button class="btn danger">Rendre la main</button>
+        <button class="btn primaire">Enregistrer la journée</button>
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi vedette"><div class="l">Recette du jour</div><div class="v mono">2 347 500 FCFA</div></div>
+      <div class="kpi"><div class="l">Total entrées</div><div class="v mono pos">2 612 500</div></div>
+      <div class="kpi"><div class="l">Total retraits</div><div class="v mono neg">− 265 000</div></div>
+      <div class="kpi"><div class="l">Caisses renseignées</div><div class="v mono">4 / 8</div></div>
+    </div>
+
+    <div class="zone">
+      <div class="feuille">
+        <header>
+          <h3>Feuille de saisie du 5 octobre</h3>
+          <span class="aide">Tab / ↓ : case suivante · Entrée : valider la ligne · les caisses se suivent dans l'ordre</span>
+          <div class="pousse"><span class="pastille">Lignes visibles : 20</span><span class="pastille">Tout déplier</span></div>
+        </header>
+        <div class="defile">
+          <table>
+            <thead>
+              <tr>
+                <th style="min-width:230px">Flux</th>
+                <th>Sens</th>
+                <th class="num sombre" style="min-width:150px">Montant (FCFA)</th>
+                <th class="num">Hier</th>
+                <th class="num">Écart</th>
+                <th>Justificatif</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody id="corpsA"></tbody>
+            <tfoot>
+              <tr>
+                <td class="fige" colspan="2">TOTAL DU JOUR · 8 caisses</td>
+                <td class="num mono">2 347 500</td>
+                <td class="num mono" style="color:var(--encre-pale)">2 180 000</td>
+                <td class="num mono pos">+ 167 500</td>
+                <td colspan="2"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <div class="apres">
+          <span class="tot">Entrées <b class="pos">2 612 500</b></span>
+          <span class="tot">Retraits <b class="neg">− 265 000</b></span>
+          <span class="tot">Net <b>2 347 500 FCFA</b></span>
+          <div class="pousse"><span class="pastille alerte">⌨ Ctrl + S enregistre</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="avant-apres">
+    <div>
+      <h4>Ce que ça apporte</h4>
+      <ul>
+        <li class="ok">Une seule descente au clavier : aucune caisse oubliée, le compteur « 12 / 33 » le dit.</li>
+        <li class="ok">La colonne « Hier » et l'écart donnent le contrôle de vraisemblance pendant la frappe.</li>
+        <li class="ok">Aucun apprentissage : c'est la feuille papier, dans l'ordre des caisses.</li>
+        <li class="ok">Fonctionne tel quel sur un écran étroit (le tableau défile seul, §8).</li>
+      </ul>
+    </div>
+    <div>
+      <h4>Ce que ça coûte</h4>
+      <ul>
+        <li class="ko">33 lignes : il faut défiler, même si le pied reste collé.</li>
+        <li class="ko">Moins « vue d'ensemble » qu'une matrice : on voit les flux, pas les caisses côte à côte.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ OPTION B -->
+<section class="option" id="B" hidden>
+  <h2>Proposition B — La matrice caisses × flux</h2>
+  <p class="pitch">Les <b>7 caisses en lignes</b>, les <b>8 natures de flux en colonnes</b> : toute la journée tient sur un écran,
+     sans défilement. On remplit une caisse de gauche à droite au Tab, puis on descend à la suivante. Les croisements qui
+     n'existent pas sont hachurés. Les 4 lignes de « Autres prestations », hors matrice, gardent leur petit tableau en dessous.</p>
+
+  <div class="app">
+    <div class="barre">
+      <span class="pastille date">◀ Lundi 5 octobre 2026 ▶</span>
+      <span class="pastille main">● Vous avez la main · 14 min restantes</span>
+      <span class="pastille">12 / 33 flux saisis</span>
+      <div class="pousse">
+        <button class="btn">Soldes d'ouverture</button>
+        <button class="btn danger">Rendre la main</button>
+        <button class="btn primaire">Enregistrer la journée</button>
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi vedette"><div class="l">Recette du jour</div><div class="v mono">2 347 500 FCFA</div></div>
+      <div class="kpi"><div class="l">Total entrées</div><div class="v mono pos">2 612 500</div></div>
+      <div class="kpi"><div class="l">Total retraits</div><div class="v mono neg">− 265 000</div></div>
+      <div class="kpi"><div class="l">Caisses renseignées</div><div class="v mono">4 / 8</div></div>
+    </div>
+
+    <div class="zone">
+      <div class="feuille">
+        <header>
+          <h3>Feuille de saisie du 5 octobre</h3>
+          <span class="aide">Tab : case suivante dans la caisse · ↓ : même flux, caisse suivante · zones hachurées = flux sans objet</span>
+          <div class="pousse"><span class="pastille">⌨ Ctrl + S enregistre</span></div>
+        </header>
+        <div class="defile" style="max-height:none">
+          <table>
+            <thead>
+              <tr>
+                <th class="fige" style="min-width:185px; background:var(--ocean-profond)">Caisse</th>
+                <th class="num">Espèces</th>
+                <th class="num">Chèque</th>
+                <th class="num">Carte Visa</th>
+                <th class="num">OM</th>
+                <th class="num">MOMO</th>
+                <th class="num">Retrait</th>
+                <th class="num">Retrait OM</th>
+                <th class="num">Retrait MOMO</th>
+                <th class="num sombre" style="min-width:120px">Net caisse</th>
+                <th>Pièces</th>
+              </tr>
+            </thead>
+            <tbody id="corpsB"></tbody>
+            <tfoot>
+              <tr>
+                <td class="fige" style="background:#eef6fb">TOTAL · 7 caisses</td>
+                <td class="num mono">1 268 000</td>
+                <td class="num mono">420 000</td>
+                <td class="num mono">310 000</td>
+                <td class="num mono">331 500</td>
+                <td class="num mono">283 000</td>
+                <td class="num mono neg">− 120 000</td>
+                <td class="num mono neg">− 85 000</td>
+                <td class="num mono neg">− 60 000</td>
+                <td class="num mono">2 347 500</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="rail" style="border-top:1px solid var(--filet); border-bottom:0">
+          <strong style="font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--encre-pale); align-self:center">Autres prestations</strong>
+        </div>
+        <div class="cols3">
+          <div>
+            <div class="ligne"><span class="lib">TDM <small>Entrée</small></span><input class="cell mono" value="45 000"><span class="trombone ok">📎</span></div>
+            <div class="ligne"><span class="lib">Quantiferon <small>Entrée</small></span><input class="cell mono vide" placeholder="0"><span class="trombone">+</span></div>
+          </div>
+          <div>
+            <div class="ligne"><span class="lib">Partage <small>Entrée</small></span><input class="cell mono" value="30 000"><span class="trombone">+</span></div>
+            <div class="ligne"><span class="lib">TEPSCAN <small>Entrée</small></span><input class="cell mono vide" placeholder="0"><span class="trombone">+</span></div>
+          </div>
+          <div style="padding:11px; display:flex; align-items:center; justify-content:flex-end; gap:10px">
+            <span class="tot" style="font-size:12px; color:var(--encre-douce)">Sous-total autres <b class="mono">75 000 FCFA</b></span>
+          </div>
+        </div>
+
+        <div class="apres">
+          <span class="tot">Entrées <b class="pos">2 612 500</b></span>
+          <span class="tot">Retraits <b class="neg">− 265 000</b></span>
+          <span class="tot">Net <b>2 347 500 FCFA</b></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="avant-apres">
+    <div>
+      <h4>Ce que ça apporte</h4>
+      <ul>
+        <li class="ok">Toute la journée sur un écran, sans défilement : la vue d'ensemble est permanente.</li>
+        <li class="ok">Les caisses se comparent d'un coup d'œil, colonne par colonne (espèces de toutes les caisses alignées).</li>
+        <li class="ok">Le plus rapide à remplir quand on saisit dans l'ordre d'un relevé par nature de flux.</li>
+        <li class="ok">Totaux par colonne <i>et</i> par caisse : l'erreur de frappe saute aux yeux.</li>
+      </ul>
+    </div>
+    <div>
+      <h4>Ce que ça coûte</h4>
+      <ul>
+        <li class="ko">Une exception à gérer : « Autres prestations » n'entre pas dans la matrice (petit tableau à part).</li>
+        <li class="ko">11 colonnes : sur un écran étroit, le tableau défile horizontalement (première colonne figée).</li>
+        <li class="ko">Moins proche de la feuille papier actuelle : court apprentissage.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section style="margin:26px 0 10px">
+  <h2 style="font-size:17px; color:var(--ocean-nuit); margin:0 0 6px">Ce que les deux propositions partagent</h2>
+  <div class="avant-apres" style="grid-template-columns:1fr 1fr 1fr">
+    <div>
+      <h4>Prendre la main change l'écran</h4>
+      <ul>
+        <li>La carte « Encaissements du jour », la carte Visa, le graphique et les notes <b>s'effacent</b> : ce sont des outils de lecture.</li>
+        <li>La feuille passe en <b>pleine largeur</b> ; les 4 chiffres clés restent en haut, en version compacte.</li>
+        <li>Rendre la main rétablit la vue de consultation d'aujourd'hui.</li>
+      </ul>
+    </div>
+    <div>
+      <h4>Saisie au clavier</h4>
+      <ul>
+        <li><b>Tab</b> passe à la case suivante, <b>Maj+Tab</b> revient, <b>↑ ↓</b> changent de ligne.</li>
+        <li>Le champ se sélectionne au focus : on tape par-dessus sans effacer.</li>
+        <li>Les totaux se recalculent à la frappe ; <b>Ctrl + S</b> enregistre.</li>
+        <li>Le justificatif reste à portée, réduit à une icône tant qu'il n'y a rien à voir.</li>
+      </ul>
+    </div>
+    <div>
+      <h4>Garde-fous conservés</h4>
+      <ul>
+        <li>Verrou de 15 min, bandeau « Vous avez la main », minuteur visible.</li>
+        <li>Journée clôturée : lecture seule, aucun champ.</li>
+        <li>Rien n'est écrit tant qu'on n'a pas enregistré ; la pastille compte les modifications.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script>
+  // Données réelles des 8 caisses (convex/lib/tresorerie.ts), avec des montants d'exemple.
+  const CAISSES = [
+    ["Recettes POITIERS", [["Espèces","e",825000],["Dépôt chèque","e",420000],["Carte Visa","e",310000],["Retrait","r",120000],["OM du jour","e",186500],["Retrait OM","r",85000],["MOMO du jour","e",142000],["Retrait MOMO","r",60000]]],
+    ["Pharmacie Les Lilas", [["Espèces","e",263000],["Dépôt chèque","e",null],["Retrait","r",null],["OM","e",145000],["Retrait OM","r",null],["MOMO","e",141000],["Retrait MOMO","r",null]]],
+    ["Carte Visa", [["Dépôt Carte Visa","e",null],["Retrait Carte Visa","r",null]]],
+    ["E DR TIM Finance", [["Espèces","e",96000],["Dépôt chèque","e",null],["Retrait","r",null]]],
+    ["Médicaments", [["Espèces","e",84000],["Dépôt chèque","e",null],["Retrait","r",null]]],
+    ["Biodiagnostic", [["Espèces","e",null],["Dépôt chèque","e",null],["Retrait","r",null]]],
+    ["MED-Esthetic", [["Espèces","e",null],["Dépôt chèque","e",null],["Retrait","r",null]]],
+    ["Autres lignes", [["TDM","e",45000],["Partage","e",30000],["Quantiferon","e",null],["TEPSCAN","e",null]]],
+  ];
+  // « Hier » : valeur de la veille propre à chaque flux (ici dérivée pour la maquette, ±5 %).
+  const hierDe = (v) => (v == null ? null : Math.round((v * 0.95) / 500) * 500);
+  const fmt = (n) => n == null ? "" : n.toLocaleString("fr-FR").replace(/ | /g, " ");
+
+  // --- Option A : une ligne par flux, groupée par caisse
+  const corpsA = document.getElementById("corpsA");
+  let premierVide = true;
+  for (const [caisse, lignes] of CAISSES) {
+    const sous = lignes.reduce((t, [, s, v]) => t + (v ?? 0) * (s === "r" ? -1 : 1), 0);
+    corpsA.insertAdjacentHTML("beforeend",
+      `<tr class="groupe"><td class="fige">${caisse}</td><td></td><td class="num mono">${sous ? fmt(sous) : "—"}</td><td colspan="4"></td></tr>`);
+    for (const [lib, sens, val] of lignes) {
+      const hier = hierDe(val);
+      const ecart = val != null && hier != null ? val - hier : null;
+      const actif = val == null && premierVide; if (actif) premierVide = false;
+      corpsA.insertAdjacentHTML("beforeend", `<tr>
+        <td class="fige">${lib}</td>
+        <td><span class="sens ${sens}">${sens === "r" ? "Retrait" : "Entrée"}</span></td>
+        <td class="num"><input class="cell${sens === "r" ? " retrait" : ""}${val == null ? " vide" : ""}${actif ? " actif" : ""}" value="${fmt(val)}" placeholder="0"></td>
+        <td class="num mono" style="color:var(--encre-pale)">${fmt(hier)}</td>
+        <td class="num mono ${ecart == null ? "" : ecart >= 0 ? "pos" : "neg"}">${ecart == null ? "" : (ecart >= 0 ? "+ " : "− ") + fmt(Math.abs(ecart))}</td>
+        <td><span class="trombone${val ? " ok" : ""}">${val ? "📎" : "+"}</span></td>
+        <td style="color:var(--encre-pale); font-size:11.5px">${lib === "Carte Visa" ? "dépôt guichet" : ""}</td>
+      </tr>`);
+    }
+  }
+
+  // --- Option B : matrice 7 caisses × 8 flux
+  const COLS = ["Espèces","Chèque","Carte Visa","OM","MOMO","Retrait","Retrait OM","Retrait MOMO"];
+  const ALIAS = { "Chèque":"Dépôt chèque", "Carte Visa":"Carte Visa", "OM":["OM du jour","OM"], "MOMO":["MOMO du jour","MOMO"] };
+  const corpsB = document.getElementById("corpsB");
+  let premier = true;
+  for (const [caisse, lignes] of CAISSES.slice(0, 7)) {
+    const par = new Map(lignes.map(([lib, sens, val]) => [lib, { sens, val }]));
+    const trouve = (col) => {
+      const noms = Array.isArray(ALIAS[col]) ? ALIAS[col] : [ALIAS[col] ?? col];
+      if (caisse === "Carte Visa") { if (col === "Carte Visa") return par.get("Dépôt Carte Visa"); if (col === "Retrait") return par.get("Retrait Carte Visa"); return undefined; }
+      for (const n of noms) if (par.has(n)) return par.get(n);
+      return undefined;
+    };
+    let net = 0, cells = "";
+    for (const col of COLS) {
+      const c = trouve(col);
+      if (!c) { cells += `<td class="num"><div class="cell inactif">·</div></td>`; continue; }
+      net += (c.val ?? 0) * (c.sens === "r" ? -1 : 1);
+      const actif = c.val == null && premier; if (actif) premier = false;
+      cells += `<td class="num"><input class="cell${c.sens === "r" ? " retrait" : ""}${c.val == null ? " vide" : ""}${actif ? " actif" : ""}" value="${fmt(c.val)}" placeholder="0"></td>`;
+    }
+    const pieces = lignes.filter(([, , v]) => v).length;
+    corpsB.insertAdjacentHTML("beforeend", `<tr>
+      <td class="fige"><b>${caisse}</b></td>${cells}
+      <td class="num mono total ${net ? "" : ""}" style="background:#f3f9fd">${net ? fmt(net) : "—"}</td>
+      <td><span class="trombone${pieces ? " ok" : ""}">${pieces ? "📎 " + pieces : "+"}</span></td>
+    </tr>`);
+  }
+
+  // Bascule entre les deux propositions
+  const vues = { bA: "A", bB: "B" };
+  for (const id of Object.keys(vues)) {
+    document.getElementById(id).addEventListener("click", () => {
+      for (const [b, s] of Object.entries(vues)) {
+        document.getElementById(b).setAttribute("aria-selected", String(b === id));
+        document.getElementById(s).hidden = b !== id;
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  }
+</script>
+</body>
+</html>
