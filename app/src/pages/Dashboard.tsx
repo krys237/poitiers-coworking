@@ -460,8 +460,8 @@ export function Dashboard() {
                 libelle="Masse brute & Charges"
                 valeur={paie ? fcfa(totalBrut) : undefined}
                 note={
-                  st
-                    ? `Primes méd. : ${fcfa(st.primes)} · ${effectifActif ?? 0} actif(s)`
+                  pm
+                    ? `Primes méd. : ${fcfa(pm.primes)} · ${effectifActif ?? 0} actif(s)`
                     : `${effectifActif ?? 0} employé(s) actif(s)`
                 }
                 lienVers={voit("/paie/primes") ? "/paie/primes" : undefined}

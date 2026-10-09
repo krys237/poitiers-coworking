@@ -12,6 +12,7 @@ import {
 } from "../../convex/lib/tresorerie";
 import { fcfa, libellePeriode, messageErreur } from "../lib/format";
 import { BoutonConfirmation } from "@/components/app/bouton-action";
+import { MatriceSaisie } from "./financier/MatriceSaisie";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -198,6 +199,15 @@ export function Financier() {
     .reduce((t, l) => t + (draft[blocActif.cle]?.[l.cle] ?? 0), 0);
   const soldesDuBloc = SOLDES.filter((s) => s.bloc === blocActif.cle);
 
+  const totalEntrees = BLOCS.reduce((t, b) => t + b.lignes.filter((l) => l.sens !== "retrait").reduce((x, l) => x + (draft[b.cle]?.[l.cle] ?? 0), 0), 0);
+  const totalRetraits = BLOCS.reduce((t, b) => t + b.lignes.filter((l) => l.sens === "retrait").reduce((x, l) => x + (draft[b.cle]?.[l.cle] ?? 0), 0), 0);
+
+  // Avancement de la saisie : flux renseignés sur le total des lignes de toutes les caisses.
+  const avancement = useMemo(() => ({
+    saisis: BLOCS.reduce((t, b) => t + b.lignes.filter((l) => (draft[b.cle]?.[l.cle] ?? 0) !== 0).length, 0),
+    total: BLOCS.reduce((t, b) => t + b.lignes.length, 0),
+  }), [draft]);
+
   // Nombre de caisses ayant des données saisies
   const nbCaissesRenseignees = useMemo(() => {
     return BLOCS.filter((b) =>
@@ -372,6 +382,32 @@ export function Financier() {
       )}
 
       {/* 3. Bandeau de 8 KPI clés - Disposition 4/4 (2 lignes de 4) optimisée pour les grands montants */}
+      {/* 3a. MODE SAISIE : quatre chiffres utiles pendant la frappe, et la feuille reste au premier regard
+             (§2 du système de conception). Les 8 soldes par canal sont de la consultation : ils reviennent
+             en rendant la main. */}
+      {peutEditer && (
+        <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 sm:gap-3">
+          <div className="rounded-xl border border-ocean-nuit bg-ocean-nuit px-3.5 py-2.5 text-white">
+            <div className="text-2xs font-semibold uppercase tracking-wider text-ocean-ciel">Recette du jour</div>
+            <div className="mt-0.5 font-mono text-lg font-extrabold tabular-nums">{fcfa(recette)}</div>
+          </div>
+          <div className="rounded-xl border border-filet bg-surface px-3.5 py-2.5">
+            <div className="text-2xs font-semibold uppercase tracking-wider text-encre-pale">Total entrées</div>
+            <div className="mt-0.5 font-mono text-lg font-bold tabular-nums text-emerald-700">{fcfa(totalEntrees)}</div>
+          </div>
+          <div className="rounded-xl border border-filet bg-surface px-3.5 py-2.5">
+            <div className="text-2xs font-semibold uppercase tracking-wider text-encre-pale">Total retraits</div>
+            <div className="mt-0.5 font-mono text-lg font-bold tabular-nums text-carmin">{totalRetraits ? `− ${fcfa(totalRetraits)}` : fcfa(0)}</div>
+          </div>
+          <div className="rounded-xl border border-filet bg-surface px-3.5 py-2.5">
+            <div className="text-2xs font-semibold uppercase tracking-wider text-encre-pale">Caisses renseignées</div>
+            <div className="mt-0.5 font-mono text-lg font-bold tabular-nums">{nbCaissesRenseignees} / {BLOCS.length}</div>
+          </div>
+        </div>
+      )}
+
+      {/* 3b. Bandeau de 8 soldes par canal (consultation) */}
+      {!peutEditer && (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
         {/* Recette totale */}
         <div className="rounded-xl border border-ocean-profond/30 bg-[#0077b6] text-white p-3 shadow-2xs flex flex-col justify-between">
@@ -496,6 +532,7 @@ export function Financier() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Saisie manuelle des Soldes d'ouverture J0 (si activé) */}
       {editJ0 && (
@@ -538,7 +575,23 @@ export function Financier() {
         </Card>
       )}
 
-      {/* 4. DISPOSITION PRINCIPALE BICOLONNE */}
+      {/* 4a. MODE SAISIE : la feuille prend toute la largeur, la consultation s'efface (décision du 09/10/2026).
+             Les cartes de gauche (encaissements du jour, carte Visa, graphique, notes) sont des outils de lecture :
+             pendant la saisie, elles volent la place et l'attention. Rendre la main les rétablit. */}
+      {peutEditer && (
+        <MatriceSaisie
+          draft={draft}
+          setMontant={setMontant}
+          pieces={j?.pieces ?? {}}
+          onJustificatif={(cle) => { setUploadCle(cle); fileRef.current?.click(); }}
+          dirty={dirty}
+          onSauver={() => void sauver()}
+          enregistre={avancement}
+        />
+      )}
+
+      {/* 4b. DISPOSITION PRINCIPALE BICOLONNE (consultation) */}
+      {!peutEditer && (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4.5">
         {/* =========================================================
             COLONNE GAUCHE (4 colonnes sur 12) : Synthèse & Vigilance
@@ -1197,6 +1250,7 @@ export function Financier() {
           </Card>
         </div>
       </div>
+      )}
 
       <input
         ref={fileRef}
