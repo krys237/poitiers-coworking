@@ -189,3 +189,9 @@ Comparaison réelle du barème avec la source officielle · agrégats mensuels s
   parallèle — leurs tuiles restent à unifier.
 - **Décisions en attente du propriétaire** : sept, listées en section 7 du plan d'avancement ; les plus urgentes
   sont le mot de passe du super administrateur, les attendus de la recette et les données réelles.
+
+### Journée du 09/10 — mises à jour issues de la séance à la Polyclinique
+- **« Caisse & primes médecins » scindé en deux écrans** : *Caisse du mois* (`/caisse`) et *Primes médecins*
+  (`/primes-medecins`), deux entrées de menu, deux modules dans la matrice des droits, chacun avec son droit
+  « modifier après le délai ». L'ancienne adresse `/statistiques` redirige vers la caisse.
+- Suite attendue : les autres mises à jour sur les interactions entre membres, relevées à la clinique.

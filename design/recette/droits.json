@@ -1,5 +1,5 @@
 {
- "genereLe": "2026-10-02T10:10:07.596Z",
+ "genereLe": "2026-10-09T07:29:19.038Z",
  "lignes": [
   {
    "cle": "/",
@@ -58,18 +58,32 @@
    "faire": "Valider ou rejeter une commande"
   },
   {
-   "cle": "/statistiques",
-   "libelle": "Caisse & primes médecins",
-   "menu": "Caisse & primes médecins",
-   "voir": "Consulter",
-   "faire": "Saisir, importer, supprimer"
+   "cle": "/caisse",
+   "libelle": "Caisse du mois",
+   "menu": "Caisse du mois",
+   "voir": "Consulter les intervalles et le chiffre d'affaires",
+   "faire": "Saisir, importer, supprimer un intervalle"
   },
   {
-   "cle": "/statistiques/deverrouillage",
-   "libelle": "Caisse & primes : modifier après le délai",
+   "cle": "/caisse/deverrouillage",
+   "libelle": "Caisse : modifier après le délai",
    "menu": null,
    "voir": null,
-   "faire": "Corriger ou supprimer une ligne verrouillée (délai réglé dans Paramètres)"
+   "faire": "Corriger ou supprimer un intervalle verrouillé (délai réglé dans Paramètres)"
+  },
+  {
+   "cle": "/primes-medecins",
+   "libelle": "Primes médecins",
+   "menu": "Primes médecins",
+   "voir": "Consulter les primes par catégorie",
+   "faire": "Saisir, importer, supprimer une prime"
+  },
+  {
+   "cle": "/primes-medecins/deverrouillage",
+   "libelle": "Primes médecins : modifier après le délai",
+   "menu": null,
+   "voir": null,
+   "faire": "Corriger ou supprimer une prime verrouillée (délai réglé dans Paramètres)"
   },
   {
    "cle": "/mes-bulletins",
@@ -216,11 +230,19 @@
      "voir": false,
      "faire": false
     },
-    "/statistiques": {
+    "/caisse": {
      "voir": false,
      "faire": false
     },
-    "/statistiques/deverrouillage": {
+    "/caisse/deverrouillage": {
+     "voir": false,
+     "faire": false
+    },
+    "/primes-medecins": {
+     "voir": false,
+     "faire": false
+    },
+    "/primes-medecins/deverrouillage": {
      "voir": false,
      "faire": false
     },
@@ -324,11 +346,19 @@
      "voir": false,
      "faire": false
     },
-    "/statistiques": {
+    "/caisse": {
      "voir": false,
      "faire": false
     },
-    "/statistiques/deverrouillage": {
+    "/caisse/deverrouillage": {
+     "voir": false,
+     "faire": false
+    },
+    "/primes-medecins": {
+     "voir": false,
+     "faire": false
+    },
+    "/primes-medecins/deverrouillage": {
      "voir": false,
      "faire": false
     },
@@ -432,11 +462,19 @@
      "voir": false,
      "faire": false
     },
-    "/statistiques": {
+    "/caisse": {
      "voir": true,
      "faire": true
     },
-    "/statistiques/deverrouillage": {
+    "/caisse/deverrouillage": {
+     "voir": false,
+     "faire": false
+    },
+    "/primes-medecins": {
+     "voir": true,
+     "faire": true
+    },
+    "/primes-medecins/deverrouillage": {
      "voir": false,
      "faire": false
     },
@@ -540,11 +578,19 @@
      "voir": false,
      "faire": false
     },
-    "/statistiques": {
+    "/caisse": {
      "voir": true,
      "faire": true
     },
-    "/statistiques/deverrouillage": {
+    "/caisse/deverrouillage": {
+     "voir": false,
+     "faire": false
+    },
+    "/primes-medecins": {
+     "voir": true,
+     "faire": true
+    },
+    "/primes-medecins/deverrouillage": {
      "voir": false,
      "faire": false
     },
@@ -648,11 +694,19 @@
      "voir": true,
      "faire": true
     },
-    "/statistiques": {
+    "/caisse": {
      "voir": true,
      "faire": true
     },
-    "/statistiques/deverrouillage": {
+    "/caisse/deverrouillage": {
+     "voir": false,
+     "faire": false
+    },
+    "/primes-medecins": {
+     "voir": true,
+     "faire": true
+    },
+    "/primes-medecins/deverrouillage": {
      "voir": false,
      "faire": false
     },
@@ -756,11 +810,19 @@
      "voir": true,
      "faire": true
     },
-    "/statistiques": {
+    "/caisse": {
      "voir": true,
      "faire": true
     },
-    "/statistiques/deverrouillage": {
+    "/caisse/deverrouillage": {
+     "voir": true,
+     "faire": true
+    },
+    "/primes-medecins": {
+     "voir": true,
+     "faire": true
+    },
+    "/primes-medecins/deverrouillage": {
      "voir": true,
      "faire": true
     },
@@ -864,11 +926,19 @@
      "voir": true,
      "faire": true
     },
-    "/statistiques": {
+    "/caisse": {
      "voir": true,
      "faire": true
     },
-    "/statistiques/deverrouillage": {
+    "/caisse/deverrouillage": {
+     "voir": true,
+     "faire": true
+    },
+    "/primes-medecins": {
+     "voir": true,
+     "faire": true
+    },
+    "/primes-medecins/deverrouillage": {
      "voir": true,
      "faire": true
     },
@@ -972,11 +1042,19 @@
      "voir": false,
      "faire": false
     },
-    "/statistiques": {
+    "/caisse": {
      "voir": true,
      "faire": false
     },
-    "/statistiques/deverrouillage": {
+    "/caisse/deverrouillage": {
+     "voir": false,
+     "faire": false
+    },
+    "/primes-medecins": {
+     "voir": true,
+     "faire": false
+    },
+    "/primes-medecins/deverrouillage": {
      "voir": false,
      "faire": false
     },

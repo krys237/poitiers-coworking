@@ -36,7 +36,8 @@ export function Dashboard() {
   const paie = useQuery(api.payroll.bulletinsDuMois, me && voit("/paie/bulletins") ? { periode } : "skip");
   const fin = useQuery(api.financier.kpi, me ? {} : "skip");
   const cr = useQuery(api.comptesRendus.monEspace, me && voit("/comptes-rendus") ? {} : "skip");
-  const st = useQuery(api.stats.kpi, me && voit("/statistiques") ? { periode } : "skip");
+  const st = useQuery(api.caisse.kpi, me && voit("/caisse") ? { periode } : "skip");
+  const pm = useQuery(api.primesMedecins.kpi, me && voit("/primes-medecins") ? { periode } : "skip");
   const audit = useQuery(api.audit.resume, me && voit("/audit") ? { periode } : "skip");
 
   // Démo / Seed
@@ -76,16 +77,16 @@ export function Dashboard() {
   // Données du graphique de flux financiers : chaque barre n'apparaît qu'à qui voit son module d'origine
   // (chiffre d'affaires et primes : Caisse & primes médecins ; masse brute et net : Bulletins du mois).
   const donneesFlux = [
-    ...(voit("/statistiques") ? [{ cle: "recettes", libelle: "Chiffre d'aff.", valeur: st?.chiffreAffaires ?? 0 }] : []),
+    ...(voit("/caisse") ? [{ cle: "recettes", libelle: "Chiffre d'aff.", valeur: st?.chiffreAffaires ?? 0 }] : []),
     ...(voit("/paie/bulletins") ? [
       { cle: "brut", libelle: "Masse brute", valeur: totalBrut },
       { cle: "net", libelle: "Net payé", valeur: totalNet },
     ] : []),
-    ...(voit("/statistiques") ? [{ cle: "primes", libelle: "Primes méd.", valeur: st?.primes ?? 0 }] : []),
+    ...(voit("/primes-medecins") ? [{ cle: "primes", libelle: "Primes méd.", valeur: pm?.primes ?? 0 }] : []),
   ];
   // Le tableau de bord se compose des modules du membre (décision du 28/09/2026) : sans aucun chiffre de
   // cockpit, la colonne de gauche disparaît et « À faire aujourd'hui » prend la largeur.
-  const aCockpit = voit("/statistiques") || voit("/financier") || voit("/paie/bulletins");
+  const aCockpit = voit("/caisse") || voit("/primes-medecins") || voit("/financier") || voit("/paie/bulletins");
   const aFaire = voit("/comptes-rendus") || !!me?.droits?.["/financier"]?.faire;
 
   return (
@@ -382,14 +383,14 @@ export function Dashboard() {
           {/* Grille 2x2 des 4 Tuiles Majeures */}
           <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
             {/* Tuile 1 (Vedette) : Chiffre d'Affaires du Mois */}
-            {voit("/statistiques") && (
+            {voit("/caisse") && (
               <Tuile
                 vedette
                 ton="info"
                 libelle="Chiffre d'affaires du mois"
                 valeur={st ? fcfa(st.chiffreAffaires) : undefined}
                 note={`Recettes encaissées en ${libellePeriode(periode)}`}
-                lienVers="/statistiques"
+                lienVers="/caisse"
                 badge={
                   <Badge variant="info">
                     <TrendingUp className="mr-1 h-3 w-3" />

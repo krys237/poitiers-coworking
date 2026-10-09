@@ -13,6 +13,7 @@ import type * as audit from "../audit.js";
 import type * as auth from "../auth.js";
 import type * as authResendOtp from "../authResendOtp.js";
 import type * as bareme from "../bareme.js";
+import type * as caisse from "../caisse.js";
 import type * as commandes from "../commandes.js";
 import type * as comptesRendus from "../comptesRendus.js";
 import type * as courrier from "../courrier.js";
@@ -40,17 +41,18 @@ import type * as lib_reglages from "../lib/reglages.js";
 import type * as lib_stats from "../lib/stats.js";
 import type * as lib_telephone from "../lib/telephone.js";
 import type * as lib_tresorerie from "../lib/tresorerie.js";
+import type * as lib_verrouSaisie from "../lib/verrouSaisie.js";
 import type * as mesBulletins from "../mesBulletins.js";
 import type * as paiePdf from "../paiePdf.js";
 import type * as parametres from "../parametres.js";
 import type * as payroll from "../payroll.js";
 import type * as planning from "../planning.js";
 import type * as primes from "../primes.js";
+import type * as primesMedecins from "../primesMedecins.js";
 import type * as rbac from "../rbac.js";
 import type * as seed from "../seed.js";
 import type * as seedPhase3 from "../seedPhase3.js";
 import type * as seedPhase4 from "../seedPhase4.js";
-import type * as stats from "../stats.js";
 import type * as users from "../users.js";
 
 import type {
@@ -65,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   authResendOtp: typeof authResendOtp;
   bareme: typeof bareme;
+  caisse: typeof caisse;
   commandes: typeof commandes;
   comptesRendus: typeof comptesRendus;
   courrier: typeof courrier;
@@ -92,17 +95,18 @@ declare const fullApi: ApiFromModules<{
   "lib/stats": typeof lib_stats;
   "lib/telephone": typeof lib_telephone;
   "lib/tresorerie": typeof lib_tresorerie;
+  "lib/verrouSaisie": typeof lib_verrouSaisie;
   mesBulletins: typeof mesBulletins;
   paiePdf: typeof paiePdf;
   parametres: typeof parametres;
   payroll: typeof payroll;
   planning: typeof planning;
   primes: typeof primes;
+  primesMedecins: typeof primesMedecins;
   rbac: typeof rbac;
   seed: typeof seed;
   seedPhase3: typeof seedPhase3;
   seedPhase4: typeof seedPhase4;
-  stats: typeof stats;
   users: typeof users;
 }>;
 

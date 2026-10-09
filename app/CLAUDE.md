@@ -172,9 +172,12 @@ Convex agent skills for common tasks can be installed by running
 - **Comptes rendus** (`convex/comptesRendus.ts`, `lib/fenetre.ts`) : un par membre et par jour (`by_auteur_date`), fenêtre lun–ven
   16h–20h **heure de Douala (UTC+1 fixe)** ; hors fenêtre accepté mais marqué, `points` = 1 dans la fenêtre / 0 sinon (score = cumul) ;
   un compte rendu validé n'est plus modifiable ; vue superviseur (niv. 2+) = taux de soumission sur les membres actifs. Tests `test:fenetre`.
-- **Statistiques** (`convex/stats.ts`, `lib/stats.ts`) : table `statsCaisse` ; `totalEspeces` = 8 postes espèces, `chiffreAffaires` =
-  espèces + assurance + TEP (les sorties ne sont pas des recettes) ; primes médecins = `primesMedecins` avec `contexte: "stats"`,
-  `montant = actes × montantUnitaire` (6 catégories, index `by_contexte_periode_categorie`). Graphes SVG sans librairie (`Barres.tsx`). Tests `test:stats`.
+- **Caisse du mois** (`convex/caisse.ts`) et **Primes médecins** (`convex/primesMedecins.ts`) : **deux modules distincts** depuis le
+  09/10/2026 (ils ne relèvent pas des mêmes personnes) ; logique de calcul partagée dans `lib/stats.ts`. Caisse : table `statsCaisse`,
+  `totalEspeces` = 8 postes espèces, `chiffreAffaires` = espèces + assurance + TEP (les sorties ne sont pas des recettes). Primes :
+  `primesMedecins` avec `contexte: "stats"`, `montant = actes × montantUnitaire` (6 catégories, index `by_contexte_periode_categorie`).
+  Verrou de saisie commun : `lib/verrouSaisie.ts`, paramétré par le droit de déverrouillage du module. Graphes SVG sans librairie
+  (`Barres.tsx`). Tests `test:stats`.
 - Démo : `seed:phase3` (code dans `seedPhase3.ts`, ré-exporté) — 3 membres `demo:*`, 3 commandes, 3 interventions, 15 comptes rendus, 4 lignes de caisse, 6 primes.
 - Pièges : un ré-export `export { x } from "./autre"` enregistre bien la fonction sous le module qui ré-exporte ; les pages importent la
   logique pure de `convex/lib/*` (pas de code serveur) ; `/tmp` n'existe pas sous Git Bash + Node Windows (utiliser des variables shell).

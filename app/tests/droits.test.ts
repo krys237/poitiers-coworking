@@ -11,7 +11,7 @@ function verifie(nom: string, cond: boolean) {
 
 // Ancienne table « niveau minimum par module » (avant le 28/09/2026), pour comparaison.
 const ANCIEN: Record<string, number> = {
-  "/comptes-rendus": 1, "/documents": 1, "/interventions": 1, "/employes": 3, "/commandes": 3, "/statistiques": 3,
+  "/comptes-rendus": 1, "/documents": 1, "/interventions": 1, "/employes": 3, "/commandes": 3, "/caisse": 3, "/primes-medecins": 3,
   "/paie/saisie": 4, "/paie/bulletins": 4, "/paie/liste": 4, "/paie/planning": 4, "/paie/primes": 4, "/paie/courrier": 4,
   "/paie/archives": 4, "/bareme": 4, "/financier": 5, "/parametres": 7, "/membres": 7, "/journal": 7,
 };
@@ -62,7 +62,7 @@ verifie("exception : retirée à une personne", !droitsEffectifs("employe", sur,
 verifie("exception : accordée à une personne", droitsEffectifs("employe", [], [{ module: "/financier", voir: true, faire: true }])["/financier"].faire);
 
 // 5. Normalisation : FAIRE entraîne VOIR ; lecture seule jamais FAIRE ; ligne « faire seul ».
-verifie("faire ⇒ voir", droitsEffectifs("employe", [{ role: "employe", module: "/statistiques", voir: false, faire: true }])["/statistiques"].voir);
+verifie("faire ⇒ voir", droitsEffectifs("employe", [{ role: "employe", module: "/caisse", voir: false, faire: true }])["/caisse"].voir);
 verifie("journal : jamais faire", !droitsEffectifs("dg", [{ role: "dg", module: "/journal", voir: true, faire: true }])["/journal"].faire);
 const val = droitsEffectifs("comptable", [{ role: "comptable", module: "/commandes/validation", voir: false, faire: true }])["/commandes/validation"];
 verifie("validation : une seule case", val.voir && val.faire);

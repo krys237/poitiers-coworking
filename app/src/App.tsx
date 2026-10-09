@@ -17,7 +17,8 @@ import { Documents } from "./pages/Documents";
 import { Commandes } from "./pages/Commandes";
 import { Interventions } from "./pages/Interventions";
 import { ComptesRendus } from "./pages/ComptesRendus";
-import { Statistiques } from "./pages/Statistiques";
+import { Caisse } from "./pages/Caisse";
+import { PrimesMedecins } from "./pages/PrimesMedecins";
 import { Parametres } from "./pages/Parametres";
 import { Audit } from "./pages/Audit";
 import { Membres } from "./pages/Membres";
@@ -49,7 +50,8 @@ const ROUTES: { path: string; perm: string; element: JSX.Element }[] = [
   { path: "/commandes", perm: "/commandes", element: <Commandes /> },
   { path: "/interventions", perm: "/interventions", element: <Interventions /> },
   { path: "/comptes-rendus", perm: "/comptes-rendus", element: <ComptesRendus /> },
-  { path: "/statistiques", perm: "/statistiques", element: <Statistiques /> },
+  { path: "/caisse", perm: "/caisse", element: <Caisse /> },
+  { path: "/primes-medecins", perm: "/primes-medecins", element: <PrimesMedecins /> },
   { path: "/audit", perm: "/audit", element: <Audit /> },
   { path: "/membres", perm: "/membres", element: <Membres /> },
   { path: "/journal", perm: "/journal", element: <Journal /> },
@@ -79,6 +81,9 @@ export function App() {
                   {ROUTES.map((r) => (
                     <Route key={r.path} path={r.path} element={<Guard perm={r.perm}>{r.element}</Guard>} />
                   ))}
+                  {/* « Caisse & primes médecins » a été scindé en deux écrans le 09/10/2026 :
+                      les anciens liens et favoris arrivent sur la caisse. */}
+                  <Route path="/statistiques" element={<Navigate to="/caisse" replace />} />
                   {/* Une adresse inconnue affichait une page vide : on le dit, et on propose l'accueil. */}
                   <Route path="*" element={<PageIntrouvable />} />
                 </Route>

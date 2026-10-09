@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   Wrench,
   TrendingUp,
+  Stethoscope,
   Users,
   TableProperties,
   ListOrdered,
@@ -69,7 +70,8 @@ const NAV: { grp: string; items: NavItem[] }[] = [
       { to: "/mes-bulletins", label: "Mes bulletins", perm: "/mes-bulletins", icon: FileText },
       { to: "/commandes", label: "Commandes", perm: "/commandes", icon: ShoppingBag },
       { to: "/interventions", label: "Interventions", perm: "/interventions", icon: Wrench },
-      { to: "/statistiques", label: "Caisse & primes médecins", perm: "/statistiques", icon: TrendingUp },
+      { to: "/caisse", label: "Caisse du mois", perm: "/caisse", icon: TrendingUp },
+      { to: "/primes-medecins", label: "Primes médecins", perm: "/primes-medecins", icon: Stethoscope },
     ],
   },
   {
