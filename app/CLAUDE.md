@@ -1,7 +1,9 @@
 # Plateforme unifiée POITIERS COWORKING — guide du dépôt
 
-> **Où en est le projet, et que reste-t-il ?** Lire `../ETAT-DU-PROJET.md` (point arrêté au 28/09/2026 :
-> avancement par chantier, reste à faire par semaine, emplacement de chaque livrable) puis `DECISIONS.md`.
+> **Où en est le projet, et que reste-t-il ?** Lire `../ETAT-DU-PROJET.md` (point arrêté au 12/10/2026 :
+> avancement par chantier, ce que le propriétaire doit fournir, reste à faire par priorité, emplacement de chaque
+> livrable) puis `DECISIONS.md`. **Priorité en cours : masquer les actions dont le membre n'a pas le droit « Faire »**
+> (18 scénarios `conformite-droits` du cahier de recette).
 
 > ⚠️ **Deux agents travaillent en parallèle sur ce dépôt.** Lire `CONSIGNES-MULTI-AGENTS.md`
 > (partage des fichiers, branches, worktrees) **avant** toute modification.

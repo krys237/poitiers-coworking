@@ -1,197 +1,176 @@
 # État du projet — POITIERS COWORKING
 
-**Arrêté le lundi 28 septembre 2026, mis à jour en fin de journée.** Les 5 commits du matin sont poussés ;
-ceux de l'après-midi (jeu d'impression, droits Voir/Faire, demandes de M. GAMBOU) sont **locaux, en attente
-du feu vert du propriétaire pour pousser**. Backend déployé sur le déploiement de dev.
+**Arrêté le lundi 12 octobre 2026.** Dernier commit : `e0f0dfe` (09/10). `main` est **à jour avec `origin/main`**
+(tout est poussé), arbre de travail propre. Backend déployé sur le déploiement de dev `wonderful-shark-673`.
 
-Ce document est le point d'entrée pour reprendre le travail : ce qui est fait, ce qui reste, où se trouve
-chaque chose. Il se lit avec `app/CLAUDE.md` (guide technique du dépôt) et `app/DECISIONS.md` (journal des
-décisions du propriétaire).
+Ce document est **le point d'entrée pour reprendre le travail**. Il se lit avec `app/CLAUDE.md` (guide technique du
+dépôt) et `app/DECISIONS.md` (journal des décisions du propriétaire, à compléter à chaque arbitrage).
 
 ---
 
 ## 1. Où en est le projet
 
-**Achèvement estimé : 78 %.** Le socle métier, les écrans et la sécurité d'accès sont en place ; ce qui reste
-conditionne la mise en service : recette avec les utilisateurs, arbitrage des niveaux de rôles, bascule en
-production.
+**Achèvement estimé : 87 %.** Les fonctions demandées sont livrées ; ce qui reste est de la mise en conformité,
+de la recette et la bascule en production.
 
 | Chantier | Avancement | Reste à faire |
 |---|---|---|
 | Socle & modèle de données | 90 % | Comparaison réelle du barème officiel, agrégats d'audit longue période |
-| Paie automatisée | 95 % | Rien de bloquant |
+| Paie automatisée | 95 % | Incohérences relevées par l'inventaire (§5) |
 | Exploitation & activité | 95 % | Unifier les tuiles de 5 écrans, retirer `legacy.css` |
-| Finances & grand livre | 90 % | Rien de bloquant |
-| Accès, rôles & sécurité | 90 % | Mot de passe super admin, niveaux exacts des rôles, politique de mot de passe |
-| Documents imprimables | 85 % | Validation papier du bulletin, recette d'impression |
+| Finances & grand livre | 95 % | Incohérences du report de soldes (§5) |
+| Accès, rôles & sécurité | 95 % | **Masquage des actions selon les droits** (§4), politique de mot de passe |
+| Documents imprimables | 90 % | Validation papier du bulletin par le directeur |
 | Paramètres & réglages | 100 % | — |
-| Recette & qualité | 25 % | Cahier final, campagne par rôle, accessibilité, mobile |
-| Mise en production | 30 % | Production Convex, domaine, e-mail réel, sauvegardes, passation |
-| Pilotage & documentation | 80 % | Rapports hebdomadaires restants, guide utilisateur par rôle |
+| Recette & qualité | 50 % | Résultats de la campagne à consolider, mise en conformité des écrans |
+| Mise en production | 40 % | Domaine propre, production Convex, sauvegardes, passation |
+| Pilotage & documentation | 90 % | Rapport d'octobre |
 
-**Mise en service visée : vendredi 10 octobre 2026.**
+> ⚠️ **La date de mise en service du 10 octobre est dépassée.** Elle n'a pas été tenue : la séance à la Polyclinique
+> (vérification des formules et des espaces administratifs) a ouvert une série de mises à jour qui passent avant la
+> bascule. **Une nouvelle date est à arbitrer avec le propriétaire** — c'est la première question à lui poser.
 
 ---
 
 ## 2. Ce qui est fait
 
-### Socle (semaines 36–37)
-Analyse des deux plateformes existantes, modèle de données Convex (20 tables), moteur de paie pur aligné au
-franc près sur le format du directeur, barème daté avec contrôle quotidien, 8 suites de tests automatisés,
-API d'export financier + proxy Node, mise en ligne GitHub / Convex / Vercel.
+### Avant le 28/09
+Voir `rapport-du-mois-de-septembre-2026.md` (le mois entier, semaine par semaine) et les rapports hebdomadaires.
+En résumé : socle Convex + React, 22 écrans sur la charte « Ocean Breeze », moteur de paie aligné au franc près sur
+le modèle du directeur, connexion réelle (e-mail ou téléphone), grand livre, documents, commandes, interventions,
+comptes rendus, caisse, audit, API d'export.
 
-### Authentification et rôles (semaines 38–39)
-Convex Auth (mot de passe, code e-mail), RBAC fermé côté serveur **et** côté routes, membres & accès, journal
-d'activité, fiche API. Puis, le 21/09 : niveau 6 (DA2) retiré, rôle **super administrateur** (niveau 8) créé
-pour le technique, attribution de rôle bornée au niveau de l'auteur, matrice « Rôles & accès » dérivée du code.
-Le 21–23/09 : écran de connexion refait (image de fond, modale, **e-mail ou téléphone** avec indicatif
-pré-rempli), `AUTH_DEV_BYPASS` **coupé**, huit comptes de test créés, page « introuvable » et alias `/login`.
+### 28/09 — droits configurables et demandes de M. GAMBOU
+- **Les droits ne suivent plus la hiérarchie des niveaux.** Le directeur choisit, module par module, qui **voit** et
+  qui **fait**, dans Paramètres → Rôles & accès, plus des **exceptions par personne**. Le niveau ne donne que les
+  droits *par défaut*. Contrôle côté serveur (`requireDroit`). Garde-fous : super admin garde tout, le DG garde
+  Paramètres et Membres.
+- **Les 8 demandes de M. GAMBOU sont livrées** : « Mes bulletins » pour l'employé · destinataires nominatifs d'un
+  document · verrou d'1 h sur la caisse et les primes · PDF dans Bulletins du mois · courrier par WhatsApp ·
+  connexion hors de la Polyclinique (déjà le cas) · auditeur sans les droits du directeur · usage sur téléphone.
+- **E-mail réel en service** (Resend, domaine `edoctor-tim.com`, expéditeur `noreply@edoctor-tim.com`).
+- **Cahier de recette n°3** et **adaptation au téléphone** (aucun écran ne déborde à 390 px).
+- **Tableau de bord composé selon les droits** de chaque membre.
 
-### Refonte des écrans (semaines 38–39)
-**21 écrans sur 22** sur la charte « Ocean Breeze ». Trois règles transverses adoptées en cours de route :
-formalisme des chiffres, saisie en série avec champs persistants, tableaux à défilement intégré avec nombre de
-lignes visibles au choix (skill `poitiers-ui-ux-system` §3, §7, §8).
+### 02/10 → 05/10 — préparation de la séance et pilotage
+- **`mode-intervention-droits.pdf`** (11 pages) : méthode pour définir les droits avec chaque métier, définitions des
+  modules, **une grille par rôle** pré-remplie depuis le code.
+- **`rapport-du-mois-de-septembre-2026.md`**.
+- **`design/bareme/inventaire-calculs.md`** : **110 règles de calcul** en 11 familles — formule, source de chaque
+  paramètre, fichier qui la calcule, écrans qui l'affichent. Sections 13 et 14 : valeurs codées en dur à rendre
+  réglables, et **24 incohérences** relevées.
 
-### Bulletin de paie (21–23/09)
-Maquette validée par le propriétaire, puis livré : écran, impression (récapitulatif puis un bulletin par page)
-et **PDF pdf-lib** alignés trait pour trait. Formules et liste codée des rubriques inchangées.
-
-### Paramètres (21/09)
-Six sections, un seul enregistrement journalisé ; les réglages de fonctionnement jusque-là enfouis dans le code
-(fenêtre des comptes rendus, verrou financier, envoi réel, IA documents, PDF à la clôture, jours de base,
-plafond de saisie) sont sortis dans `convex/lib/reglages.ts`.
-
-### Journée du 28/09 — droits configurables et demandes de M. GAMBOU
-- **Jeu d'impression** du directeur (`jeu-impression-directeur-2026-09.pdf`, générateur `design/jeu-impression.mjs`) ;
-  le bulletin imprimé tient désormais sur une feuille ; titre « BULLETIN DU MOIS » (écran, impression, PDF).
-- **Droits Voir / Faire par module, choisis par le directeur** (Paramètres → Rôles & accès : matrice d'un clic +
-  exceptions par personne). Les niveaux ne donnent plus que les défauts. Auditeur : consulte tout sans agir, sauf
-  Paramètres, Journal, Archives, documents, comptes rendus. Comptable : + récapitulatif financier / grand livre.
-- **Demandes de M. GAMBOU, toutes livrées** : PDF dans Bulletins du mois (mois ou salarié) · « Mes bulletins » pour
-  l'employé (mois clôturés, téléphone) · verrou 1 h sur Caisse & primes médecins (au-delà : administrateur) ·
-  destinataires nominatifs d'un document · courrier de paie par WhatsApp (UltraMsg, simulé sans clés) · connexion
-  hors de la Polyclinique (aucune restriction d'adresse : rien à faire).
-- **Responsive (28/09)** : les 21 écrans passent à 390 px sans débordement horizontal (relevé `design/etat-mobile.mjs`) ;
-  tuiles deux par ligne sur téléphone ; fiches employé / membre / caisse en une colonne ; parcours de l'employé vérifié
-  (connexion, tableau de bord, comptes rendus, interventions, documents, mes bulletins). Les grands tableaux défilent
-  dans leur cadre (lisibles, pas confortables) — acceptable selon la consigne « au moins lisible ».
-- **E-mail réel EN SERVICE (28/09)** : compte Resend du propriétaire, domaine vérifié `edoctor-tim.com`, expéditeur
-  `noreply@edoctor-tim.com` (Paramètres), `RESEND_API_KEY` et `AUTH_EMAIL_FROM` posées ; premier courrier réel envoyé
-  et reçu. À trancher pour la production : garder ce domaine ou en vérifier un au nom de la clinique.
-- **WhatsApp — test d'envoi réel EN ATTENTE (28/09).** Les clés UltraMsg sont posées sur le déploiement de dev
-  (`ULTRAMSG_INSTANCE_ID`, `ULTRAMSG_TOKEN`) et l'interrupteur « Envoi réel par WhatsApp » est ouvert, mais
-  l'instance UltraMsg est en **standby** (et non « authenticated ») : rien ne part tant qu'elle n'est pas reliée
-  au téléphone. Dès qu'elle l'est : Courrier → « Par WhatsApp » → un seul destinataire (le numéro du propriétaire,
-  fiche E009) → le bouton doit dire « Envoyer » (pas « Simuler l'envoi ») ; en cas d'échec, la réponse d'UltraMsg
-  est dans la colonne Résultat du journal. Contrôle de l'instance (lecture seule) : `GET /instance/status`.
-  À noter : les clés placées dans `app/.env.local` ne sont PAS vues par les fonctions Convex (`npx convex env set`).
-
-### Anomalies corrigées
-Solde de trésorerie visible par tout membre connecté · `archiverPdfs` action publique sans garde · `JWKS`
-invalide (aucune session réelle possible) · PDF archivés recevant un bulletin appauvri · page blanche sur
-adresse inconnue · aperçu manquant dans Documents et Comptes rendus (ajouté le 23/09, lecture seule).
+### 09/10 — après la séance à la Polyclinique
+- **« Caisse & primes médecins » scindé en deux écrans** : *Caisse du mois* (`/caisse`) et *Primes médecins*
+  (`/primes-medecins`). Deux entrées de menu, deux modules de droits, chacun avec son droit « modifier après le
+  délai ». `/statistiques` redirige vers la caisse.
+- **Récapitulatif financier : prendre la main change l'écran.** La saisie devient une **matrice caisses × flux** en
+  pleine largeur ; la consultation (encaissements du jour, carte Visa, graphique, notes) et les 8 soldes par canal
+  s'effacent au profit de 4 chiffres utiles. Saisie dans la cellule : Tab suit la caisse, ↑ ↓ changent de caisse,
+  Ctrl+S enregistre. Maquette des deux options retenues : `design/financier-saisie/propositions.html`.
+- **Comptes rendus** : le droit « Faire » (superviser et valider) a été retiré au comptable par le propriétaire,
+  directement dans la matrice.
 
 ---
 
-## 3. Ce qui reste — par semaine
+## 3. Ce que le propriétaire doit fournir
 
-### S1 (21 → 26 septembre) — soldes
-| Reste | Qui | Butoir |
+Rien n'avance sans ces trois éléments. **À demander dès la reprise.**
+
+| Attendu | Pourquoi | Où ça va |
 |---|---|---|
-| ~~Changer le mot de passe du super administrateur~~ | propriétaire | reporté à la mise en production (mode test) |
-| ~~Remettre au directeur le jeu d'impression~~ | dev | **prêt le 28/09** — à imprimer et remettre |
-| Validation papier du bulletin | directeur | **échu le 25/09** |
-| Corrections issues de la validation papier | dev | après validation |
-| Fournir les attendus de la recette, écran par écran | propriétaire | **échu le 26/09** |
-| Constituer les données de recette réelles (effectif, soldes J0) | propriétaire | **échu le 26/09** |
-| ~~Vérifier chaque compte de test un par un~~ | dev | **fait le 28/09** (`design/verif-comptes.mjs`, 8/8) |
-| ~~Rapport de la semaine du 21~~ | dev | **fait le 28/09** : `rapport-du-21.{md,pdf,pptx}` |
+| **Les autres mises à jour relevées à la clinique** sur les *interactions entre membres* | Le propriétaire en a annoncé plusieurs ; une seule a été traitée (la scission caisse / primes). Les suivantes n'ont pas encore été données | selon le sujet |
+| **Résultats de la campagne de recette** (export CSV du cahier) et **droits arrêtés par rôle** avec le directeur | Le rapport de septembre les attend (`[À COMPLÉTER]`, section 3.7) ; les droits arbitrés doivent devenir les **défauts dans le code**, sinon la production repartira des anciens | `rbac.celluleParDefaut`, `rapport-du-mois-de-septembre-2026.md` |
+| **Nouvelle date de mise en service** | Le 10/10 est dépassé | tout le planning |
 
-> Point fait le 28/09 avec le propriétaire. Le rapport « du 21 » couvrira tout le travail jusqu'au jour de sa
-> rédaction, calé sur le Jira. Les cahiers de recette (07/09 et 14/09) sont antérieurs à la refonte : à réécrire.
+Autres décisions en attente, moins bloquantes : validation papier du bulletin par le directeur · données réelles
+(effectif, soldes J0) · choix sur l'écran Barème (§4) · arbitrage des incohérences de calcul (§5).
 
-### S2 (29 septembre → 3 octobre) — « la clinique teste »
-Cahier de recette final (un scénario par écran et par rôle) · campagne de tests avec les huit comptes ·
-deux lots de correction (mercredi, vendredi) · arbitrage des niveaux exacts de chaque rôle avec le comptable,
-le DAF et la RH (**butoir 2/10**) · unification des tuiles des cinq écrans refondus en parallèle ·
-politique de mot de passe à 10 caractères · rapport de la semaine du 28.
+---
 
-### S3 (6 → 10 octobre) — « prêt à mettre en service »
-Déploiement Convex de production · domaine, HTTPS et proxy API (**butoir 3/10**) · e-mail réel Resend
-(**butoir 3/10**) · sauvegardes + exercice de restauration · passe accessibilité et passe mobile ·
-suppression de `legacy.css` · recette d'impression comparée · passation (guide par rôle, procédure de secours) ·
-répétition de mise en service le 9 · **mise en service le 10** · rapport final.
+## 4. Ce qui reste à faire, par ordre de priorité
 
-### Cahier de recette n°3 (28/09) — prêt
-`cahier-de-recette.html` à la racine : **152 scénarios** (8 « droits par compte » générés depuis `rbac.ts`, 42+3 accès &
-administration dont mobile, 49 paie, 50 exploitation & finances), chacun avec le compte de test à utiliser, les étapes,
-le résultat attendu, une colonne « Attendu du propriétaire », le statut OK / KO / bloqué et une remarque ; progression
-gardée dans le navigateur, **export CSV** des résultats, impression. 18 scénarios `conformite-droits` échoueront tant
-que le masquage des actions n'est pas fait (attendu). Régénérer : `node design/recette/build.mjs` (sources :
-`design/recette/scenarios-*.json`, `modele.html`). Les cahiers n°1 et n°2 sont archivés dans `design/recette/anciens/`.
-
-### À intégrer au cahier de recette (noté le 28/09)
-- **Règle du propriétaire : retirer un droit, c'est faire disparaître les actions qui en dépendent.** Quand le
-  directeur retire un droit (Paramètres → Rôles & accès), que ce soit **à un rôle** (donc à tout ce niveau d'accès)
-  ou **à une personne** (exception individuelle), toutes les actions liées à ce droit **ne doivent plus être
-  visibles** pour ce rôle ou cette personne : boutons, liens, champs de saisie, cases à cocher, menus d'action.
-  Retirer « Faire » masque les actions d'un module (il reste consultable) ; retirer « Voir » retire le module du
-  menu et de l'écran. Aujourd'hui le menu et l'accès aux écrans suivent déjà cette règle et le serveur refuse
-  toute action non autorisée, mais **plusieurs écrans affichent encore des boutons d'action** à qui n'a que « Voir »
-  (ex. Employés pour le comptable) : à corriger écran par écran.
-  Scénario de recette, par écran : pour chaque rôle, et pour une exception posée sur une personne, retirer le droit
-  puis vérifier qu'aucune action liée n'apparaît. Outil : `usePeut(module, "faire")` / `<SiDroit module=…>`
-  (`src/auth/useMe.tsx`) ; contrôle rapide : `node design/verif-droits.mjs`.
+1. **Masquage des actions selon les droits** — *la règle du propriétaire* : retirer un droit à un rôle ou à une
+   personne doit faire **disparaître** les actions qui en dépendent (boutons, liens, saisies). Le menu et l'accès aux
+   écrans la respectent déjà, et le serveur refuse toute action non autorisée, mais **plusieurs écrans affichent
+   encore des boutons** à qui n'a que « Voir » (Employés pour le comptable, Membres pour l'auditeur, Paramètres,
+   Commandes, Financier, Caisse…). Les **18 scénarios marqués `conformite-droits`** du cahier de recette listent les
+   cas et échoueront tant que ce n'est pas fait. Outils : `usePeut(module, "faire")`, `<SiDroit module=…>`.
+2. **Suite des mises à jour « interactions entre membres »**, dès que le propriétaire les donne.
+3. **Refonte de l'écran Barème** — proposition faite, **en attente de validation** : trois onglets (*Taux en
+   vigueur* · *Règles de calcul*, le catalogue des 110 règles avec « utilisé dans » · *Par écran*), plus en option un
+   **calcul pas à pas** d'un bulletin. Détail dans `design/bareme/inventaire-calculs.md`. À rendre réglables au
+   minimum : les paliers **TDL** et **RAV**, aujourd'hui codés en dur et invisibles.
+4. **Corriger les incohérences de calcul** arbitrées (§5).
+5. **Campagne de recette** avec les huit comptes, puis correction.
+6. **Mise en production** : domaine propre et HTTPS, déploiement Convex de production, sauvegardes + exercice de
+   restauration, données réelles, guide utilisateur par rôle, procédure de secours, répétition.
+7. **Finitions** : unifier les tuiles des cinq écrans refondus en parallèle, retirer `legacy.css`, politique de mot
+   de passe (10 caractères), passe accessibilité.
 
 ### Backlog non planifié
-Comparaison réelle du barème avec la source officielle · agrégats mensuels stockés pour l'audit au-delà de
-24 mois · réinitialisation de mot de passe (« mot de passe oublié », dépend du compte Resend).
+Comparaison réelle du barème avec la source officielle · agrégats mensuels stockés pour l'audit au-delà de 24 mois ·
+réinitialisation de mot de passe (« mot de passe oublié »).
 
 ---
 
-## 4. Où se trouve quoi
+## 5. Incohérences de calcul à arbitrer
+
+Relevées par l'inventaire (`design/bareme/inventaire-calculs.md` §14, 24 points). Les plus importantes, parce
+qu'elles touchent l'argent :
+
+- **Une absence peut être retenue deux fois** : jours en moins via le planning **et** montant saisi à part.
+- **Le report des soldes du grand livre réécrit des journées de mois déjà clôturés.**
+- **La recette du jour peut compter la Carte Visa deux fois** — à confirmer avec la DAF.
+- Le bulletin et le PDF affichent toujours **« / 30 jours »**, même pour un salarié sur une autre base.
+- La tuile « Effectif payé » affiche toujours un **paiement le 5**, quel que soit le réglage.
+- **Les trois sociétés ont les mêmes cotisations**, alors que la légende dit « SESAME non déclarés CNPS ».
+- Les contrôles du barème (taux, tranches, date d'effet) ne sont faits que **dans le navigateur**.
+
+---
+
+## 6. Où se trouve quoi
 
 | Sujet | Fichier |
 |---|---|
 | Guide technique du dépôt (stack, pièges, conventions) | `app/CLAUDE.md` |
-| **Journal des décisions du propriétaire** (14 entrées datées) | `app/DECISIONS.md` |
-| Feuille de route de la refonte, « à faire plus tard » | `app/REFONTE-UX.md` |
-| Plan d'avancement 3 semaines (tâches, décisions, risques) | `plan-avancement-3-semaines.pdf` · [version en ligne](https://claude.ai/code/artifact/52dce462-0d0d-475c-a93c-8f9cf9d91d4c) |
-| **Backlog Jira** (10 epics, 101 tickets, sprints datés) | `jira-backlog-coworking.csv` + `-LISEZMOI.md` |
-| Rapports hebdomadaires | `rapport-semaine-36.pptx`, `rapport-de-la-semaine-du-7.md`, `rapport-de-la-semaine-du-14.{md,pdf,pptx}`, `rapport-du-21.{md,pdf,pptx}` |
+| **Journal des décisions du propriétaire** (datées, avec l'endroit du code qui les applique) | `app/DECISIONS.md` |
+| **Cahier de recette n°3** — 153 scénarios, par compte de test, export CSV des résultats | `cahier-de-recette.html` (sources : `design/recette/`, régénérer avec `node design/recette/build.mjs`) |
+| **Inventaire des 110 règles de calcul** + incohérences | `design/bareme/inventaire-calculs.md` |
+| Mode d'intervention (définir les droits avec chaque métier, grilles par rôle) | `mode-intervention-droits.pdf` (générateur `design/mode-intervention.mjs`) |
+| Maquette des deux options de saisie du financier | `design/financier-saisie/propositions.html` |
+| Rapports | `rapport-semaine-36.*`, `rapport-de-la-semaine-du-7.md`, `rapport-de-la-semaine-du-14.*`, `rapport-du-21.*`, `rapport-du-mois-de-septembre-2026.md` |
+| Backlog Jira (10 epics, 101 tickets) | `jira-backlog-coworking.csv` + `-LISEZMOI.md` |
+| Jeu d'impression pour la validation papier | `jeu-impression-directeur-2026-09.pdf` (générateur `design/jeu-impression.mjs`) |
 | Accès de test pour les testeurs | `acces-test.pdf` |
-| Maquette validée du bulletin | [artefact](https://claude.ai/artifact/KKmP8LY6us94N9M9ANuA8R) |
-| Charte visuelle et règles d'écran | `.agents/skills/poitiers-ui-ux-system/SKILL.md`, `flag-design-system` |
+| Charte visuelle et règles d'écran | `.agents/skills/poitiers-ui-ux-system/SKILL.md` |
 
-**Générateurs** (dans `design/`) : `rapport-pdf.py` (rapport md → PDF), `rapport-14.pptx.cjs` (PowerPoint),
-`jira-backlog.py` (backlog CSV), `acces-test.html` + `print-file.mjs` (fiche des accès), `shot.mjs` /
-`shot-role.mjs` / `print-png.mjs` (captures Playwright, dont connexion par compte de test).
+**Générateurs** (dans `design/`) : `recette/build.mjs` (cahier de recette) · `mode-intervention.mjs` ·
+`jeu-impression.mjs` · `rapport-pdf.py` (rapport md → PDF) · `rapport-21.pptx.cjs` (PowerPoint) · `jira-backlog.py` ·
+`acces-test.html` + `print-file.mjs` · `verif-comptes.mjs` (les 8 comptes un par un) · `verif-droits.mjs` (menu et
+accès par compte) · `etat-mobile.mjs` (les écrans à 390 px) · `shot.mjs` / `shot-role.mjs` / `print-png.mjs`.
 
 ---
 
-## 5. À savoir avant de reprendre
+## 7. À savoir avant de reprendre
 
+- **Droits** : jamais de `requireLevel` sur une fonction métier — toujours `requireDroit(ctx, module, "voir"|"faire")`,
+  et une entrée dans `rbac.MODULES` pour tout nouvel écran. Contrôles : `npm run test:droits`,
+  `node design/verif-droits.mjs`.
 - **Le mode développement est coupé** (`AUTH_DEV_BYPASS=false`). Conséquence : `npx convex run` sur une fonction
-  métier échoue (« Non authentifié »). Pour une opération en console, passer par une mutation *interne* ou
-  remettre temporairement le bypass à `true`.
-- **Comptes de test** : `<role>.test@poitiers.local`, mot de passe commun `Poitiers2026`, téléphones
-  `+237 6 90 00 00 0N` (voir `acces-test.pdf`). Le compte technique est `superadmin.test@…` (mot de passe à changer
-  à la mise en production). `employe.test` est relié à la fiche E001 (« Mes bulletins »).
-- **Déploiement dev** : `wonderful-shark-673`. Variables définies : `JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL`,
-  `FINANCIAL_API_KEY`. Manquantes : `BAREME_SOURCE_URL`,
-  `ANTHROPIC_API_KEY`. Définies depuis le 28/09 : `RESEND_API_KEY`, `AUTH_EMAIL_FROM`, `ULTRAMSG_INSTANCE_ID`, `ULTRAMSG_TOKEN`.
-- **Serveur de développement** : `npm run dev -- --port 5199` depuis `app/` ; il tombe entre les sessions,
-  penser à le relancer avant toute capture Playwright.
-- **Droits** : jamais de `requireLevel` sur une fonction métier ; `requireDroit(ctx, module, "voir"|"faire")` et une
-  entrée dans `rbac.MODULES` pour tout nouvel écran. Contrôle rapide : `node design/verif-droits.mjs`, `npm run test:droits`.
-- **Travail à deux agents** : ne commiter que ses propres fichiers (voir `app/CONSIGNES-MULTI-AGENTS.md`).
-  Le tableau de bord, le financier, les commandes, les documents et les comptes rendus ont été refondus en
-  parallèle — leurs tuiles restent à unifier.
-- **Décisions en attente du propriétaire** : sept, listées en section 7 du plan d'avancement ; les plus urgentes
-  sont le mot de passe du super administrateur, les attendus de la recette et les données réelles.
-
-### Journée du 09/10 — mises à jour issues de la séance à la Polyclinique
-- **« Caisse & primes médecins » scindé en deux écrans** : *Caisse du mois* (`/caisse`) et *Primes médecins*
-  (`/primes-medecins`), deux entrées de menu, deux modules dans la matrice des droits, chacun avec son droit
-  « modifier après le délai ». L'ancienne adresse `/statistiques` redirige vers la caisse.
-- Suite attendue : les autres mises à jour sur les interactions entre membres, relevées à la clinique.
+  métier échoue (« Non authentifié »). Pour une opération en console : mutation *interne*, ou bypass remis
+  temporairement à `true`.
+- **Comptes de test** : `<role>.test@poitiers.local`, mot de passe commun `Poitiers2026`. Les téléphones ne suivent
+  **pas** l'ordre des rôles (voir la table des comptes dans `cahier-de-recette.html`). `employe.test` est relié à la
+  fiche employé E001 ; le mot de passe du super administrateur reste inchangé tant qu'on est en mode test.
+- **Déploiement dev** : `wonderful-shark-673`. Définies : `JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL`, `FINANCIAL_API_KEY`,
+  `RESEND_API_KEY`, `AUTH_EMAIL_FROM`, `ULTRAMSG_INSTANCE_ID`, `ULTRAMSG_TOKEN`. Manquantes : `BAREME_SOURCE_URL`,
+  `ANTHROPIC_API_KEY`. ⚠️ **Une clé posée dans `app/.env.local` n'est PAS vue par les fonctions Convex** : il faut
+  `npx convex env set`.
+- **WhatsApp** : tout est prêt (UltraMsg, clés posées, interrupteur ouvert) mais **l'instance est en veille
+  (« standby »)** : les envois restent simulés. Dès qu'elle est reliée au téléphone, faire un premier envoi réel vers
+  le numéro du propriétaire (fiche E009).
+- **Frontend en ligne** : <https://poitiers-coworking.vercel.app/connexion> (déploiement automatique sur `main`).
+- **Serveur de développement** : `npm run dev -- --port 5199` depuis `app/` ; il tombe entre les sessions, le
+  relancer avant toute capture Playwright.
+- **Travail à deux agents** : ne commiter que ses propres fichiers (`app/CONSIGNES-MULTI-AGENTS.md`).
