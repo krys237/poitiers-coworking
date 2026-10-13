@@ -24,6 +24,7 @@ import {
   FileEdit,
 } from "lucide-react";
 import banniereAnalyticsIcon from "@/assets/banniere-analytics-icon.jpg";
+import { MonEspace } from "./dashboard/MonEspace";
 
 export function Dashboard() {
   const periode = periodeCourante();
@@ -88,6 +89,9 @@ export function Dashboard() {
   // cockpit, la colonne de gauche disparaît et « À faire aujourd'hui » prend la largeur.
   const aCockpit = voit("/caisse") || voit("/primes-medecins") || voit("/financier") || voit("/paie/bulletins");
   const aFaire = voit("/comptes-rendus") || !!me?.droits?.["/financier"]?.faire;
+  // « Mon espace » (13/10/2026) : ce qui concerne le membre lui-même — comptes rendus, demandes, documents, bulletins.
+  const aEspace = voit("/comptes-rendus") || voit("/interventions") || voit("/documents") || voit("/mes-bulletins");
+  const aGauche = aCockpit || aEspace;
 
   return (
     <div className="space-y-6">
@@ -378,10 +382,10 @@ export function Dashboard() {
 
       {/* 3. Organisation principale : Zone Cockpit (Gauche) + Rail d'actions (Droite) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Colonne Gauche : Cockpit 2x2 + Graphique des Flux (8 colonnes sur 12) */}
-        {aCockpit && <div className="lg:col-span-8 space-y-6">
+        {/* Colonne Gauche : Cockpit 2x2 + Graphique des Flux, puis « Mon espace » (8 colonnes sur 12) */}
+        {aGauche && <div className="lg:col-span-8 space-y-6">
           {/* Grille 2x2 des 4 Tuiles Majeures */}
-          <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
+          {aCockpit && <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
             {/* Tuile 1 (Vedette) : Chiffre d'Affaires du Mois */}
             {voit("/caisse") && (
               <Tuile
@@ -473,7 +477,7 @@ export function Dashboard() {
                 }
               />
             )}
-          </div>
+          </div>}
 
           {/* Graphique de Répartition des Flux Financiers (Large Card) */}
           {donneesFlux.length > 0 && <div className="rounded-xl border border-filet bg-surface p-5 shadow-sm">
@@ -503,10 +507,12 @@ export function Dashboard() {
               hauteur={180}
             />
           </div>}
+
+          {aEspace && me && <MonEspace droits={me.droits ?? {}} periode={periode} cr={cr} />}
         </div>}
 
         {/* Colonne Droite : Rail « À faire aujourd'hui » (4 colonnes sur 12, toute la largeur sans cockpit) */}
-        <div className={cn("space-y-4", aCockpit ? "lg:col-span-4" : "lg:col-span-12")}>
+        <div className={cn("space-y-4", aGauche ? "lg:col-span-4" : "lg:col-span-12")}>
           {/* Card Espace Quotidien */}
           {aFaire && <div className="rounded-xl border border-filet bg-surface p-5 shadow-sm space-y-4">
             <div className="flex items-center gap-2 border-b border-filet pb-3">

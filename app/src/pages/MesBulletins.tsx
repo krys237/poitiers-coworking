@@ -46,7 +46,8 @@ export function MesBulletins() {
         </EtatVide>
       ) : (
         <div className="grid gap-4 lg:grid-cols-[18rem_1fr]">
-          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1" aria-label="Mois disponibles">
+          {/* `content-start` : sans lui la grille étire ses rangées sur la hauteur de l'aperçu et des trous apparaissent entre les mois. */}
+          <ul className="grid content-start gap-2 sm:grid-cols-2 lg:grid-cols-1" aria-label="Mois disponibles">
             {liste.bulletins.map((b) => (
               <li key={b.periode}>
                 <button
