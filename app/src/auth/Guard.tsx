@@ -14,6 +14,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { MODULES, MODULE_PAR_CLE, type Droits } from "../../convex/rbac";
 import { useMe } from "./useMe";
 import { Login } from "./Login";
+import { MotDePasseObligatoire } from "./MotDePasseObligatoire";
 import "./auth.css";
 
 function Patiente({ message }: { message: string }) {
@@ -103,6 +104,8 @@ export function PortailAuth({ children }: { children: ReactNode }) {
   if (me === undefined) return <Patiente message="Vérification de votre session…" />;
   if (me === null) return <Login />;
   if (me.enAttente) return <EnAttente email={me.email} />;
+  // Mot de passe provisoire (décision du 13/10/2026) : le membre choisit le sien avant d'entrer.
+  if (me.doitChangerMotDePasse) return <MotDePasseObligatoire me={me} />;
   return <>{children}</>;
 }
 

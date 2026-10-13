@@ -103,6 +103,8 @@ export const MODULES: Module[] = [
   { cle: "/financier", libelle: "Récapitulatif financier (grand livre)", categorie: "Finances", voir: "Consulter", faire: "Saisir la journée, justificatifs, clôturer", niveauVoir: 5, niveauFaire: 5 },
   { cle: "/audit", libelle: "Audit", categorie: "Finances", voir: "Consulter", faire: "Saisir, rapports", niveauVoir: 7, niveauFaire: 7, cloisonne: true },
   { cle: "/membres", libelle: "Membres", categorie: "Direction", voir: "Consulter", faire: "Créer, modifier, rôles (jusqu'à son niveau)", niveauVoir: 7, niveauFaire: 7 },
+  // Décision du 13/10/2026 : DG et RH par défaut. Qui l'a voit la liste des membres (pour y trouver la personne).
+  { cle: "/membres/mot-de-passe", libelle: "Membres : réinitialiser un mot de passe", categorie: "Direction", voir: null, faire: "Remettre le mot de passe provisoire d'un membre (jusqu'à son niveau)", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/parametres", libelle: "Paramètres", categorie: "Direction", voir: "Consulter", faire: "Modifier, dont ces droits", niveauVoir: 7, niveauFaire: 7 },
   { cle: "/journal", libelle: "Journal d'activité", categorie: "Direction", voir: "Consulter, exporter", faire: null, niveauVoir: 7, niveauFaire: 7 },
 ];
@@ -119,6 +121,7 @@ export function celluleParDefaut(role: Role, m: Module): Cellule {
   if (m.cloisonne) { const ok = role === "auditeur_externe" || ROLES_AUDIT.includes(role); return { voir: ok, faire: ok }; }
   if (role === "auditeur_externe") return { voir: !AUDITEUR_EXCLUS.has(m.cle), faire: false };
   if (role === "comptable" && m.cle === "/financier") return { voir: true, faire: true }; // décision du 28/09/2026
+  if (m.cle === "/membres/mot-de-passe") { const ok = role === "gestionnaire_rh" || role === "dg" || role === "super_admin"; return { voir: ok, faire: ok }; } // décision du 13/10/2026 : DG et RH (la DAF sur demande, dans la matrice)
   const n = NIVEAU[role];
   return { voir: n >= m.niveauVoir, faire: n >= m.niveauFaire };
 }
@@ -151,6 +154,8 @@ export function droitsEffectifs(role: Role, surcharges: SurchargeRole[] = [], ex
     if (estVerrouille(role, m.cle)) c = { voir: true, faire: true };
     d[m.cle] = normaliser(m, c);
   }
+  // Réinitialiser un mot de passe suppose de trouver le membre : la case ouvre la consultation de Membres.
+  if (d["/membres/mot-de-passe"].faire && !d["/membres"].voir) d["/membres"] = { voir: true, faire: false };
   // Clés dérivées, hors matrice.
   d["/"] = { voir: true, faire: false }; // tableau de bord : tout membre autorisé
   const paie = MODULES.filter((m) => m.cle.startsWith("/paie/")).some((m) => d[m.cle].voir); // « Mes bulletins » n'en fait pas partie

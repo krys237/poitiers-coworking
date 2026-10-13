@@ -57,6 +57,9 @@ export default defineSchema({
     droitsPerso: v.optional(v.array(v.object({ module: v.string(), voir: v.boolean(), faire: v.boolean() }))),
     // Fiche employé du membre (« Mes bulletins ») ; à défaut, rapprochement par e-mail.
     employeId: v.optional(v.id("employes")),
+    // Mot de passe provisoire posé par la Direction (création ou réinitialisation) : l'interface impose
+    // de le changer avant toute autre chose (décision du 13/10/2026, lib/motDePasse.ts).
+    doitChangerMotDePasse: v.optional(v.boolean()),
   })
     .index("by_token", ["tokenIdentifier"])
     // `email` et `phone` sont les noms d'index EXIGÉS par Convex Auth

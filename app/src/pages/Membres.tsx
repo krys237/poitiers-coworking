@@ -14,13 +14,15 @@
  * actif désactivé ou rétrogradé.
  */
 import * as React from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { CheckIcon, KeyRoundIcon, LockIcon, PlusIcon, SearchIcon, ShieldCheckIcon, UserRoundPenIcon, UserRoundPlusIcon } from "lucide-react";
+import { CheckIcon, KeyRoundIcon, LockIcon, PlusIcon, RotateCcwKeyIcon, SearchIcon, ShieldCheckIcon, UserRoundPenIcon, UserRoundPlusIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { DESCRIPTION, LIBELLE, NIVEAU, ROLES_ORDONNES, peutAttribuer, peutModifierMembre, type Role } from "../../convex/rbac";
 import { erreurTelephone, formaterTelephone } from "../../convex/lib/telephone";
+import { MOT_DE_PASSE_PROVISOIRE, estEmailTechnique } from "../../convex/lib/motDePasse";
+import { usePeut } from "@/auth/useMe";
 import { ChampTelephone } from "@/components/app/champ-telephone";
 import { messageErreur } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -91,7 +93,11 @@ export function Membres() {
   const membres = useQuery(api.users.liste);
   const me = useQuery(api.users.me);
   const modifier = useMutation(api.users.modifier);
-  const creer = useMutation(api.users.creer);
+  const creer = useAction(api.compte.creerMembre);
+  const reinitialiser = useAction(api.compte.reinitialiser);
+  // Masquage selon les droits (règle du 28/09/2026) : sans « Faire », l'écran se lit, il ne se modifie pas.
+  const peutFaire = usePeut("/membres", "faire");
+  const peutReinitialiser = usePeut("/membres/mot-de-passe", "faire");
   // Sans accès aux employés : pas de liste (donc pas de lien possible) plutôt qu'une erreur.
   const employes = useQuery(api.employes.liste, me?.droits?.["/employes"]?.voir ? {} : "skip") as EmployeLie[] | undefined;
 
@@ -124,6 +130,7 @@ export function Membres() {
   // Changement de rôle directement dans la ligne : journalisé côté serveur, borné au niveau de l'auteur.
   const changerRole = async (m: any, role: Role) => {
     if (role === m.role) return;
+    if (!peutFaire) return;
     try {
       await modifier({ userId: m._id, role });
       toast.success(`${m.nom || m.email} : ${LIBELLE[role]}`, { description: DESCRIPTION[role] });
@@ -135,8 +142,8 @@ export function Membres() {
       await modifier({ userId: f.userId as any, role: f.role, nom: f.nom || undefined, poste: f.poste || undefined, departement: f.departement || undefined, societe: (f.societe || undefined) as any, codeAcces: f.codeAcces || undefined, phone: f.phone.trim() || undefined, isActive: f.isActive, employeId: (f.employeId || null) as any });
       toast.success(f.enAttente && f.isActive ? `Accès accordé à ${f.nom || f.email}` : `Membre ${f.nom || f.email} mis à jour`, { description: libelleRole(f.role) });
     } else {
-      await creer({ email: f.email.trim(), nom: f.nom || undefined, role: f.role, poste: f.poste || undefined, departement: f.departement || undefined, societe: (f.societe || undefined) as any, codeAcces: f.codeAcces || undefined, phone: f.phone.trim() || undefined, employeId: (f.employeId || undefined) as any });
-      toast.success(`Membre ${f.email.trim()} pré-provisionné`, { description: `${libelleRole(f.role)} · reprendra ce rôle à sa première connexion` });
+      await creer({ email: f.email.trim() || undefined, nom: f.nom || undefined, role: f.role, poste: f.poste || undefined, departement: f.departement || undefined, societe: (f.societe || undefined) as any, codeAcces: f.codeAcces || undefined, phone: f.phone.trim() || undefined, employeId: (f.employeId || undefined) as any });
+      toast.success(`Membre ${f.nom || f.email.trim() || formaterTelephone(f.phone)} créé`, { description: `${libelleRole(f.role)} · mot de passe provisoire ${MOT_DE_PASSE_PROVISOIRE}, à changer à sa première connexion` });
     }
   };
 
@@ -144,12 +151,12 @@ export function Membres() {
     <div className="space-y-4">
       <PageEnTete
         titre="Membres & accès"
-        description={<>Les comptes de la plateforme et leur rôle. Le rôle fixe le niveau d'accès (1 à 8, cumulatifs ; l'auditeur externe est à part) : changez-le directement dans la ligne, la liste dit ce que chaque rôle ouvre — le détail est dans <Link to="/parametres?onglet=roles" className="underline decoration-dotted underline-offset-2">Paramètres → Rôles & accès</Link>. Un membre pré-provisionné reprend son rôle à sa première connexion ; une inscription spontanée attend votre autorisation.</>}
+        description={<>Les comptes de la plateforme et leur rôle. Le rôle fixe les droits par défaut : changez-le directement dans la ligne, la liste dit ce que chaque rôle ouvre — le détail est dans <Link to="/parametres?onglet=roles" className="underline decoration-dotted underline-offset-2">Paramètres → Rôles & accès</Link>. Un nouveau membre se connecte aussitôt (téléphone ou e-mail) avec le mot de passe provisoire <span className="font-mono font-semibold">{MOT_DE_PASSE_PROVISOIRE}</span>, qu'il doit changer à sa première connexion.</>}
         statut={me ? <Flag variant="verrou" size="sm" icon={<ShieldCheckIcon className="h-3 w-3" />}>{me.roleLibelle}</Flag> : null}
         actions={
           <>
-            {!persistant ? <Button size="sm" onClick={() => setFiche(nouvelle())}><UserRoundPlusIcon /> Nouveau membre</Button> : null}
-            <BoutonPersistance actif={persistant} onChange={setPersistant} />
+            {peutFaire && !persistant ? <Button size="sm" onClick={() => setFiche(nouvelle())}><UserRoundPlusIcon /> Nouveau membre</Button> : null}
+            {peutFaire ? <BoutonPersistance actif={persistant} onChange={setPersistant} /> : null}
           </>
         }
       />
@@ -158,7 +165,7 @@ export function Membres() {
         <Tuile libelle="Comptes actifs" valeur={membres ? actifs.length : undefined} note={membres ? `${tous.filter((m) => !m.isActive && !m.enAttente).length} désactivé(s)` : undefined} vedette />
         <Tuile libelle="En attente d'autorisation" valeur={membres ? enAttente.length : undefined} note={enAttente.length ? "à autoriser ci-dessous" : "aucune inscription en attente"} />
         <Tuile libelle="Directeurs Généraux actifs" valeur={membres ? dgActifs : undefined} note={dgActifs <= 1 ? "le dernier DG ne peut être ni désactivé ni rétrogradé" : "garde-fou : au moins un doit rester actif"} />
-        <Tuile libelle="Pré-provisionnés" valeur={membres ? tous.filter((m) => m.origine === "pending").length : undefined} note="en attente de première connexion" />
+        <Tuile libelle="Mot de passe provisoire" valeur={membres ? tous.filter((m) => m.doitChangerMotDePasse || m.origine === "pending").length : undefined} note="en attente de première connexion" />
       </GrilleTuiles>
 
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-filet bg-surface px-3 py-2 shadow-xs print:hidden">
@@ -201,7 +208,7 @@ export function Membres() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {persistant && (
+            {persistant && peutFaire && (
               <LigneSaisie auteur={monRole} onEnregistrer={async (f) => { await enregistrer(f); }} />
             )}
             {liste.map((m) => {
@@ -211,10 +218,10 @@ export function Membres() {
                 <TableRow key={String(m._id)} className={cn("cursor-pointer", !m.isActive && !m.enAttente && "opacity-60")} onClick={() => setFiche(ouvrir(m))}>
                   <TableCell className="leading-tight">
                     <div className="flex items-center gap-1.5 whitespace-nowrap text-[13px] font-semibold">{m.nom || <span className="text-encre-pale">(sans nom)</span>}{moi ? <Flag variant="saisie-active" size="xs">vous</Flag> : null}</div>
-                    <div className="whitespace-nowrap font-mono text-2xs text-encre-pale">{m.email}{m.phone ? ` · ${formaterTelephone(m.phone)}` : ""}</div>
+                    <div className="whitespace-nowrap font-mono text-2xs text-encre-pale">{estEmailTechnique(m.email) ? "" : m.email}{m.phone ? `${estEmailTechnique(m.email) ? "" : " · "}${formaterTelephone(m.phone)}` : ""}</div>
                   </TableCell>
                   <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                    {!moi && monRole && peutModifierMembre(monRole, m.role) && !m.enAttente ? (
+                    {peutFaire && !moi && monRole && peutModifierMembre(monRole, m.role) && !m.enAttente ? (
                       <SelectRole valeur={m.role} onChange={(r) => void changerRole(m, r)} auteur={monRole} taille="sm" className="w-64" ariaLabel={`Rôle de ${m.nom || m.email}`} />
                     ) : (
                       <span title={moi ? "Votre propre rôle ne se change pas ici." : m.enAttente ? "Autorisez d'abord ce compte (bouton Autoriser)." : "Ce membre est au-dessus de votre niveau."}>
@@ -227,10 +234,10 @@ export function Membres() {
                   <TableCell className="whitespace-nowrap text-xs text-encre-douce">{m.poste || <span className="text-encre-pale">—</span>}{m.departement ? <span className="text-encre-pale"> · {m.departement}</span> : null}</TableCell>
                   <TableCell>{m.societe ? <Flag variant="neutre" size="xs">{m.societe}</Flag> : <span className="text-encre-pale">—</span>}</TableCell>
                   <TableCell><Flag variant={o.variant} size="xs" title={o.aide}>{o.label}</Flag></TableCell>
-                  <TableCell>{m.enAttente ? <Flag variant="a-renseigner" size="xs">à autoriser</Flag> : m.isActive ? <Flag variant="renseigne" size="xs">Actif</Flag> : <Flag variant="verrou" size="xs">Désactivé</Flag>}</TableCell>
+                  <TableCell className="whitespace-nowrap">{m.enAttente ? <Flag variant="a-renseigner" size="xs">à autoriser</Flag> : m.isActive ? <Flag variant="renseigne" size="xs">Actif</Flag> : <Flag variant="verrou" size="xs">Désactivé</Flag>}{m.doitChangerMotDePasse ? <Flag variant="direct" size="xs" className="ml-1" title="Mot de passe provisoire : à changer à sa prochaine connexion">mdp provisoire</Flag> : null}</TableCell>
                   <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
-                      {m.enAttente ? (
+                      {peutFaire && m.enAttente ? (
                         <Button size="sm" className="h-7 text-2xs" onClick={() => setFiche(ouvrir(m, true))}><CheckIcon /> Autoriser</Button>
                       ) : null}
                       <Button variant="ghost" size="icon-sm" aria-label={`Fiche — ${m.nom ?? m.email}`} title="Fiche du membre (rôle, poste, société, code d'accès, activation)" onClick={() => setFiche(ouvrir(m))}><UserRoundPenIcon /></Button>
@@ -253,6 +260,10 @@ export function Membres() {
               employes={employes ?? []}
               auteur={monRole}
               estMoi={!!(me && fiche.userId && String(me._id) === fiche.userId)}
+              lectureSeule={!peutFaire}
+              onReinitialiser={peutReinitialiser && fiche.userId && monRole && peutModifierMembre(monRole, fiche.role) && !(me && String(me._id) === fiche.userId)
+                ? async () => { const r = await reinitialiser({ userId: fiche.userId as any }); toast.success(`Mot de passe de ${fiche.nom || r.email} réinitialisé`, { description: `Provisoire : ${MOT_DE_PASSE_PROVISOIRE} · à changer à sa prochaine connexion · ses sessions sont fermées` }); }
+                : undefined}
               dernierDg={dgActifs <= 1 && fiche.role === "dg" && fiche.isActive}
               onFermer={() => setFiche(null)}
               onEnregistrer={async (f) => { await enregistrer(f); setFiche(null); }}
@@ -267,8 +278,11 @@ export function Membres() {
 
 // --- Fiche membre ------------------------------------------------------------------
 
-function FormFiche({ fiche, auteur, estMoi, dernierDg, employes, onFermer, onEnregistrer, onDesactiver }: {
-  fiche: Fiche; auteur: Role | undefined; estMoi: boolean; dernierDg: boolean; employes: EmployeLie[]; onFermer: () => void; onEnregistrer: (f: Fiche) => Promise<void>; onDesactiver: () => Promise<void>;
+function FormFiche({ fiche, auteur, estMoi, dernierDg, employes, lectureSeule, onFermer, onEnregistrer, onDesactiver, onReinitialiser }: {
+  fiche: Fiche; auteur: Role | undefined; estMoi: boolean; dernierDg: boolean; employes: EmployeLie[]; lectureSeule?: boolean;
+  onFermer: () => void; onEnregistrer: (f: Fiche) => Promise<void>; onDesactiver: () => Promise<void>;
+  /** Réinitialisation du mot de passe (droit « Membres : réinitialiser un mot de passe ») ; absent = pas proposé. */
+  onReinitialiser?: () => Promise<void>;
 }) {
   const [f, setF] = React.useState(fiche);
   const [enCours, setEnCours] = React.useState(false);
@@ -281,7 +295,9 @@ function FormFiche({ fiche, auteur, estMoi, dernierDg, employes, onFermer, onEnr
     <form
       onSubmit={async (e) => {
         e.preventDefault();
-        if (creation && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) { toast.error("Adresse e-mail invalide."); return; }
+        if (lectureSeule) return;
+        if (creation && !f.email.trim() && !f.phone.trim()) { toast.error("Un e-mail ou un numéro de téléphone est requis : c'est l'identifiant de connexion."); return; }
+        if (creation && f.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) { toast.error("Adresse e-mail invalide."); return; }
         setEnCours(true);
         try { await onEnregistrer(f); } catch (err) { toast.error("Enregistrement refusé", { description: messageErreur(err) }); } finally { setEnCours(false); }
       }}
@@ -290,14 +306,14 @@ function FormFiche({ fiche, auteur, estMoi, dernierDg, employes, onFermer, onEnr
         <DialogTitle>{creation ? "Nouveau membre" : autorisation ? `Autoriser ${fiche.nom || fiche.email}` : `Fiche membre — ${fiche.nom || fiche.email}`}</DialogTitle>
         <DialogDescription>
           {creation
-            ? "Le membre est créé avec son rôle avant toute connexion : à sa première connexion avec cet e-mail, son compte reprend ce rôle."
+            ? `Le membre se connecte aussitôt avec son téléphone ou son e-mail et le mot de passe provisoire ${MOT_DE_PASSE_PROVISOIRE}, qu'il devra changer à sa première connexion.`
             : autorisation
               ? "Ce compte s'est inscrit sans être pré-provisionné : il n'a aucun droit. Choisissez son rôle et enregistrez pour lui ouvrir l'accès."
-              : `${fiche.email} · le rôle fixe le niveau d'accès (1 à 8, cumulatifs).`}
+              : `${estEmailTechnique(fiche.email) ? "Connexion par téléphone" : fiche.email} · le rôle fixe les droits par défaut.`}
         </DialogDescription>
       </DialogHeader>
-      <div className="mt-4 grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
-        {creation ? <div className="min-[480px]:col-span-2">{texte("email", "E-mail", "prenom.nom@domaine.com", true, "email")}</div> : null}
+      <fieldset disabled={lectureSeule} className="mt-4 grid grid-cols-1 gap-3 min-[480px]:grid-cols-2">
+        {creation ? <div className="min-[480px]:col-span-2">{texte("email", "E-mail (facultatif si un téléphone est donné)", "prenom.nom@domaine.com", false, "email")}</div> : null}
         {texte("nom", "Nom")}
         <Champ libelle="Rôle · niveau d'accès" requis aide={DESCRIPTION[f.role]}>
           {(a) => <SelectRole id={a.id} valeur={f.role} onChange={(r) => setF({ ...f, role: r })} auteur={estMoi ? undefined : auteur} />}
@@ -359,10 +375,27 @@ function FormFiche({ fiche, auteur, estMoi, dernierDg, employes, onFermer, onEnr
           </div>
         ) : null}
         {(estMoi || dernierDg) && !creation ? <p className="text-2xs text-encre-pale min-[480px]:col-span-2">{estMoi ? "Vous ne pouvez pas désactiver votre propre compte. " : ""}{dernierDg ? "Dernier Directeur Général actif : ni désactivation ni rétrogradation possible." : ""}</p> : null}
-      </div>
+      </fieldset>
+      {onReinitialiser && !creation ? (
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-filet bg-papier px-3 py-2">
+          <div>
+            <div className="text-xs font-semibold">Mot de passe</div>
+            <div className="text-2xs text-encre-pale">Oublié ? Remettez le provisoire <span className="font-mono">{MOT_DE_PASSE_PROVISOIRE}</span> : le membre le change à sa prochaine connexion.</div>
+          </div>
+          <BoutonConfirmation
+            variant="outline" size="sm"
+            libelle={<><RotateCcwKeyIcon /> Réinitialiser</>}
+            titre={`Réinitialiser le mot de passe de ${fiche.nom || fiche.email} ?`}
+            consequence={`Son mot de passe redevient ${MOT_DE_PASSE_PROVISOIRE}, ses sessions ouvertes sont fermées, et il devra en choisir un nouveau à sa prochaine connexion. L'opération est journalisée.`}
+            confirmer="Réinitialiser"
+            onConfirmer={onReinitialiser}
+            succes="Mot de passe réinitialisé"
+          />
+        </div>
+      ) : null}
       <DialogFooter className="mt-5">
-        <Button type="button" variant="outline" onClick={onFermer} disabled={enCours}>Annuler</Button>
-        <Button type="submit" disabled={enCours}>{creation ? "Pré-provisionner" : autorisation ? <><CheckIcon /> Accorder l'accès</> : "Enregistrer"}</Button>
+        <Button type="button" variant="outline" onClick={onFermer} disabled={enCours}>{lectureSeule ? "Fermer" : "Annuler"}</Button>
+        {!lectureSeule ? <Button type="submit" disabled={enCours}>{creation ? "Créer le membre" : autorisation ? <><CheckIcon /> Accorder l'accès</> : "Enregistrer"}</Button> : null}
       </DialogFooter>
     </form>
   );
@@ -379,7 +412,8 @@ function LigneSaisie({ auteur, onEnregistrer }: { auteur: Role | undefined; onEn
   const premier = React.useRef<HTMLInputElement>(null);
   const vider = () => { setF(vierge()); premier.current?.focus(); };
   const valider = async () => {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) { toast.error("Adresse e-mail invalide."); premier.current?.focus(); return; }
+    if (!f.email.trim() && !f.phone.trim()) { toast.error("Un e-mail ou un numéro de téléphone est requis."); premier.current?.focus(); return; }
+    if (f.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) { toast.error("Adresse e-mail invalide."); premier.current?.focus(); return; }
     setEnCours(true);
     try { await onEnregistrer(f); setF({ ...vierge(), role: f.role, societe: f.societe, departement: f.departement }); premier.current?.focus(); }
     catch (e) { toast.error("Membre non créé", { description: messageErreur(e) }); }
@@ -390,7 +424,7 @@ function LigneSaisie({ auteur, onEnregistrer }: { auteur: Role | undefined; onEn
     <TableRow className={CS} aria-label="Pré-provisionner un membre">
       <TableCell className={CS}>
         <div className="flex flex-col gap-1">
-          <Input ref={premier} type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} onKeyDown={k} placeholder="prenom.nom@domaine.com" aria-label="E-mail (nouveau membre)" className="h-8 w-56 text-xs" />
+          <Input ref={premier} type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} onKeyDown={k} placeholder="E-mail (facultatif si téléphone)" aria-label="E-mail (nouveau membre)" className="h-8 w-56 text-xs" />
           <Input value={f.nom} onChange={(e) => setF({ ...f, nom: e.target.value })} onKeyDown={k} placeholder="Nom (optionnel)" aria-label="Nom (nouveau membre)" className="h-8 w-56 text-xs" />
           <ChampTelephone valeur={f.phone} onChange={(v) => setF({ ...f, phone: v })} onKeyDown={k} taille="sm" className="w-56" ariaLabel="Téléphone (nouveau membre)" />
         </div>
@@ -410,9 +444,9 @@ function LigneSaisie({ auteur, onEnregistrer }: { auteur: Role | undefined; onEn
           <SelectContent><SelectItem value={AUCUNE}>—</SelectItem>{SOCIETES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
         </Select>
       </TableCell>
-      <TableCell className={cn(CS, "text-2xs text-encre-pale")} colSpan={2}>Pré-provisionné : reprendra son rôle à sa première connexion</TableCell>
+      <TableCell className={cn(CS, "text-2xs text-encre-pale")} colSpan={2}>Mot de passe provisoire {MOT_DE_PASSE_PROVISOIRE}, à changer à la première connexion</TableCell>
       <TableCell className={cn(CS, "text-right")}>
-        <Button size="icon-sm" onClick={() => void valider()} disabled={enCours} aria-label="Pré-provisionner le membre" title="Ajouter (Entrée) · vider (Échap)"><PlusIcon /></Button>
+        <Button size="icon-sm" onClick={() => void valider()} disabled={enCours} aria-label="Créer le membre" title="Ajouter (Entrée) · vider (Échap)"><PlusIcon /></Button>
       </TableCell>
     </TableRow>
   );

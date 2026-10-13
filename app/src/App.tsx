@@ -11,6 +11,7 @@ import { Planning } from "./pages/Planning";
 import { Primes } from "./pages/Primes";
 import { Archives } from "./pages/Archives";
 import { MesBulletins } from "./pages/MesBulletins";
+import { MonCompte } from "./pages/MonCompte";
 import { ListeSalaires } from "./pages/ListeSalaires";
 import { Financier } from "./pages/Financier";
 import { Documents } from "./pages/Documents";
@@ -58,6 +59,7 @@ const ROUTES: { path: string; perm: string; element: JSX.Element }[] = [
   { path: "/api-readme", perm: "/api-readme", element: <ApiReadme /> },
   { path: "/bareme", perm: "/bareme", element: <Bareme /> },
   { path: "/parametres", perm: "/parametres", element: <Parametres /> },
+  { path: "/mon-compte", perm: "/", element: <MonCompte /> },
 ];
 
 export function App() {

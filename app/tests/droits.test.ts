@@ -21,7 +21,8 @@ const HIERARCHIE: Role[] = ["employe", "chef_equipe", "comptable", "gestionnaire
 for (const r of HIERARCHIE) {
   const d = droitsEffectifs(r);
   for (const [m, n] of Object.entries(ANCIEN)) {
-    const attendu = r === "comptable" && m === "/financier" ? true : NIVEAU[r] >= n;
+    // Exceptions aux niveaux : comptable → financier (28/09/2026) ; RH → Membres en lecture, pour réinitialiser un mot de passe (13/10/2026).
+    const attendu = (r === "comptable" && m === "/financier") || (r === "gestionnaire_rh" && m === "/membres") ? true : NIVEAU[r] >= n;
     verifie(`${r} voit ${m}`, d[m].voir === attendu);
   }
   verifie(`${r} : audit cloisonné`, d["/audit"].voir === (r === "dg" || r === "super_admin"));
@@ -37,6 +38,14 @@ verifie("chef d'équipe voit toutes les interventions", droitsEffectifs("chef_eq
 verifie("chef d'équipe ne valide pas les interventions", !droitsEffectifs("chef_equipe")["/interventions"].faire);
 verifie("« toutes les demandes » est une case Voir seule", !droitsEffectifs("dg")["/interventions/toutes"].faire);
 verifie("auditeur consulte toutes les interventions", droitsEffectifs("auditeur_externe")["/interventions/toutes"].voir);
+
+// Décision du 13/10/2026 : réinitialiser un mot de passe = DG et RH par défaut ; la case ouvre la lecture de Membres.
+verifie("RH réinitialise un mot de passe", droitsEffectifs("gestionnaire_rh")["/membres/mot-de-passe"].faire);
+verifie("RH voit Membres sans y agir", droitsEffectifs("gestionnaire_rh")["/membres"].voir && !droitsEffectifs("gestionnaire_rh")["/membres"].faire);
+verifie("comptable ne réinitialise pas", !droitsEffectifs("comptable")["/membres/mot-de-passe"].faire && !droitsEffectifs("comptable")["/membres"].voir);
+verifie("DG réinitialise un mot de passe", droitsEffectifs("dg")["/membres/mot-de-passe"].faire);
+verifie("DAF ne réinitialise pas par défaut (à donner dans la matrice)", !droitsEffectifs("da1")["/membres/mot-de-passe"].faire);
+verifie("auditeur ne réinitialise pas", !droitsEffectifs("auditeur_externe")["/membres/mot-de-passe"].faire);
 
 // 2. Anciennes actions à niveau propre, reprises en FAIRE.
 verifie("chef d'équipe supervise les comptes rendus", droitsEffectifs("chef_equipe")["/comptes-rendus"].faire);

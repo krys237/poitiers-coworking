@@ -15,6 +15,7 @@ import { Id } from "./_generated/dataModel";
 import { PENDING_PREFIX } from "./lib/authz";
 import { journaliser } from "./lib/journal";
 import { LIBELLE, Role } from "./rbac";
+import { erreurMotDePasse } from "./lib/motDePasse";
 
 // Les callbacks reçoivent un contexte générique (AnyDataModel) : on le ramène au modèle du
 // projet pour garder `ctx.db` typé et pouvoir réutiliser `journaliser`.
@@ -24,12 +25,8 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
     // Mot de passe : inscription et connexion par e-mail + mot de passe.
     Password({
-      validatePasswordRequirements: (mot: string) => {
-        // 8 caractères : seuil provisoire retenu pour la mise en service. À relever avant
-        // l'ouverture des comptes à l'ensemble du personnel.
-        if (mot.length < 8) throw new Error("Le mot de passe doit contenir au moins 8 caractères.");
-        if (!/[a-zA-Z]/.test(mot) || !/[0-9]/.test(mot)) throw new Error("Le mot de passe doit mêler lettres et chiffres.");
-      },
+      // Règles dans lib/motDePasse.ts (8 caractères, lettres et chiffres — décision du 13/10/2026).
+      validatePasswordRequirements: (mot: string) => { const e = erreurMotDePasse(mot); if (e) throw new Error(e); },
     }),
     // Code à usage unique reçu par e-mail (utile quand le mot de passe est oublié,
     // et pour les membres qui ne veulent pas en gérer un).

@@ -10,6 +10,8 @@ export const ACTIONS_LIBELLES = [
   ["membre_activation", "Activation / désactivation"],
   ["membre_modification", "Modification de membre"],
   ["membre_droits", "Droits particuliers d'un membre"],
+  ["membre_mot_de_passe", "Mot de passe réinitialisé par la Direction"],
+  ["mot_de_passe_modifie", "Mot de passe changé par le membre"],
   ["droits_roles", "Droits des rôles"],
   ["cloture_paie", "Clôture de paie"],
   ["cloture_financier", "Clôture financière"],
@@ -36,7 +38,7 @@ export type FamilleJournal = typeof FAMILLES[number][0];
 export const FAMILLE_ACTION: Record<ActionJournal, FamilleJournal> = {
   connexion: "acces", connexion_attente: "acces", membre_creation: "acces", membre_rattachement: "acces",
   membre_autorisation: "acces", membre_role: "acces", membre_activation: "acces", membre_modification: "acces",
-  membre_droits: "acces", droits_roles: "acces",
+  membre_droits: "acces", droits_roles: "acces", membre_mot_de_passe: "acces", mot_de_passe_modifie: "acces",
   cloture_paie: "paie", cloture_financier: "finances", verrous_purge: "finances", api_financial: "api",
   bareme_controle: "bareme", bareme_version: "bareme", audit_rapport: "audit", parametres_modification: "acces",
   caisse_modification_tardive: "finances",

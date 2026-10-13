@@ -219,7 +219,7 @@ function SidebarContent({
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ocean-profond text-xs font-bold text-white shadow-sm ring-2 ring-ocean-ceruleen/40">
               {me.nom ? me.nom.charAt(0).toUpperCase() : "U"}
             </div>
-            <div className="min-w-0 flex-1">
+            <Link to="/mon-compte" onClick={onItemClick} className="min-w-0 flex-1 rounded-md outline-none hover:underline focus-visible:ring-2 focus-visible:ring-white/60" title="Mon compte : identifiants et mot de passe">
               <div className="truncate text-xs font-semibold text-white">
                 {me.nom ?? me.email}
               </div>
@@ -227,7 +227,7 @@ function SidebarContent({
                 <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/20" />
                 <span className="truncate">{me.roleLibelle} · niv. {me.niveau}</span>
               </div>
-            </div>
+            </Link>
             <button
               type="button"
               onClick={() => void signOut()}
@@ -302,12 +302,14 @@ function RailLateral({
         >
           <PanelLeftOpen className="h-4 w-4" />
         </button>
-        <div
+        <Link
+          to="/mon-compte"
           className="flex h-9 w-9 items-center justify-center rounded-full bg-ocean-profond text-xs font-bold text-white shadow-sm ring-2 ring-ocean-ceruleen/40"
-          title={me?.nom ?? me?.email ?? ""}
+          title={`${me?.nom ?? me?.email ?? ""} · Mon compte`}
+          aria-label="Mon compte"
         >
           {me?.nom ? me.nom.charAt(0).toUpperCase() : "U"}
-        </div>
+        </Link>
         <button
           type="button"
           onClick={() => void signOut()}

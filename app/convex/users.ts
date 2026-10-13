@@ -1,9 +1,11 @@
 import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
 import { getCurrentUser, requireLevel, PENDING_PREFIX, DEV_BYPASS, requireDroit, droitsDuMembre } from "./lib/authz";
 import { journaliser } from "./lib/journal";
 import { LIBELLE, NIVEAU, Role, peutAttribuer, peutModifierMembre, MODULE_PAR_CLE, estVerrouille, normaliser, type Action } from "./rbac";
 import { normaliserTelephone, erreurTelephone } from "./lib/telephone";
+import { emailTechnique } from "./lib/motDePasse";
 
 const ROLE = v.union(
   v.literal("employe"), v.literal("chef_equipe"), v.literal("comptable"), v.literal("gestionnaire_rh"),
@@ -25,6 +27,7 @@ export const me = query({
       roleLibelle: LIBELLE[u.role as Role],
       niveau: NIVEAU[u.role as Role],
       enAttente: u.enAttente === true,
+      doitChangerMotDePasse: u.doitChangerMotDePasse === true,
       modeDev: DEV_BYPASS && u.tokenIdentifier === "dev:dg",
       // Droits effectifs VOIR / FAIRE par module : l'interface masque ce que le serveur refuserait.
       droits: await droitsDuMembre(ctx, u),
@@ -130,22 +133,54 @@ export const modifier = mutation({
   },
 });
 
-// Pré-provisionnement par e-mail : le membre est créé avec son rôle AVANT toute connexion.
-// Sa ligne porte le jeton "pending:<email>" jusqu'à ce qu'il s'inscrive avec cette adresse ;
-// `auth.createOrUpdateUser` la rattache alors à son compte (voir auth.ts). C'est le chemin
-// nominal — une inscription non pré-provisionnée n'obtient aucun droit.
+// Création d'un membre (décision du 13/10/2026) : la ligne est créée avec son rôle, puis l'action
+// `compte.creerMembre` lui ouvre aussitôt un compte au mot de passe provisoire (lib/motDePasse.ts), à
+// changer à la première connexion. L'identifiant de connexion est le téléphone ou l'e-mail ; sans e-mail,
+// une adresse technique dérivée du numéro indexe le compte. (L'ancien jeton "pending:<email>" ne sert
+// plus qu'aux lignes créées avant cette date — auth.ts les rattache toujours.)
 export const creer = mutation({
-  args: { email: v.string(), nom: v.optional(v.string()), role: ROLE, poste: v.optional(v.string()), departement: v.optional(v.string()), societe: v.optional(SOCIETE), codeAcces: v.optional(v.string()), phone: v.optional(v.string()), employeId: v.optional(v.id("employes")) },
-  handler: async (ctx, a) => {
+  args: { email: v.optional(v.string()), nom: v.optional(v.string()), role: ROLE, poste: v.optional(v.string()), departement: v.optional(v.string()), societe: v.optional(SOCIETE), codeAcces: v.optional(v.string()), phone: v.optional(v.string()), employeId: v.optional(v.id("employes")) },
+  handler: async (ctx, a): Promise<{ id: Id<"users">; email: string }> => {
     const me = await requireDroit(ctx, "/membres", "faire");
     if (!peutAttribuer(me.role as Role, a.role as Role)) throw new Error(`Accès refusé : vous ne pouvez pas attribuer le rôle ${LIBELLE[a.role as Role]}.`);
     const phone = await telephoneValide(ctx, a.phone);
-    const email = a.email.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Adresse e-mail invalide.");
-    if (await ctx.db.query("users").withIndex("email", (q) => q.eq("email", email)).first()) throw new Error("Un membre existe déjà avec cet e-mail.");
-    const id = await ctx.db.insert("users", { tokenIdentifier: `${PENDING_PREFIX}${email}`, email, nom: a.nom?.trim() || undefined, role: a.role, poste: a.poste || undefined, departement: a.departement || undefined, societe: a.societe, codeAcces: a.codeAcces || undefined, phone, employeId: a.employeId, isActive: true });
-    await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "membre_creation", cible: a.nom?.trim() || email, detail: `${LIBELLE[a.role as Role]} · en attente de rattachement` });
-    return id;
+    const saisi = (a.email ?? "").trim().toLowerCase();
+    if (!saisi && !phone) throw new Error("Un e-mail ou un numéro de téléphone est requis : c'est l'identifiant de connexion.");
+    const email = saisi || emailTechnique(phone!);
+    if (saisi && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(saisi)) throw new Error("Adresse e-mail invalide.");
+    if (await ctx.db.query("users").withIndex("email", (q) => q.eq("email", email)).first()) throw new Error(saisi ? "Un membre existe déjà avec cet e-mail." : "Un membre existe déjà avec ce numéro.");
+    const id = await ctx.db.insert("users", { email, nom: a.nom?.trim() || undefined, role: a.role, poste: a.poste || undefined, departement: a.departement || undefined, societe: a.societe, codeAcces: a.codeAcces || undefined, phone, employeId: a.employeId, isActive: true, doitChangerMotDePasse: true });
+    await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "membre_creation", cible: a.nom?.trim() || email, detail: `${LIBELLE[a.role as Role]} · mot de passe provisoire${saisi ? "" : " · identifiant : téléphone"}` });
+    return { id, email };
+  },
+});
+
+// Réinitialisation d'un mot de passe (action compte.reinitialiser) : droit dédié, borné au niveau de l'auteur.
+export const pourReinitialisation = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const me = await requireDroit(ctx, "/membres/mot-de-passe", "faire");
+    const cible = await ctx.db.get(userId);
+    if (!cible) throw new Error("Membre introuvable.");
+    if (String(cible._id) === String(me._id)) throw new Error("Changez votre propre mot de passe depuis « Mon compte ».");
+    if (!peutModifierMembre(me.role as Role, cible.role as Role)) throw new Error(`Accès refusé : ${LIBELLE[cible.role as Role]} est au-dessus de votre niveau.`);
+    return { email: cible.email, nom: cible.nom ?? cible.email, auteurId: me._id };
+  },
+});
+
+// Pose ou lève le drapeau « mot de passe provisoire » et journalise (appelé par compte.ts).
+export const marquerMotDePasse = internalMutation({
+  args: { userId: v.id("users"), provisoire: v.boolean(), auteurId: v.optional(v.id("users")) },
+  handler: async (ctx, { userId, provisoire, auteurId }) => {
+    const cible = await ctx.db.get(userId);
+    if (!cible) throw new Error("Membre introuvable.");
+    await ctx.db.patch(userId, { doitChangerMotDePasse: provisoire ? true : undefined });
+    const auteur = auteurId ? await ctx.db.get(auteurId) : cible;
+    await journaliser(ctx, {
+      auteurId: auteur?._id, auteurNom: auteur?.nom ?? auteur?.email, cible: cible.nom ?? cible.email,
+      action: provisoire ? "membre_mot_de_passe" : "mot_de_passe_modifie",
+      detail: provisoire ? "mot de passe provisoire remis · sessions fermées · à changer à la connexion" : "nouveau mot de passe choisi par le membre",
+    });
   },
 });
 
