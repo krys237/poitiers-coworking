@@ -11,9 +11,14 @@
  * L'import CSV / Excel reste la vraie saisie de masse (upsert par matricule).
  */
 import * as React from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
-import { PlusIcon, SearchIcon, UploadIcon, UserRoundPenIcon } from "lucide-react";
+import { KeyRoundIcon, PlusIcon, SearchIcon, UploadIcon, UserRoundPenIcon } from "lucide-react";
+import { Link } from "react-router-dom";
+import { usePeut } from "@/auth/useMe";
+import { MOT_DE_PASSE_PROVISOIRE } from "../../convex/lib/motDePasse";
+import { formaterTelephone } from "../../convex/lib/telephone";
+import { BoutonConfirmation } from "@/components/app/bouton-action";
 import { api } from "../../convex/_generated/api";
 import { parseCsv, toFcfa } from "@/lib/csv";
 import { messageErreur, num } from "@/lib/format";
@@ -40,6 +45,11 @@ export function Employes() {
   const creer = useMutation(api.employes.creer);
   const modifier = useMutation(api.employes.modifier);
   const importer = useMutation(api.employes.importer);
+  // Comptes de connexion (décision du 13/10/2026) : une fiche employé ne se connecte pas, son compte se crée ici.
+  const voitComptes = usePeut("/membres");
+  const peutCreerCompte = usePeut("/membres", "faire");
+  const comptes = useQuery(api.users.comptesParEmploye, voitComptes ? {} : "skip");
+  const creerCompte = useAction(api.compte.creerCompteEmploye);
   const fichierRef = React.useRef<HTMLInputElement>(null);
 
   const [persistant, setPersistant] = useSaisiePersistante("employes", true);
@@ -148,6 +158,7 @@ export function Employes() {
               <TableHead>Date d'entrée</TableHead>
               <TableHead>N° CNPS</TableHead>
               <TableHead>État</TableHead>
+              {voitComptes && <TableHead>Compte</TableHead>}
               <TableHead aria-label="Fiche" />
             </TableRow>
           </TableHeader>
@@ -178,6 +189,29 @@ export function Employes() {
                 </TableCell>
                 <TableCell className="whitespace-nowrap font-mono text-xs">{e.cnps || <Flag variant="a-renseigner" size="xs">à renseigner</Flag>}</TableCell>
                 <TableCell>{e.actif ? <Flag variant="renseigne" size="xs">Actif</Flag> : <Flag variant="verrou" size="xs">Inactif</Flag>}</TableCell>
+                {voitComptes && (
+                  <TableCell className="whitespace-nowrap">
+                    {comptes === undefined ? <span className="text-encre-pale">…</span> : comptes[String(e._id)] ? (
+                      <Link to="/membres" className="inline-flex items-center gap-1" title={`Compte : ${comptes[String(e._id)].nom}${comptes[String(e._id)].phone ? " · " + formaterTelephone(comptes[String(e._id)].phone) : ""} · ouvrir Membres`}>
+                        {!comptes[String(e._id)].isActive ? <Flag variant="verrou" size="xs">compte désactivé</Flag>
+                          : comptes[String(e._id)].provisoire ? <Flag variant="direct" size="xs">mdp provisoire</Flag>
+                          : <Flag variant="renseigne" size="xs">compte actif</Flag>}
+                      </Link>
+                    ) : peutCreerCompte && e.actif ? (
+                      <BoutonConfirmation
+                        variant="outline" size="sm" className="h-7 text-2xs"
+                        libelle={<><KeyRoundIcon /> Créer son compte</>}
+                        titre={`Ouvrir un compte à ${e.nom} ?`}
+                        consequence={e.whatsapp || e.email
+                          ? `Rôle Employé, identifiant ${e.whatsapp ? formaterTelephone(e.whatsapp) : e.email}, mot de passe provisoire ${MOT_DE_PASSE_PROVISOIRE} à changer à sa première connexion. Le compte est relié à cette fiche (« Mes bulletins »).`
+                          : "La fiche n'a ni numéro WhatsApp ni e-mail : renseignez-en un d'abord, c'est l'identifiant de connexion."}
+                        confirmer="Créer le compte"
+                        onConfirmer={async () => { await creerCompte({ employeId: e._id }); }}
+                        succes={`Compte créé pour ${e.nom}`}
+                      />
+                    ) : <span className="text-2xs text-encre-pale">pas de compte</span>}
+                  </TableCell>
+                )}
                 <TableCell className="text-right">
                   <FicheEmploye
                     employe={fiche(e)}
@@ -189,7 +223,7 @@ export function Employes() {
               </TableRow>
             ))}
             {liste.length === 0 && (
-              <TableVide colonnes={9}>{q || societe !== "toutes" || etat !== "actifs" ? "Aucun employé ne correspond aux filtres." : "Aucun employé : saisissez la première fiche ci-dessus ou importez un CSV."}</TableVide>
+              <TableVide colonnes={voitComptes ? 10 : 9}>{q || societe !== "toutes" || etat !== "actifs" ? "Aucun employé ne correspond aux filtres." : "Aucun employé : saisissez la première fiche ci-dessus ou importez un CSV."}</TableVide>
             )}
           </TableBody>
         </Table>

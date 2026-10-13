@@ -5,7 +5,7 @@
  * l'indicatif est obligatoire partout).
  */
 import * as React from "react";
-import { INDICATIFS, INDICATIF_DEFAUT, composerTelephone, separerTelephone } from "../../../convex/lib/telephone";
+import { INDICATIFS, INDICATIF_DEFAUT, composerTelephone, formaterNational, separerTelephone } from "../../../convex/lib/telephone";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import * as SelectPrimitive from "@radix-ui/react-select";
@@ -25,7 +25,7 @@ export function ChampTelephone({ valeur, onChange, id, taille = "md", className,
 } & Pick<React.ComponentProps<"input">, "aria-describedby" | "aria-invalid" | "autoComplete" | "placeholder">) {
   const initial = separerTelephone(valeur);
   const [indicatif, setIndicatif] = React.useState(initial.indicatif || INDICATIF_DEFAUT.slice(1));
-  const [national, setNational] = React.useState(initial.national);
+  const [national, setNational] = React.useState(formaterNational(initial.national, initial.indicatif || INDICATIF_DEFAUT.slice(1)));
   // La valeur parente change (fiche rouverte, ligne vidée) : on se recale sans perdre l'indicatif choisi.
   React.useEffect(() => {
     const chiffres = national.replace(/\D/g, "");
@@ -33,7 +33,7 @@ export function ChampTelephone({ valeur, onChange, id, taille = "md", className,
     if (valeur === interne) return; // c'est nous qui venons d'émettre : ne pas écraser la frappe
     if (!valeur) { setNational(""); return; }
     const s = separerTelephone(valeur);
-    setIndicatif(s.indicatif); setNational(s.national);
+    setIndicatif(s.indicatif); setNational(formaterNational(s.national, s.indicatif));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [valeur]);
 
@@ -44,7 +44,7 @@ export function ChampTelephone({ valeur, onChange, id, taille = "md", className,
   const petit = taille === "sm";
   return (
     <div className={cn("flex items-stretch gap-1.5", className)}>
-      <Select value={indicatif} onValueChange={(v) => { setIndicatif(v); emettre(v, national); }}>
+      <Select value={indicatif} onValueChange={(v) => { setIndicatif(v); setNational(formaterNational(national, v)); emettre(v, national); }}>
         <SelectTrigger size={petit ? "sm" : undefined} className={cn("shrink-0 font-mono", petit ? "h-8 w-[4.75rem] text-xs" : "w-[5.5rem]")} aria-label="Indicatif du pays">
           <SelectValue />
         </SelectTrigger>
@@ -78,10 +78,11 @@ export function ChampTelephone({ valeur, onChange, id, taille = "md", className,
           const brut = e.target.value.replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g, "").trim();
           if (/^(\+|00)/.test(brut)) {
             const s = separerTelephone(brut);
-            setIndicatif(s.indicatif); setNational(s.national); emettre(s.indicatif, s.national);
+            setIndicatif(s.indicatif); setNational(formaterNational(s.national, s.indicatif)); emettre(s.indicatif, s.national);
             return;
           }
-          const nat = brut.replace(/[^\d\s]/g, ""); setNational(nat); emettre(indicatif, nat);
+          // Groupé comme le placeholder (« 6 99 68 60 31 ») au fil de la frappe ; seuls les chiffres comptent.
+          const nat = formaterNational(brut, indicatif); setNational(nat); emettre(indicatif, nat);
         }}
         onKeyDown={onKeyDown}
         placeholder={props.placeholder ?? "6 90 00 00 00"}

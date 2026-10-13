@@ -155,6 +155,32 @@ export const creer = mutation({
   },
 });
 
+// Comptes de connexion rattachés aux fiches employés (écran Employés : colonne « Compte »).
+export const comptesParEmploye = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireDroit(ctx, "/membres");
+    const rows = await ctx.db.query("users").collect();
+    const out: Record<string, { userId: Id<"users">; nom: string; phone?: string; isActive: boolean; provisoire: boolean }> = {};
+    for (const u of rows) if (u.employeId) out[String(u.employeId)] = { userId: u._id, nom: u.nom ?? u.email, phone: u.phone, isActive: u.isActive, provisoire: u.doitChangerMotDePasse === true };
+    return out;
+  },
+});
+
+// Ce qu'il faut pour ouvrir un compte à une fiche employé (action compte.creerCompteEmploye).
+export const pourCompteEmploye = internalQuery({
+  args: { employeId: v.id("employes") },
+  handler: async (ctx, { employeId }) => {
+    await requireDroit(ctx, "/membres", "faire");
+    const e = await ctx.db.get(employeId);
+    if (!e) throw new Error("Fiche employé introuvable.");
+    const deja = (await ctx.db.query("users").collect()).find((u) => String(u.employeId) === String(employeId));
+    if (deja) throw new Error(`${e.nom} a déjà un compte (${deja.nom ?? deja.email}).`);
+    if (!e.whatsapp && !e.email) throw new Error("Renseignez d'abord un numéro WhatsApp ou un e-mail sur la fiche : c'est l'identifiant de connexion.");
+    return { nom: e.nom, email: e.email?.trim() || undefined, phone: e.whatsapp, societe: e.societe, poste: e.fonction };
+  },
+});
+
 // Réinitialisation d'un mot de passe (action compte.reinitialiser) : droit dédié, borné au niveau de l'auteur.
 export const pourReinitialisation = internalQuery({
   args: { userId: v.id("users") },

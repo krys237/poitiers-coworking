@@ -84,7 +84,7 @@ function SelectRole({ valeur, onChange, auteur, id, taille = "md", className, ar
 }
 
 type Fiche = { userId: string | null; email: string; nom: string; role: Role; poste: string; departement: string; societe: string; codeAcces: string; phone: string; isActive: boolean; enAttente: boolean; employeId: string };
-type EmployeLie = { _id: string; nom: string; matricule: string; email?: string; actif: boolean };
+type EmployeLie = { _id: string; nom: string; matricule: string; email?: string; whatsapp?: string; societe?: string; fonction?: string; actif: boolean };
 const sansAccents = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 // --- Page -------------------------------------------------------------------------
@@ -331,9 +331,15 @@ function FormFiche({ fiche, auteur, estMoi, dernierDg, employes, lectureSeule, o
             </Select>
           )}
         </Champ>
-        <Champ libelle="Fiche employé" aide={f.employeId ? "Ses bulletins apparaissent dans « Mes bulletins »" : "À relier pour qu'il voie ses bulletins (sinon : même e-mail que la fiche)"}>
+        <Champ libelle="Fiche employé" aide={f.employeId ? "Ses bulletins apparaissent dans « Mes bulletins »" : creation ? "Choisir la fiche remplit nom, téléphone et e-mail" : "À relier pour qu'il voie ses bulletins (sinon : même e-mail que la fiche)"}>
           {(a) => (
-            <Select value={f.employeId || AUCUNE} onValueChange={(v) => setF({ ...f, employeId: v === AUCUNE ? "" : v })}>
+            <Select value={f.employeId || AUCUNE} onValueChange={(v) => {
+              const id = v === AUCUNE ? "" : v;
+              const e = employes.find((x) => String(x._id) === id);
+              // À la création, la fiche choisie remplit ce qui est vide : nom, téléphone (WhatsApp), e-mail, société, poste.
+              if (creation && e) setF({ ...f, employeId: id, nom: f.nom || e.nom, phone: f.phone || e.whatsapp || "", email: f.email || e.email || "", societe: f.societe || e.societe || "", poste: f.poste || e.fonction || "" });
+              else setF({ ...f, employeId: id });
+            }}>
               <SelectTrigger id={a.id} className="w-full" aria-label="Fiche employé"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={AUCUNE}>— aucune —</SelectItem>

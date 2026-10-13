@@ -45,6 +45,15 @@ export function erreurTelephone(brut: string | null | undefined): string | null 
 /** Un identifiant de connexion ressemble-t-il à un numéro (et non à un e-mail) ? */
 export const ressembleAUnTelephone = (s: string) => /^[\s+0-9.\-()]+$/.test(s.trim()) && /\d{6,}/.test(s);
 
+/** Partie nationale groupée pendant la frappe (retour terrain du 13/10/2026) : au Cameroun « 6 99 68 60 31 »
+ *  (un chiffre puis des paires, stable pendant la saisie), ailleurs des paires « 06 12 34 56 78 ». */
+export function formaterNational(brut: string, indicatif = INDICATIF_DEFAUT.slice(1)): string {
+  const chiffres = brut.replace(/\D/g, "");
+  if (!chiffres) return "";
+  const groupes = indicatif === "237" ? [chiffres[0], ...(chiffres.slice(1).match(/\d{1,2}/g) ?? [])] : (chiffres.match(/\d{1,2}/g) ?? [chiffres]);
+  return groupes.join(" ");
+}
+
 /** Affichage : « +237 6 90 00 00 00 ». */
 export function formaterTelephone(e164: string | null | undefined): string {
   if (!e164) return "";
