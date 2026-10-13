@@ -1,7 +1,10 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireDroit } from "./lib/authz";
+import { requireDroit, droitsDuMembre } from "./lib/authz";
 import { reference } from "./lib/commandes";
+import { dateDouala } from "./lib/fenetre";
+import { Doc } from "./_generated/dataModel";
+import { QueryCtx, MutationCtx } from "./_generated/server";
 
 const PRIORITE = v.union(v.literal("basse"), v.literal("moyenne"), v.literal("haute"));
 const STATUT = v.union(v.literal("ouverte"), v.literal("en_cours"), v.literal("cloturee"), v.literal("rejetee"));
@@ -11,14 +14,30 @@ const LIGNE = v.object({ produit: v.string(), quantite: v.number(), prixUnitaire
 const TRANSITIONS: Record<string, string[]> = { ouverte: ["en_cours", "rejetee"], en_cours: ["cloturee", "rejetee"], cloturee: [], rejetee: [] };
 const total = (lignes: { quantite: number; prixUnitaire: number }[]) => lignes.reduce((t, l) => t + Math.round(l.quantite * l.prixUnitaire), 0);
 
+// Périmètre (décision du 13/10/2026) : sans le droit « Interventions : toutes les demandes », un membre ne voit
+// que les demandes qu'il a déposées lui-même ; avec (chef d'équipe et au-dessus par défaut), il voit tout.
+async function perimetre(ctx: QueryCtx | MutationCtx) {
+  const user = await requireDroit(ctx, "/interventions");
+  const toutes = (await droitsDuMembre(ctx, user))["/interventions/toutes"]?.voir ?? false;
+  return { user, toutes, visible: (i: Doc<"interventions">) => toutes || String(i.creePar) === String(user._id) };
+}
+async function interventionVisible(ctx: QueryCtx | MutationCtx, id: Doc<"interventions">["_id"]) {
+  const p = await perimetre(ctx);
+  const i = await ctx.db.get(id);
+  if (!i) throw new Error("Intervention introuvable.");
+  if (!p.visible(i)) throw new Error("Accès refusé : cette demande n'est pas la vôtre.");
+  return { ...p, intervention: i };
+}
+
 export const liste = query({
   args: { statut: v.optional(STATUT), priorite: v.optional(PRIORITE) },
   handler: async (ctx, { statut, priorite }) => {
-    await requireDroit(ctx, "/interventions");
+    const { visible } = await perimetre(ctx);
     const rows = statut
       ? await ctx.db.query("interventions").withIndex("by_statut", (q) => q.eq("statut", statut)).collect()
       : await ctx.db.query("interventions").withIndex("by_date").order("desc").collect();
     return rows
+      .filter(visible)
       .filter((i) => !priorite || i.priorite === priorite)
       .sort((a, b) => b.dateDemande.localeCompare(a.dateDemande) || b._creationTime - a._creationTime)
       .map((i) => ({
@@ -31,9 +50,9 @@ export const liste = query({
 export const detail = query({
   args: { interventionId: v.id("interventions") },
   handler: async (ctx, { interventionId }) => {
-    await requireDroit(ctx, "/interventions");
+    const { visible } = await perimetre(ctx);
     const i = await ctx.db.get(interventionId);
-    if (!i) return null;
+    if (!i || !visible(i)) return null;
     const photosUrls: string[] = [];
     for (const p of i.photos) { const u = await ctx.storage.getUrl(p); if (u) photosUrls.push(u); }
     const validePar = i.validePar ? await ctx.db.get(i.validePar) : null;
@@ -49,20 +68,21 @@ export const genererUploadUrl = mutation({
 export const creer = mutation({
   args: {
     titre: v.string(), priorite: PRIORITE, lieu: v.optional(v.string()), service: v.optional(v.string()), chefService: v.optional(v.string()),
-    methode: v.optional(v.string()), dateDemande: v.string(), demandeur: v.string(), photos: v.optional(v.array(v.id("_storage"))),
+    methode: v.optional(v.string()), demandeur: v.string(), photos: v.optional(v.array(v.id("_storage"))),
     lignes: v.optional(v.array(LIGNE)), commentaireInitial: v.optional(v.string()),
   },
   handler: async (ctx, a) => {
     const user = await requireDroit(ctx, "/interventions");
     if (!a.titre.trim()) throw new Error("Titre requis.");
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(a.dateDemande)) throw new Error("Date au format AAAA-MM-JJ.");
+    // Décision du 13/10/2026 : la date de demande est le jour du dépôt (heure de Douala), jamais saisie.
+    const dateDemande = dateDouala();
     const lignes = (a.lignes ?? []).map((l) => ({ ...l, produit: l.produit.trim() })).filter((l) => l.produit && l.quantite > 0);
-    const annee = +a.dateDemande.slice(0, 4);
+    const annee = +dateDemande.slice(0, 4);
     const existantes = await ctx.db.query("interventions").withIndex("by_date", (q) => q.gte("dateDemande", `${annee}-01-01`).lte("dateDemande", `${annee}-12-31`)).collect();
     const ref = reference("INT", annee, existantes.length + 1);
     const id = await ctx.db.insert("interventions", {
       reference: ref, titre: a.titre.trim(), priorite: a.priorite, lieu: a.lieu?.trim() || undefined, service: a.service?.trim() || undefined,
-      chefService: a.chefService?.trim() || undefined, methode: a.methode?.trim() || undefined, dateDemande: a.dateDemande,
+      chefService: a.chefService?.trim() || undefined, methode: a.methode?.trim() || undefined, dateDemande,
       demandeur: a.demandeur.trim() || (user.nom ?? user.email), statut: "ouverte", photos: a.photos ?? [], lignes,
       commentaireInitial: a.commentaireInitial?.trim() || undefined, commentaires: [], creePar: user._id,
     });
@@ -73,9 +93,7 @@ export const creer = mutation({
 export const ajouterPhoto = mutation({
   args: { interventionId: v.id("interventions"), storageId: v.id("_storage") },
   handler: async (ctx, { interventionId, storageId }) => {
-    await requireDroit(ctx, "/interventions");
-    const i = await ctx.db.get(interventionId);
-    if (!i) throw new Error("Intervention introuvable.");
+    const { intervention: i } = await interventionVisible(ctx, interventionId);
     await ctx.db.patch(interventionId, { photos: [...i.photos, storageId] });
   },
 });
@@ -85,8 +103,7 @@ export const changerStatut = mutation({
   args: { interventionId: v.id("interventions"), statut: STATUT, commentaire: v.optional(v.string()) },
   handler: async (ctx, { interventionId, statut, commentaire }) => {
     const user = await requireDroit(ctx, "/interventions", "faire");
-    const i = await ctx.db.get(interventionId);
-    if (!i) throw new Error("Intervention introuvable.");
+    const { intervention: i } = await interventionVisible(ctx, interventionId); // on n'arbitre pas ce qu'on ne voit pas
     if (!TRANSITIONS[i.statut].includes(statut)) throw new Error(`Transition ${i.statut} → ${statut} non autorisée.`);
     if (statut === "rejetee" && !commentaire?.trim()) throw new Error("Un motif de rejet est requis.");
     const maintenant = new Date().toISOString();
@@ -99,9 +116,8 @@ export const changerStatut = mutation({
 export const commenter = mutation({
   args: { interventionId: v.id("interventions"), texte: v.string() },
   handler: async (ctx, { interventionId, texte }) => {
-    const user = await requireDroit(ctx, "/interventions");
-    const i = await ctx.db.get(interventionId);
-    if (!i || !texte.trim()) return;
+    const { user, intervention: i } = await interventionVisible(ctx, interventionId);
+    if (!texte.trim()) return;
     await ctx.db.patch(interventionId, { commentaires: [...i.commentaires, { auteur: user.nom ?? user.email, texte: texte.trim(), date: new Date().toISOString() }] });
   },
 });

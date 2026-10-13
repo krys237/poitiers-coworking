@@ -79,7 +79,9 @@ export type Module = {
 
 export const MODULES: Module[] = [
   { cle: "/comptes-rendus", libelle: "Comptes rendus", categorie: "Exploitation", voir: "Rédiger et suivre ses comptes rendus", faire: "Superviser l'équipe (taux, validation)", niveauVoir: 1, niveauFaire: 2 },
-  { cle: "/interventions", libelle: "Interventions", categorie: "Exploitation", voir: "Consulter, déclarer, commenter", faire: "Valider, clôturer, rejeter", niveauVoir: 1, niveauFaire: 5 },
+  { cle: "/interventions", libelle: "Interventions", categorie: "Exploitation", voir: "Déposer, suivre et commenter ses propres demandes", faire: "Valider, clôturer, rejeter", niveauVoir: 1, niveauFaire: 5 },
+  // Décision du 13/10/2026 : sans cette case, « Voir » se limite aux demandes déposées par la personne.
+  { cle: "/interventions/toutes", libelle: "Interventions : toutes les demandes", categorie: "Exploitation", voir: "Voir et suivre les demandes de tout le monde", faire: null, niveauVoir: 2, niveauFaire: 2 },
   { cle: "/documents", libelle: "Documents", categorie: "Exploitation", voir: "Consulter (selon le niveau de chaque document)", faire: "Déposer, supprimer ses dépôts", niveauVoir: 1, niveauFaire: 1 },
   { cle: "/documents/confidentiels", libelle: "Documents confidentiels", categorie: "Exploitation", voir: "Lire les documents confidentiels", faire: "Déposer un document confidentiel", niveauVoir: 5, niveauFaire: 5 },
   { cle: "/employes", libelle: "Employés", categorie: "Exploitation", voir: "Consulter les fiches", faire: "Créer, modifier, importer", niveauVoir: 3, niveauFaire: 4 },

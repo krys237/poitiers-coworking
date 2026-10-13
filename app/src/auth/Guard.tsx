@@ -11,7 +11,7 @@
 import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { MODULE_PAR_CLE } from "../../convex/rbac";
+import { MODULES, MODULE_PAR_CLE, type Droits } from "../../convex/rbac";
 import { useMe } from "./useMe";
 import { Login } from "./Login";
 import "./auth.css";
@@ -60,13 +60,25 @@ function Refuse({ module }: { module: string }) {
   );
 }
 
-/** Le membre a « Voir » sans « Faire » : on dit d'emblée ce qui lui est ouvert, plutôt qu'au premier refus. */
-function DroitsPartiels({ module }: { module: string }) {
+/**
+ * Le membre a « Voir » sans « Faire » : on dit d'emblée ce qui lui est ouvert, plutôt qu'au premier refus.
+ * Les cases dépendantes du même écran (`<module>/…`, ex. « toutes les demandes », « validation ») sont
+ * rangées selon ce que le membre détient, pour que le bandeau dise vrai pour lui.
+ */
+function DroitsPartiels({ module, droits }: { module: string; droits: Droits }) {
   const m = MODULE_PAR_CLE[module];
   if (!m) return null;
+  const minuscule = (t: string) => t.charAt(0).toLowerCase() + t.slice(1);
+  const ouverts: string[] = m.voir ? [minuscule(m.voir)] : [];
+  const fermes: string[] = m.faire ? [minuscule(m.faire)] : [];
+  for (const sous of MODULES.filter((x) => x.cle.startsWith(module + "/"))) {
+    const c = droits[sous.cle];
+    const texte = minuscule(sous.faire ?? sous.voir ?? sous.libelle);
+    (sous.faire ? c?.faire : c?.voir) ? ouverts.push(texte) : fermes.push(texte);
+  }
   return (
     <div data-droits="voir" className="mb-3 rounded-lg border border-ocean-ciel/60 bg-ocean-brume/40 px-3 py-2 text-xs text-ocean-nuit print:hidden" role="note">
-      <b>Vos droits ici :</b> {m.voir?.toLowerCase()}. <span className="text-encre-douce">Non ouvert : {m.faire?.toLowerCase()}.</span>
+      <b>Vos droits ici :</b> {ouverts.join(" · ")}.{fermes.length > 0 && <span className="text-encre-douce"> Non ouvert : {fermes.join(" · ")}.</span>}
     </div>
   );
 }
@@ -110,5 +122,5 @@ export function Guard({ perm, children }: { perm: string; children: ReactNode })
   const d = me.droits?.[perm];
   if (!d?.voir) return <Refuse module={perm} />;
   const lectureSeule = !d.faire && !!MODULE_PAR_CLE[perm]?.faire;
-  return <>{lectureSeule && <DroitsPartiels module={perm} />}{children}</>;
+  return <>{lectureSeule && <DroitsPartiels module={perm} droits={me.droits ?? {}} />}{children}</>;
 }

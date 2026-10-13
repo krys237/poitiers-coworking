@@ -6,9 +6,10 @@
  * (parcours de la demande, photos, chiffrage, validation, commentaires).
  * La création se fait dans un dialogue en trois étapes numérotées.
  *
- * Le RBAC ne bouge pas : validation, clôture et rejet restent réservés au
- * niveau 5+ côté serveur (`convex/interventions.ts`) ; l'interface ne fait
- * que le dire clairement.
+ * Droits (décisions du 13/10/2026) : sans « Interventions : toutes les demandes »,
+ * le serveur ne renvoie que les demandes déposées par la personne ; la date de
+ * demande est le jour du dépôt, fixée côté serveur. Validation, clôture et rejet
+ * suivent le droit « Faire » (`convex/interventions.ts`).
  */
 import * as React from "react";
 import { useMutation, useQuery } from "convex/react";
@@ -73,6 +74,7 @@ const totalLignes = (ls: Ligne[]) => ls.reduce((t, l) => t + Math.round(Number(l
 export function Interventions() {
   const { moi: me } = useMoi();
   const peutArbitrer = !!me?.droits?.["/interventions"]?.faire;
+  const voitTout = !!me?.droits?.["/interventions/toutes"]?.voir;
 
   const liste = useQuery(api.interventions.liste, {});
   const [statut, setStatut] = React.useState<Statut | "toutes">("toutes");
@@ -100,7 +102,9 @@ export function Interventions() {
     <div className="space-y-4">
       <PageEnTete
         titre="Interventions techniciens"
-        description="Demandes de maintenance et de matériel : photos, chiffrage, validation par la direction, fil de commentaires."
+        description={voitTout
+          ? "Demandes de maintenance et de matériel de toute l'équipe : photos, chiffrage, validation par la direction, fil de commentaires."
+          : "Vos demandes de maintenance et de matériel : photos, chiffrage, validation par la direction, fil de commentaires."}
         statut={<Flag variant="finance" size="xs">Maintenance</Flag>}
         actions={
           <Button size="sm" onClick={() => setOuvrirCreation(true)}>
@@ -110,7 +114,7 @@ export function Interventions() {
       />
 
       <GrilleTuiles>
-        <Tuile libelle="À valider" valeur={liste === undefined ? undefined : compte("ouverte")} note={peutArbitrer ? "à arbitrer par vous (niveau 5+)" : "arbitrage par la direction"} />
+        <Tuile libelle="À valider" valeur={liste === undefined ? undefined : compte("ouverte")} note={peutArbitrer ? "à arbitrer par vous" : "arbitrage par la direction"} />
         <Tuile libelle="En cours" valeur={liste === undefined ? undefined : compte("en_cours")} note="validées, intervention lancée" />
         <Tuile libelle="Clôturées · 30 jours" valeur={liste === undefined ? undefined : cloturees30} note={`${compte("cloturee")} au total`} />
         <Tuile libelle="Montant engagé" valeur={liste === undefined ? undefined : <Montant valeur={engage} zero="0" />} note="lignes chiffrées des demandes ouvertes et en cours" vedette />
@@ -176,7 +180,7 @@ export function Interventions() {
           ) : toutes.length === 0 ? (
             <EtatVide
               icone={WrenchIcon}
-              titre="Aucune intervention enregistrée"
+              titre={voitTout ? "Aucune intervention enregistrée" : "Aucune demande de votre part"}
               action={<Button size="sm" onClick={() => setOuvrirCreation(true)}><PlusIcon /> Nouvelle intervention</Button>}
             >
               Déposez la première demande : titre, priorité, lieu, matériel chiffré et photos. La direction la validera ici même.
@@ -483,7 +487,7 @@ function NouvelleIntervention({
 }: { ouvert: boolean; onFermer: () => void; onCreee: (id: string) => void; demandeurParDefaut: string }) {
   const creer = useMutation(api.interventions.creer);
   const genererUploadUrl = useMutation(api.interventions.genererUploadUrl);
-  const vierge = () => ({ titre: "", priorite: "moyenne" as Priorite, lieu: "", service: "", chefService: "", methode: "", dateDemande: aujourdHui(), demandeur: demandeurParDefaut, commentaireInitial: "" });
+  const vierge = () => ({ titre: "", priorite: "moyenne" as Priorite, lieu: "", service: "", chefService: "", methode: "", demandeur: demandeurParDefaut, commentaireInitial: "" });
   const [f, setF] = React.useState(vierge);
   const [lignes, setLignes] = React.useState<Ligne[]>([{ ...LIGNE_VIDE }]);
   const [fichiers, setFichiers] = React.useState<File[]>([]);
@@ -553,8 +557,8 @@ function NouvelleIntervention({
                     </Select>
                   )}
                 </Champ>
-                <Champ libelle="Date de demande" requis>
-                  {(attrs) => <Input {...attrs} type="date" value={f.dateDemande} onChange={(e) => setF({ ...f, dateDemande: e.target.value })} required />}
+                <Champ libelle="Date de demande" aide="Jour du dépôt, fixé automatiquement">
+                  {(attrs) => <Input {...attrs} value={fmtDate(aujourdHui())} readOnly aria-readonly="true" className="bg-bande text-encre-douce" />}
                 </Champ>
                 {texte("demandeur", "Demandeur", demandeurParDefaut)}
                 {texte("service", "Service", "Maintenance, Labo…")}

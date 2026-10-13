@@ -31,6 +31,13 @@ for (const r of HIERARCHIE) {
 
 verifie("tout membre voit ses bulletins", HIERARCHIE.every((r) => droitsEffectifs(r)["/mes-bulletins"].voir));
 
+// Décision du 13/10/2026 : l'employé ne voit que ses demandes d'intervention ; le chef d'équipe et au-dessus voient tout.
+verifie("employé : ses interventions seulement", droitsEffectifs("employe")["/interventions"].voir && !droitsEffectifs("employe")["/interventions/toutes"].voir);
+verifie("chef d'équipe voit toutes les interventions", droitsEffectifs("chef_equipe")["/interventions/toutes"].voir);
+verifie("chef d'équipe ne valide pas les interventions", !droitsEffectifs("chef_equipe")["/interventions"].faire);
+verifie("« toutes les demandes » est une case Voir seule", !droitsEffectifs("dg")["/interventions/toutes"].faire);
+verifie("auditeur consulte toutes les interventions", droitsEffectifs("auditeur_externe")["/interventions/toutes"].voir);
+
 // 2. Anciennes actions à niveau propre, reprises en FAIRE.
 verifie("chef d'équipe supervise les comptes rendus", droitsEffectifs("chef_equipe")["/comptes-rendus"].faire);
 verifie("employé ne supervise pas", !droitsEffectifs("employe")["/comptes-rendus"].faire);
