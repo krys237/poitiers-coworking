@@ -37,7 +37,12 @@ export const creer = mutation({
   },
   handler: async (ctx, args) => {
     await requireDroit(ctx, "/employes", "faire");
-    return await ctx.db.insert("employes", { ...args, whatsapp: numeroWhatsapp(args.whatsapp), joursBase: (await lireReglages(ctx)).joursBaseDefaut, actif: true });
+    // Le matricule identifie la fiche (import, bulletins, « Mes bulletins ») : jamais deux fois le même (retour terrain du 13/10/2026).
+    const matricule = args.matricule.trim().toUpperCase();
+    if (!matricule) throw new Error("Matricule requis.");
+    const doublon = await ctx.db.query("employes").withIndex("by_matricule", (q) => q.eq("matricule", matricule)).first();
+    if (doublon) throw new Error(`Le matricule ${matricule} existe déjà : ${doublon.nom}${doublon.actif ? "" : " (fiche désactivée)"}.`);
+    return await ctx.db.insert("employes", { ...args, matricule, whatsapp: numeroWhatsapp(args.whatsapp), joursBase: (await lireReglages(ctx)).joursBaseDefaut, actif: true });
   },
 });
 
