@@ -36,7 +36,7 @@ test_job:
 build_frontend:
   stage: build
   tags: [coworking]
-  image: docker:24
+  image: docker:27
   script:
     - |
       if [ "$CI_COMMIT_BRANCH" = "main" ]; then
@@ -57,7 +57,7 @@ build_frontend:
 build_proxy:
   stage: build
   tags: [coworking]
-  image: docker:24
+  image: docker:27
   script:
     - |
       if [ "$CI_COMMIT_BRANCH" = "main" ]; then
