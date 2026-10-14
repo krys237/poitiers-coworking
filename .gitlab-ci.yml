@@ -83,9 +83,11 @@ deploy_convex:
     - |
       if [ "$CI_COMMIT_BRANCH" = "main" ]; then
         export CONVEX_DEPLOY_KEY="$CONVEX_DEPLOY_KEY_PROD"
+        npx convex deploy
       else
-        export CONVEX_DEPLOY_KEY="$CONVEX_DEPLOY_KEY_DEV"
+        export CONVEX_SELF_HOSTED_URL="$CONVEX_SELF_HOSTED_URL_DEV"
+        export CONVEX_SELF_HOSTED_ADMIN_KEY="$CONVEX_SELF_HOSTED_ADMIN_KEY_DEV"
+        npx convex deploy
       fi
-      npx convex deploy
   rules:
     - if: '$CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "main"'
