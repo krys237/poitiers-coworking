@@ -1,0 +1,90 @@
+stages:
+  - test
+  - build
+  - deploy-convex
+
+variables:
+  IMAGE_FRONTEND: docker.io/$DOCKERHUB_NAMESPACE/coworking-frontend
+  IMAGE_PROXY: docker.io/$DOCKERHUB_NAMESPACE/coworking-api-proxy
+
+test_job:
+  stage: test
+  tags: [coworking]
+  image: node:20-alpine
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - app/node_modules/
+  before_script:
+    - cd app
+    - npm ci
+  script:
+    - npm run typecheck
+    - npm run test:paie
+    - npm run test:tresorerie
+    - npm run test:fenetre
+    - npm run test:commandes
+    - npm run test:stats
+    - npm run test:audit
+    - npm run test:api
+    - npm run test:proxy
+    - npm run test:droits
+    - npm run test:telephone
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "main"'
+
+build_frontend:
+  stage: build
+  tags: [coworking]
+  image: docker:24
+  script:
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "main" ]; then
+        export VITE_CONVEX_URL=$VITE_CONVEX_URL_PROD
+        export TAG=latest
+      else
+        export VITE_CONVEX_URL=$VITE_CONVEX_URL_DEV
+        export TAG=dev
+      fi
+    - docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_TOKEN"
+    - docker build --build-arg VITE_CONVEX_URL=$VITE_CONVEX_URL
+        -t $IMAGE_FRONTEND:$CI_COMMIT_SHORT_SHA -t $IMAGE_FRONTEND:$TAG app
+    - docker push $IMAGE_FRONTEND:$CI_COMMIT_SHORT_SHA
+    - docker push $IMAGE_FRONTEND:$TAG
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "main"'
+
+build_proxy:
+  stage: build
+  tags: [coworking]
+  image: docker:24
+  script:
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "main" ]; then
+        export TAG=latest
+      else
+        export TAG=dev
+      fi
+    - docker login -u "$DOCKERHUB_USERNAME" -p "$DOCKERHUB_TOKEN"
+    - docker build -t $IMAGE_PROXY:$CI_COMMIT_SHORT_SHA -t $IMAGE_PROXY:$TAG app/api-proxy
+    - docker push $IMAGE_PROXY:$CI_COMMIT_SHORT_SHA
+    - docker push $IMAGE_PROXY:$TAG
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "main"'
+
+deploy_convex:
+  stage: deploy-convex
+  tags: [coworking]
+  image: node:20-alpine
+  before_script:
+    - cd app
+    - npm ci
+  script:
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "main" ]; then
+        npx convex deploy --deploy-key "$CONVEX_DEPLOY_KEY_PROD"
+      else
+        npx convex deploy --deploy-key "$CONVEX_DEPLOY_KEY_DEV"
+      fi
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "main"'
