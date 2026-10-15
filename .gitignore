@@ -20,5 +20,6 @@ api-doc.html
 
 # Sauvegardes et fichiers temporaires
 *.tgz
+*.zip
 *.log
 .claude/

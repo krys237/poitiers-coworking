@@ -4,12 +4,13 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import { cn } from "@/lib/utils";
 import { api } from "../../convex/_generated/api";
 import { fcfa, libellePeriode, periodeCourante, messageErreur } from "../lib/format";
-import { Tuile } from "@/components/app/tuile";
+import { GrilleTuiles, Tuile } from "@/components/app/tuile";
 import { Barres } from "@/components/app/barres";
 import { Statut } from "@/components/app/statut";
 import { Avis } from "@/components/app/avis";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Flag } from "@/components/ui/flag";
 import {
   ArrowUpRight,
   TrendingUp,
@@ -380,34 +381,29 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* 3. Organisation principale : Zone Cockpit (Gauche) + Rail d'actions (Droite) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Colonne Gauche : Cockpit 2x2 + Graphique des Flux, puis « Mon espace » (8 colonnes sur 12) */}
-        {aGauche && <div className="lg:col-span-8 space-y-6">
-          {/* Grille 2x2 des 4 Tuiles Majeures */}
-          {aCockpit && <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
-            {/* Tuile 1 (Vedette) : Chiffre d'Affaires du Mois */}
-            {voit("/caisse") && (
-              <Tuile
-                vedette
-                ton="info"
-                libelle="Chiffre d'affaires du mois"
-                valeur={st ? fcfa(st.chiffreAffaires) : undefined}
-                note={`Recettes encaissées en ${libellePeriode(periode)}`}
-                lienVers="/caisse"
-                badge={
-                  <Badge variant="info">
-                    <TrendingUp className="mr-1 h-3 w-3" />
-                    Live
-                  </Badge>
-                }
-              />
-            )}
-
-            {/* Tuile 2 : Solde Trésorerie F3 Poitiers (grand livre) */}
-            {voit("/financier") && (
+      {/* 2b. Cockpit de Tuiles KPI Majeures (Pleine largeur, calqué sur le standard Employés & Poitiers UI/UX) */}
+      {aCockpit && (
+        <GrilleTuiles>
+          {/* Tuile 1 (Vedette) : Chiffre d'Affaires du Mois */}
+          {voit("/caisse") && (
             <Tuile
-              ton="neutre"
+              vedette
+              libelle="Chiffre d'affaires du mois"
+              valeur={st ? fcfa(st.chiffreAffaires) : undefined}
+              note={`Recettes encaissées en ${libellePeriode(periode)}`}
+              lienVers="/caisse"
+              badge={
+                <Flag variant="recette" size="xs">
+                  <TrendingUp className="mr-1 h-3 w-3 inline" />
+                  Caisse
+                </Flag>
+              }
+            />
+          )}
+
+          {/* Tuile 2 : Solde Trésorerie F3 Poitiers */}
+          {voit("/financier") && (
+            <Tuile
               libelle="Solde Trésorerie F3"
               valeur={
                 fin === undefined
@@ -418,66 +414,70 @@ export function Dashboard() {
               }
               note={
                 fin?.derniere
-                  ? `Dernière recette : ${fcfa(fin.derniere.recetteTotale)} (${new Date(fin.derniere.date + "T00:00:00").toLocaleDateString("fr-FR")})`
+                  ? `Dernière recette : ${fcfa(fin.derniere.recetteTotale)}`
                   : "Aucune journée enregistrée"
               }
               lienVers="/financier"
               badge={
                 fin?.recetteDuJour != null ? (
-                  <Badge variant="succes">
-                    Journée saisie
-                  </Badge>
+                  <Flag variant="especes" size="xs">
+                    Saisie J
+                  </Flag>
                 ) : (
-                  <Badge variant="attente">
-                    Non saisie
-                  </Badge>
+                  <Flag variant="a-renseigner" size="xs">
+                    En attente
+                  </Flag>
                 )
               }
             />
-            )}
+          )}
 
-            {/* Tuile 3 : Net à Payer (Paie) */}
-            {voit("/paie/bulletins") && (
-              <Tuile
-                ton="neutre"
-                libelle="Net à payer du mois"
-                valeur={paie ? fcfa(totalNet) : undefined}
-                note={
-                  paie
-                    ? `${paie.bulletins.length} bulletin(s) généré(s)`
-                    : "Calcul en cours…"
-                }
-                lienVers="/paie/bulletins"
-                badge={
-                  <Badge variant="neutre">
-                    <FileCheck2 className="mr-1 h-3 w-3" />
-                    Paie
-                  </Badge>
-                }
-              />
-            )}
+          {/* Tuile 3 : Net à Payer (Paie) */}
+          {voit("/paie/bulletins") && (
+            <Tuile
+              libelle="Net à payer du mois"
+              valeur={paie ? fcfa(totalNet) : undefined}
+              note={
+                paie
+                  ? `${paie.bulletins.length} bulletin(s) généré(s)`
+                  : "Calcul en cours…"
+              }
+              lienVers="/paie/bulletins"
+              badge={
+                <Flag variant="finance" size="xs">
+                  <FileCheck2 className="mr-1 h-3 w-3 inline" />
+                  Salaires
+                </Flag>
+              }
+            />
+          )}
 
-            {/* Tuile 4 : Masse Brute & Primes */}
-            {voit("/paie/bulletins") && (
-              <Tuile
-                ton="neutre"
-                libelle="Masse brute & Charges"
-                valeur={paie ? fcfa(totalBrut) : undefined}
-                note={
-                  pm
-                    ? `Primes méd. : ${fcfa(pm.primes)} · ${effectifActif ?? 0} actif(s)`
-                    : `${effectifActif ?? 0} employé(s) actif(s)`
-                }
-                lienVers={voit("/paie/primes") ? "/paie/primes" : undefined}
-                badge={
-                  <Badge variant="neutre">
-                    <Users className="mr-1 h-3 w-3" />
-                    {effectifActif ?? 0} salariés
-                  </Badge>
-                }
-              />
-            )}
-          </div>}
+          {/* Tuile 4 : Masse Brute & Primes */}
+          {voit("/paie/bulletins") && (
+            <Tuile
+              libelle="Masse brute & Charges"
+              valeur={paie ? fcfa(totalBrut) : undefined}
+              note={
+                pm
+                  ? `Primes méd. : ${fcfa(pm.primes)} · ${effectifActif ?? 0} actif(s)`
+                  : `${effectifActif ?? 0} employé(s) actif(s)`
+              }
+              lienVers={voit("/paie/primes") ? "/paie/primes" : undefined}
+              badge={
+                <Flag variant="direct" size="xs">
+                  <Users className="mr-1 h-3 w-3 inline" />
+                  {effectifActif ?? 0} actifs
+                </Flag>
+              }
+            />
+          )}
+        </GrilleTuiles>
+      )}
+
+      {/* 3. Organisation principale : Zone Graphiques & Espaces (Gauche) + Rail d'actions (Droite) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Colonne Gauche : Graphique des Flux puis « Mon espace » (8 colonnes sur 12) */}
+        {aGauche && <div className="lg:col-span-8 space-y-6">
 
           {/* Graphique de Répartition des Flux Financiers (Large Card) */}
           {donneesFlux.length > 0 && <div className="rounded-xl border border-filet bg-surface p-5 shadow-sm">

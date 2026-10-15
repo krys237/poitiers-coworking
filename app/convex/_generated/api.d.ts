@@ -23,6 +23,7 @@ import type * as documents from "../documents.js";
 import type * as documentsIa from "../documentsIa.js";
 import type * as employes from "../employes.js";
 import type * as financier from "../financier.js";
+import type * as fournisseurs from "../fournisseurs.js";
 import type * as http from "../http.js";
 import type * as interventions from "../interventions.js";
 import type * as journal from "../journal.js";
@@ -79,6 +80,7 @@ declare const fullApi: ApiFromModules<{
   documentsIa: typeof documentsIa;
   employes: typeof employes;
   financier: typeof financier;
+  fournisseurs: typeof fournisseurs;
   http: typeof http;
   interventions: typeof interventions;
   journal: typeof journal;

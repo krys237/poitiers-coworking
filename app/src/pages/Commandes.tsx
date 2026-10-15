@@ -24,6 +24,8 @@ import {
   Clock,
   Package,
   Pill,
+  FlaskConical,
+  Building2,
   Send,
   Trash2,
   FileSpreadsheet,
@@ -33,16 +35,30 @@ import {
   Ban,
   Truck,
   MessageSquare,
+  FileText,
+  Printer,
 } from "lucide-react";
+import { ModalFournisseur } from "@/components/app/modal-fournisseur";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { RegistreCommandeTable, type LigneRegistre } from "@/components/app/registre-commande-table";
+import { CircuitApprovisionnement } from "@/components/app/circuit-approvisionnement";
+import { ModalProforma } from "@/components/app/modal-proforma";
+import { ModalReceptionLitige } from "@/components/app/modal-reception-litige";
+import { ModalResolutionLitige } from "@/components/app/modal-resolution-litige";
+import { PackageCheck, AlertCircle } from "lucide-react";
 
-type TypeCommande = "medicale" | "fourniture";
-type Ligne = { produit: string; dci?: string; quantite: number; prixUnitaire: number };
+type TypeCommande = "medicale" | "fourniture" | "reactifs_labo";
+type Ligne = LigneRegistre;
 
 const STATUT_CONFIG: Record<string, { label: string; variant: FlagVariant; icon?: any }> = {
-  en_attente: { label: "En attente", variant: "a-renseigner" },
-  validee: { label: "Validée", variant: "finance" },
+  preparation: { label: "Préparation", variant: "a-renseigner" },
+  en_attente: { label: "En attente DG", variant: "finance" },
+  validee: { label: "Validée DG", variant: "finance" },
+  en_reception: { label: "En réception", variant: "direct" },
+  en_litige: { label: "En litige", variant: "om" },
   rejetee: { label: "Rejetée", variant: "verrou" },
   livree: { label: "Livrée", variant: "especes" },
+  cloturee: { label: "Clôturée", variant: "especes" },
 };
 
 const fmtDate = (s: string) => {
@@ -59,7 +75,15 @@ const fmtDate = (s: string) => {
 };
 
 const aujourdHui = () => new Date().toISOString().slice(0, 10);
-const LIGNE_VIDE: Ligne = { produit: "", dci: "", quantite: 1, prixUnitaire: 0 };
+const LIGNE_VIDE: Ligne = {
+  produit: "",
+  ancienneDate: "",
+  ancienneQuantite: undefined,
+  quantiteUtilisee: undefined,
+  quantiteRestante: undefined,
+  quantite: 1,
+  prixUnitaire: 0,
+};
 
 function telechargerFichier(nom: string, contenu: string) {
   const url = URL.createObjectURL(new Blob([contenu], { type: "text/csv;charset=utf-8" }));
@@ -70,10 +94,11 @@ function telechargerFichier(nom: string, contenu: string) {
   URL.revokeObjectURL(url);
 }
 
-export function Commandes() {
+function CommandesContenu() {
   const me = useQuery(api.users.me);
   const [type, setType] = useState<TypeCommande>("medicale");
   const liste = useQuery(api.commandes.liste, {});
+  const fournisseurs = useQuery(api.fournisseurs.liste, {});
 
   const [sel, setSel] = useState<string | null>(null);
   const detail = useQuery(api.commandes.detail, sel ? { commandeId: sel as any } : "skip");
@@ -83,6 +108,16 @@ export function Commandes() {
   const commenter = useMutation(api.commandes.commenter);
 
   const [recherche, setRecherche] = useState("");
+  const [fournisseurFiltre, setFournisseurFiltre] = useState<string>("tous");
+  const [etapeFiltre, setEtapeFiltre] = useState<string>("toutes");
+  const [modalFournisseurOuverte, setModalFournisseurOuverte] = useState(false);
+  const [modalProformaOuverte, setModalProformaOuverte] = useState(false);
+  const [commandePourProforma, setCommandePourProforma] = useState<any | null>(null);
+  const [modalReceptionOuverte, setModalReceptionOuverte] = useState(false);
+  const [commandePourReception, setCommandePourReception] = useState<any | null>(null);
+  const [modalResolutionOuverte, setModalResolutionOuverte] = useState(false);
+  const [commandePourResolution, setCommandePourResolution] = useState<any | null>(null);
+
   const lignesVisibles = useLignesVisibles("commandes");
   const [ouvrirForm, setOuvrirForm] = useState(false);
   const [enCreation, setEnCreation] = useState(false);
@@ -90,6 +125,7 @@ export function Commandes() {
 
   const [f, setF] = useState({
     date: aujourdHui(),
+    fournisseurId: "",
     libelle: "",
     demandeur: "",
     service: "",
@@ -140,6 +176,10 @@ export function Commandes() {
     () => toutesCommandes.filter((c: any) => c.type === "fourniture").length,
     [toutesCommandes]
   );
+  const countReactifsLabo = useMemo(
+    () => toutesCommandes.filter((c: any) => c.type === "reactifs_labo").length,
+    [toutesCommandes]
+  );
 
   const commandesDuType = useMemo(
     () => toutesCommandes.filter((c: any) => c.type === type),
@@ -153,8 +193,8 @@ export function Commandes() {
     let engage = 0;
 
     for (const c of commandesDuType) {
-      if (c.statut === "en_attente") enAttente++;
-      if (c.statut === "validee" || c.statut === "livree") validees++;
+      if (c.statut === "preparation" || c.statut === "en_attente") enAttente++;
+      if (c.statut === "validee" || c.statut === "en_reception" || c.statut === "livree" || c.statut === "cloturee") validees++;
       engage += c.total || 0;
     }
 
@@ -166,16 +206,70 @@ export function Commandes() {
     };
   }, [commandesDuType]);
 
-  // Filtrage des commandes par terme de recherche
+  // Compteurs par étape du circuit d'approvisionnement (avec litiges)
+  const compteursEtapes = useMemo(() => {
+    let prep = 0;
+    let att = 0;
+    let recep = 0;
+    let litiges = 0;
+    let clot = 0;
+    let rej = 0;
+
+    for (const c of commandesDuType) {
+      if (c.statut === "preparation") prep++;
+      else if (c.statut === "en_attente") att++;
+      else if (c.statut === "en_litige") {
+        litiges++;
+        recep++;
+      } else if (c.statut === "validee" || c.statut === "en_reception") recep++;
+      else if (c.statut === "cloturee" || c.statut === "livree") clot++;
+      else if (c.statut === "rejetee") rej++;
+    }
+
+    return {
+      toutes: commandesDuType.length,
+      preparation: prep,
+      en_attente: att,
+      en_reception: recep,
+      litiges,
+      cloturee: clot,
+      rejets: rej,
+    };
+  }, [commandesDuType]);
+
+  // Filtrage des commandes par étape, fournisseur et terme de recherche
   const commandesFiltrees = useMemo(() => {
+    let list = commandesDuType;
+
+    // Filtre par étape du circuit
+    if (etapeFiltre === "preparation") {
+      list = list.filter((c: any) => c.statut === "preparation");
+    } else if (etapeFiltre === "en_attente") {
+      list = list.filter((c: any) => c.statut === "en_attente");
+    } else if (etapeFiltre === "en_reception") {
+      list = list.filter((c: any) => c.statut === "validee" || c.statut === "en_reception");
+    } else if (etapeFiltre === "litiges") {
+      list = list.filter((c: any) => c.statut === "en_litige");
+    } else if (etapeFiltre === "cloturee") {
+      list = list.filter((c: any) => c.statut === "cloturee" || c.statut === "livree");
+    } else if (etapeFiltre === "rejets") {
+      list = list.filter((c: any) => c.statut === "rejetee");
+    }
+
+    // Filtre par fournisseur
+    if (fournisseurFiltre !== "tous") {
+      list = list.filter((c: any) => c.fournisseurId === fournisseurFiltre);
+    }
+
+    // Recherche plein texte
     const q = recherche.trim().toLowerCase();
-    if (!q) return commandesDuType;
-    return commandesDuType.filter((c: any) =>
-      `${c.reference} ${c.libelle ?? ""} ${c.demandeur} ${c.service ?? ""}`
+    if (!q) return list;
+    return list.filter((c: any) =>
+      `${c.reference} ${c.libelle ?? ""} ${c.demandeur} ${c.service ?? ""} ${c.fournisseur?.nom ?? ""}`
         .toLowerCase()
         .includes(q)
     );
-  }, [commandesDuType, recherche]);
+  }, [commandesDuType, etapeFiltre, fournisseurFiltre, recherche]);
 
   const onImportCsv = async (file: File) => {
     try {
@@ -208,6 +302,7 @@ export function Commandes() {
     try {
       const r = await creer({
         type,
+        fournisseurId: f.fournisseurId ? (f.fournisseurId as any) : undefined,
         date: f.date,
         libelle: f.libelle.trim() || undefined,
         demandeur: f.demandeur.trim() || (me?.nom ?? ""),
@@ -215,19 +310,22 @@ export function Commandes() {
         commentaire: f.commentaire.trim() || undefined,
         lignes: lignesValides.map((l) => ({
           produit: l.produit.trim(),
-          dci: type === "medicale" && l.dci ? l.dci.trim() : undefined,
+          ancienneDate: l.ancienneDate || undefined,
+          ancienneQuantite: l.ancienneQuantite !== undefined ? Number(l.ancienneQuantite) : undefined,
+          quantiteUtilisee: l.quantiteUtilisee !== undefined ? Number(l.quantiteUtilisee) : undefined,
+          quantiteRestante: l.quantiteRestante !== undefined ? Number(l.quantiteRestante) : undefined,
           quantite: Number(l.quantite) || 1,
           prixUnitaire: Number(l.prixUnitaire) || 0,
         })),
       });
 
       toast.success(`Commande ${r.reference} créée avec succès`, {
-        description: `Montant total : ${fcfa(r.total)}. Soumise pour validation hiérarchique.`,
+        description: `Montant total : ${fcfa(r.total)}. Enregistrée en préparation.`,
       });
 
       setOuvrirForm(false);
       setLignes([{ ...LIGNE_VIDE }, { ...LIGNE_VIDE }, { ...LIGNE_VIDE }]);
-      setF({ date: aujourdHui(), libelle: "", demandeur: "", service: "", commentaire: "" });
+      setF({ date: aujourdHui(), fournisseurId: "", libelle: "", demandeur: "", service: "", commentaire: "" });
       setSel(r.id);
     } catch (err) {
       toast.error("Erreur de création", { description: messageErreur(err) });
@@ -236,9 +334,13 @@ export function Commandes() {
     }
   };
 
-  const transitionStatut = async (nouveauStatut: "validee" | "rejetee" | "livree") => {
+  const transitionStatut = async (
+    nouveauStatut: "preparation" | "en_attente" | "validee" | "en_reception" | "en_litige" | "rejetee" | "livree" | "cloturee",
+    options?: { commentaire?: string; ouvrirProforma?: boolean }
+  ) => {
     if (!sel) return;
-    if (nouveauStatut === "rejetee" && !motifRejet.trim()) {
+    const motif = options?.commentaire ?? motifRejet;
+    if (nouveauStatut === "rejetee" && !motif.trim()) {
       toast.error("Un motif de rejet est obligatoire pour refuser la commande.");
       return;
     }
@@ -248,12 +350,17 @@ export function Commandes() {
       await changerStatut({
         commandeId: sel as any,
         statut: nouveauStatut,
-        commentaire: motifRejet.trim() || undefined,
+        commentaire: motif.trim() || undefined,
       });
 
-      toast.success(`Statut mis à jour : ${STATUT_CONFIG[nouveauStatut].label}`);
+      toast.success(`Statut mis à jour : ${STATUT_CONFIG[nouveauStatut]?.label ?? nouveauStatut}`);
       setMotifRejet("");
       setDemandeRejet(false);
+
+      if (nouveauStatut === "validee" && options?.ouvrirProforma && detail) {
+        setCommandePourProforma(detail);
+        setModalProformaOuverte(true);
+      }
     } catch (err) {
       toast.error("Erreur de modification du statut", { description: messageErreur(err) });
     } finally {
@@ -405,10 +512,10 @@ export function Commandes() {
       </div>
 
       {/* 3. Sélecteur de type de commande & Barre de recherche */}
-      <div className="rounded-2xl border border-filet bg-surface p-3 shadow-xs space-y-2.5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          {/* Onglets de type de commande avec couleurs vives affirmées */}
-          <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-slate-100/90 border border-filet self-start shadow-2xs">
+      <div className="rounded-2xl border border-filet bg-surface p-3 shadow-xs space-y-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Onglets de type de commande : design unifié, sobre et élégant */}
+          <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100/90 border border-filet self-start shadow-2xs">
             <button
               type="button"
               onClick={() => {
@@ -416,9 +523,9 @@ export function Commandes() {
                 setSel(null);
               }}
               className={cn(
-                "flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer border",
+                "flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer border",
                 type === "medicale"
-                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm border-emerald-600 ring-2 ring-emerald-500/20"
+                  ? "bg-emerald-600 text-white font-bold shadow-xs border-emerald-600 ring-2 ring-emerald-500/20"
                   : "text-slate-700 hover:text-emerald-950 hover:bg-emerald-50/80 border-transparent"
               )}
             >
@@ -443,9 +550,9 @@ export function Commandes() {
                 setSel(null);
               }}
               className={cn(
-                "flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer border",
+                "flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer border",
                 type === "fourniture"
-                  ? "bg-ocean-profond hover:bg-ocean-nuit text-white shadow-sm border-ocean-profond ring-2 ring-ocean-profond/20"
+                  ? "bg-ocean-profond text-white font-bold shadow-xs border-ocean-profond ring-2 ring-ocean-profond/20"
                   : "text-slate-700 hover:text-ocean-nuit hover:bg-blue-50/80 border-transparent"
               )}
             >
@@ -462,27 +569,264 @@ export function Commandes() {
                 {countFourniture}
               </span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setType("reactifs_labo");
+                setSel(null);
+              }}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition-all cursor-pointer border",
+                type === "reactifs_labo"
+                  ? "bg-purple-600 text-white font-bold shadow-xs border-purple-600 ring-2 ring-purple-500/20"
+                  : "text-slate-700 hover:text-purple-950 hover:bg-purple-50/80 border-transparent"
+              )}
+            >
+              <FlaskConical className={cn("h-4 w-4", type === "reactifs_labo" ? "text-white" : "text-purple-600")} />
+              <span>Réactifs Labo</span>
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-3xs font-mono font-bold",
+                  type === "reactifs_labo"
+                    ? "bg-white/25 text-white"
+                    : "bg-purple-100 text-purple-800"
+                )}
+              >
+                {countReactifsLabo}
+              </span>
+            </button>
           </div>
 
-          <SelecteurLignes valeur={lignesVisibles.lignes} onChange={lignesVisibles.setLignes} className="ml-auto" />
-          {/* Barre de recherche temps réel */}
-          <div className="relative w-full sm:w-80">
-            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              type="search"
-              placeholder="Rechercher par référence, libellé, agent, service…"
-              value={recherche}
-              onChange={(e) => setRecherche(e.target.value)}
-              className="pl-9 pr-9 h-10 text-xs bg-white border-filet focus-visible:ring-ocean-profond"
-            />
-            {recherche && (
+          {/* Filtres secondaires : Fournisseur et recherche */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-50 border border-filet shadow-2xs">
+              <Building2 className="h-3.5 w-3.5 text-slate-500 shrink-0" />
+              <select
+                value={fournisseurFiltre}
+                onChange={(e) => setFournisseurFiltre(e.target.value)}
+                className="text-xs font-medium text-slate-700 bg-transparent border-0 focus:outline-hidden cursor-pointer"
+                aria-label="Filtrer par fournisseur"
+              >
+                <option value="tous">Tous les fournisseurs ({fournisseurs?.length ?? 0})</option>
+                {fournisseurs?.map((fourn: any) => (
+                  <option key={fourn._id} value={fourn._id}>
+                    {fourn.nom}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setModalFournisseurOuverte(true)}
+              className="h-9 px-3 text-xs font-semibold gap-1 text-ocean-profond border-ocean-ciel/40 bg-white hover:bg-ocean-brume/20 shadow-2xs"
+              title="Ajouter un nouveau fournisseur"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Fournisseur
+            </Button>
+
+            <SelecteurLignes valeur={lignesVisibles.lignes} onChange={lignesVisibles.setLignes} />
+
+            {/* Barre de recherche temps réel */}
+            <div className="relative w-full sm:w-64">
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <Input
+                type="search"
+                placeholder="Réf, libellé, demandeur…"
+                value={recherche}
+                onChange={(e) => setRecherche(e.target.value)}
+                className="pl-8 pr-8 h-9 text-xs bg-white border-filet focus-visible:ring-ocean-profond"
+              />
+              {recherche && (
+                <button
+                  type="button"
+                  onClick={() => setRecherche("")}
+                  className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                  title="Effacer la recherche"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Barre de navigation des 4 étapes : palette unifiée, claire et professionnelle */}
+        <div className="pt-2.5 border-t border-filet flex items-center gap-1.5 overflow-x-auto pb-0.5 text-xs">
+          <span className="text-3xs font-bold uppercase tracking-wider text-slate-400 mr-1.5 shrink-0">
+            Circuit :
+          </span>
+
+          <div className="inline-flex items-center gap-1 p-0.5 rounded-xl bg-slate-100/70 border border-filet flex-wrap">
+            <button
+              type="button"
+              onClick={() => setEtapeFiltre("toutes")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer",
+                etapeFiltre === "toutes"
+                  ? "bg-ocean-profond text-white shadow-xs font-bold"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+              )}
+            >
+              <span>Toutes les étapes</span>
+              <span
+                className={cn(
+                  "px-1.5 py-0.5 rounded-full text-3xs font-mono font-bold",
+                  etapeFiltre === "toutes"
+                    ? "bg-white/25 text-white"
+                    : "bg-slate-200 text-slate-600"
+                )}
+              >
+                {compteursEtapes.toutes}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setEtapeFiltre("preparation")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer",
+                etapeFiltre === "preparation"
+                  ? "bg-ocean-profond text-white shadow-xs font-bold"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+              )}
+            >
+              <span>1. Préparation</span>
+              <span
+                className={cn(
+                  "px-1.5 py-0.5 rounded-full text-3xs font-mono font-bold",
+                  etapeFiltre === "preparation"
+                    ? "bg-white/25 text-white"
+                    : "bg-slate-200 text-slate-600"
+                )}
+              >
+                {compteursEtapes.preparation}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setEtapeFiltre("en_attente")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer",
+                etapeFiltre === "en_attente"
+                  ? "bg-ocean-profond text-white shadow-xs font-bold"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+              )}
+            >
+              <span>2. Validation DG</span>
+              <span
+                className={cn(
+                  "px-1.5 py-0.5 rounded-full text-3xs font-mono font-bold",
+                  etapeFiltre === "en_attente"
+                    ? "bg-white/25 text-white"
+                    : "bg-slate-200 text-slate-600"
+                )}
+              >
+                {compteursEtapes.en_attente}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setEtapeFiltre("en_reception")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer",
+                etapeFiltre === "en_reception"
+                  ? "bg-ocean-profond text-white shadow-xs font-bold"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+              )}
+            >
+              <span>3. En réception</span>
+              <span
+                className={cn(
+                  "px-1.5 py-0.5 rounded-full text-3xs font-mono font-bold",
+                  etapeFiltre === "en_reception"
+                    ? "bg-white/25 text-white"
+                    : "bg-slate-200 text-slate-600"
+                )}
+              >
+                {compteursEtapes.en_reception}
+              </span>
+            </button>
+
+            {/* Onglet Litiges : mis en avant dès qu'un litige existe */}
+            <button
+              type="button"
+              onClick={() => setEtapeFiltre("litiges")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer",
+                etapeFiltre === "litiges"
+                  ? "bg-rose-600 text-white shadow-xs font-bold"
+                  : compteursEtapes.litiges > 0
+                  ? "text-rose-700 bg-rose-50 hover:bg-rose-100 font-bold border border-rose-200"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+              )}
+            >
+              <span>Litiges</span>
+              <span
+                className={cn(
+                  "px-1.5 py-0.5 rounded-full text-3xs font-mono font-bold",
+                  etapeFiltre === "litiges"
+                    ? "bg-white/25 text-white"
+                    : compteursEtapes.litiges > 0
+                    ? "bg-rose-600 text-white"
+                    : "bg-slate-200 text-slate-600"
+                )}
+              >
+                {compteursEtapes.litiges}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setEtapeFiltre("cloturee")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer",
+                etapeFiltre === "cloturee"
+                  ? "bg-ocean-profond text-white shadow-xs font-bold"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+              )}
+            >
+              <span>4. Clôturées</span>
+              <span
+                className={cn(
+                  "px-1.5 py-0.5 rounded-full text-3xs font-mono font-bold",
+                  etapeFiltre === "cloturee"
+                    ? "bg-white/25 text-white"
+                    : "bg-slate-200 text-slate-600"
+                )}
+              >
+                {compteursEtapes.cloturee}
+              </span>
+            </button>
+
+            {compteursEtapes.rejets > 0 && (
               <button
                 type="button"
-                onClick={() => setRecherche("")}
-                className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 transition-colors"
-                title="Effacer la recherche"
+                onClick={() => setEtapeFiltre("rejets")}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 flex items-center gap-1.5 cursor-pointer",
+                  etapeFiltre === "rejets"
+                    ? "bg-rose-700 text-white shadow-xs font-bold"
+                    : "text-rose-700 hover:bg-rose-50"
+                )}
               >
-                <X className="h-4 w-4" />
+                <span>Rejetées</span>
+                <span
+                  className={cn(
+                    "px-1.5 py-0.5 rounded-full text-3xs font-mono font-bold",
+                    etapeFiltre === "rejets"
+                      ? "bg-white/25 text-white"
+                      : "bg-rose-100 text-rose-800"
+                  )}
+                >
+                  {compteursEtapes.rejets}
+                </span>
               </button>
             )}
           </div>
@@ -515,27 +859,40 @@ export function Commandes() {
                     type="button"
                     onClick={() => setType("medicale")}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border",
                       type === "medicale"
-                        ? "bg-emerald-600 text-white shadow-xs"
-                        : "text-slate-600 hover:text-emerald-950 hover:bg-emerald-50"
+                        ? "bg-emerald-600 text-white font-bold shadow-xs border-emerald-600"
+                        : "text-slate-600 hover:text-emerald-950 hover:bg-emerald-50 border-transparent"
                     )}
                   >
-                    <Pill className="h-3.5 w-3.5" />
+                    <Pill className={cn("h-3.5 w-3.5", type === "medicale" ? "text-white" : "text-emerald-600")} />
                     Médicaments
                   </button>
                   <button
                     type="button"
                     onClick={() => setType("fourniture")}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border",
                       type === "fourniture"
-                        ? "bg-ocean-profond text-white shadow-xs"
-                        : "text-slate-600 hover:text-ocean-nuit hover:bg-blue-50"
+                        ? "bg-ocean-profond text-white font-bold shadow-xs border-ocean-profond"
+                        : "text-slate-600 hover:text-ocean-nuit hover:bg-blue-50 border-transparent"
                     )}
                   >
-                    <Package className="h-3.5 w-3.5" />
+                    <Package className={cn("h-3.5 w-3.5", type === "fourniture" ? "text-white" : "text-ocean-profond")} />
                     Fournitures
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setType("reactifs_labo")}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border",
+                      type === "reactifs_labo"
+                        ? "bg-purple-600 text-white font-bold shadow-xs border-purple-600"
+                        : "text-slate-600 hover:text-purple-950 hover:bg-purple-50 border-transparent"
+                    )}
+                  >
+                    <FlaskConical className={cn("h-3.5 w-3.5", type === "reactifs_labo" ? "text-white" : "text-purple-600")} />
+                    Réactifs Labo
                   </button>
                 </div>
 
@@ -554,7 +911,7 @@ export function Commandes() {
           <CardContent className="p-4 sm:p-5 space-y-4">
             <form onSubmit={onCreerCommande} className="space-y-4">
               {/* Métadonnées de commande */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 p-3.5 rounded-xl bg-papier/60 border border-filet">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 p-3.5 rounded-xl bg-papier/60 border border-filet">
                 <div>
                   <label className="text-2xs font-bold uppercase tracking-wider text-slate-600 block mb-1">
                     Date de commande <span className="text-rose-600">*</span>
@@ -569,13 +926,46 @@ export function Commandes() {
                 </div>
 
                 <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-2xs font-bold uppercase tracking-wider text-slate-600">
+                      Fournisseur
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setModalFournisseurOuverte(true)}
+                      className="text-3xs font-semibold text-ocean-profond hover:underline flex items-center gap-0.5 cursor-pointer"
+                    >
+                      <Plus className="h-2.5 w-2.5" /> Nouveau
+                    </button>
+                  </div>
+                  <select
+                    value={f.fournisseurId}
+                    onChange={(e) => setF({ ...f, fournisseurId: e.target.value })}
+                    className="h-8 w-full text-xs rounded-md border border-filet bg-white px-2 text-slate-800"
+                  >
+                    <option value="">Sélectionner un fournisseur…</option>
+                    {fournisseurs?.map((fourn: any) => (
+                      <option key={fourn._id} value={fourn._id}>
+                        {fourn.nom} {fourn.telephone ? `(${fourn.telephone})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
                   <label className="text-2xs font-bold uppercase tracking-wider text-slate-600 block mb-1">
                     Libellé / Objet
                   </label>
                   <Input
                     value={f.libelle}
                     onChange={(e) => setF({ ...f, libelle: e.target.value })}
-                    placeholder={type === "medicale" ? "Réapprovisionnement mensuel" : "Fournitures bureau T3"}
+                    placeholder={
+                      type === "medicale"
+                        ? "Réapprovisionnement mensuel"
+                        : type === "reactifs_labo"
+                        ? "Réactifs hématologie"
+                        : "Fournitures bureau T3"
+                    }
                     className="h-8 text-xs bg-white"
                   />
                 </div>
@@ -599,132 +989,29 @@ export function Commandes() {
                   <Input
                     value={f.service}
                     onChange={(e) => setF({ ...f, service: e.target.value })}
-                    placeholder="Pharmacie, Accueil, Labo…"
+                    placeholder={type === "reactifs_labo" ? "Laboratoire" : "Pharmacie, Accueil…"}
                     className="h-8 text-xs bg-white"
                   />
                 </div>
               </div>
 
-              {/* Tableau interactif des articles */}
-              <div className="rounded-xl border border-filet overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-filet text-3xs font-bold uppercase text-slate-600 tracking-wider">
-                        <th className="p-2.5 w-10 text-center">#</th>
-                        <th className="p-2.5">Désignation du produit</th>
-                        {type === "medicale" && <th className="p-2.5 w-44">DCI (Dénomination commune)</th>}
-                        <th className="p-2.5 w-24 text-right">Quantité</th>
-                        <th className="p-2.5 w-32 text-right">Prix unitaire (FCFA)</th>
-                        <th className="p-2.5 w-36 text-right">Total ligne</th>
-                        <th className="p-2.5 w-10 text-center"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-filet bg-white">
-                      {lignes.map((l, i) => {
-                        const totalItem = (Number(l.quantite) || 0) * (Number(l.prixUnitaire) || 0);
-
-                        return (
-                          <tr key={i} className="hover:bg-slate-50/50">
-                            <td className="p-2 text-center text-slate-400 font-mono text-2xs">
-                              {i + 1}
-                            </td>
-                            <td className="p-2">
-                              <Input
-                                value={l.produit}
-                                onChange={(e) => majLigne(i, { produit: e.target.value })}
-                                placeholder="Ex: Paracétamol 500mg, Rames papier A4…"
-                                className="h-7 text-xs bg-white border-filet"
-                              />
-                            </td>
-                            {type === "medicale" && (
-                              <td className="p-2">
-                                <Input
-                                  value={l.dci ?? ""}
-                                  onChange={(e) => majLigne(i, { dci: e.target.value })}
-                                  placeholder="Ex: Paracétamol"
-                                  className="h-7 text-xs bg-white border-filet"
-                                />
-                              </td>
-                            )}
-                            <td className="p-2 text-right">
-                              <Input
-                                type="number"
-                                min={1}
-                                value={l.quantite ? l.quantite : ""}
-                                placeholder="1"
-                                onFocus={(e) => e.target.select()}
-                                onChange={(e) =>
-                                  majLigne(i, {
-                                    quantite: e.target.value === "" ? 0 : Number(e.target.value),
-                                  })
-                                }
-                                className="h-7 text-xs text-right bg-white border-filet font-mono"
-                              />
-                            </td>
-                            <td className="p-2 text-right">
-                              <Input
-                                type="number"
-                                min={0}
-                                value={l.prixUnitaire ? l.prixUnitaire : ""}
-                                placeholder="0"
-                                onFocus={(e) => e.target.select()}
-                                onChange={(e) =>
-                                  majLigne(i, {
-                                    prixUnitaire: e.target.value === "" ? 0 : Number(e.target.value),
-                                  })
-                                }
-                                className="h-7 text-xs text-right bg-white border-filet font-mono"
-                              />
-                            </td>
-                            <td className="p-2 text-right font-mono font-semibold text-ocean-nuit">
-                              {fcfa(totalItem)}
-                            </td>
-                            <td className="p-2 text-center">
-                              {lignes.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => setLignes((ls) => ls.filter((_, j) => j !== i))}
-                                  className="text-slate-400 hover:text-rose-600 p-1 transition-colors"
-                                  title="Supprimer cette ligne"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr className="bg-slate-50 border-t-2 border-filet font-bold">
-                        <td colSpan={type === "medicale" ? 5 : 4} className="p-3 text-right text-xs text-slate-700">
-                          Total général estimé :
-                        </td>
-                        <td className="p-3 text-right font-mono text-sm text-ocean-profond font-extrabold">
-                          {fcfa(totalFormulaire)}
-                        </td>
-                        <td></td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-
-                <div className="p-2.5 bg-papier/50 border-t border-filet flex items-center justify-between">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setLignes((ls) => [...ls, { ...LIGNE_VIDE }])}
-                    className="h-7 text-xs gap-1 border-filet bg-white hover:bg-blue-50/50"
-                  >
-                    <Plus className="h-3 w-3 text-ocean-profond" />
-                    Ajouter une ligne de produit
-                  </Button>
-                  <span className="text-3xs text-slate-500">
-                    {lignesValides.length} article(s) valide(s)
+              {/* Grille Registre de commande conforme au croquis manuscrit */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-2xs font-bold uppercase tracking-wider text-slate-700 block">
+                    Registre des articles & Justification de réapprovisionnement
+                  </label>
+                  <span className="text-3xs text-muted-foreground">
+                    Modèle officiel : Désignation · Ancienne commande (Date/Qté) · Qté utilisée · Qté restante · Nouvelle commande
                   </span>
                 </div>
+                <RegistreCommandeTable
+                  lignes={lignes}
+                  onChange={setLignes}
+                  dateCommande={f.date}
+                  editable={true}
+                  categorie={type}
+                />
               </div>
 
               {/* Commentaire optionnel */}
@@ -780,6 +1067,11 @@ export function Commandes() {
               <Pill className="h-3 w-3 mr-1 inline" />
               Pharmacie & DCI
             </Flag>
+          ) : type === "reactifs_labo" ? (
+            <Flag variant="finance" size="sm">
+              <FlaskConical className="h-3 w-3 mr-1 inline text-purple-600" />
+              Réactifs Laboratoire
+            </Flag>
           ) : (
             <Flag variant="direct" size="sm">
               <Package className="h-3 w-3 mr-1 inline" />
@@ -792,7 +1084,15 @@ export function Commandes() {
           <div className="p-8 text-center text-encre-douce text-xs border border-dashed border-slate-200 rounded-xl bg-papier/50">
             {recherche
               ? `Aucune commande ne correspond à votre recherche « ${recherche} ».`
-              : `Aucune commande de type ${type === "medicale" ? "médicaments" : "fournitures"} enregistrée pour l'instant.`}
+              : fournisseurFiltre !== "tous"
+              ? "Aucune commande trouvée pour ce fournisseur."
+              : `Aucune commande de type ${
+                  type === "medicale"
+                    ? "médicaments"
+                    : type === "reactifs_labo"
+                    ? "réactifs labo"
+                    : "fournitures"
+                } enregistrée pour l'instant.`}
           </div>
         ) : (
           // Une fiche dépliée occupe plusieurs « lignes » : la hauteur choisie reste indicative.
@@ -801,6 +1101,7 @@ export function Commandes() {
                 <TableRow>
                   <TableHead>Référence</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead>Fournisseur</TableHead>
                   <TableHead>Commande</TableHead>
                   <TableHead>Demandeur</TableHead>
                   <TableHead numerique>Articles</TableHead>
@@ -837,6 +1138,16 @@ export function Commandes() {
                         </TableCell>
                         <TableCell className="whitespace-nowrap font-mono text-xs tabular-nums">
                           {fmtDate(c.date)}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-xs">
+                          {c.fournisseur ? (
+                            <span className="inline-flex items-center gap-1 font-medium text-slate-700">
+                              <Building2 className="h-3 w-3 text-slate-400" />
+                              {c.fournisseur.nom}
+                            </span>
+                          ) : (
+                            <span className="text-encre-pale">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="leading-tight">
                           <div className="text-[13px] font-semibold">{c.libelle ?? "—"}</div>
@@ -900,7 +1211,22 @@ export function Commandes() {
                                       </h3>
                                     </div>
 
-                                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                                    <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+                                      <Button
+                                        id="btn-bon-proforma"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                          setCommandePourProforma(detail);
+                                          setModalProformaOuverte(true);
+                                        }}
+                                        className="h-8 text-xs gap-1.5 border-ocean-profond/40 bg-ocean-ceruleen/10 text-ocean-profond hover:bg-ocean-ceruleen/20 font-bold shadow-2xs cursor-pointer"
+                                        title="Éditer / Imprimer le bon de commande proforma officiel"
+                                      >
+                                        <FileText className="h-3.5 w-3.5" />
+                                        Bon Proforma
+                                      </Button>
+
                                       <Button
                                         size="sm"
                                         variant="outline"
@@ -928,6 +1254,13 @@ export function Commandes() {
                                 </CardHeader>
 
                                 <CardContent className="p-4 sm:p-5 space-y-4">
+                                  {/* Stepper visuel du circuit d'approvisionnement en 4 étapes */}
+                                  <CircuitApprovisionnement
+                                    statut={detail.statut}
+                                    valideLe={detail.valideLe}
+                                    validateur={detail.validateur}
+                                  />
+
                                   {/* Cartouche des métadonnées */}
                                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 rounded-xl bg-papier/60 border border-filet text-xs">
                                     <div>
@@ -952,65 +1285,22 @@ export function Commandes() {
                                     </div>
                                   </div>
 
-                                  {/* Tableau exhaustif des articles */}
-                                  <div className="space-y-1.5">
+                                  {/* Grille Registre de Commande (Modèle Poitiers) */}
+                                  <div className="space-y-2">
                                     <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                                      <span>Articles commandés ({detail.lignes.length})</span>
-                                      <span className="font-mono text-ocean-profond">{fcfa(detail.total)}</span>
+                                      <span className="flex items-center gap-1.5">
+                                        <Package className="h-3.5 w-3.5 text-ocean-profond" />
+                                        Feuille de registre & consommations ({detail.lignes.length} article{detail.lignes.length > 1 ? "s" : ""})
+                                      </span>
+                                      <span className="font-mono text-ocean-profond font-bold">{fcfa(detail.total)}</span>
                                     </div>
 
-                                    <div className="rounded-xl border border-filet overflow-hidden">
-                                      <div className="overflow-x-auto">
-                                        <table className="w-full text-left text-xs border-collapse">
-                                          <thead>
-                                            <tr className="bg-slate-50 border-b border-filet text-3xs font-bold uppercase text-slate-600 tracking-wider">
-                                              <th className="p-2.5 w-10 text-center">#</th>
-                                              <th className="p-2.5">Produit</th>
-                                              {detail.type === "medicale" && <th className="p-2.5">DCI</th>}
-                                              <th className="p-2.5 text-right w-24">Quantité</th>
-                                              <th className="p-2.5 text-right w-32">Prix unitaire</th>
-                                              <th className="p-2.5 text-right w-36">Total</th>
-                                            </tr>
-                                          </thead>
-                                          <tbody className="divide-y divide-filet bg-white">
-                                            {detail.lignes.map((l: any, i: number) => (
-                                              <tr key={i} className="hover:bg-slate-50/50">
-                                                <td className="p-2.5 text-center font-mono text-slate-400 text-2xs">
-                                                  {i + 1}
-                                                </td>
-                                                <td className="p-2.5 font-medium text-encre">
-                                                  {l.produit}
-                                                </td>
-                                                {detail.type === "medicale" && (
-                                                  <td className="p-2.5 text-slate-500">
-                                                    {l.dci ?? "—"}
-                                                  </td>
-                                                )}
-                                                <td className="p-2.5 text-right font-mono">
-                                                  {l.quantite}
-                                                </td>
-                                                <td className="p-2.5 text-right font-mono text-slate-600">
-                                                  {fcfa(l.prixUnitaire)}
-                                                </td>
-                                                <td className="p-2.5 text-right font-mono font-bold text-ocean-nuit">
-                                                  {fcfa(totalLigne(l))}
-                                                </td>
-                                              </tr>
-                                            ))}
-                                          </tbody>
-                                          <tfoot>
-                                            <tr className="bg-slate-50 border-t-2 border-filet font-bold">
-                                              <td colSpan={detail.type === "medicale" ? 5 : 4} className="p-3 text-right text-xs text-slate-700">
-                                                Total général arrêté :
-                                              </td>
-                                              <td className="p-3 text-right font-mono text-sm text-ocean-profond font-extrabold">
-                                                {fcfa(detail.total)}
-                                              </td>
-                                            </tr>
-                                          </tfoot>
-                                        </table>
-                                      </div>
-                                    </div>
+                                    <RegistreCommandeTable
+                                      lignes={detail.lignes}
+                                      dateCommande={detail.date}
+                                      editable={false}
+                                      categorie={detail.type}
+                                    />
                                   </div>
 
                                   {/* Cartouche d'analyse comparative avec la commande précédente */}
@@ -1113,122 +1403,365 @@ export function Commandes() {
                                     )}
                                   </div>
 
-                                  {/* Espace de validation hiérarchique (Workflow Direction) */}
-                                  {(detail.statut === "en_attente" || detail.statut === "validee") && (
-                                    <div className="p-4 rounded-xl border border-filet bg-gradient-to-r from-slate-50 to-white space-y-3">
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                                          Décision & Workflow opérationnel
-                                        </span>
-                                        <Flag
-                                          variant={STATUT_CONFIG[detail.statut]?.variant ?? "neutre"}
-                                          size="xs"
-                                        >
-                                          {STATUT_CONFIG[detail.statut]?.label}
-                                        </Flag>
+                                  {/* Espace de suivi & Workflow opérationnel des 4 étapes */}
+                                  <div className="p-4 rounded-xl border border-filet bg-gradient-to-r from-slate-50 to-white space-y-3">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                                        <Clock className="h-3.5 w-3.5 text-ocean-profond" />
+                                        Décision & Circuit d'approvisionnement
+                                      </span>
+                                      <Flag
+                                        variant={STATUT_CONFIG[detail.statut]?.variant ?? "neutre"}
+                                        size="xs"
+                                      >
+                                        {STATUT_CONFIG[detail.statut]?.label}
+                                      </Flag>
+                                    </div>
+
+                                    {/* Étape 1 : Préparation */}
+                                    {detail.statut === "preparation" && (
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-slate-100/70 border border-slate-200">
+                                        <div className="text-xs text-slate-700 space-y-0.5">
+                                          <div className="font-bold flex items-center gap-1.5 text-slate-900">
+                                            <Clock className="h-3.5 w-3.5 text-slate-500" />
+                                            Étape 1 : Registre en cours de préparation interne
+                                          </div>
+                                          <p className="text-2xs text-slate-500">
+                                            Vérifiez les consommations et les quantités avant de transmettre le bon à la Direction Générale.
+                                          </p>
+                                        </div>
+
+                                        {peutGerer && (
+                                          <Button
+                                            size="sm"
+                                            disabled={enTransition}
+                                            onClick={() => transitionStatut("en_attente")}
+                                            className="bg-ocean-profond hover:bg-ocean-nuit text-white text-xs font-bold gap-1.5 shrink-0 shadow-xs"
+                                          >
+                                            <Send className="h-3.5 w-3.5" />
+                                            Soumettre à la Direction Générale
+                                          </Button>
+                                        )}
                                       </div>
+                                    )}
 
-                                      {detail.statut === "en_attente" && (
-                                        <>
-                                          {peutValider ? (
-                                            <div className="space-y-3">
-                                              {demandeRejet && (
-                                                <div className="space-y-1.5 p-3 rounded-xl bg-rose-50 border border-rose-200 animate-in fade-in">
-                                                  <label className="text-xs font-bold text-rose-900 block">
-                                                    Motif obligatoire du rejet de la commande :
-                                                  </label>
-                                                  <Input
-                                                    autoFocus
-                                                    value={motifRejet}
-                                                    onChange={(e) => setMotifRejet(e.target.value)}
-                                                    placeholder="Ex: Dépassement budgétaire, doublon avec commande passée…"
-                                                    className="h-8 text-xs bg-white border-rose-300"
-                                                  />
-                                                </div>
-                                              )}
+                                    {/* Étape 2 : En attente de validation Direction */}
+                                    {detail.statut === "en_attente" && (
+                                      <>
+                                        {peutValider ? (
+                                          <div className="space-y-3">
+                                            {demandeRejet && (
+                                              <div className="space-y-1.5 p-3 rounded-xl bg-rose-50 border border-rose-200 animate-in fade-in">
+                                                <label className="text-xs font-bold text-rose-900 block">
+                                                  Motif obligatoire du rejet de la commande :
+                                                </label>
+                                                <Input
+                                                  autoFocus
+                                                  value={motifRejet}
+                                                  onChange={(e) => setMotifRejet(e.target.value)}
+                                                  placeholder="Ex: Dépassement budgétaire, doublon avec commande passée…"
+                                                  className="h-8 text-xs bg-white border-rose-300"
+                                                />
+                                              </div>
+                                            )}
 
-                                              <div className="flex items-center gap-2 flex-wrap">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                              <Button
+                                                size="sm"
+                                                disabled={enTransition}
+                                                onClick={() => transitionStatut("validee", { ouvrirProforma: true })}
+                                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold gap-1.5 shadow-xs"
+                                              >
+                                                <Check className="h-3.5 w-3.5" />
+                                                Valider & Générer le Proforma
+                                              </Button>
+
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => {
+                                                  setCommandePourProforma(detail);
+                                                  setModalProformaOuverte(true);
+                                                }}
+                                                className="text-xs font-semibold text-ocean-profond border-ocean-ciel/40 bg-white hover:bg-ocean-brume/20 gap-1.5"
+                                              >
+                                                <FileText className="h-3.5 w-3.5" />
+                                                Examiner le projet Proforma
+                                              </Button>
+
+                                              {demandeRejet ? (
                                                 <Button
                                                   size="sm"
-                                                  disabled={enTransition}
-                                                  onClick={() => transitionStatut("validee")}
-                                                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold gap-1.5"
+                                                  variant="destructive"
+                                                  disabled={!motifRejet.trim() || enTransition}
+                                                  onClick={() => transitionStatut("rejetee")}
+                                                  className="text-xs font-bold gap-1.5"
                                                 >
-                                                  <Check className="h-3.5 w-3.5" />
-                                                  Valider le bon de commande
+                                                  <Ban className="h-3.5 w-3.5" />
+                                                  Confirmer le rejet
                                                 </Button>
+                                              ) : (
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  onClick={() => setDemandeRejet(true)}
+                                                  className="text-xs font-semibold text-rose-700 hover:bg-rose-50 border-rose-200 gap-1.5 ml-auto"
+                                                >
+                                                  <Ban className="h-3.5 w-3.5" />
+                                                  Rejeter la commande
+                                                </Button>
+                                              )}
 
-                                                {demandeRejet ? (
-                                                  <Button
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    disabled={!motifRejet.trim() || enTransition}
-                                                    onClick={() => transitionStatut("rejetee")}
-                                                    className="text-xs font-bold gap-1.5"
-                                                  >
-                                                    <Ban className="h-3.5 w-3.5" />
-                                                    Confirmer le rejet
-                                                  </Button>
-                                                ) : (
-                                                  <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => setDemandeRejet(true)}
-                                                    className="text-xs font-semibold text-rose-700 hover:bg-rose-50 border-rose-200 gap-1.5"
-                                                  >
-                                                    <Ban className="h-3.5 w-3.5" />
-                                                    Rejeter la commande
-                                                  </Button>
-                                                )}
-
-                                                {demandeRejet && (
-                                                  <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() => {
-                                                      setDemandeRejet(false);
-                                                      setMotifRejet("");
-                                                    }}
-                                                    className="text-xs text-slate-500"
-                                                  >
-                                                    Annuler
-                                                  </Button>
-                                                )}
-                                              </div>
+                                              {demandeRejet && (
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  onClick={() => {
+                                                    setDemandeRejet(false);
+                                                    setMotifRejet("");
+                                                  }}
+                                                  className="text-xs text-slate-500"
+                                                >
+                                                  Annuler
+                                                </Button>
+                                              )}
                                             </div>
-                                          ) : (
-                                            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900">
-                                              <Clock className="h-4 w-4 text-amber-600 shrink-0" />
-                                              <span>
-                                                En attente d'arbitrage par la Direction Générale ou Administrative (Niveau 5+).
-                                              </span>
-                                            </div>
-                                          )}
-                                        </>
-                                      )}
-
-                                      {detail.statut === "validee" && (
-                                        <div className="flex items-center justify-between gap-3 flex-wrap">
-                                          <div className="text-xs text-emerald-800 flex items-center gap-2">
-                                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                                            <span>Commande validée le {fmtDate(detail.valideLe?.slice(0, 10) ?? "")}.</span>
                                           </div>
+                                        ) : (
+                                          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900">
+                                            <Clock className="h-4 w-4 text-amber-600 shrink-0" />
+                                            <span>
+                                              Étape 2 : En attente d'arbitrage par la Direction Générale (Niveau 5+).
+                                            </span>
+                                          </div>
+                                        )}
+                                      </>
+                                    )}
+
+                                    {/* Étape 3A : Commande validée par la Direction */}
+                                    {detail.statut === "validee" && (
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-emerald-50/70 border border-emerald-200">
+                                        <div className="text-xs text-emerald-900 space-y-0.5">
+                                          <div className="font-bold flex items-center gap-1.5">
+                                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                            Commande approuvée par la Direction Générale
+                                          </div>
+                                          <p className="text-2xs text-emerald-800">
+                                            {detail.validateur ? `Validée par ${detail.validateur}` : "Validée"} le {fmtDate(detail.valideLe?.slice(0, 10) ?? "")} · Proforma n° <b className="font-mono">{detail.proformaRef || `PRO-${detail.reference}`}</b>
+                                          </p>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                              setCommandePourProforma(detail);
+                                              setModalProformaOuverte(true);
+                                            }}
+                                            className="bg-white hover:bg-slate-50 text-ocean-profond border-filet text-xs font-semibold gap-1.5 shadow-2xs"
+                                          >
+                                            <Printer className="h-3.5 w-3.5" />
+                                            Imprimer le Proforma
+                                          </Button>
 
                                           {peutGerer && (
                                             <Button
                                               size="sm"
                                               disabled={enTransition}
-                                              onClick={() => transitionStatut("livree")}
-                                              className="bg-ocean-profond hover:bg-ocean-nuit text-white text-xs font-bold gap-1.5"
+                                              onClick={() => transitionStatut("en_reception")}
+                                              className="bg-ocean-profond hover:bg-ocean-nuit text-white text-xs font-bold gap-1.5 shadow-xs"
                                             >
                                               <Truck className="h-3.5 w-3.5" />
-                                              Confirmer la réception (Marquer comme livrée)
+                                              Transmettre au fournisseur (Étape 3)
                                             </Button>
                                           )}
                                         </div>
-                                      )}
-                                    </div>
-                                  )}
+                                      </div>
+                                    )}
+
+                                    {/* Étape 3B : En cours de réception chez le fournisseur */}
+                                    {detail.statut === "en_reception" && (
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-blue-50/70 border border-blue-200">
+                                        <div className="text-xs text-blue-950 space-y-0.5">
+                                          <div className="font-bold flex items-center gap-1.5 text-ocean-profond">
+                                            <Truck className="h-4 w-4 text-ocean-profond" />
+                                            Étape 3 : Commande transmise au fournisseur · En attente de livraison
+                                          </div>
+                                          <p className="text-2xs text-slate-600">
+                                            Fournisseur : <b>{detail.fournisseur?.nom ?? "Non spécifié"}</b>
+                                            {detail.fournisseur?.telephone ? ` (${detail.fournisseur.telephone})` : ""}
+                                          </p>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                              setCommandePourProforma(detail);
+                                              setModalProformaOuverte(true);
+                                            }}
+                                            className="bg-white hover:bg-slate-50 text-ocean-profond border-filet text-xs font-semibold gap-1.5 shadow-2xs"
+                                          >
+                                            <FileText className="h-3.5 w-3.5" />
+                                            Bon Proforma
+                                          </Button>
+
+                                          {peutGerer && (
+                                            <Button
+                                              id="btn-pointage-reception"
+                                              size="sm"
+                                              onClick={() => {
+                                                setCommandePourReception(detail);
+                                                setModalReceptionOuverte(true);
+                                              }}
+                                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold gap-1.5 shadow-xs cursor-pointer"
+                                            >
+                                              <PackageCheck className="h-4 w-4" />
+                                              Pointer la réception & vérifier
+                                            </Button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Étape Litige : Commande bloquée en litige */}
+                                    {detail.statut === "en_litige" && (
+                                      <div className="flex flex-col gap-3 p-4 rounded-xl bg-rose-50/80 border-2 border-rose-300">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-rose-200 pb-2.5">
+                                          <div className="flex items-center gap-2">
+                                            <div className="p-1.5 rounded-lg bg-rose-600 text-white shadow-2xs">
+                                              <AlertCircle className="h-4 w-4" />
+                                            </div>
+                                            <div>
+                                              <span className="text-xs font-bold text-rose-950 uppercase tracking-wide">
+                                                Litige de réception en cours
+                                              </span>
+                                              <span className="text-2xs text-rose-700 ml-2">
+                                                Signalé le {detail.litige?.dateSignalement ? fmtDate(detail.litige.dateSignalement.slice(0, 10)) : "Récemment"}
+                                              </span>
+                                            </div>
+                                          </div>
+
+                                          <div className="flex items-center gap-2">
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={() => {
+                                                setCommandePourProforma(detail);
+                                                setModalProformaOuverte(true);
+                                              }}
+                                              className="bg-white hover:bg-slate-50 text-slate-700 border-filet text-xs font-semibold gap-1.5 shadow-2xs"
+                                            >
+                                              <FileText className="h-3.5 w-3.5 text-ocean-profond" />
+                                              Bon Proforma
+                                            </Button>
+
+                                            {peutGerer && (
+                                              <Button
+                                                id="btn-resoudre-litige"
+                                                size="sm"
+                                                onClick={() => {
+                                                  setCommandePourResolution(detail);
+                                                  setModalResolutionOuverte(true);
+                                                }}
+                                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold gap-1.5 shadow-xs cursor-pointer"
+                                              >
+                                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                                Résoudre le litige & Clôturer
+                                              </Button>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        {/* Détail du motif et de l'anomalie */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                                          <div className="bg-white p-2.5 rounded-lg border border-rose-200">
+                                            <span className="text-3xs font-bold uppercase text-slate-500 block">Motif du litige</span>
+                                            <span className="font-bold text-rose-900 capitalize">
+                                              {detail.litige?.type === "peremption"
+                                                ? "⚠️ Péremption courte ou expirée"
+                                                : detail.litige?.type === "quantite_insuffisante"
+                                                ? "📉 Quantité insuffisante"
+                                                : detail.litige?.type === "manquant"
+                                                ? "📉 Articles manquants"
+                                                : detail.litige?.type === "avarie"
+                                                ? "💥 Avarie / Casse colis"
+                                                : "ℹ️ Autre litige"}
+                                            </span>
+                                          </div>
+                                          <div className="sm:col-span-2 bg-white p-2.5 rounded-lg border border-rose-200">
+                                            <span className="text-3xs font-bold uppercase text-slate-500 block">Description de l'anomalie</span>
+                                            <p className="text-xs text-slate-800 font-medium">
+                                              {detail.litige?.description || "Aucun descriptif détaillé renseigné."}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Étape 4 : Clôturée / Livrée */}
+                                    {(detail.statut === "cloturee" || detail.statut === "livree") && (
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-emerald-50/60 border border-emerald-200">
+                                        <div className="text-xs text-emerald-950 space-y-0.5">
+                                          <div className="font-bold flex items-center gap-1.5 text-emerald-800">
+                                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                            Étape 4 : Commande soldée et clôturée
+                                          </div>
+                                          <p className="text-2xs text-emerald-700">
+                                            Les articles ont été réceptionnés et le dossier d'approvisionnement est clos.
+                                          </p>
+                                          {detail.litige?.resolu && (
+                                            <div className="mt-1.5 p-2 rounded-lg bg-white/90 border border-emerald-200 text-3xs text-emerald-900">
+                                              <span className="font-bold">Historique litige résolu : </span>
+                                              <span>{detail.litige.type} · {detail.litige.description}</span>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => {
+                                            setCommandePourProforma(detail);
+                                            setModalProformaOuverte(true);
+                                          }}
+                                          className="bg-white hover:bg-slate-50 text-slate-700 border-filet text-xs font-semibold gap-1.5 shadow-2xs self-start sm:self-auto"
+                                        >
+                                          <FileText className="h-3.5 w-3.5 text-ocean-profond" />
+                                          Voir le Proforma archivé
+                                        </Button>
+                                      </div>
+                                    )}
+
+                                    {/* Rejetée */}
+                                    {detail.statut === "rejetee" && (
+                                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl bg-rose-50 border border-rose-200">
+                                        <div className="text-xs text-rose-950 space-y-0.5">
+                                          <div className="font-bold flex items-center gap-1.5 text-rose-800">
+                                            <Ban className="h-4 w-4 text-rose-600" />
+                                            Commande rejetée par la Direction Générale
+                                          </div>
+                                          <p className="text-2xs text-rose-700">
+                                            Motif : {detail.commentaires?.[detail.commentaires.length - 1]?.texte || "Non spécifié"}
+                                          </p>
+                                        </div>
+
+                                        {peutGerer && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={enTransition}
+                                            onClick={() => transitionStatut("preparation")}
+                                            className="bg-white hover:bg-rose-50 text-rose-800 border-rose-300 text-xs font-semibold gap-1.5"
+                                          >
+                                            Repasser en préparation
+                                          </Button>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
 
                                   {/* Fil de discussion & commentaires */}
                                   <div className="space-y-2.5 pt-2 border-t border-filet">
@@ -1292,9 +1825,51 @@ export function Commandes() {
                   );
                 })}
               </TableBody>
-          </Table>
+            </Table>
         )}
       </div>
+
+      <ModalFournisseur
+        ouvert={modalFournisseurOuverte}
+        onClose={() => setModalFournisseurOuverte(false)}
+        onFournisseurCree={(id, nom) => {
+          setF((prev) => ({ ...prev, fournisseurId: id }));
+          setFournisseurFiltre(id);
+        }}
+        categorieInitiale={type}
+      />
+
+      <ModalProforma
+        ouverte={modalProformaOuverte}
+        onFermer={() => setModalProformaOuverte(false)}
+        commande={commandePourProforma}
+      />
+
+      <ModalReceptionLitige
+        ouverte={modalReceptionOuverte}
+        onFermer={() => setModalReceptionOuverte(false)}
+        commande={commandePourReception}
+        onSucces={() => {
+          if (commandePourReception?._id) setSel(commandePourReception._id);
+        }}
+      />
+
+      <ModalResolutionLitige
+        ouverte={modalResolutionOuverte}
+        onFermer={() => setModalResolutionOuverte(false)}
+        commande={commandePourResolution}
+        onSucces={() => {
+          if (commandePourResolution?._id) setSel(commandePourResolution._id);
+        }}
+      />
     </div>
+  );
+}
+
+export function Commandes() {
+  return (
+    <ErrorBoundary fallbackTitle="Module Commandes temporairement indisponible">
+      <CommandesContenu />
+    </ErrorBoundary>
   );
 }

@@ -286,17 +286,70 @@ export default defineSchema({
     .index("by_depose", ["deposeLe"])
     .index("by_fichier", ["fichierId"]),
 
-  // ---- Activité (Phase 3) ----
-  // Commandes médicales (avec DCI) ou de fournitures. Workflow : en_attente → validee | rejetee → livree.
+  // Répertoire Fournisseurs (légers : nom, téléphone +237 obligatoire, ville)
+  fournisseurs: defineTable({
+    nom: v.string(),
+    telephone: v.string(),             // E.164 (+237...)
+    ville: v.optional(v.string()),
+    email: v.optional(v.string()),
+    categories: v.optional(v.array(v.string())), // ["medicale", "fourniture", "reactifs_labo"]
+    actif: v.boolean(),
+    creePar: v.optional(v.id("users")),
+    creeLe: v.string(),
+  })
+    .index("by_nom", ["nom"])
+    .index("by_actif", ["actif"]),
+
+  // ---- Activité (Phase 3 & Refonte Approvisionnement) ----
+  // Commandes médicales, fournitures ou réactifs labo.
+  // Workflow en 4 jalons : preparation -> en_attente (validation DG) -> en_reception (litiges) -> cloturee
   commandes: defineTable({
     reference: v.string(),            // "CMD-2026-001" (séquentiel par année)
-    type: v.union(v.literal("medicale"), v.literal("fourniture")),
+    type: v.union(v.literal("medicale"), v.literal("fourniture"), v.literal("reactifs_labo")),
+    fournisseurId: v.optional(v.id("fournisseurs")),
     libelle: v.optional(v.string()),
     date: v.string(),                 // "YYYY-MM-DD"
     demandeur: v.string(),
     service: v.optional(v.string()),
-    statut: v.union(v.literal("en_attente"), v.literal("validee"), v.literal("rejetee"), v.literal("livree")),
-    lignes: v.array(v.object({ produit: v.string(), dci: v.optional(v.string()), quantite: v.number(), prixUnitaire: v.number() })),
+    statut: v.union(
+      v.literal("preparation"),
+      v.literal("en_attente"),
+      v.literal("validee"),
+      v.literal("en_reception"),
+      v.literal("en_litige"),
+      v.literal("rejetee"),
+      v.literal("livree"),
+      v.literal("cloturee")
+    ),
+    lignes: v.array(
+      v.object({
+        produit: v.string(),
+        dci: v.optional(v.string()),
+        ancienneDate: v.optional(v.string()),
+        ancienneQuantite: v.optional(v.number()),
+        quantiteUtilisee: v.optional(v.number()),
+        quantiteRestante: v.optional(v.number()),
+        quantite: v.number(),
+        prixUnitaire: v.number(),
+      })
+    ),
+    litige: v.optional(
+      v.object({
+        type: v.union(
+          v.literal("peremption"),
+          v.literal("quantite_insuffisante"),
+          v.literal("manquant"),
+          v.literal("avarie"),
+          v.literal("autre")
+        ),
+        description: v.string(),
+        resolu: v.boolean(),
+        dateSignalement: v.string(),
+        dateResolution: v.optional(v.string()),
+      })
+    ),
+    proformaRef: v.optional(v.string()),
+    proformaDate: v.optional(v.string()),
     commentaires: v.array(v.object({ auteur: v.string(), texte: v.string(), date: v.string() })),
     creePar: v.id("users"),
     validePar: v.optional(v.id("users")),
@@ -307,7 +360,8 @@ export default defineSchema({
     .index("by_statut", ["statut"])
     .index("by_date", ["date"])
     .index("by_type_date", ["type", "date"])
-    .index("by_reference", ["reference"]),
+    .index("by_reference", ["reference"])
+    .index("by_fournisseur", ["fournisseurId"]),
 
   // Interventions techniciens (maintenance / matériel). Workflow : ouverte → en_cours → cloturee | rejetee.
   interventions: defineTable({
