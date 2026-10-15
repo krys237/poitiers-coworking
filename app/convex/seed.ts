@@ -137,3 +137,47 @@ export const userDev = internalQuery({
 // Phase 3 : re-export pour conserver le nom `seed:phase3` / `seed:etatDemo` (code dans seedPhase3.ts).
 export { phase3, etatDemo } from "./seedPhase3";
 export { phase4, etatDemo4 } from "./seedPhase4";
+
+import { v } from "convex/values";
+import { api } from "./_generated/api";
+import { createAccount, modifyAccountCredentials, retrieveAccount } from "@convex-dev/auth/server";
+
+export const insererAdminUser = mutation({
+  args: { email: v.string() },
+  handler: async (ctx, { email }) => {
+    const propre = email.trim().toLowerCase();
+    const existant = await ctx.db.query("users").withIndex("email", (q) => q.eq("email", propre)).first();
+    if (!existant) {
+      return await ctx.db.insert("users", {
+        email: propre,
+        nom: "Super Administrateur",
+        role: "super_admin",
+        poste: "Directeur Général",
+        departement: "Direction",
+        isActive: true,
+      });
+    } else {
+      await ctx.db.patch(existant._id, { role: "super_admin", isActive: true });
+      return existant._id;
+    }
+  },
+});
+
+export const initialiserAdmin = action({
+  args: { email: v.string(), motDePasse: v.string() },
+  handler: async (ctx, { email, motDePasse }) => {
+    const propre = email.trim().toLowerCase();
+    await ctx.runMutation(api.seed.insererAdminUser, { email: propre });
+    const existe = await retrieveAccount(ctx, { provider: "password", account: { id: propre } }).catch(() => null);
+    if (existe) {
+      await modifyAccountCredentials(ctx, { provider: "password", account: { id: propre, secret: motDePasse } });
+    } else {
+      await createAccount(ctx, {
+        provider: "password",
+        account: { id: propre, secret: motDePasse },
+        profile: { email: propre, role: "super_admin", isActive: true },
+      });
+    }
+    return { succes: true, email: propre };
+  },
+});
