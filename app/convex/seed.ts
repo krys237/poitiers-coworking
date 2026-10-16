@@ -181,3 +181,19 @@ export const initialiserAdmin = action({
     return { succes: true, email: propre };
   },
 });
+
+export const viderEmployesDemo = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const employes = await ctx.db.query("employes").collect();
+    for (const e of employes) {
+      await ctx.db.delete(e._id);
+    }
+    // Nettoyer aussi le compte démo dg@poitiers.local s'il existe
+    const devDg = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("tokenIdentifier", DEV_TOKEN)).unique();
+    if (devDg) {
+      await ctx.db.delete(devDg._id);
+    }
+    return { employesSupprimes: employes.length, dgDevSupprime: !!devDg };
+  },
+});
