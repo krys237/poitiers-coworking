@@ -1,5 +1,9 @@
 # Plateforme unifiée POITIERS COWORKING — guide du dépôt
 
+> **CYCLE DES BRANCHES ET DÉPLOIEMENTS :**
+> - **Branche `dev` (Recette) :** Branche de travail actif. Nous y codons et testons en local et sur **`https://poitiers-coworking.vercel.app/`** (où sont exécutés les tests du cahier de recettes).
+> - **Branche `clean` (Production) :** Déployée sur **`https://poitiers-clean.vercel.app/`**. **Règle absolue :** on ne pousse sur `clean` que lorsqu'une fonctionnalité est entièrement propre, validée et à jour sur `dev`.
+> 
 > **Où en est le projet, et que reste-t-il ?** Lire `../ETAT-DU-PROJET.md` (point arrêté au 12/10/2026 :
 > avancement par chantier, ce que le propriétaire doit fournir, reste à faire par priorité, emplacement de chaque
 > livrable) puis `DECISIONS.md`. **Priorité en cours : masquer les actions dont le membre n'a pas le droit « Faire »**

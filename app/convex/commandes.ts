@@ -2,7 +2,7 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Doc } from "./_generated/dataModel";
 import { requireDroit } from "./lib/authz";
-import { comparer, totalCommande, reference } from "./lib/commandes";
+import { comparer, totalCommande, reference, normaliserCleProduit } from "./lib/commandes";
 
 const TYPE = v.union(v.literal("medicale"), v.literal("fourniture"), v.literal("reactifs_labo"));
 const STATUT = v.union(
@@ -119,6 +119,69 @@ export const detail = query({
   },
 });
 
+// Récupère les derniers achats par produit pour alimenter le registre (Option 1).
+// Si la base est vierge ou un produit n'a aucun antécédent, la liste retournée ne le contiendra pas (Option 3 : saisie libre initiale).
+export const derniersAchats = query({
+  args: {
+    type: v.optional(TYPE),
+    saufCommandeId: v.optional(v.id("commandes")),
+    dateMax: v.optional(v.string()),
+  },
+  handler: async (ctx, { type, saufCommandeId, dateMax }) => {
+    await requireDroit(ctx, "/commandes");
+    let orders: Doc<"commandes">[];
+    if (type) {
+      orders = await ctx.db
+        .query("commandes")
+        .withIndex("by_type_date", (q) => q.eq("type", type))
+        .order("desc")
+        .collect();
+    } else {
+      orders = await ctx.db
+        .query("commandes")
+        .withIndex("by_date")
+        .order("desc")
+        .collect();
+    }
+
+    const seen = new Set<string>();
+    const result: {
+      cle: string;
+      produit: string;
+      date: string;
+      quantite: number;
+      prixUnitaire: number;
+      reference: string;
+      commandeId: string;
+    }[] = [];
+
+    for (const c of orders) {
+      if (saufCommandeId && c._id === saufCommandeId) continue;
+      if (c.statut === "rejetee") continue;
+      if (dateMax && c.date > dateMax) continue;
+
+      for (const l of c.lignes) {
+        if (!l.produit) continue;
+        const cle = normaliserCleProduit(l.produit);
+        if (!cle || seen.has(cle)) continue;
+
+        seen.add(cle);
+        result.push({
+          cle,
+          produit: l.produit,
+          date: c.date,
+          quantite: l.quantite,
+          prixUnitaire: l.prixUnitaire,
+          reference: c.reference,
+          commandeId: c._id,
+        });
+      }
+    }
+
+    return result;
+  },
+});
+
 export const creer = mutation({
   args: {
     type: TYPE,
@@ -134,17 +197,64 @@ export const creer = mutation({
   handler: async (ctx, a) => {
     const user = await requireDroit(ctx, "/commandes", "faire");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(a.date)) throw new Error("Date au format AAAA-MM-JJ.");
+
+    // Recherche des antécédents d'achats dans les commandes antérieures non rejetées
+    const commandesPrecedentes = await ctx.db
+      .query("commandes")
+      .withIndex("by_type_date", (q) => q.eq("type", a.type))
+      .order("desc")
+      .collect();
+
+    const antecedentsMap = new Map<string, { date: string; quantite: number; prixUnitaire: number; reference: string }>();
+    for (const cp of commandesPrecedentes) {
+      if (cp.statut === "rejetee") continue;
+      for (const lp of cp.lignes) {
+        if (!lp.produit) continue;
+        const cle = normaliserCleProduit(lp.produit);
+        if (cle && !antecedentsMap.has(cle)) {
+          antecedentsMap.set(cle, {
+            date: cp.date,
+            quantite: lp.quantite,
+            prixUnitaire: lp.prixUnitaire,
+            reference: cp.reference,
+          });
+        }
+      }
+    }
+
     const lignes = a.lignes
-      .map((l) => ({
-        ...l,
-        produit: l.produit.trim(),
-        dci: l.dci?.trim() || undefined,
-        ancienneDate: l.ancienneDate || undefined,
-        ancienneQuantite: l.ancienneQuantite,
-        quantiteUtilisee: l.quantiteUtilisee,
-        quantiteRestante: l.quantiteRestante,
-      }))
+      .map((l) => {
+        const prod = l.produit.trim();
+        const cle = normaliserCleProduit(prod);
+        const ant = antecedentsMap.get(cle);
+
+        // Si antécédent en base (Option 1) : verrouille sur la commande précédente
+        // Si aucun antécédent (Option 3 / démarrage à froid) : conserve les saisies manuelles
+        const ancDate = ant ? ant.date : (l.ancienneDate || undefined);
+        const ancQte = ant ? ant.quantite : l.ancienneQuantite;
+
+        let qUtil = l.quantiteUtilisee;
+        let qRest = l.quantiteRestante;
+        if (ancQte !== undefined && ancQte > 0) {
+          if (qRest !== undefined) {
+            qUtil = Math.max(0, ancQte - qRest);
+          } else if (qUtil !== undefined) {
+            qRest = Math.max(0, ancQte - qUtil);
+          }
+        }
+
+        return {
+          ...l,
+          produit: prod,
+          dci: l.dci?.trim() || undefined,
+          ancienneDate: ancDate,
+          ancienneQuantite: ancQte,
+          quantiteUtilisee: qUtil,
+          quantiteRestante: qRest,
+        };
+      })
       .filter((l) => l.produit);
+
     if (!lignes.length) throw new Error("Au moins une ligne de produit est requise.");
     if (lignes.some((l) => !(l.quantite > 0) || l.prixUnitaire < 0)) throw new Error("Quantités > 0 et prix ≥ 0 requis.");
     const annee = +a.date.slice(0, 4);
@@ -170,6 +280,122 @@ export const creer = mutation({
       commentaires: a.commentaire?.trim() ? [{ auteur, texte: a.commentaire.trim(), date: new Date().toISOString() }] : [],
     });
     return { id, reference: ref, total: totalCommande(lignes) };
+  },
+});
+
+export const modifier = mutation({
+  args: {
+    commandeId: v.id("commandes"),
+    type: v.optional(TYPE),
+    fournisseurId: v.optional(v.id("fournisseurs")),
+    libelle: v.optional(v.string()),
+    date: v.string(),
+    demandeur: v.string(),
+    service: v.optional(v.string()),
+    lignes: v.array(LIGNE),
+    commentaire: v.optional(v.string()),
+  },
+  handler: async (ctx, a) => {
+    const user = await requireDroit(ctx, "/commandes", "faire");
+    const c = await ctx.db.get(a.commandeId);
+    if (!c) throw new Error("Commande introuvable.");
+    if (c.statut !== "preparation" && c.statut !== "rejetee") {
+      throw new Error(`Seul un bon au statut "Préparation" (ou "Rejeté") peut être modifié. Ce bon est actuellement "${c.statut}".`);
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(a.date)) throw new Error("Date au format AAAA-MM-JJ.");
+
+    const typeFinal = a.type ?? c.type;
+    const commandesPrecedentes = await ctx.db
+      .query("commandes")
+      .withIndex("by_type_date", (q) => q.eq("type", typeFinal))
+      .order("desc")
+      .collect();
+
+    const antecedentsMap = new Map<string, { date: string; quantite: number; prixUnitaire: number; reference: string }>();
+    for (const cp of commandesPrecedentes) {
+      if (cp._id === a.commandeId) continue; // Exclure ce bon en cours de modification
+      if (cp.statut === "rejetee") continue;
+      for (const lp of cp.lignes) {
+        if (!lp.produit) continue;
+        const cle = normaliserCleProduit(lp.produit);
+        if (cle && !antecedentsMap.has(cle)) {
+          antecedentsMap.set(cle, {
+            date: cp.date,
+            quantite: lp.quantite,
+            prixUnitaire: lp.prixUnitaire,
+            reference: cp.reference,
+          });
+        }
+      }
+    }
+
+    const lignes = a.lignes
+      .map((l) => {
+        const prod = l.produit.trim();
+        const cle = normaliserCleProduit(prod);
+        const ant = antecedentsMap.get(cle);
+
+        // Si antécédent en base (Option 1) : verrouille sur la commande précédente
+        // Si aucun antécédent (Option 3 / démarrage à froid) : conserve les saisies manuelles
+        const ancDate = ant ? ant.date : (l.ancienneDate || undefined);
+        const ancQte = ant ? ant.quantite : l.ancienneQuantite;
+
+        let qUtil = l.quantiteUtilisee;
+        let qRest = l.quantiteRestante;
+        if (ancQte !== undefined && ancQte > 0) {
+          if (qRest !== undefined) {
+            qUtil = Math.max(0, ancQte - qRest);
+          } else if (qUtil !== undefined) {
+            qRest = Math.max(0, ancQte - qUtil);
+          }
+        }
+
+        return {
+          ...l,
+          produit: prod,
+          dci: l.dci?.trim() || undefined,
+          ancienneDate: ancDate,
+          ancienneQuantite: ancQte,
+          quantiteUtilisee: qUtil,
+          quantiteRestante: qRest,
+        };
+      })
+      .filter((l) => l.produit);
+
+    if (!lignes.length) throw new Error("Au moins une ligne de produit est requise.");
+    if (lignes.some((l) => !(l.quantite > 0) || l.prixUnitaire < 0)) {
+      throw new Error("Quantités > 0 et prix ≥ 0 requis.");
+    }
+    const maintenant = new Date().toISOString();
+    const auteur = user.nom ?? user.email;
+    const commentaires = a.commentaire?.trim()
+      ? [...c.commentaires, { auteur, texte: a.commentaire.trim(), date: maintenant }]
+      : c.commentaires;
+
+    await ctx.db.patch(a.commandeId, {
+      ...(a.type ? { type: a.type } : {}),
+      fournisseurId: a.fournisseurId,
+      libelle: a.libelle?.trim() || undefined,
+      date: a.date,
+      demandeur: a.demandeur.trim() || auteur,
+      service: a.service?.trim() || undefined,
+      lignes,
+      commentaires,
+    });
+    return { id: c._id, reference: c.reference, total: totalCommande(lignes) };
+  },
+});
+
+export const supprimer = mutation({
+  args: { commandeId: v.id("commandes") },
+  handler: async (ctx, { commandeId }) => {
+    await requireDroit(ctx, "/commandes", "faire");
+    const c = await ctx.db.get(commandeId);
+    if (!c) throw new Error("Commande introuvable.");
+    if (c.statut !== "preparation" && c.statut !== "rejetee") {
+      throw new Error(`Seul un bon au statut "Préparation" (ou "Rejeté") peut être supprimé.`);
+    }
+    await ctx.db.delete(commandeId);
   },
 });
 

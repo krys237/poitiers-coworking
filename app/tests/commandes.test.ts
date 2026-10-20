@@ -1,5 +1,5 @@
 // `npm run test:commandes` — totaux, comparaison entre commandes successives, CSV.
-import { totalCommande, comparer, parseCsvLignes, exportCsvLignes, reference } from "../convex/lib/commandes.ts";
+import { totalCommande, comparer, parseCsvLignes, exportCsvLignes, reference, normaliserCleProduit } from "../convex/lib/commandes.ts";
 
 let echecs = 0;
 const check = (nom: string, cond: boolean, detail?: unknown) => { if (cond) console.log(`  ok  ${nom}`); else { console.error(`  KO  ${nom}`, detail ?? ""); echecs++; } };
@@ -34,5 +34,10 @@ check("CSV sans en-tête", sansEntete.length === 2 && sansEntete[1].quantite ===
 const exp = exportCsvLignes(avant);
 check("export : en-tête + 3 lignes + total ligne", exp.split("\n").length === 4 && exp.includes("Doliprane;Paracetamol;5;1000;5000"));
 check("référence CMD-2026-007", reference("CMD", 2026, 7) === "CMD-2026-007");
+
+// Normalisation des clés produits pour matching antécédents
+check("normalisation : casse, accents et espaces", normaliserCleProduit("  Paracétamol  500mg ") === "paracetamol 500mg");
+check("normalisation : accents multiples", normaliserCleProduit("Sérum Électrolyte") === "serum electrolyte");
+check("normalisation : vide", normaliserCleProduit("") === "");
 
 if (echecs) { console.error(`\n${echecs} test(s) en échec`); process.exit(1); } else console.log("\nTous les tests passent.");

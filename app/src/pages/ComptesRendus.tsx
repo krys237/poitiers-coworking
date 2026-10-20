@@ -1,8 +1,9 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, Fragment } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { dureeLisible } from "../../convex/lib/fenetre";
 import { messageErreur } from "../lib/format";
+import { useMe } from "@/auth/useMe";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,9 +25,20 @@ import {
   Check,
   AlertCircle,
   FileText,
-  Eye,
+
+  MessageSquare,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
+const fmtDateHeure = (iso: string) => {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    return `${d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} à ${d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
+  } catch {
+    return iso;
+  }
+};
 
 const fmtDateLongue = (s: string) => {
   if (!s) return "";
@@ -62,9 +74,11 @@ const STATUT_INFO: Record<string, { label: string; variant: FlagVariant }> = {
 };
 
 export function ComptesRendus() {
+  const me = useMe();
   const espace = useQuery(api.comptesRendus.monEspace);
   const soumettre = useMutation(api.comptesRendus.soumettre);
   const changerStatut = useMutation(api.comptesRendus.changerStatut);
+  const ajouterCommentaire = useMutation(api.comptesRendus.ajouterCommentaire);
 
   const [contenu, setContenu] = useState("");
   const [date, setDate] = useState("");
@@ -74,15 +88,30 @@ export function ComptesRendus() {
   const [jourSup, setJourSup] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [vueOngletSuperviseur, setVueOngletSuperviseur] = useState<"tableau" | "feed">("tableau");
-  // Aperçu en lecture seule d'un compte rendu depuis la ligne du membre (superviseur).
+  // Aperçu et échange avec le collaborateur (superviseur uniquement).
   const [apercuId, setApercuId] = useState<string | null>(null);
+  const [texteCommentaireApercu, setTexteCommentaireApercu] = useState("");
+  const [envoiCommentaire, setEnvoiCommentaire] = useState(false);
+  // Dépliage en ligne dans le tableau superviseur
+  const [ligneDetailId, setLigneDetailId] = useState<string | null>(null);
+  const [texteCommentaireLigne, setTexteCommentaireLigne] = useState("");
+  const [envoiCommentaireLigne, setEnvoiCommentaireLigne] = useState(false);
   const lignesVisibles = useLignesVisibles("comptes-rendus:supervision");
+
+  const hier = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }, []);
 
   const sup = useQuery(
     api.comptesRendus.vueSuperviseur,
     espace?.superviseur ? { date: jourSup || undefined } : "skip"
   );
   const apercu = apercuId ? (sup?.contenus ?? []).find((c: any) => String(c._id) === apercuId) ?? null : null;
+
+  // Dispense de créneau horaire : niveau 5+ (DAF, DG, Super Admin)
+  const estDispense = Boolean((me?.niveau ?? 0) >= 5 || espace?.dispenseFenetre);
 
   // Horloge de recalcul du compte à rebours toutes les 30 secondes
   useEffect(() => {
@@ -102,8 +131,14 @@ export function ComptesRendus() {
 
   const fen = espace?.fenetre;
 
-  // Calcul du compte à rebours précis
+  // Calcul du compte à rebours précis (ou créneau libre pour la Direction)
   const { compteAReboursTexte, estFermeeBientot } = useMemo(() => {
+    if (estDispense) {
+      return {
+        compteAReboursTexte: "Dépôt libre (Direction)",
+        estFermeeBientot: false,
+      };
+    }
     if (!fen) return { compteAReboursTexte: "Chargement...", estFermeeBientot: false };
     if (fen.ouverte && fen.finA) {
       const msRestant = new Date(fen.finA).getTime() - tick;
@@ -118,12 +153,12 @@ export function ComptesRendus() {
       compteAReboursTexte: `Ouvre à ${fen.ouverture}h00 (dans ${dureeLisible(msAvantOuverture)})`,
       estFermeeBientot: false,
     };
-  }, [fen, tick]);
+  }, [fen, tick, estDispense]);
 
   // Statut de soumission du jour
   const estSoumisAujourdhui = !!espace?.aujourdHui;
   const estRattrapage = Boolean(fen && date && date !== fen.aujourdHui);
-  const seraHorsFenetre = Boolean(estRattrapage || (fen && !fen.ouverte));
+  const seraHorsFenetre = Boolean(!estDispense && (estRattrapage || (fen && !fen.ouverte)));
 
   // Modèles de structure rapide pour aider le collaborateur
   const insererModele = (titre: string) => {
@@ -147,7 +182,9 @@ export function ComptesRendus() {
         });
       } else {
         toast.success(`Compte rendu du ${fmtDateCourte(r.date)} soumis avec succès`, {
-          description: `Enregistré à ${r.heure} dans le créneau officiel : +${r.points} point de présence attribué.`,
+          description: estDispense
+            ? `Enregistré à ${r.heure} selon votre disponibilité (+1 point).`
+            : `Enregistré à ${r.heure} dans le créneau officiel : +${r.points} point de présence attribué.`,
         });
       }
       setFormOuvert(false);
@@ -163,19 +200,65 @@ export function ComptesRendus() {
   const handleChangerStatut = async (
     compteRenduId: any,
     nouveauStatut: "brouillon" | "en_relecture" | "valide",
-    nomMembre: string
+    nomMembre: string,
+    commentaireOptionnel?: string
   ) => {
     try {
-      await changerStatut({ compteRenduId, statut: nouveauStatut });
+      await changerStatut({
+        compteRenduId,
+        statut: nouveauStatut,
+        commentaire: commentaireOptionnel?.trim() || undefined,
+      });
       if (nouveauStatut === "valide") {
-        toast.success(`Compte rendu de ${nomMembre} validé`);
+        toast.success(
+          commentaireOptionnel?.trim()
+            ? `Compte rendu de ${nomMembre} validé avec remarque`
+            : `Compte rendu de ${nomMembre} validé`
+        );
       } else {
-        toast.info(`Statut de ${nomMembre} passé en relecture`);
+        toast.info(
+          commentaireOptionnel?.trim()
+            ? `Statut de ${nomMembre} passé en relecture avec consigne`
+            : `Statut de ${nomMembre} passé en relecture`
+        );
       }
+      setTexteCommentaireApercu("");
     } catch (err) {
       toast.error("Erreur de validation", {
         description: messageErreur(err),
       });
+    }
+  };
+
+  const handleEnvoyerCommentaire = async (compteRenduId: any, texte: string) => {
+    if (!texte.trim()) return;
+    setEnvoiCommentaire(true);
+    try {
+      await ajouterCommentaire({ compteRenduId, texte: texte.trim() });
+      toast.success("Remarque transmise au collaborateur");
+      setTexteCommentaireApercu("");
+    } catch (err) {
+      toast.error("Impossible d'enregistrer la remarque", {
+        description: messageErreur(err),
+      });
+    } finally {
+      setEnvoiCommentaire(false);
+    }
+  };
+
+  const handleEnvoyerCommentaireLigne = async (compteRenduId: any) => {
+    if (!texteCommentaireLigne.trim()) return;
+    setEnvoiCommentaireLigne(true);
+    try {
+      await ajouterCommentaire({ compteRenduId, texte: texteCommentaireLigne.trim() });
+      toast.success("Remarque enregistrée et transmise au collaborateur");
+      setTexteCommentaireLigne("");
+    } catch (err) {
+      toast.error("Erreur lors de l'enregistrement de la remarque", {
+        description: messageErreur(err),
+      });
+    } finally {
+      setEnvoiCommentaireLigne(false);
     }
   };
 
@@ -275,7 +358,11 @@ export function ComptesRendus() {
               {espace?.aujourdHui ? `Soumis à ${espace.aujourdHui.heure}` : "Non renseigné"}
             </div>
             <div className="text-3xs text-encre-pale truncate">
-              {espace?.aujourdHui?.horsFenetre
+              {estDispense
+                ? espace?.aujourdHui
+                  ? "Dépôt enregistré (+1 pt)"
+                  : "Dépôt libre en continu"
+                : espace?.aujourdHui?.horsFenetre
                 ? "Hors créneau (0 pt)"
                 : espace?.aujourdHui
                 ? "+1 point accordé"
@@ -289,24 +376,26 @@ export function ComptesRendus() {
           <div className="flex items-center justify-between text-xs font-semibold text-slate-600">
             <span className="truncate">Créneau officiel</span>
             <Flag
-              variant={fen?.ouverte ? "especes" : "verrou"}
+              variant={estDispense ? "finance" : fen?.ouverte ? "especes" : "verrou"}
               size="xs"
             >
-              {fen?.ouverte ? "Ouvert" : "Fermé"}
+              {estDispense ? "Libre" : fen?.ouverte ? "Ouvert" : "Fermé"}
             </Flag>
           </div>
           <div className="mt-1">
             <div
               className={cn(
                 "text-xs sm:text-sm font-bold font-mono truncate",
-                fen?.ouverte ? "text-emerald-700" : "text-slate-600",
-                estFermeeBientot && "text-amber-600"
+                estDispense ? "text-ocean-profond" : fen?.ouverte ? "text-emerald-700" : "text-slate-600",
+                !estDispense && estFermeeBientot && "text-amber-600"
               )}
             >
               {compteAReboursTexte}
             </div>
             <div className="text-3xs text-encre-pale truncate">
-              {fen?.samedi ? "Lundi–samedi" : "Jours ouvrables"} : {fen?.ouverture ?? 16}h–{fen?.fermeture ?? 20}h
+              {estDispense
+                ? "Poste niveau ≥ 5 : pas de contrainte horaire"
+                : `${fen?.samedi ? "Lundi–samedi" : "Jours ouvrables"} : ${fen?.ouverture ?? 16}h–${fen?.fermeture ?? 20}h`}
             </div>
           </div>
         </div>
@@ -378,7 +467,15 @@ export function ComptesRendus() {
 
           <CardContent className="p-4 sm:p-5 space-y-4">
             {/* Avertissements contextuels de fenêtre */}
-            {estRattrapage ? (
+            {estDispense ? (
+              <div className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs text-ocean-nuit">
+                <CheckCircle2 className="h-4 w-4 text-ocean-profond shrink-0" />
+                <span>
+                  <b>Dépôt libre (Direction & Encadrement) : </b>
+                  Vous pouvez soumettre et actualiser votre compte rendu à tout moment selon votre disponibilité (1 point accordé).
+                </span>
+              </div>
+            ) : estRattrapage ? (
               <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-900">
                 <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                 <div>
@@ -502,6 +599,56 @@ export function ComptesRendus() {
         </Card>
       )}
 
+      {/* 3 bis. Remarques du superviseur sur le compte rendu du jour */}
+      {espace?.aujourdHui && (espace.aujourdHui.commentaires?.length ?? 0) > 0 && (
+        <div className="rounded-2xl border border-ocean-ceruleen/40 bg-gradient-to-r from-blue-50/90 via-sky-50/50 to-white p-4 shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-ocean-profond" />
+              <h3 className="text-sm font-bold text-ocean-nuit">
+                Remarques de la hiérarchie sur votre compte rendu d'aujourd'hui
+              </h3>
+            </div>
+            <Flag variant="finance" size="xs">
+              {espace.aujourdHui.commentaires.length} remarque{espace.aujourdHui.commentaires.length > 1 ? "s" : ""}
+            </Flag>
+          </div>
+
+          <div className="space-y-2">
+            {espace.aujourdHui.commentaires.map((comm: any, idx: number) => {
+              const estMoi = me?._id && String(comm.auteurId) === String(me._id);
+              return (
+                <div
+                  key={idx}
+                  className={cn(
+                    "rounded-xl p-3 text-xs border shadow-2xs",
+                    estMoi
+                      ? "bg-white/95 border-blue-200 ml-4"
+                      : "bg-white border-blue-100 mr-4"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="font-bold text-xs text-ocean-nuit">
+                      {comm.auteur} {estMoi ? "(Vous)" : "(Superviseur)"}
+                    </span>
+                    <span className="text-3xs text-slate-400 font-mono">
+                      {fmtDateHeure(comm.date)}
+                    </span>
+                  </div>
+                  <p className="text-encre leading-relaxed whitespace-pre-wrap">
+                    {comm.texte}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="text-3xs text-slate-500 italic pt-0.5">
+            Observations et consignes formulées par votre responsable (lecture seule).
+          </div>
+        </div>
+      )}
+
       {/* 4. Historique personnel des comptes rendus */}
       <div className="rounded-2xl border border-filet bg-surface p-4 shadow-xs space-y-3">
         <div className="flex items-center justify-between">
@@ -551,6 +698,12 @@ export function ComptesRendus() {
                     </div>
 
                     <div className="flex items-center gap-2 self-start sm:self-auto">
+                      {(c.commentaires ?? []).length > 0 && (
+                        <Flag variant="finance" size="xs">
+                          <MessageSquare className="h-2.5 w-2.5 mr-1 inline" />
+                          {c.commentaires.length}
+                        </Flag>
+                      )}
                       <span className="text-xs font-mono font-bold text-ocean-profond bg-ocean-brume/60 px-2 py-0.5 rounded-full">
                         +{c.points} pt{c.points > 1 ? "s" : ""}
                       </span>
@@ -574,6 +727,34 @@ export function ComptesRendus() {
                   >
                     {c.contenu}
                   </div>
+
+                  {/* Fil d'échanges / remarques */}
+                  {(c.commentaires ?? []).length > 0 && (
+                    <div className="mt-3 pt-2.5 border-t border-filet/70 space-y-2">
+                      <div className="flex items-center gap-1.5 text-2xs font-bold text-ocean-nuit">
+                        <MessageSquare className="h-3 w-3 text-ocean-profond" />
+                        <span>Remarques du superviseur & échanges ({c.commentaires.length})</span>
+                      </div>
+                      <div className="space-y-1.5 pl-2 border-l-2 border-ocean-profond/30">
+                        {c.commentaires.map((comm: any, idx: number) => {
+                          const estMoi = me?._id && String(comm.auteurId) === String(me._id);
+                          return (
+                            <div key={idx} className="text-2xs bg-papier/70 rounded-lg p-2 border border-filet">
+                              <div className="flex items-center justify-between text-3xs text-slate-500 mb-0.5">
+                                <span className="font-semibold text-ocean-nuit">
+                                  {comm.auteur} {estMoi ? "(Vous)" : "(Superviseur)"}
+                                </span>
+                                <span className="font-mono">{fmtDateHeure(comm.date)}</span>
+                              </div>
+                              <div className="text-encre leading-relaxed whitespace-pre-wrap">{comm.texte}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+
                 </div>
               );
             })}
@@ -601,7 +782,7 @@ export function ComptesRendus() {
             </div>
 
             {/* Sélecteur de date d'observation */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <label className="text-xs font-bold text-slate-700 shrink-0">
                 Date observée :
               </label>
@@ -612,18 +793,51 @@ export function ComptesRendus() {
                 onChange={(e) => setJourSup(e.target.value)}
                 className="h-8 text-xs w-36 bg-white border-filet rounded-lg font-mono"
               />
-              {jourSup && (
+              <div className="flex items-center gap-1">
                 <Button
                   size="sm"
-                  variant="outline"
+                  type="button"
+                  variant={!jourSup || jourSup === fen?.aujourdHui ? "default" : "outline"}
                   onClick={() => setJourSup("")}
-                  className="h-8 text-2xs px-2"
+                  className={cn("h-8 text-2xs px-2.5", (!jourSup || jourSup === fen?.aujourdHui) && "bg-ocean-profond text-white")}
                 >
                   Aujourd'hui
                 </Button>
-              )}
+                <Button
+                  size="sm"
+                  type="button"
+                  variant={jourSup === hier ? "default" : "outline"}
+                  onClick={() => setJourSup(hier)}
+                  className={cn("h-8 text-2xs px-2.5", jourSup === hier && "bg-ocean-profond text-white")}
+                >
+                  Hier
+                </Button>
+              </div>
             </div>
           </div>
+
+          {/* Bannière d'aide si aucun rapport déposé aujourd'hui */}
+          {sup && sup.soumis === 0 && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-900 animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                <span>
+                  Aucun compte rendu déposé pour la date du <b>{fmtDateLongue(sup.date)}</b>.
+                  {sup.date === fen?.aujourdHui ? " (Les collaborateurs déposent généralement en fin de journée entre 16h et 20h)." : ""}
+                </span>
+              </div>
+              {sup.date === fen?.aujourdHui && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setJourSup(hier)}
+                  className="h-7 text-xs bg-white text-amber-900 border-amber-300 hover:bg-amber-100 self-start sm:self-auto shrink-0 shadow-2xs font-semibold"
+                >
+                  Consulter la journée d'hier ({fmtDateCourte(hier)})
+                </Button>
+              )}
+            </div>
+          )}
 
           {/* Mini KPI d'équipe pour la date sélectionnée */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -683,7 +897,7 @@ export function ComptesRendus() {
                     : "border-transparent text-slate-500 hover:text-slate-800"
                 )}
               >
-                Tableau nominatif ({sup?.lignes.length ?? 0})
+                Tableau nominatif & lecture rapide ({sup?.lignes.length ?? 0})
               </button>
               <button
                 type="button"
@@ -695,7 +909,7 @@ export function ComptesRendus() {
                     : "border-transparent text-slate-500 hover:text-slate-800"
                 )}
               >
-                Comptes rendus rédigés ({sup?.contenus.length ?? 0})
+                Flux détaillé des rapports ({sup?.contenus.length ?? 0})
               </button>
             </div>
 
@@ -726,7 +940,8 @@ export function ComptesRendus() {
                     const statutObj = l.statut ? STATUT_INFO[l.statut] : null;
 
                     return (
-                      <TableRow key={String(l.membreId)}>
+                      <Fragment key={String(l.membreId)}>
+                        <TableRow>
                         <TableCell className="leading-tight">
                           <div className="whitespace-nowrap text-[13px] font-semibold">{l.nom}</div>
                           <div className="whitespace-nowrap font-mono text-2xs text-encre-pale">{l.email}</div>
@@ -762,9 +977,17 @@ export function ComptesRendus() {
                         </TableCell>
                         <TableCell>
                           {statutObj ? (
-                            <Flag variant={statutObj.variant} size="xs">
-                              {statutObj.label}
-                            </Flag>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <Flag variant={statutObj.variant} size="xs">
+                                {statutObj.label}
+                              </Flag>
+                              {l.nbCommentaires > 0 && (
+                                <Flag variant="finance" size="xs" title={`${l.nbCommentaires} remarque(s)`}>
+                                  <MessageSquare className="h-2.5 w-2.5 mr-0.5 inline" />
+                                  {l.nbCommentaires}
+                                </Flag>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-encre-pale">—</span>
                           )}
@@ -773,14 +996,22 @@ export function ComptesRendus() {
                           {l.id && (
                             <Button
                               size="sm"
-                              variant="ghost"
-                              onClick={() => setApercuId(String(l.id))}
-                              className="mr-1 h-7 gap-1 px-2 text-3xs text-encre-douce hover:text-encre"
-                              title="Lire le compte rendu (lecture seule)"
-                              aria-label={`Aperçu du compte rendu de ${l.nom}`}
+                              variant={ligneDetailId === String(l.id) ? "default" : "outline"}
+                              onClick={() => {
+                                setLigneDetailId(ligneDetailId === String(l.id) ? null : String(l.id));
+                                setTexteCommentaireLigne("");
+                              }}
+                              className={cn(
+                                "mr-1 h-7 gap-1 px-2.5 text-3xs font-semibold",
+                                ligneDetailId === String(l.id)
+                                  ? "bg-ocean-profond text-white"
+                                  : "text-ocean-profond hover:bg-ocean-brume/30 border-ocean-ceruleen/40"
+                              )}
+                              title="Lire le rapport directement dans le tableau"
                             >
-                              <Eye className="h-3 w-3" />
-                              Aperçu
+                              <FileText className="h-3 w-3" />
+                              {ligneDetailId === String(l.id) ? "Masquer" : "Lire le rapport"}
+                              {l.nbCommentaires > 0 && ` (${l.nbCommentaires})`}
                             </Button>
                           )}
                           {l.id && l.statut !== "valide" && (
@@ -806,6 +1037,94 @@ export function ComptesRendus() {
                           )}
                         </TableCell>
                       </TableRow>
+
+                      {/* Panneau déplié de lecture directe du compte rendu */}
+                      {l.id && ligneDetailId === String(l.id) && (() => {
+                        const c = (sup?.contenus ?? []).find((x: any) => String(x._id) === String(l.id));
+                        if (!c) return null;
+                        return (
+                          <tr className="border-b border-filet bg-papier/70 animate-in fade-in duration-150">
+                            <td colSpan={7} className="p-3 sm:p-4">
+                              <div className="rounded-xl border border-ocean-ceruleen/40 bg-white p-4 shadow-sm space-y-3">
+                                <div className="flex items-center justify-between border-b border-filet pb-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-xs text-ocean-nuit">
+                                      Compte rendu de {l.nom} · {c.heure}
+                                    </span>
+                                    {c.horsFenetre && <Flag variant="verrou" size="xs">Hors créneau</Flag>}
+                                    {c.dispenseFenetre && <Flag variant="finance" size="xs">Direction (Libre)</Flag>}
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => setLigneDetailId(null)}
+                                    className="h-6 text-3xs text-slate-400 hover:text-slate-600"
+                                  >
+                                    Fermer
+                                  </Button>
+                                </div>
+
+                                <div className="text-xs text-encre font-sans whitespace-pre-line leading-relaxed bg-papier/60 p-3 rounded-lg border border-filet">
+                                  {c.contenu}
+                                </div>
+
+                                {/* Remarques déjà enregistrées */}
+                                {(c.commentaires ?? []).length > 0 && (
+                                  <div className="space-y-1.5 pt-1 border-t border-filet/60">
+                                    <div className="text-3xs font-bold uppercase text-slate-500 flex items-center gap-1">
+                                      <MessageSquare className="h-3 w-3 text-ocean-profond" />
+                                      Remarques & consignes au collaborateur ({c.commentaires.length}) :
+                                    </div>
+                                    <div className="space-y-1">
+                                      {c.commentaires.map((comm: any, idx: number) => (
+                                        <div key={idx} className="rounded-lg bg-blue-50/50 p-2 text-2xs border border-blue-100 flex flex-col gap-0.5">
+                                          <div className="flex items-center justify-between text-3xs text-slate-500">
+                                            <span className="font-bold text-ocean-nuit">{comm.auteur}</span>
+                                            <span className="font-mono">{fmtDateHeure(comm.date)}</span>
+                                          </div>
+                                          <span className="text-encre whitespace-pre-wrap">{comm.texte}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Saisie d'une remarque par le superviseur */}
+                                <div className="pt-2 border-t border-filet/60 space-y-2">
+                                  <label className="text-3xs font-bold uppercase tracking-wider text-slate-600 block">
+                                    Ajouter une consigne ou remarque pour {l.nom} :
+                                  </label>
+                                  <div className="flex gap-2">
+                                    <Input
+                                      value={texteCommentaireLigne}
+                                      onChange={(e) => setTexteCommentaireLigne(e.target.value)}
+                                      placeholder="Ex: Merci de relancer le client X, point à approfondir..."
+                                      className="h-8 text-xs bg-white"
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter" && !e.shiftKey) {
+                                          e.preventDefault();
+                                          void handleEnvoyerCommentaireLigne(c._id);
+                                        }
+                                      }}
+                                    />
+                                    <Button
+                                      size="sm"
+                                      type="button"
+                                      disabled={!texteCommentaireLigne.trim() || envoiCommentaireLigne}
+                                      onClick={() => void handleEnvoyerCommentaireLigne(c._id)}
+                                      className="h-8 text-xs bg-ocean-profond hover:bg-ocean-nuit text-white px-3 gap-1 shrink-0 font-semibold"
+                                    >
+                                      <Send className="h-3 w-3" />
+                                      Envoyer
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })()}
+                      </Fragment>
                     );
                   })}
               </TableBody>
@@ -824,7 +1143,7 @@ export function ComptesRendus() {
                   return (
                     <div
                       key={String(c._id)}
-                      className="rounded-xl border border-filet bg-white p-4 shadow-2xs space-y-2 hover:border-slate-300 transition-colors"
+                      className="rounded-xl border border-filet bg-white p-4 shadow-2xs space-y-2.5 hover:border-slate-300 transition-colors"
                     >
                       <div className="flex items-center justify-between flex-wrap gap-2 border-b border-filet/70 pb-2">
                         <div className="flex items-center gap-2">
@@ -835,12 +1154,56 @@ export function ComptesRendus() {
                             Déposé à {c.heure} {c.horsFenetre && "(hors créneau)"}
                           </span>
                         </div>
-                        <Flag variant={statutObj.variant} size="xs">
-                          {statutObj.label}
-                        </Flag>
+                        <div className="flex items-center gap-2">
+                          {(c.commentaires ?? []).length > 0 && (
+                            <Flag variant="finance" size="xs">
+                              <MessageSquare className="h-2.5 w-2.5 mr-0.5 inline" />
+                              {c.commentaires.length}
+                            </Flag>
+                          )}
+                          <Flag variant={statutObj.variant} size="xs">
+                            {statutObj.label}
+                          </Flag>
+                        </div>
                       </div>
                       <div className="text-xs text-encre font-sans whitespace-pre-line leading-relaxed">
                         {c.contenu}
+                      </div>
+
+                      {/* Remarques déjà enregistrées */}
+                      {(c.commentaires ?? []).length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-filet/60 space-y-1.5">
+                          <div className="text-3xs font-bold uppercase text-slate-500 flex items-center gap-1">
+                            <MessageSquare className="h-3 w-3 text-ocean-profond" />
+                            Remarques & Consignes ({c.commentaires.length}) :
+                          </div>
+                          <div className="space-y-1">
+                            {c.commentaires.map((comm: any, idx: number) => (
+                              <div key={idx} className="rounded-lg bg-papier/70 p-2 text-2xs border border-filet flex flex-col gap-0.5">
+                                <div className="flex items-center justify-between text-3xs text-slate-400">
+                                  <span className="font-bold text-ocean-nuit">{comm.auteur}</span>
+                                  <span className="font-mono">{fmtDateHeure(comm.date)}</span>
+                                </div>
+                                <span className="text-encre whitespace-pre-wrap">{comm.texte}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-filet/50">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setApercuId(String(c._id));
+                            setTexteCommentaireApercu("");
+                          }}
+                          className="h-7 text-xs text-ocean-profond hover:text-ocean-nuit gap-1 px-2.5"
+                        >
+                          <MessageSquare className="h-3 w-3" />
+                          Remarque & Décision
+                        </Button>
                       </div>
                     </div>
                   );
@@ -851,26 +1214,169 @@ export function ComptesRendus() {
         </div>
       )}
 
-      {/* Aperçu en lecture seule : le texte tel qu'il a été soumis, sans possibilité de le modifier. */}
-      <Dialog open={!!apercu} onOpenChange={(o) => { if (!o) setApercuId(null); }}>
-        <DialogContent className="sm:max-w-2xl">
+      {/* Aperçu superviseur : lecture du compte rendu + fil de remarques et consignes */}
+      <Dialog
+        open={!!apercu}
+        onOpenChange={(o) => {
+          if (!o) {
+            setApercuId(null);
+            setTexteCommentaireApercu("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
           {apercu && (
             <>
-              <DialogHeader>
-                <DialogTitle className="flex flex-wrap items-center gap-2">
-                  Compte rendu de {apercu.auteur}
-                  <Flag variant={STATUT_INFO[apercu.statut]?.variant ?? "neutre"} size="xs">{STATUT_INFO[apercu.statut]?.label ?? apercu.statut}</Flag>
+              <DialogHeader className="p-5 pb-3 border-b border-filet bg-papier">
+                <DialogTitle className="flex flex-wrap items-center gap-2 text-base font-bold text-ocean-nuit">
+                  <span>Compte rendu de {apercu.auteur}</span>
+                  <Flag variant={STATUT_INFO[apercu.statut]?.variant ?? "neutre"} size="xs">
+                    {STATUT_INFO[apercu.statut]?.label ?? apercu.statut}
+                  </Flag>
                   {apercu.horsFenetre && <Flag variant="a-renseigner" size="xs">hors fenêtre</Flag>}
+                  {apercu.dispenseFenetre && <Flag variant="finance" size="xs">Direction (Libre)</Flag>}
                 </DialogTitle>
-                <DialogDescription>{fmtDateLongue(sup?.date ?? "")} · soumis à {apercu.heure} · lecture seule</DialogDescription>
+                <DialogDescription className="text-xs text-encre-douce">
+                  {fmtDateLongue(sup?.date ?? "")} · Déposé à {apercu.heure}
+                </DialogDescription>
               </DialogHeader>
-              <div className="max-h-[60vh] overflow-y-auto whitespace-pre-wrap rounded-lg border border-filet bg-papier px-4 py-3 text-sm leading-relaxed text-encre">{apercu.contenu}</div>
-              <div className="flex justify-end gap-2">
-                {apercu.statut !== "valide" ? (
-                  <Button size="sm" onClick={() => { void handleChangerStatut(apercu._id, "valide", apercu.auteur); setApercuId(null); }} className="bg-emerald-600 text-white hover:bg-emerald-700"><Check className="h-3.5 w-3.5" /> Valider</Button>
-                ) : (
-                  <Button size="sm" variant="outline" onClick={() => { void handleChangerStatut(apercu._id, "en_relecture", apercu.auteur); setApercuId(null); }}><RotateCcw className="h-3.5 w-3.5" /> Rouvrir</Button>
-                )}
+
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                {/* Contenu du compte rendu */}
+                <div className="space-y-1.5">
+                  <div className="text-2xs font-bold uppercase tracking-wider text-slate-500">
+                    Contenu rédigé par le collaborateur
+                  </div>
+                  <div className="whitespace-pre-wrap rounded-xl border border-filet bg-papier/70 p-3.5 text-xs font-sans leading-relaxed text-encre">
+                    {apercu.contenu}
+                  </div>
+                </div>
+
+                {/* Fil d'échanges & remarques */}
+                <div className="rounded-xl border border-filet bg-white p-3.5 space-y-3">
+                  <div className="flex items-center justify-between border-b border-filet/70 pb-2">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-ocean-nuit">
+                      <MessageSquare className="h-4 w-4 text-ocean-profond" />
+                      <span>Remarques & Consignes au dépositaire</span>
+                    </div>
+                    <Flag variant={(apercu.commentaires ?? []).length > 0 ? "finance" : "neutre"} size="xs">
+                      {(apercu.commentaires ?? []).length} message{(apercu.commentaires ?? []).length > 1 ? "s" : ""}
+                    </Flag>
+                  </div>
+
+                  {(apercu.commentaires ?? []).length === 0 ? (
+                    <div className="py-3 text-center text-2xs text-slate-400 italic">
+                      Aucune remarque formulée pour ce compte rendu. Vous pouvez en rédiger une ci-dessous.
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {apercu.commentaires.map((comm: any, idx: number) => {
+                        const estMoi = me?._id && String(comm.auteurId) === String(me._id);
+                        return (
+                          <div
+                            key={idx}
+                            className={cn(
+                              "rounded-lg p-2.5 text-xs border transition-colors",
+                              estMoi
+                                ? "bg-blue-50/70 border-blue-200/80 ml-4"
+                                : "bg-slate-50 border-filet mr-4"
+                            )}
+                          >
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <span className="font-bold text-2xs text-ocean-nuit">
+                                {comm.auteur} {estMoi && "(Vous)"}
+                              </span>
+                              <span className="text-3xs text-slate-400 font-mono">
+                                {fmtDateHeure(comm.date)}
+                              </span>
+                            </div>
+                            <p className="text-encre leading-relaxed whitespace-pre-wrap text-xs">
+                              {comm.texte}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Saisie d'une remarque */}
+                  <div className="space-y-2 pt-1 border-t border-filet/70">
+                    <label className="text-2xs font-bold text-slate-600 block">
+                      Nouvelle consigne ou remarque pour {apercu.auteur} :
+                    </label>
+                    <div className="flex gap-2">
+                      <textarea
+                        rows={2}
+                        value={texteCommentaireApercu}
+                        onChange={(e) => setTexteCommentaireApercu(e.target.value)}
+                        placeholder="Ex: Merci de relancer le client X demain matin, bien documenter..."
+                        className="flex-1 rounded-lg border border-filet bg-white p-2.5 text-xs text-encre placeholder:text-slate-400 focus:border-ocean-profond focus:outline-none focus:ring-1 focus:ring-ocean-ceruleen/40 resize-none font-sans"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                            e.preventDefault();
+                            void handleEnvoyerCommentaire(apercu._id, texteCommentaireApercu);
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={!texteCommentaireApercu.trim() || envoiCommentaire}
+                        onClick={() => void handleEnvoyerCommentaire(apercu._id, texteCommentaireApercu)}
+                        className="self-end h-9 text-xs font-semibold bg-ocean-profond hover:bg-ocean-nuit text-white px-3 gap-1.5 shrink-0"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        Envoyer
+                      </Button>
+                    </div>
+                    <div className="text-3xs text-slate-400">
+                      Astuce : <kbd className="px-1 py-0.5 rounded bg-slate-100 border text-slate-500 font-mono text-3xs">Ctrl+Entrée</kbd> pour envoyer rapidement.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Barre d'actions du modal */}
+              <div className="p-4 border-t border-filet bg-papier flex items-center justify-between gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setApercuId(null);
+                    setTexteCommentaireApercu("");
+                  }}
+                  className="text-xs text-slate-600"
+                >
+                  Fermer
+                </Button>
+                <div className="flex items-center gap-2">
+                  {apercu.statut !== "valide" ? (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        void handleChangerStatut(apercu._id, "valide", apercu.auteur, texteCommentaireApercu);
+                        setApercuId(null);
+                      }}
+                      className="bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-bold gap-1.5"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      Valider {texteCommentaireApercu.trim() && "avec remarque"}
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        void handleChangerStatut(apercu._id, "en_relecture", apercu.auteur, texteCommentaireApercu);
+                        setApercuId(null);
+                      }}
+                      className="text-xs text-slate-700 hover:text-slate-900 gap-1.5"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      Rouvrir {texteCommentaireApercu.trim() && "avec consigne"}
+                    </Button>
+                  )}
+                </div>
               </div>
             </>
           )}

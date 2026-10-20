@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Search, Sparkles, Check, X, Tag } from "lucide-react";
+import { Sparkles, Check, X, Tag } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { filtrerCatalogue, type ArticleCatalogue } from "@/data/catalogue-articles";
 import { fcfa } from "@/lib/format";

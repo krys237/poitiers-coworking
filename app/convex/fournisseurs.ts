@@ -1,7 +1,7 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireDroit } from "./lib/authz";
-import { avecIndicatif, erreurTelephone, INDICATIF_DEFAUT } from "./lib/telephone";
+import { avecIndicatif, erreurTelephone } from "./lib/telephone";
 
 export const liste = query({
   args: { inclureInactifs: v.optional(v.boolean()) },

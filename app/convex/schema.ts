@@ -397,6 +397,16 @@ export default defineSchema({
     points: v.number(),               // points de présence (1 dans la fenêtre, 0 sinon)
     statut: v.union(v.literal("brouillon"), v.literal("en_relecture"), v.literal("valide")),
     valideParId: v.optional(v.id("users")),
+    commentaires: v.optional(
+      v.array(
+        v.object({
+          auteur: v.string(),
+          auteurId: v.optional(v.id("users")),
+          texte: v.string(),
+          date: v.string(),
+        })
+      )
+    ),
   })
     .index("by_date", ["date"])
     .index("by_auteur", ["auteurId"])

@@ -9,8 +9,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   PackageCheck,
-  Building2,
-  Clock,
   ShieldAlert,
   Calendar,
   Layers,
@@ -285,7 +283,6 @@ export function ModalReceptionLitige({
                     const qteRecue = quantitesRecues[i] !== undefined ? quantitesRecues[i] : qteCmd;
                     const estConforme = qteRecue === qteCmd;
                     const estManquant = qteRecue < qteCmd;
-                    const estSurplus = qteRecue > qteCmd;
 
                     return (
                       <tr key={i} className={cn(!estConforme && "bg-amber-50/40")}>

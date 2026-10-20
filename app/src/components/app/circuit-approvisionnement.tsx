@@ -7,7 +7,7 @@ interface CircuitApprovisionnementProps {
   statut: string;
   dateCommande?: string;
   valideLe?: string;
-  validateur?: string;
+  validateur?: string | null;
   className?: string;
 }
 
@@ -50,9 +50,6 @@ const ETAPES: {
 
 export function CircuitApprovisionnement({
   statut,
-  dateCommande,
-  valideLe,
-  validateur,
   className,
 }: CircuitApprovisionnementProps) {
   // Détermination de l'indice de l'étape active dans le parcours normal
@@ -103,7 +100,6 @@ export function CircuitApprovisionnement({
           {ETAPES.map((etape, idx) => {
             const estPasse = !estRejetee && idx < indexActuel;
             const estActif = !estRejetee && idx === indexActuel;
-            const Icon = etape.icon;
 
             return (
               <div key={etape.id} className="flex flex-col items-center text-center px-1">
