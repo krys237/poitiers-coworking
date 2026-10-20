@@ -35,7 +35,20 @@ Trois jeux de jours fériés ont été testés sur les 56 lignes matériellement
 **Conclusion : elle décompte les fériés à date fixe, mais pas les fériés mobiles**
 (Vendredi Saint, Ascension, Aïd el-Fitr, Aïd el-Adha). Quatre lignes indépendantes (13, 15, 18, 22)
 le montrent sur le seul Vendredi Saint 2026, dont la date — 3 avril — est mathématiquement
-certaine. Rien ne dit que ce soit volontaire : **c'est une pratique à lui faire confirmer.**
+certaine.
+
+> ### ✅ Tranché le 20/10/2026
+> Décision du propriétaire : « considère ces différents jours comme tels, mais ce sera
+> configurable au niveau du barème. » **Tous les fériés listés sont donc chômés par défaut**,
+> chaque date restant décochable. L'écart constaté dans le classeur 2026 était donc une erreur de
+> pratique, et non une règle d'entreprise.
+>
+> Conséquence assumée : **10 lignes du planning 2026 voient leur date de retour décalée d'un
+> jour** (lignes 13, 15, 16, 18, 22, 26, 27, 28, 29, 30), et le taux de reproduction du classeur
+> passe de 48/56 à **43/56**. Ce n'est pas une régression de l'algorithme : c'est le classeur qui
+> s'écarte de la règle désormais confirmée. À noter que la **ligne 29 devient juste**.
+>
+> Les deux Aïd restent **à saisir à la main** : ils ne sont pas calculables.
 
 D'où la décision d'architecture : **la liste des jours fériés est une donnée d'entreprise
 (table `joursFeries`), jamais une constante du moteur.** Chaque férié porte un drapeau `chome`
@@ -69,7 +82,10 @@ Les lignes 14 et 34 peuvent aussi relever d'un fractionnement ou d'un report non
 
 ## Les 8 lignes qui résistent encore
 
-Avec le meilleur jeu de fériés (les fixes seuls) :
+Mesuré avec les fériés fixes seuls — c'est-à-dire **la configuration qui épouse le mieux son
+classeur**, et non la règle finalement retenue. Sous la règle retenue (fériés pascaux chômés), la
+ligne 29 devient juste et les lignes 13, 15, 16, 18, 22, 26, 27, 28, 30 s'écartent d'un jour de
+plus : c'est le prix assumé de l'alignement sur la loi.
 
 | Ligne | Départ | Total | Elle | Calculé | Écart | Férié fixe dans la période |
 |---|---|---|---|---|---|---|
@@ -129,14 +145,23 @@ donc bien celle de la loi — elle la calcule simplement à la main.
 
 ## Ce qu'il faut lui demander
 
-1. **Décomptez-vous le Vendredi Saint, l'Ascension et les deux Aïd ?** La calibration dit que non.
-   Si c'est un oubli, 9 lignes du planning 2026 sont à corriger ; si c'est volontaire, il faut
-   savoir pourquoi (férié travaillé dans l'établissement ? service de garde ?).
-2. **Les 5 lignes impossibles** (10, 14, 34, 58, 59) : fautes de frappe, ou fractionnements /
-   reports à documenter ?
-3. **Les lignes 27 et 29** : pourquoi deux personnes parties le même jour pour le même nombre de
-   jours ne rentrent-elles pas le même jour ?
-4. **Les lignes 7 et 37** : un jour a-t-il été accordé en plus, et à quel titre ?
+La question des fériés est **tranchée** (voir l'encadré plus haut) : tous les fériés listés sont
+chômés, configurables au barème. Restent, formulées avec des repères identifiables dans le
+classeur plutôt qu'avec des numéros de ligne :
+
+| Repère (service + départ + total) | Question |
+|---|---|
+| PARAMETRES, 09/03/2026, 24 j, retour 06/06/2026 | 89 jours calendaires pour 24 j de congé : fractionnement, report, ou faute de frappe ? |
+| PARAMETRES, 08/06/2026, 18 j, retour 29/09/2026 | 113 jours calendaires pour 18 j : le mois 09 au lieu de 06 ? |
+| LABORATOIRE, 10/02/2026, 22 j, retour 09/03/**2025** | année 2025 au lieu de 2026 ? |
+| PARAMETRES, 10/08/2026, 24 j, retour 08/07/2026 | retour **avant** le départ |
+| SECRETARIAT, 06/08/2026, 24 j, retour 04/07/2026 | retour **avant** le départ |
+| HOSPI, 04/05/2026, 18 j, retour 25/05 **et** GREEN ENERGY, 04/05/2026, 18 j, retour 27/05 | mêmes entrées, deux retours : lequel est le bon ? |
+| CAISSE PHCIE, 14/01/2026, 18 j, retour 05/02/2026 | aucun férié dans la période et un jour d'écart : un jour accordé en plus ? |
+| HOSPI, 22/06/2026, 22 j, retour 18/07/2026 | même cas que le précédent |
+
+Les cinq premières lignes sont **matériellement impossibles** : à corriger à la source, aucun
+calcul ne peut les reproduire. Les trois dernières diront s'il reste une règle à comprendre.
 
 ## État du lot R0
 
@@ -146,7 +171,7 @@ donc bien celle de la loi — elle la calcule simplement à la main.
 | `convex/lib/congesOuvrables.ts` — décompte, date de retour, ventilation par mois, droit annuel, contrôle de ligne | ✅ |
 | `convex/schema.ts` — table `joursFeries` (indexée par date et par année) | ✅ |
 | `convex/joursFeries.ts` — liste, initialisation d'année, enregistrement, suppression, jours ouvrables du mois | ✅ |
-| `tests/congesOuvrables.test.ts` — **69 vérifications**, dont les 48 lignes réelles | ✅ `npm run test:conges` |
+| `tests/congesOuvrables.test.ts` — **79 vérifications** : les 48 lignes réelles en configuration « fériés fixes », les 10 décalages de la règle retenue, le comput de Pâques | ✅ `npm run test:conges` |
 | `npm run typecheck` et `tsc -p convex/tsconfig.json` | ✅ |
 | Aucune régression sur `test:paie`, `test:droits`, `test:tresorerie`, `test:fenetre` | ✅ |
 

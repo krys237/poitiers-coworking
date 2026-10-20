@@ -737,3 +737,173 @@ fichiers ; les modifications non validées de l'autre agent ont suivi le retour 
 **Le dossier `modele/` est ignoré par Git** (`.gitignore` + `.git/info/exclude`) : il contient les
 noms, salaires et situations de famille réels des 78 personnes de l'effectif. Décision du
 propriétaire le 20/10/2026 : **ne jamais figer ces données dans l'historique**.
+
+---
+
+# Partie 9 — Réponses de la RH (20/10/2026) et ce qu'elles changent
+
+## 9.1 Allocation de congé : « (Salaire + ancienneté) ÷ 16e »
+
+J'ai testé cette formule sur les **6 lignes de son propre DIPE** où la colonne « Congés payés »
+est renseignée. Le salaire de base **plein** est lu dans la formule de proratisation
+(`=110000/30*9`), donc il est fiable.
+
+| Ligne | Base pleine | Ancienneté | S + A | Allocation réelle | Rapport |
+|---|---|---|---|---|---|
+| **16** | 131 250 | 47 067 | 178 317 | **178 317** | **1,0000** |
+| 8 | 110 000 | 41 628 | 151 628 | 151 380 | 0,9984 |
+| 17 | 158 000 | 55 521 | 213 521 | 213 172 | 0,9984 |
+| 18 | 118 750 | 41 524 | 160 274 | 160 011 | 0,9984 |
+| 23 | 110 000 | 21 410 | 131 410 | 108 614 | 0,8265 |
+| 28 | 110 000 | 16 307 | 126 307 | 96 105 | 0,7609 |
+
+**Le « ÷ 16 » ne porte ni sur un mois, ni sur douze.** Sur un mois, un seizième de mois serait
+absurde. Sur douze mois, on aurait 12 × (S+A) / 16 = 0,75 × (S+A), soit **113 721** pour la ligne 8
+au lieu de 151 380.
+
+Il porte sur **N mois de période de référence** : `allocation = N × (S + A) ÷ 16`. Le N impliqué
+vaut :
+
+| Ligne | N impliqué |
+|---|---|
+| 16 | **16,000** |
+| 8 / 17 / 18 | 15,974 |
+| 23 | 13,224 |
+| 28 | 12,174 |
+
+**C'est exactement la règle légale du 1/16** (décret n°75/28) : l'allocation est le seizième de la
+rémunération totale de la période de référence, laquelle court du retour du congé précédent à la
+veille du nouveau départ. Les deux salariés les moins anciens (lignes 23 et 28) ont logiquement une
+période de référence plus courte (≈ 13 et ≈ 12 mois).
+
+**Deux points restent ouverts :**
+
+1. **Trois lignes partagent exactement le rapport 0,9984** (0,16 % sous S+A), de façon identique
+   alors qu'il s'agit de trois salariés différents. Ce n'est donc pas trois périodes de référence
+   distinctes mais un facteur systématique, que je n'explique pas. L'écart est négligeable pour la
+   conception, mais il faut savoir d'où il vient avant de figer le calcul.
+2. **Comment détermine-t-elle N ?** C'est la seule variable qui reste à spécifier pour coder la
+   formule.
+
+### Son assiette est plus étroite que celle de la loi
+
+Elle retient **salaire de base + ancienneté** seulement. L'art. 73 du Code du travail exclut de
+l'assiette de l'allocation le transport, le logement, la représentation, le panier et la salissure
+— mais **pas** la prime d'assiduité, la prime de caisse ni la prime de rendement, qui sont des
+accessoires du salaire. Son assiette **sous-évalue donc légèrement** l'allocation légale. À
+arbitrer : on s'aligne sur sa pratique ou sur l'art. 73 ?
+
+### Impact chiffré, qui remplace mon estimation précédente
+
+| Ligne | Elle | Notre moteur (18 j × brut/30) | Écart | Facteur |
+|---|---|---|---|---|
+| 8 | 151 380 | 90 977 | +60 403 | 1,66× |
+| 16 | 178 317 | 106 990 | +71 327 | 1,67× |
+| 17 | 213 172 | 128 113 | +85 059 | 1,66× |
+| 18 | 160 011 | 96 164 | +63 847 | 1,66× |
+| 23 | 108 614 | 78 846 | +29 768 | 1,38× |
+| 28 | 96 105 | 75 784 | +20 321 | 1,27× |
+| **Total** | **907 599** | **576 874** | **+330 725** | **1,57×** |
+
+> **Notre moteur paie 1,3 à 1,7 fois moins que sa pratique.** C'est bien plus que les 0,5 à 1,5 M
+> FCFA/an que j'avais estimés au §2 : cette estimation partait d'une lecture du 1/16 appliquée au
+> « salaire de référence », elle est caduque. Avertissement : ces 6 cas sont ceux d'un seul mois
+> (août 2026) et ne constituent pas un échantillon représentatif — le facteur de 1,6× est en
+> revanche stable sur les 4 cas les plus anciens.
+
+## 9.2 Le bloc « 5 % / 10 % » : retenue à la source sur les honoraires des médecins
+
+Spécification complète obtenue — et **cela ne concerne pas les employés** :
+
+```
+taux          = 5 % ou 10 %, choisi PAR MÉDECIN par la RH
+base          = 100 % du chiffre d'affaires généré sur les patients ASSURÉS
+              +  30 % du chiffre d'affaires généré sur les patients payant en ESPÈCES
+retenue       = taux × base
+```
+
+C'est donc une retenue sur honoraires de praticiens non salariés, qui relève du module
+**Primes médecins** (`convex/primesMedecins.ts`) et **pas du moteur de paie**. Mon hypothèse n°1
+était la bonne quant à la nature, fausse quant aux taux : le 5 % et le 10 % ne sont pas un acompte
+et son CAC, mais **deux taux alternatifs au choix de la RH**.
+
+→ Nouveau lot **R6**, hors du périmètre congés/paie. Deux précisions à obtenir avant de coder :
+le taux est-il « tout compris » ou faut-il y ajouter les centimes additionnels de 10 % ? et les
+30 % sur la part espèces sont-ils un abattement pour frais professionnels (donc paramétrable) ?
+
+## 9.3 Transport : la réponse porte sur le montant, pas sur la fiscalité
+
+Réponse reçue : « indemnité de transport = 15 % du salaire brut par défaut, modifiable par la RH ».
+C'est une règle de **détermination du montant**, alors que ma question portait sur sa **taxation**.
+
+Et ce taux ne correspond pas à son fichier : sur la ligne 9 du DIPE, le transport vaut 2 550 FCFA
+pour un salaire de base de 110 000, soit **2,3 %** — pas 15 %. Or **15 % est précisément le taux
+que son fichier applique à l'avantage en nature LOGEMENT** (`X = W × 15 %`).
+
+Deux lectures possibles, à départager :
+
+- soit c'est une **nouvelle politique** de fixation du montant de l'indemnité de transport, qui
+  multiplierait par 6 le transport actuel et augmenterait mécaniquement toutes les assiettes ;
+- soit il y a **confusion avec l'avantage en nature logement**.
+
+→ **Ma question initiale reste entière : la prime de transport est-elle taxable à l'IRPP ?** Son
+fichier dit oui, la loi dit oui, ses notes le confirment indirectement, et seule l'application de
+référence du directeur dit non. C'est l'arbitrage n°1 et il change l'IRPP de tout l'effectif.
+
+## 9.4 Multi-société : SGC déclaré, SESAME hors bulletin
+
+Réponse reçue : « les bulletins considérés sont ceux de SGC ; celui de SESAME ne figure pas dans le
+bulletin de paie de l'employé ».
+
+Conception retenue : un employé peut relever de **plusieurs sociétés** ; **chaque société produit
+son propre bulletin** ; le DIPE ne couvre que les sociétés déclarées. C'est une situation de
+pluri-emploi parfaitement ordinaire et elle se modélise sans difficulté.
+
+⚠️ **Un point à clarifier avant de coder, et il est important :** l'hypothèse avancée est que « les
+employés SESAME ne sont pas déclarés ». Si SESAME est une entité juridique distincte qui dépose son
+**propre** DIPE et ses propres cotisations CNPS, tout est régulier et il n'y a que deux bulletins à
+produire. Si en revanche une rémunération versée en contrepartie d'un travail n'apparaît dans
+**aucune** déclaration, cela constitue une sous-déclaration au regard de la CNPS et de la DGI, avec
+le risque de redressement correspondant. Je ne peux pas trancher depuis le code : il faut savoir si
+SESAME dépose sa propre déclaration.
+
+## 9.5 Jours fériés : décision appliquée
+
+« Considère ces différents jours comme tels, mais ce sera configurable au niveau du barème. »
+
+**Appliqué** dans `lib/joursFeriesCameroun.ts` : les fériés pascaux sont désormais **chômés par
+défaut** (ils l'étaient à `false` d'après la calibration), chaque date reste décochable, et les deux
+fêtes musulmanes restent à saisir puisqu'elles ne sont pas calculables.
+
+Conséquence assumée et testée : **10 lignes de son planning 2026 voient leur retour décalé d'un
+jour**, et le taux de reproduction de son classeur passe de 48/56 à 43/56. Ce n'est pas une
+régression : son classeur était en écart avec la règle qu'elle vient de confirmer. À noter que la
+**ligne 29 devient juste** sous la nouvelle règle.
+
+## 9.6 « RAS » = congé non pris
+
+Précision reçue : dans le planning, « RAS » signifie que **la personne n'a pas pris ses congés**.
+→ se mappe sur la valeur `non_pris` de l'énumération « observation » du §7.2. (Dans la colonne
+RAPPEL N−1, la légende du classeur lui donne par ailleurs le sens « première prise de congé, pas de
+référence antérieure » : les deux sens coexistent selon la colonne, ce que l'énumération gère.)
+
+## 9.7 Mes questions 2, 3 et 4 étaient mal posées — reformulation
+
+Elles renvoyaient à des **numéros de ligne** sans préciser l'onglet, alors que le planning de congé
+existe en double (dans les deux classeurs) et qu'un numéro de ligne ne se repère pas à l'œil. Voici
+les mêmes questions avec des repères identifiables — **service + date de départ + total de congé** :
+
+| # | Repère dans le planning | Ce qu'il faut savoir |
+|---|---|---|
+| a | **PARAMETRES**, départ 09/03/2026, 24 j, retour saisi 06/06/2026 | 89 jours calendaires pour 24 jours de congé : fractionnement, report, ou faute de frappe ? |
+| b | **PARAMETRES**, départ 08/06/2026, 18 j, retour saisi 29/09/2026 | 113 jours calendaires pour 18 jours : idem (le mois 09 au lieu de 06 ?) |
+| c | **LABORATOIRE**, départ 10/02/2026, 22 j, retour saisi 09/03/**2025** | année 2025 au lieu de 2026 ? |
+| d | **PARAMETRES**, départ 10/08/2026, 24 j, retour saisi 08/07/2026 | retour **avant** le départ |
+| e | **SECRETARIAT**, départ 06/08/2026, 24 j, retour saisi 04/07/2026 | retour **avant** le départ |
+| f | **HOSPI**, départ 04/05/2026, 18 j, retour 25/05 — et **GREEN ENERGY**, départ 04/05/2026, 18 j, retour 27/05 | mêmes dates de départ, même nombre de jours, **deux retours différents**. Lequel est le bon ? |
+| g | **CAISSE PHCIE**, départ 14/01/2026, 18 j, retour saisi 05/02/2026 | aucun férié dans la période et un jour d'écart : un jour a-t-il été accordé en plus ? |
+| h | **HOSPI**, départ 22/06/2026, 22 j, retour saisi 18/07/2026 | même cas que (g) |
+
+Les cas (a) à (e) sont des **lignes matériellement impossibles** : aucun calcul ne peut les
+reproduire, il faut les corriger à la source. Les cas (f) à (h) sont ceux qui disent s'il existe une
+règle que je n'ai pas encore comprise, ou s'il s'agit d'écarts de saisie.

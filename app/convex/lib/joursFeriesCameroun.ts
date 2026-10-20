@@ -74,10 +74,14 @@ const decaler = (s: string, n: number) => new Date(versT(s) + n * JOUR_MS).toISO
 
 /**
  * Les fériés pascaux d'une année : Vendredi Saint (Pâques − 2) et Ascension (Pâques + 39).
- * `chome` est laissé à `false` par défaut : la calibration montre que la RH ne les décompte pas.
- * C'est un point à lui faire confirmer avant de basculer à `true`.
+ *
+ * `chome = true` par DÉCISION DU PROPRIÉTAIRE (20/10/2026) : « considère ces différents jours
+ * comme tels, mais ce sera configurable au niveau du barème ». La calibration montrait que la RH
+ * ne les décomptait pas dans son classeur 2026 — c'était donc un écart de pratique, désormais
+ * tranché en faveur de la règle légale. Conséquence assumée : 10 lignes de son planning 2026
+ * voient leur date de retour décalée d'un jour (voir `docs/rh/CALIBRATION-PLANNING.md`).
  */
-export function feriesPascauxDeLAnnee(annee: number, chome = false): JourFerie[] {
+export function feriesPascauxDeLAnnee(annee: number, chome = true): JourFerie[] {
   const p = paques(annee);
   return [
     { date: decaler(p, -2), libelle: "Vendredi Saint", chome },
@@ -93,10 +97,11 @@ export function feriesPascauxDeLAnnee(annee: number, chome = false): JourFerie[]
 export const FERIES_A_SAISIR = ["Aïd el-Fitr (Djouldé Soumaé)", "Aïd el-Adha (Tabaski)"] as const;
 
 /**
- * Jeu de fériés par défaut d'une année, tel qu'il sera proposé à l'initialisation :
- * les 6 fixes en chômés, les 2 pascaux présents mais non chômés, les 2 musulmans absents.
- * La RH ajuste ensuite dans l'écran.
+ * Jeu de fériés par défaut d'une année, tel qu'il est proposé à l'initialisation :
+ * les 6 fixes et les 2 pascaux, tous chômés. Les 2 fêtes musulmanes restent absentes — elles ne
+ * sont pas calculables et doivent être saisies (`FERIES_A_SAISIR`).
+ * Chaque date reste décochable dans l'écran : le décompte est configurable au niveau du barème.
  */
 export function feriesParDefaut(annee: number): JourFerie[] {
-  return [...feriesFixesDeLAnnee(annee), ...feriesPascauxDeLAnnee(annee, false)];
+  return [...feriesFixesDeLAnnee(annee), ...feriesPascauxDeLAnnee(annee)];
 }

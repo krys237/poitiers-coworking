@@ -7,6 +7,9 @@
 import {
   FERIES_FIXES,
   feriesFixesDeLAnnee,
+  feriesParDefaut,
+  feriesPascauxDeLAnnee,
+  paques,
   type JourFerie,
 } from "../convex/lib/joursFeriesCameroun.ts";
 import {
@@ -36,9 +39,15 @@ const check = (nom: string, cond: boolean, d?: unknown) => {
 };
 const titre = (s: string) => console.log(`\n— ${s}`);
 
-// Jeu de fériés de la calibration : les seuls fériés FIXES (voir plus bas pourquoi).
-const feries: JourFerie[] = [2025, 2026, 2027].flatMap(feriesFixesDeLAnnee);
-const F = indexFeries(feries);
+const ANNEES = [2025, 2026, 2027];
+
+// Deux configurations, à ne pas confondre :
+//  · F        = fériés FIXES seuls. C'est la pratique retrouvée dans le classeur 2026 de la RH,
+//               conservée ici comme preuve qu'on sait reproduire son fichier.
+//  · F_RETENU = fériés fixes + pascaux, tous chômés. C'est la RÈGLE RETENUE (décision du
+//               propriétaire du 20/10/2026), configurable au niveau du barème.
+const F = indexFeries([2025, 2026, 2027].flatMap(feriesFixesDeLAnnee) as JourFerie[]);
+const F_RETENU = indexFeries(ANNEES.flatMap(feriesParDefaut));
 
 // ---------------------------------------------------------------------------
 titre("Briques de date");
@@ -167,7 +176,9 @@ const CONFORMES: Cas[] = [
   { ligne: 70, depart: "2026-10-12", total: 18, retour: "2026-11-02" },
 ];
 
-titre(`Jeu d'acceptation : ${CONFORMES.length} lignes du planning réel de la RH`);
+titre(
+  `Reproduction du classeur 2026 : ${CONFORMES.length} lignes, configuration « fériés fixes seuls »`,
+);
 let conformes = 0;
 for (const c of CONFORMES) {
   const calc = dateRetour(c.depart, c.total, F);
@@ -196,6 +207,74 @@ check(
   "… et le 05/03 si on n'exclut aucun férié : c'est bien le 11/02 qui fait la différence",
   dateRetour("2026-02-05", 24, indexFeries([])) === "2026-03-05",
   dateRetour("2026-02-05", 24, indexFeries([])),
+);
+
+// ---------------------------------------------------------------------------
+titre("Comput de Pâques (Vendredi Saint et Ascension sont calculés, pas saisis)");
+check("Pâques 2026 = 5 avril", paques(2026) === "2026-04-05", paques(2026));
+check("Pâques 2025 = 20 avril", paques(2025) === "2025-04-20", paques(2025));
+check("Pâques 2027 = 28 mars", paques(2027) === "2027-03-28", paques(2027));
+check(
+  "Vendredi Saint 2026 = 3 avril, Ascension 2026 = 14 mai",
+  feriesPascauxDeLAnnee(2026)[0].date === "2026-04-03" &&
+    feriesPascauxDeLAnnee(2026)[1].date === "2026-05-14",
+  feriesPascauxDeLAnnee(2026),
+);
+check(
+  "les fériés pascaux sont CHÔMÉS par défaut (décision du 20/10/2026)",
+  feriesPascauxDeLAnnee(2026).every((f) => f.chome === true),
+);
+check(
+  "feriesParDefaut propose 8 dates : 6 fixes + 2 pascales",
+  feriesParDefaut(2026).length === 8,
+  feriesParDefaut(2026).length,
+);
+check(
+  "… et aucune fête musulmane, qui n'est pas calculable",
+  !feriesParDefaut(2026).some((f) => /A[iï]d/i.test(f.libelle ?? "")),
+);
+
+titre("Règle RETENUE : les fériés pascaux décalent 10 retours du planning 2026");
+// Ces 10 lignes sont le prix assumé du passage de la pratique du classeur à la règle légale.
+const DECALEES: { ligne: number; depart: string; total: number; fixes: string; retenu: string }[] = [
+  { ligne: 13, depart: "2026-03-23", total: 24, fixes: "2026-04-20", retenu: "2026-04-21" },
+  { ligne: 15, depart: "2026-03-23", total: 22, fixes: "2026-04-17", retenu: "2026-04-18" },
+  { ligne: 16, depart: "2026-03-17", total: 18, fixes: "2026-04-07", retenu: "2026-04-08" },
+  { ligne: 18, depart: "2026-03-27", total: 20, fixes: "2026-04-20", retenu: "2026-04-21" },
+  { ligne: 22, depart: "2026-04-01", total: 18, fixes: "2026-04-22", retenu: "2026-04-23" },
+  { ligne: 26, depart: "2026-05-11", total: 18, fixes: "2026-06-02", retenu: "2026-06-03" },
+  { ligne: 27, depart: "2026-05-04", total: 18, fixes: "2026-05-26", retenu: "2026-05-27" },
+  { ligne: 28, depart: "2026-05-04", total: 20, fixes: "2026-05-28", retenu: "2026-05-29" },
+  { ligne: 29, depart: "2026-05-04", total: 18, fixes: "2026-05-26", retenu: "2026-05-27" },
+  { ligne: 30, depart: "2026-05-05", total: 18, fixes: "2026-05-27", retenu: "2026-05-28" },
+];
+let decalagesOk = 0;
+for (const d of DECALEES) {
+  const sansPascaux = dateRetour(d.depart, d.total, F);
+  const avec = dateRetour(d.depart, d.total, F_RETENU);
+  // Les DEUX colonnes sont vérifiées : sinon une erreur dans la colonne « fériés fixes »
+  // passerait inaperçue et le tableau de la documentation mentirait.
+  if (avec === d.retenu && sansPascaux === d.fixes && avec !== sansPascaux) decalagesOk++;
+  else {
+    console.error(
+      `  KO  ligne ${d.ligne} : fériés fixes → attendu ${d.fixes}, calculé ${sansPascaux}` +
+        ` ; règle retenue → attendu ${d.retenu}, calculé ${avec}`,
+    );
+    echecs++;
+  }
+}
+check(
+  `les ${DECALEES.length} décalages sont ceux documentés`,
+  decalagesOk === DECALEES.length,
+  `${decalagesOk}/${DECALEES.length}`,
+);
+check(
+  "sous la règle retenue, la ligne 29 du classeur devient juste (27/05)",
+  dateRetour("2026-05-04", 18, F_RETENU) === "2026-05-27",
+);
+check(
+  "un congé qui ne croise aucun férié pascal n'est pas affecté",
+  dateRetour("2026-01-12", 18, F_RETENU) === dateRetour("2026-01-12", 18, F),
 );
 
 // ---------------------------------------------------------------------------
