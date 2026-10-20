@@ -534,31 +534,171 @@ Ce n'est pas « digitaliser un tableur ». C'est :
 
 # Partie 6 — Ce qu'il me faut de toi
 
-## ⚠️ Les notes de votre échange ne sont pas arrivées
+## Les arbitrages à rendre (mis à jour après les notes de l'échange, §7)
 
-Tu as écrit « Voici quelques notes que j'avais prises au cours de notre échange » en référençant un
-texte collé de 24 lignes — **il n'est pas arrivé dans ma session**, je ne vois que la mention de la
-pièce jointe. Tout ce qui précède est donc reconstitué **à partir des fichiers seuls**, sans tes
-notes. Peux‑tu les recoller ? Elles vont probablement trancher plusieurs des arbitrages ci‑dessous,
-en particulier le fameux 8 410 FCFA de taux journalier de congé.
-
-## Les 6 arbitrages à rendre (par ordre d'impact)
-
-| # | Question | Enjeu |
-|---|---|---|
-| 1 | **La prime de transport est‑elle taxable à l'IRPP ?** Son DIPE dit **oui** (et la loi lui donne raison), notre moteur dit non — et notre moteur a été aligné sur l'application de référence du directeur (`lib/paie.ts`, consigne du 10/09/2026). **Deux références internes se contredisent.** | Change l'IRPP de **tout** l'effectif |
-| 2 | **L'allocation de congé : 1/16 légal, ou le diviseur 30 actuel ?** | 0,5 à 1,5 M FCFA/an |
-| 3 | **D'où vient son taux journalier de congé de 8 410 FCFA ?** (`151 380 = 8 410 × 18`) Je ne peux pas le reconstituer avec un seul mois. | Cale le calcul sur sa pratique réelle |
-| 4 | **L'indemnité de logement : plafonnée au forfait de 15 % comme elle le fait, ou taxée en entier comme nous ?** Sa méthode réduit la base imposable — c'est défendable pour un avantage en nature, moins pour une indemnité versée en espèces. | Risque de redressement |
-| 5 | **Les primes de panier / salissure / lait / outillage / représentation sont‑elles bien hors IRPP et hors CNPS ?** Elle les traite en remboursement de frais. À confirmer par le comptable. | Risque de redressement |
-| 6 | **Quel est le groupe de risque AT/MP de la clinique** (A 1,75 % / B 2,50 % / C 5 %) ? Les deux outils appliquent 1,75 %. Pour un établissement de santé, le groupe B ou C est plausible. | Sous‑déclaration CNPS |
+| # | Question | Enjeu | État |
+|---|---|---|---|
+| 1 | **La prime de transport est‑elle taxable à l'IRPP ?** Son DIPE dit **oui**, la loi lui donne raison, et ses notes le confirment (« salaire brut intermédiaire = les éléments entièrement taxables », où figure le transport). Notre moteur dit non — il a été aligné sur l'application de référence du directeur (consigne du 10/09/2026). **Deux références internes se contredisent.** | Change l'IRPP de **tout** l'effectif | **arbitrage du directeur requis** (3 sources contre 1) |
+| 2 | **L'allocation de congé : 1/16 légal, ou le diviseur 30 actuel ?** | 0,5 à 1,5 M FCFA/an | ouvert |
+| 3 | **D'où vient son taux journalier de congé de 8 410 FCFA ?** (`151 380 = 8 410 × 18`) | Cale le calcul sur sa pratique réelle | ouvert — à lui demander |
+| 4 | **L'indemnité de logement : plafonnée au forfait de 15 % comme elle le fait, ou taxée en entier comme nous ?** Défendable pour un avantage en nature, moins pour une indemnité en espèces. | Risque de redressement | ouvert |
+| 5 | **Les primes de panier / salissure / lait / outillage / représentation sont‑elles bien hors IRPP et hors CNPS ?** | Risque de redressement | ouvert |
+| 6 | **Groupe de risque AT/MP de la clinique** (A 1,75 % / B 2,50 % / C 5 %) ? Les deux outils appliquent 1,75 %. | Sous‑déclaration CNPS | ouvert |
+| 7 | **Le plafond de 750 000 s'applique‑t‑il aussi à l'AT/MP ?** Sa note dit « le salaire cotisable ne doit jamais dépasser le plafond » ; la loi dit que l'assiette AT/MP n'est **pas** plafonnée. | Sous‑déclaration CNPS | **nouveau conflit, comptable** |
+| 8 | **Multi‑société : un employé peut‑il relever de plusieurs sociétés** (SESAME / SOFINA / SGC) **en même temps** ? Si oui, un bulletin par société avec répartition du brut, ou une société principale + rattachements secondaires ? | Refonte de la segmentation paie et des exports | **nouveau, design** |
+| 9 | **Le bloc « 5 % / 10 % — assurance 100 % / espèce 30 % »** de tes notes : à quoi se rattache‑t‑il ? Ce n'est pas de la paie sur salaires (voir §7.4). | Périmètre | **nouveau, à clarifier** |
 
 Les 11 points à faire valider par le comptable sont listés au §8 du
 [référentiel légal](docs/rh/REFERENTIEL-LEGAL-CAMEROUN.md).
 
-## Ce que je propose d'attaquer tout de suite
+Les 11 points à faire valider par le comptable sont listés au §8 du
+[référentiel légal](docs/rh/REFERENTIEL-LEGAL-CAMEROUN.md).
+
+## Ce que je propose d'attaquer tout de suite (inchangé)
 
 Le **lot R0**, qui ne dépend d'aucun arbitrage : la table des jours fériés et le module de
 décompte en jours ouvrables, testés contre les 78 lignes de son planning. Si on reproduit ses dates
 de retour au jour près — y compris le piège du 11 février — on a la preuve qu'on a compris sa règle,
 et c'est le socle de tout le reste.
+
+---
+
+# Partie 7 — Intégration des notes de l'échange avec la RH
+
+*Notes transmises le 20/10/2026, dépouillées ligne par ligne. Elles confirment l'essentiel de
+l'analyse ci‑dessus et y ajoutent sept règles précises.*
+
+## 7.1 Ce que les notes **confirment** (plus aucun doute)
+
+| Note | Confirme |
+|---|---|
+| « cFC patronal → salaire brut » | **correction C4** : le CFC patronal se calcule sur le brut, pas sur le taxable |
+| « salaire taxable ce n'est pas le salaire cotisable » | **correction C2** : les deux assiettes doivent être séparées dans le moteur |
+| « salaire brut imposable ≠ salaire de base » | la multiplicité des assiettes du §1.3 |
+| « RAV (montant fixe), TDL (montant fixe en fonction des plafonds, calculé sur le salaire de base) » | RAV et TDL sont des **forfaits par tranche**, et la base de la TDL est bien le **salaire de base** |
+| « le bulletin présenté aux impôts ne doit pas porter autres retenues » | la distinction **DIPE ≠ bulletin de paie** du §1.2 : il faut **deux documents** |
+| « Nombre de jours de congés principal : 18 jours obtenant après 1 an » | 18 jours ouvrables, droit à jouissance ouvert après 1 an (art. 92) |
+| « Ajouter colonne observation » | la colonne qu'elle réclamait déjà dans la légende de son planning |
+| « l'assiette […] c'est cela qui est le plus important » | le diagnostic central de cette analyse |
+
+## 7.2 Ce que les notes **tranchent**
+
+**Le plancher est 62 000 FCFA, pas 50 000.** « Plancher (tranche) a modifier qui commence a
+62000F ». Notre `TDL_BAREME` démarre déjà à 62 000, mais notre `RAV_BAREME` démarre à **50 000**.
+→ **correction C10 : aligner la première tranche de la RAV sur 62 000** et appliquer le même
+plancher au CFC salarial. C'est cohérent avec son fichier et avec le seuil d'exonération de l'IRPP.
+
+**« Salaire brut intermédiaire » : c'est son nom pour l'assiette que j'avais appelée « salaire de
+référence ».** La note dit : « salaire brut intermediaire sont les element du salaire entierement
+taxable ». C'est exactement sa colonne W = base + ancienneté + transport + assiduité + caisse +
+rendement + gratification + congés payés, c'est‑à‑dire **le sous‑total des éléments taxables à
+100 %**, avant d'y ajouter l'avantage logement qui ne l'est que partiellement.
+→ **je renomme l'assiette `reference` en `brutIntermediaire`** dans le modèle, pour que l'écran
+parle sa langue. Et ça confirme au passage que **le transport est dans les éléments entièrement
+taxables** — argument de plus sur l'arbitrage n°1.
+
+**L'employeur paie toujours, le salarié pas forcément.** « L'employeur a toujours un montant a
+payer des qu'il ya un salaire, contrai[re] ». Vérifié dans ses formules : le CFC patronal, le FNE,
+la PVID patronale, les prestations familiales et l'AT/MP n'ont **aucun test `IF(< 62000)`**, alors
+que l'IRPP, le CFC salarial, la TDL et la RAV en ont tous un.
+→ **règle à coder explicitement :**
+
+> le plancher d'exonération de 62 000 FCFA s'applique **uniquement aux retenues salariales**
+> (IRPP, CAC, CFC salarial, TDL, RAV). Les **charges patronales ne connaissent aucun plancher** :
+> dès qu'un salaire est versé, l'employeur doit ses cotisations.
+
+C'est une règle que notre moteur respecte déjà par accident (il n'a de plancher nulle part) et
+qu'il faut fixer dans les deux sens : ajouter le plancher côté salarial, ne jamais l'ajouter côté
+patronal.
+
+**L'assiette appartient au barème daté, pas à une table figée.** « Ajout au niveau du bareme
+(l'assiete : montant a partir duquel les imposition seront calculés, c'est cela qui est le plus
+important ». Elle veut retrouver la définition des assiettes **sur l'écran `/bareme`**, à côté des
+taux et des tranches.
+→ **conséquence sur la proposition du §4.1** : la table `rubriquesPaie` doit être **datée**
+(`effectiveFrom`, comme `baremes`) et affichée comme un onglet de l'écran Barème. Un bulletin
+résout la version de rubrique applicable à **sa** période, exactement comme il résout son barème.
+Ça préserve la règle d'or du projet : **on ne recalcule jamais un mois clôturé avec une définition
+d'assiette plus récente.**
+
+**Le congé supplémentaire doit rester saisissable à la main.** « rubrique pour inserer le nombre de
+jour supp ajouter manuellement ».
+→ je ne force donc **pas** l'automatisation complète : le droit est **calculé et proposé** (avec sa
+justification affichée) mais **surchargeable**, avec un motif obligatoire. Elle garde la main pour
+les cas que la règle ne couvre pas (convention collective, accord individuel).
+
+```ts
+// droit à congé
+congeSuppCalcule: v.number(),              // ancienneté + enfants, calculé
+congeSuppManuel: v.optional(v.number()),   // surcharge RH
+congeSuppMotif: v.optional(v.string()),    // obligatoire si surcharge
+```
+
+**L'observation est une liste de valeurs, pas du texte libre.** « Ajouter colonne observation
+(pris, non pris, reporter, retraite….) ».
+→ fusion avec le `statut` que je proposais au §4.3, en une seule énumération :
+`planifie | en_cours | pris | non_pris | reporte | retraite | solde_au_depart | annule`,
+plus un champ de commentaire libre à côté.
+
+## 7.3 Ce que les notes **ajoutent** (demandes nouvelles)
+
+| Demande | Traduction |
+|---|---|
+| « Parametre de couleur par service pour le planing des absences, definir une couleur pour un service pour savoir qui dans quel service a deja un conge » | Un **service** devient une entité paramétrable (table `services` : nom + couleur). La frise annuelle du §4.5 colore chaque absence par service → la **détection de chevauchement dans un même service** que je proposais devient visuelle et immédiate. C'est sa vraie préoccupation : **ne pas vider un service**. |
+| « PVID PAT et PVID salarier entre parenthese de retenue CNPS : Bulletin du mois » | Présentation du bulletin : la ligne « Retenue CNPS » doit porter **entre parenthèses** le détail PVID salarié / PVID patronal, au lieu de lignes séparées. → `BulletinCard.tsx`, `paiePdf.ts`. |
+| « le bulletin presenter au impots ne doit pas porter autres retenus » | **Deux documents distincts** : le *bulletin de paie* interne (toutes retenues : acompte, sanctions, dettes de soins, mutuelle) et le *bulletin / état fiscal* (retenues fiscales et sociales **seulement**). Les deux « nets » sont légitimement différents et ne doivent jamais être confondus. |
+| « Ajouter la periode de conges au nombre de jour pris » | Partout où un nombre de jours de congé est affiché (bulletin, récapitulatif, planning), afficher aussi **« du … au … »**. |
+| « planning des absence (document a fournir pour modeliser le planning) » | Elle doit fournir un document. **Est‑ce un autre fichier que `MODELE PLANNING CONGE ANNUEL.xlsx` ?** Si oui, je l'attends. |
+
+## 7.4 Les deux notes **hors périmètre `rh`**
+
+- **« Bon distinct entre commande et fourniture générale »** → module **Commandes** (Phase 3,
+  `convex/commandes.ts`), pas la session RH. À router vers le backlog ou l'autre agent.
+- **« Choix multiple de sociétés en fonction des employés »** → aujourd'hui `employes.societe` est
+  une valeur **unique** (SESAME / SOFINA / SGC) et elle **segmente toute la paie et tous les
+  exports**. Passer au multi‑société est une refonte de schéma aux effets en cascade (un bulletin
+  par société ? répartition du brut ? quel net sur quelle société ?). → **arbitrage n°8**, à cadrer
+  avant de coder.
+
+## 7.5 Le bloc que je n'arrive pas à rattacher
+
+```
+Impot : verification des modalites de calcul
+2 types d'impot : 5% et le 10%
+Impot deduit de la partie assurance (qui paie 100%) et la partie espece qui paie 30% d'impot
+```
+
+**Ce n'est pas de la paie sur salaires** : ni 5 %, ni 10 %, ni le couple assurance/espèces
+n'apparaissent dans son DIPE, et le barème IRPP n'a aucune tranche à 5 %. Mes trois hypothèses, par
+ordre de vraisemblance :
+
+1. **Une retenue à la source sur les honoraires des médecins non salariés.** Au Cameroun, l'acompte
+   d'impôt sur le revenu est de **5 %**, majoré des **centimes additionnels communaux de 10 %** →
+   5,5 %. Le couple « 5 % et 10 % » colle exactement à ce schéma (taux + CAC), qui est le même
+   motif que l'IRPP + CAC des salariés. Le module concerné serait alors **Primes médecins**
+   (`convex/primesMedecins.ts`), pas la paie.
+2. **La ventilation du chiffre d'affaires de la clinique** entre la part réglée par les assurances
+   et la part réglée en espèces, avec une base imposable de 100 % sur l'une et de 30 % sur
+   l'autre → relèverait de la **Caisse du mois** (`convex/caisse.ts`).
+3. Un abattement de 30 % appliqué à la part espèces avant imposition.
+
+**Je ne code rien là‑dessus avant confirmation** : me tromper de module coûterait plus cher que
+d'attendre la réponse. → **arbitrage n°9.**
+
+---
+
+# Partie 8 — Note d'organisation (worktree)
+
+Le répertoire `C:\test\Js\poitiers-coworking` est, d'après `CONSIGNES-MULTI-AGENTS.md`, le worktree
+occupé par un autre agent. J'y avais créé la branche `rh` par un `git checkout -b`, ce que la
+**règle n°1** de ce fichier interdit explicitement (« ne jamais faire `git checkout` d'une autre
+branche dans son propre dossier — cela arracherait les fichiers sous les pieds de l'autre »).
+
+Corrigé le 20/10/2026 : la branche `rh` a son **propre worktree**
+`C:\test\Js\poitiers-coworking-rh`, et le répertoire principal a été rendu à la branche sur
+laquelle il se trouvait. Aucun travail en cours n'a été perdu (un `checkout -b` ne touche pas les
+fichiers ; les modifications non validées de l'autre agent ont suivi le retour sur sa branche).
+
+**Le dossier `modele/` est ignoré par Git** (`.gitignore` + `.git/info/exclude`) : il contient les
+noms, salaires et situations de famille réels des 78 personnes de l'effectif. Décision du
+propriétaire le 20/10/2026 : **ne jamais figer ces données dans l'historique**.

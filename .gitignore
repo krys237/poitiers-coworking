@@ -26,3 +26,7 @@ api-doc.html
 
 .vercel
 .env*
+
+# Modèles de travail de la responsable RH : contiennent les noms, salaires et
+# situations de famille réels de l'effectif. NE JAMAIS versionner (décision du 20/10/2026).
+modele/
