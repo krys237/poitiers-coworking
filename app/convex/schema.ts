@@ -90,6 +90,17 @@ export default defineSchema({
     droitsRoles: v.optional(v.array(v.object({ role: v.string(), module: v.string(), voir: v.boolean(), faire: v.boolean() }))),
   }),
 
+  // Services d'affectation (colonne SERVICE du planning de congé). La COULEUR est un paramètre
+  // demandé par la RH : « définir une couleur pour un service pour savoir qui dans quel service a
+  // déjà un congé ». Dans la frise, l'encodage principal reste le regroupement des lignes ; la
+  // couleur n'est qu'un repère secondaire (lib/planningAnnuel.PALETTE_SERVICES).
+  services: defineTable({
+    nom: v.string(),
+    couleur: v.string(),              // hex "#rrggbb"
+    ordre: v.number(),
+    actif: v.boolean(),
+  }).index("by_nom", ["nom"]),
+
   // ---- Paie (Phase 1) ----
   employes: defineTable({
     matricule: v.string(),
@@ -110,9 +121,21 @@ export default defineSchema({
     categorie: v.optional(v.string()),     // catégorie professionnelle (bulletin)
     echelon: v.optional(v.string()),       // échelon (bulletin)
     actif: v.boolean(),
+    // --- Planning des congés (lot R1) ---
+    serviceId: v.optional(v.id("services")),  // service d'affectation — colonne SERVICE du planning
+    // Le sexe conditionne la majoration « mère de famille » de l'art. 90 ; il n'a pas d'autre usage.
+    sexe: v.optional(v.union(v.literal("F"), v.literal("M"))),
+    // Enfants à charge : seul l'âge au jour du départ en congé compte (art. 90).
+    enfants: v.optional(v.array(v.object({
+      prenom: v.optional(v.string()),
+      dateNaissance: v.string(),            // "YYYY-MM-DD"
+    }))),
+    // Groupe de risque CNPS accidents du travail : A 1,75 % / B 2,50 % / C 5 % (voir A-VERIFIER B5).
+    groupeRisqueAt: v.optional(v.union(v.literal("A"), v.literal("B"), v.literal("C"))),
   })
     .index("by_matricule", ["matricule"])
-    .index("by_societe", ["societe"]),
+    .index("by_societe", ["societe"])
+    .index("by_service", ["serviceId"]),
 
   // Barème officiel DATÉ (CNPS / CGI). Un bulletin référence la version applicable à sa période.
   baremes: defineTable({
@@ -181,9 +204,29 @@ export default defineSchema({
     jours: v.number(),                // jours calendaires inclus
     paye: v.boolean(),                // rémunéré (n'entame pas les jours travaillés) ou non
     motif: v.optional(v.string()),
+    // --- Planning annuel (lot R1) ---
+    // Année de référence du droit : remplace les en-têtes « RAPPEL 2025 » / « PLANIFICATION 2026 »
+    // écrits en dur dans le classeur, qu'il fallait reprendre à la main chaque 1er janvier.
+    anneeReference: v.optional(v.number()),
+    // Décompte en JOURS OUVRABLES (lib/congesOuvrables) et date de retour calculée.
+    // `jours` reste le décompte calendaire dont dépend la paie aujourd'hui : les deux cohabitent
+    // jusqu'à la bascule du lot R4.
+    joursOuvrables: v.optional(v.number()),
+    dateRetour: v.optional(v.string()),   // 1er jour de service après le congé
+    // Colonne « observation » réclamée par la RH (lib/planningAnnuel.OBSERVATIONS).
+    observation: v.optional(v.string()),
+    commentaire: v.optional(v.string()),
+    // Colonne REMPLACANT CONGES : un collègue, ou la mention libre « CONTINUITE ».
+    remplacantId: v.optional(v.id("employes")),
+    remplacantTexte: v.optional(v.string()),
+    // Droit à congé : calculé (ancienneté + enfants) mais surchargeable à la main avec motif (E5).
+    congeSuppCalcule: v.optional(v.number()),
+    congeSuppManuel: v.optional(v.number()),
+    congeSuppMotif: v.optional(v.string()),
   })
     .index("by_employe", ["employeId"])
-    .index("by_debut", ["dateDebut"]),
+    .index("by_debut", ["dateDebut"])
+    .index("by_annee", ["anneeReference"]),
 
   // Bulletins GÉNÉRÉS (snapshot). Les mois ouverts sont calculés à la volée;
   // à la génération/clôture on fige le résultat ici.

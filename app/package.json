@@ -19,6 +19,7 @@
     "test:droits": "node --experimental-strip-types tests/droits.test.ts",
     "test:telephone": "node --experimental-strip-types tests/telephone.test.ts",
     "test:conges": "node --experimental-strip-types tests/congesOuvrables.test.ts",
+    "test:planning": "node --experimental-strip-types tests/planningAnnuel.test.ts",
     "test:fournisseurs": "node --experimental-strip-types tests/fournisseurs.test.ts",
     "proxy": "node api-proxy/server.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json"
