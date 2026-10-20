@@ -103,16 +103,22 @@ cotisables. Cela suppose de les qualifier de **remboursements de frais professio
 défendable, mais risque de redressement si les montants sont jugés forfaitaires et déguisés.
 **Bloque :** rien. **Qui tranche :** comptable.
 
-### B5 🔴 Groupe de risque AT/MP de la clinique
+### B5 🟠 Groupe de risque AT/MP de la clinique
 A = 1,75 %, B = 2,50 %, C = 5,00 %. Son fichier **et** notre moteur appliquent 1,75 %. Pour un
 établissement de santé, le groupe B ou C est plausible.
-**Bloque :** le calcul des charges patronales (lot R2). **Qui tranche :** RH + CNPS.
+
+→ **Ne bloque plus le lot R2** : le groupe est devenu un champ du barème (`groupeRisqueAtmp`),
+à trois valeurs, et le taux en découle. Il reste à dire **lequel** s'applique.
+**Bloque :** l'exactitude des charges patronales. **Qui tranche :** RH + CNPS.
 
 ### B6 🟠 L'assiette AT/MP est-elle plafonnée ?
 Sa note dit « le salaire cotisable ne doit jamais dépasser le plafond ». La loi dit que l'assiette
 AT/MP n'est **pas** plafonnée (seuls PVID et prestations familiales le sont, à 750 000). Un seul
 salarié dépasse le plafond aujourd'hui, mais c'est une irrégularité structurelle.
-**Bloque :** rien. **Qui tranche :** comptable.
+
+→ **Codé en suivant la LOI** (`BAREME_DEFAUT.atmpPlafonne = false`), avec un interrupteur
+`atmpPlafonne` dans le barème pour rejouer sa pratique si le comptable le demande. Le choix est
+donc réversible sans toucher au code. **Bloque :** rien. **Qui tranche :** comptable.
 
 ### B7 🟠 La base exacte du CFC
 Les sources disent « montant brut des salaires » sans préciser si les avantages en nature et le
@@ -210,8 +216,8 @@ Aucun calcul ne peut les reproduire : il faut les corriger dans le classeur avan
 | **R0** ✅ | jours fériés + décompte en jours ouvrables | — *(livré)* |
 | **R1** | refonte du planning : services, sexe/enfants, statuts, droit calculé, frise, chevauchements | — *(rien ; D1 ne gêne que l'import)* |
 | **R2 bis** | multi-société : un bulletin par société, un DIPE par déclarant | — *(B2 tranché)* |
-| **R2** | table `rubriquesPaie` + les quatre assiettes + corrections C1→C10 | B5 *(B1 tranché : transport taxable)* |
-| **R3** | écran DIPE + exports + rapport d'écart | R2 |
+| **R2** ✅ | table `rubriquesPaie` datée + les quatre assiettes + corrections C1→C10 | — *(livré ; reste à renseigner B5, qui n'est plus bloquant)* |
+| **R3** | écran DIPE + exports + rapport d'écart | — *(R2 livré)* |
 | **R4** | allocation de congé (1/16) + liaison planning → paie | **A1**, **A2**, A3 |
 | **R5** | absences élargies (maternité, AT/MP, chômage technique, permissions) | — |
 | **R6** | retenue à la source médecins | **C1**, **C2** |

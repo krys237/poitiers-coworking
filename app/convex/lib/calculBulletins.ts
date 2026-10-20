@@ -2,6 +2,7 @@
 // Mois ouvert → calcul réactif à la volée ; mois clôturé → snapshots figés. Forme de sortie unifiée.
 import { QueryCtx, MutationCtx } from "../_generated/server";
 import { Doc, Id } from "../_generated/dataModel";
+import { rubriquesPourPeriode } from "../rubriques";
 import { computeBulletin, SaisieMois, Bareme, LigneGain, LigneCotisation, Extras, DetailsBulletin } from "./paie";
 import { resumeMois, CONGES_PAR_MOIS_DEFAUT } from "./absences";
 import { bornesPeriode } from "./periode";
@@ -52,6 +53,11 @@ export function baremeFromDoc(b: Doc<"baremes">): Bareme {
     tauxFne: b.tauxFne, abattementIrppPct: b.abattementIrppPct, tauxCac: b.tauxCac,
     irppBrackets: b.irppBrackets,
     abattementIrppAnnuel: b.abattementIrppAnnuel ?? 500000, tdlActif: b.tdlActif ?? true, ravActif: b.ravActif ?? true,
+    // Corrections du lot R2 : laissées telles quelles, y compris absentes — une version de
+    // barème antérieure rejoue ainsi exactement le calcul de son époque.
+    transportTaxable: b.transportTaxable, atmpPlafonne: b.atmpPlafonne,
+    cfcPatronalEtFneSurBrut: b.cfcPatronalEtFneSurBrut, seuilExoneration: b.seuilExoneration,
+    groupeRisqueAtmp: b.groupeRisqueAtmp,
   };
 }
 
@@ -105,7 +111,9 @@ export async function bulletinsPourPeriode(ctx: Ctx, periode: string): Promise<{
 
   const baremeDoc = await baremePourPeriode(ctx, periode);
   if (!baremeDoc) return { cloture: false, baremeId: null, bulletins: [], erreur: "Aucun barème applicable à cette période.", ...bornesTriplet(bornes) };
-  const bareme = baremeFromDoc(baremeDoc);
+  // Le catalogue de rubriques est résolu pour LA période, comme le barème : un mois clôturé ne
+  // sera jamais recalculé avec une définition d'assiette plus récente.
+  const bareme = { ...baremeFromDoc(baremeDoc), rubriques: await rubriquesPourPeriode(ctx, periode) };
   const congesParMois = params?.congesParMois ?? CONGES_PAR_MOIS_DEFAUT;
 
   const employes = (await ctx.db.query("employes").collect()).filter((e) => e.actif).sort((a, b) => a.nom.localeCompare(b.nom));

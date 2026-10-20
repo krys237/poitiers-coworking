@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "convex": "convex dev",
     "test:paie": "node --experimental-strip-types tests/paie.test.ts",
+    "test:assiettes": "node --experimental-strip-types tests/assiettes.test.ts",
     "test:tresorerie": "node --experimental-strip-types tests/tresorerie.test.ts",
     "test:fenetre": "node --experimental-strip-types tests/fenetre.test.ts",
     "test:commandes": "node --experimental-strip-types tests/commandes.test.ts",

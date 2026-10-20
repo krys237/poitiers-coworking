@@ -157,9 +157,40 @@ export default defineSchema({
     abattementIrppAnnuel: v.optional(v.number()), // abattement annuel IRPP (déf. 500 000), appliqué ÷ 12
     tdlActif: v.optional(v.boolean()),  // appliquer la taxe de développement local (barème forfaitaire)
     ravActif: v.optional(v.boolean()),  // appliquer la redevance audiovisuelle (barème forfaitaire)
+    // --- Corrections du lot R2 (voir lib/paie.ts). ABSENTES = comportement d'avant la
+    // correction : une version de barème déjà enregistrée reste donc rejouable à l'identique.
+    transportTaxable: v.optional(v.boolean()),          // C1 : le transport entre dans le taxable
+    atmpPlafonne: v.optional(v.boolean()),              // C3 : la loi ne plafonne PAS l'AT/MP
+    cfcPatronalEtFneSurBrut: v.optional(v.boolean()),   // C4 : base = salaire brut
+    seuilExoneration: v.optional(v.number()),           // C6 : 62 000, retenues SALARIALES seules
+    groupeRisqueAtmp: v.optional(v.union(v.literal("A"), v.literal("B"), v.literal("C"))), // C8
     source: v.string(),               // origine du barème
     controleLe: v.optional(v.string()),
     statut: v.union(v.literal("actif"), v.literal("brouillon")),
+  }).index("by_effective", ["effectiveFrom"]),
+
+  // Catalogue des rubriques de paie et leur APPARTENANCE AUX ASSIETTES (lot R2).
+  // Daté comme le barème (décision E4 du 20/10/2026 : « ajout au niveau du barème ») : un
+  // bulletin résout la version applicable à SA période, donc un mois clôturé n'est jamais
+  // recalculé avec une définition d'assiette plus récente. Voir lib/rubriques.ts.
+  rubriquesPaie: defineTable({
+    effectiveFrom: v.string(),        // "YYYY-MM-DD" — début d'applicabilité
+    source: v.string(),
+    rubriques: v.array(v.object({
+      code: v.string(),
+      libelle: v.string(),
+      sens: v.union(v.literal("gain"), v.literal("retenue")),
+      ordre: v.number(),
+      dansBrut: v.boolean(),               // V  — salaire brut
+      dansBrutIntermediaire: v.boolean(),  // W  — éléments entièrement taxables
+      dansCotisable: v.boolean(),          // AA — assiette CNPS
+      dansAllocConge: v.boolean(),         // assiette de l'allocation de congé (art. 73)
+      proratisable: v.boolean(),
+      avantageNature: v.optional(v.object({
+        tauxForfait: v.number(),           // % du salaire brut intermédiaire (logement 15 %…)
+        plafonnerAuForfait: v.boolean(),   // retenir min(forfait ; montant versé)
+      })),
+    })),
   }).index("by_effective", ["effectiveFrom"]),
 
   // Éléments variables saisis par mois et par employé.
