@@ -186,9 +186,44 @@ le seuil de 62 000), **la TDL de cette personne passe mécaniquement à 0** pour
 > assiettes et tous les prélèvements se recalculent en cascade. Aujourd'hui c'est 75 lignes × 20
 > rubriques de recopie manuelle, chaque mois, avec un risque d'erreur à chaque cellule.
 
-Au passage : `151 380 = 8 410 × 18` exactement (18 = son congé principal). Son taux journalier de
-congé est donc 8 410 FCFA, mais **je ne peux pas reconstituer d'où sort ce 8 410** avec un seul mois
-de données — il faudra le lui demander (voir arbitrage n°3).
+### ⚠️ Ce que l'on ne peut PAS déduire de cette cellule
+
+Une première version de ce document affirmait que « `151 380 = 8 410 × 18` exactement, donc son
+taux journalier de congé est 8 410 FCFA ». **C'était une sur‑interprétation, rectifiée ici.**
+
+Le seul fait disponible est que **la cellule contient la constante 151 380**, tapée à la main.
+**Le 8 410 n'apparaît nulle part dans son classeur** : c'est le résultat de ma propre division par
+18, et le 18 était mon hypothèse (son « congé principal »). Deux raisons de ne pas s'y fier :
+
+1. **La personne n'est pas identifiable.** Le DIPE n'a **aucune colonne de nom** (seulement
+   « Matricule CNPS » et « Matricule Entreprise », vides sur cette ligne). Impossible donc d'aller
+   lire dans le planning son nombre de jours réel — or 18, 20, 22 et 24 existent tous dans
+   l'effectif.
+2. **Plusieurs diviseurs tombent juste** (151 380 = 2² × 3² × 5 × 29²) :
+
+   | Jours supposés | Taux obtenu |
+   |---|---|
+   | 18 | 8 410 |
+   | **20** | **7 569** |
+   | 15 | 10 092 |
+   | 30 | 5 046 |
+
+   L'« exactitude » de la division ne désigne donc pas le 18.
+
+Et le contrôle qui semblait corroborer le 18 — « taux × 24 = 201 840 de rémunération de référence,
+et 12 × 201 840 / 16 = 151 380, donc cohérent avec la règle légale du 1/16 » — est **circulaire** :
+en posant `R = taux × 24`, l'égalité `12R/16 = 151 380` se réduit algébriquement à
+`diviseur = 18`. Elle ne vérifie que l'hypothèse de départ.
+
+**Ce qui reste exploitable** : *si* elle applique la règle du 1/16, la rémunération de référence de
+cette personne vaut 201 840 FCFA/mois. Or ce que le fichier montre d'elle sur ce mois plafonne à
+156 928 (base 110 000 + ancienneté 41 628 + transport 2 800 + assiduité 2 500). L'écart devrait
+venir d'une gratification, d'heures supplémentaires ou d'une prime de rendement sur l'année de
+référence — ou bien elle n'utilise pas le 1/16.
+
+→ **Ne pas lui demander « d'où vient le 8 410 » : elle ne reconnaîtra pas ce chiffre.** Lui
+demander de **dérouler son calcul de la colonne « Congés payés » sur un cas concret**, en prenant
+précisément cette ligne 8 du DIPE d'août 2026 (voir arbitrage n°3).
 
 ---
 
@@ -540,7 +575,7 @@ Ce n'est pas « digitaliser un tableur ». C'est :
 |---|---|---|---|
 | 1 | **La prime de transport est‑elle taxable à l'IRPP ?** Son DIPE dit **oui**, la loi lui donne raison, et ses notes le confirment (« salaire brut intermédiaire = les éléments entièrement taxables », où figure le transport). Notre moteur dit non — il a été aligné sur l'application de référence du directeur (consigne du 10/09/2026). **Deux références internes se contredisent.** | Change l'IRPP de **tout** l'effectif | **arbitrage du directeur requis** (3 sources contre 1) |
 | 2 | **L'allocation de congé : 1/16 légal, ou le diviseur 30 actuel ?** | 0,5 à 1,5 M FCFA/an | ouvert |
-| 3 | **D'où vient son taux journalier de congé de 8 410 FCFA ?** (`151 380 = 8 410 × 18`) | Cale le calcul sur sa pratique réelle | ouvert — à lui demander |
+| 3 | **Comment calcule‑t‑elle la colonne « Congés payés » du DIPE ?** Quelle rémunération, sur quelle période, divisée par quoi, × combien de jours. Cas à dérouler : la ligne 8 du DIPE d'août 2026 (`=110000/30*9` en base, `151 380` en congés payés). ⚠️ Ne pas lui parler d'un « taux de 8 410 » : ce chiffre n'existe pas dans son fichier, c'était ma déduction erronée (voir §1.4) | Cale le calcul sur sa pratique réelle | ouvert — à lui demander |
 | 4 | **L'indemnité de logement : plafonnée au forfait de 15 % comme elle le fait, ou taxée en entier comme nous ?** Défendable pour un avantage en nature, moins pour une indemnité en espèces. | Risque de redressement | ouvert |
 | 5 | **Les primes de panier / salissure / lait / outillage / représentation sont‑elles bien hors IRPP et hors CNPS ?** | Risque de redressement | ouvert |
 | 6 | **Groupe de risque AT/MP de la clinique** (A 1,75 % / B 2,50 % / C 5 %) ? Les deux outils appliquent 1,75 %. | Sous‑déclaration CNPS | ouvert |
