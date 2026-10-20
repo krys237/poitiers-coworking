@@ -98,6 +98,7 @@ export const MODULES: Module[] = [
   { cle: "/paie/courrier", libelle: "Courrier de paie", categorie: "Paie", voir: "Consulter, imprimer", faire: "Envoyer, modifier la lettre", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/paie/planning", libelle: "Planning des absences", categorie: "Paie", voir: "Consulter", faire: "Saisir, synchroniser la paie", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/paie/primes", libelle: "Primes & retenues", categorie: "Paie", voir: "Consulter", faire: "Ajouter, modifier, supprimer", niveauVoir: 4, niveauFaire: 4 },
+  { cle: "/paie/dipe", libelle: "DIPE (impôts & CNPS)", categorie: "Paie", voir: "Consulter et exporter l'état mensuel", faire: "Comparer avec le classeur de la RH", niveauVoir: 3, niveauFaire: 4 },
   { cle: "/paie/archives", libelle: "Archives de paie", categorie: "Paie", voir: "Consulter les mois clôturés", faire: "Générer les PDF", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/bareme", libelle: "Barème", categorie: "Paie", voir: "Consulter, contrôler la source", faire: "Publier une nouvelle version", niveauVoir: 4, niveauFaire: 7 },
   { cle: "/financier", libelle: "Récapitulatif financier (grand livre)", categorie: "Finances", voir: "Consulter", faire: "Saisir la journée, justificatifs, clôturer", niveauVoir: 5, niveauFaire: 5 },

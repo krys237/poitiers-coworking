@@ -32,6 +32,7 @@ import {
   Settings,
   LogOut,
   PanelLeftOpen,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useMe } from "../auth/useMe";
 import "../auth/auth.css";
@@ -86,6 +87,7 @@ const NAV: { grp: string; items: NavItem[] }[] = [
       { to: "/paie/courrier", label: "Courrier de paie", perm: "/paie/courrier", icon: Mail },
       { to: "/paie/planning", label: "Planning des absences", perm: "/paie/planning", icon: CalendarDays },
       { to: "/paie/primes", label: "Primes & retenues (paie)", perm: "/paie/primes", icon: Receipt },
+      { to: "/paie/dipe", label: "DIPE (impôts & CNPS)", perm: "/paie/dipe", icon: FileSpreadsheet },
       { to: "/paie/archives", label: "Archives", perm: "/paie/archives", icon: Archive },
     ],
   },

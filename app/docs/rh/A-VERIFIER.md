@@ -217,7 +217,7 @@ Aucun calcul ne peut les reproduire : il faut les corriger dans le classeur avan
 | **R1** | refonte du planning : services, sexe/enfants, statuts, droit calculé, frise, chevauchements | — *(rien ; D1 ne gêne que l'import)* |
 | **R2 bis** | multi-société : un bulletin par société, un DIPE par déclarant | — *(B2 tranché)* |
 | **R2** ✅ | table `rubriquesPaie` datée + les quatre assiettes + corrections C1→C10 | — *(livré ; reste à renseigner B5, qui n'est plus bloquant)* |
-| **R3** | écran DIPE + exports + rapport d'écart | — *(R2 livré)* |
+| **R3** ✅ | écran DIPE + export CSV + récapitulatif par destinataire + rapport d'écart typé | — *(livré)* |
 | **R4** | allocation de congé (1/16) + liaison planning → paie | **A1**, **A2**, A3 |
 | **R5** | absences élargies (maternité, AT/MP, chômage technique, permissions) | — |
 | **R6** | retenue à la source médecins | **C1**, **C2** |
