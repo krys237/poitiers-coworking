@@ -9,7 +9,6 @@ import { Barres } from "@/components/app/barres";
 import { Statut } from "@/components/app/statut";
 import { Avis } from "@/components/app/avis";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Flag } from "@/components/ui/flag";
 import {
   ArrowUpRight,
@@ -545,6 +544,8 @@ export function Dashboard() {
                 <p className="text-2xs text-encre-douce">
                   {cr?.aujourdHui
                     ? "Votre compte rendu de journée a été enregistré."
+                    : cr?.dispenseFenetre || (me?.niveau ?? 0) >= 5
+                    ? "Votre compte rendu journalier est à renseigner selon votre disponibilité."
                     : `Votre compte rendu journalier doit être renseigné avant ${cr?.fenetre?.fermeture ?? 20}h.`}
                 </p>
                 <Button

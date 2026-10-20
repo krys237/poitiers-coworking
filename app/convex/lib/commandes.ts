@@ -13,7 +13,17 @@ export interface LigneCommande {
 export const totalLigne = (l: LigneCommande) => Math.round(l.quantite * l.prixUnitaire);
 export const totalCommande = (lignes: LigneCommande[]) => lignes.reduce((t, l) => t + totalLigne(l), 0);
 
-const cle = (p: string) => p.trim().toLowerCase().replace(/\s+/g, " ");
+export function normaliserCleProduit(s: string): string {
+  if (!s) return "";
+  return s
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+export const cle = (p: string) => normaliserCleProduit(p);
 
 export interface Comparaison {
   ajoutes: LigneCommande[];

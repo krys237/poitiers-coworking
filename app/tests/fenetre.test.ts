@@ -1,5 +1,4 @@
-// `npm run test:fenetre` — fenêtre de soumission des comptes rendus (Douala UTC+1, lun–ven 16h–20h).
-import { estJourOuvrable, estDansFenetre, finFenetre, prochaineOuverture, instantDouala, dateDouala, pointsPour, heureDouala } from "../convex/lib/fenetre.ts";
+import { estJourOuvrable, estDansFenetre, finFenetre, prochaineOuverture, instantDouala, dateDouala, pointsPour, heureDouala, dispenseDeFenetre, NIVEAU_DISPENSE_FENETRE } from "../convex/lib/fenetre.ts";
 
 let echecs = 0;
 const check = (nom: string, cond: boolean, detail?: unknown) => { if (cond) console.log(`  ok  ${nom}`); else { console.error(`  KO  ${nom}`, detail ?? ""); echecs++; } };
@@ -27,5 +26,15 @@ check("prochaine ouverture après 20h = lendemain 16h", prochaineOuverture(lun20
 check("vendredi 21h → lundi 16h", prochaineOuverture(ven21).toISOString() === instantDouala(2026, 9, 14, 16).toISOString(), prochaineOuverture(ven21).toISOString());
 check("dateDouala à 23h30 UTC = lendemain", dateDouala(new Date("2026-09-07T23:30:00Z")) === "2026-09-08");
 check("points : 1 dans la fenêtre, 0 hors", pointsPour(false) === 1 && pointsPour(true) === 0);
+
+// Niveaux >= 5 : dispense de créneau
+check("seuil de dispense = niveau 5", NIVEAU_DISPENSE_FENETRE === 5);
+check("employé niv. 1 : soumis à la fenêtre", !dispenseDeFenetre(1));
+check("chef d'équipe niv. 2 : soumis à la fenêtre", !dispenseDeFenetre(2));
+check("comptable niv. 3 : soumis à la fenêtre", !dispenseDeFenetre(3));
+check("RH niv. 4 : soumis à la fenêtre", !dispenseDeFenetre(4));
+check("DAF niv. 5 : dispensé de fenêtre", dispenseDeFenetre(5));
+check("DG niv. 7 : dispensé de fenêtre", dispenseDeFenetre(7));
+check("super admin niv. 8 : dispensé de fenêtre", dispenseDeFenetre(8));
 
 if (echecs) { console.error(`\n${echecs} test(s) en échec`); process.exit(1); } else console.log("\nTous les tests passent.");

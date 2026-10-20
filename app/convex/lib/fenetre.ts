@@ -6,6 +6,11 @@ export const HEURE_FERMETURE = 20; // exclu
 export const POINTS_DANS_FENETRE = 1; // 1 point de présence par compte rendu soumis dans la fenêtre
 export const POINTS_HORS_FENETRE = 0;
 
+// Décision du 19/10/2026 : les postes de niveau 5 et supérieur (DAF, DG, Super Admin)
+// ne sont plus encadrés par le créneau horaire ; dépôt libre en permanence.
+export const NIVEAU_DISPENSE_FENETRE = 5;
+export const dispenseDeFenetre = (niveau: number): boolean => niveau >= NIVEAU_DISPENSE_FENETRE;
+
 export interface HeureLocale { y: number; m: number; d: number; h: number; min: number; dow: number; iso: string; }
 
 // Composantes locales (Douala) d'un instant.

@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, Fragment } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { parseCsvLignes, exportCsvLignes, totalLigne, totalCommande } from "../../convex/lib/commandes";
+import { parseCsvLignes, exportCsvLignes, totalCommande, normaliserCleProduit } from "../../convex/lib/commandes";
 import { fcfa, messageErreur } from "../lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -37,6 +37,7 @@ import {
   MessageSquare,
   FileText,
   Printer,
+  Pencil,
 } from "lucide-react";
 import { ModalFournisseur } from "@/components/app/modal-fournisseur";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
@@ -102,10 +103,32 @@ function CommandesContenu() {
 
   const [sel, setSel] = useState<string | null>(null);
   const detail = useQuery(api.commandes.detail, sel ? { commandeId: sel as any } : "skip");
+  // Récupération des antécédents d'achats en BD (Option 1 : verrouillage automatique / Option 3 : saisie libre si base vide)
+  const antecedentsCreation = useQuery(api.commandes.derniersAchats, { type });
+  const antecedentsModif = useQuery(
+    api.commandes.derniersAchats,
+    detail ? { type: detail.type, saufCommandeId: detail._id } : "skip"
+  );
+
 
   const creer = useMutation(api.commandes.creer);
+  const modifier = useMutation(api.commandes.modifier);
+  const supprimer = useMutation(api.commandes.supprimer);
   const changerStatut = useMutation(api.commandes.changerStatut);
   const commenter = useMutation(api.commandes.commenter);
+
+  // État de modification d'un bon en préparation
+  const [enModeEdition, setEnModeEdition] = useState(false);
+  const [fModif, setFModif] = useState({
+    date: "",
+    fournisseurId: "",
+    libelle: "",
+    demandeur: "",
+    service: "",
+    commentaire: "",
+  });
+  const [lignesModif, setLignesModif] = useState<Ligne[]>([]);
+  const [enEnregistrementModif, setEnEnregistrementModif] = useState(false);
 
   const [recherche, setRecherche] = useState("");
   const [fournisseurFiltre, setFournisseurFiltre] = useState<string>("tous");
@@ -146,15 +169,15 @@ function CommandesContenu() {
   const peutValider = !!me?.droits?.["/commandes/validation"]?.faire;
   const peutGerer = !!me?.droits?.["/commandes"]?.faire;
 
-  const majLigne = (i: number, patch: Partial<Ligne>) =>
-    setLignes((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+
+
 
   const lignesValides = useMemo(
     () => lignes.filter((l) => l.produit.trim()),
     [lignes]
   );
 
-  const totalFormulaire = useMemo(
+  /* const _totalFormulaire = useMemo(
     () =>
       totalCommande(
         lignesValides.map((l) => ({
@@ -166,6 +189,7 @@ function CommandesContenu() {
     [lignesValides]
   );
 
+  */
   const toutesCommandes = useMemo(() => liste ?? [], [liste]);
 
   const countMedicale = useMemo(
@@ -281,7 +305,36 @@ function CommandesContenu() {
         });
         return;
       }
-      setLignes(parsed);
+      // Synchronisation avec les antécédents en base :
+      // Option 1 : si le produit a déjà été commandé, on verrouille avec l'historique de BD
+      // Option 3 : si premier achat (base vide ou nouveau produit), on conserve les valeurs du CSV
+      const mapAnt = new Map<string, any>();
+      if (antecedentsCreation) {
+        for (const a of antecedentsCreation) {
+          mapAnt.set(a.cle || normaliserCleProduit(a.produit), a);
+        }
+      }
+
+      const parsedAjuste = parsed.map((l) => {
+        const k = normaliserCleProduit(l.produit);
+        const ant = mapAnt.get(k);
+        if (ant) {
+          const ancQte = ant.quantite;
+          const ancDate = ant.date;
+          const rest = l.quantiteRestante;
+          const ut = rest !== undefined ? Math.max(0, ancQte - rest) : l.quantiteUtilisee;
+          return {
+            ...l,
+            ancienneDate: ancDate,
+            ancienneQuantite: ancQte,
+            quantiteUtilisee: ut,
+            prixUnitaire: l.prixUnitaire || ant.prixUnitaire || 0,
+          };
+        }
+        return l;
+      });
+
+      setLignes(parsedAjuste);
       setOuvrirForm(true);
       toast.success(`${parsed.length} article(s) importé(s) du CSV`, {
         description: "Vérifiez les données du bon de commande avant validation.",
@@ -331,6 +384,104 @@ function CommandesContenu() {
       toast.error("Erreur de création", { description: messageErreur(err) });
     } finally {
       setEnCreation(false);
+    }
+  };
+
+  const demarrerModification = () => {
+    if (!detail) return;
+    setFModif({
+      date: detail.date,
+      fournisseurId: detail.fournisseurId ?? "",
+      libelle: detail.libelle ?? "",
+      demandeur: detail.demandeur ?? "",
+      service: detail.service ?? "",
+      commentaire: "",
+    });
+    setLignesModif(
+      detail.lignes.map((l: any) => ({
+        produit: l.produit,
+        dci: l.dci ?? "",
+        ancienneDate: l.ancienneDate ?? "",
+        ancienneQuantite: l.ancienneQuantite,
+        quantiteUtilisee: l.quantiteUtilisee,
+        quantiteRestante: l.quantiteRestante,
+        quantite: l.quantite,
+        prixUnitaire: l.prixUnitaire,
+      }))
+    );
+    setEnModeEdition(true);
+  };
+
+  const totalLignesModif = useMemo(
+    () =>
+      totalCommande(
+        lignesModif
+          .filter((l) => l.produit.trim())
+          .map((l) => ({
+            ...l,
+            quantite: Number(l.quantite) || 0,
+            prixUnitaire: Number(l.prixUnitaire) || 0,
+          }))
+      ),
+    [lignesModif]
+  );
+
+  const onEnregistrerModif = async (etSoumettre = false) => {
+    if (!detail) return;
+    const lignesValidesModif = lignesModif.filter((l) => l.produit.trim());
+    if (!lignesValidesModif.length) {
+      toast.error("Veuillez renseigner au moins une ligne de produit.");
+      return;
+    }
+    setEnEnregistrementModif(true);
+    try {
+      await modifier({
+        commandeId: detail._id,
+        type: detail.type,
+        date: fModif.date,
+        fournisseurId: fModif.fournisseurId ? (fModif.fournisseurId as any) : undefined,
+        libelle: fModif.libelle.trim() || undefined,
+        demandeur: fModif.demandeur.trim() || (me?.nom ?? ""),
+        service: fModif.service.trim() || undefined,
+        commentaire: fModif.commentaire.trim() || undefined,
+        lignes: lignesValidesModif.map((l) => ({
+          produit: l.produit.trim(),
+          dci: l.dci?.trim() || undefined,
+          ancienneDate: l.ancienneDate || undefined,
+          ancienneQuantite: l.ancienneQuantite !== undefined ? Number(l.ancienneQuantite) : undefined,
+          quantiteUtilisee: l.quantiteUtilisee !== undefined ? Number(l.quantiteUtilisee) : undefined,
+          quantiteRestante: l.quantiteRestante !== undefined ? Number(l.quantiteRestante) : undefined,
+          quantite: Number(l.quantite) || 1,
+          prixUnitaire: Number(l.prixUnitaire) || 0,
+        })),
+      });
+
+      if (etSoumettre) {
+        await changerStatut({ commandeId: detail._id, statut: "en_attente" });
+        toast.success(`Bon ${detail.reference} mis à jour et soumis à la Direction`);
+      } else {
+        toast.success(`Bon ${detail.reference} mis à jour avec succès (enregistré en préparation)`);
+      }
+      setEnModeEdition(false);
+    } catch (err) {
+      toast.error("Erreur lors de la modification", { description: messageErreur(err) });
+    } finally {
+      setEnEnregistrementModif(false);
+    }
+  };
+
+  const onSupprimerBrouillon = async () => {
+    if (!detail) return;
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer définitivement le bon ${detail.reference} ?`)) {
+      return;
+    }
+    try {
+      await supprimer({ commandeId: detail._id });
+      toast.success(`Bon ${detail.reference} supprimé avec succès`);
+      setSel(null);
+      setEnModeEdition(false);
+    } catch (err) {
+      toast.error("Erreur lors de la suppression", { description: messageErreur(err) });
     }
   };
 
@@ -1011,6 +1162,7 @@ function CommandesContenu() {
                   dateCommande={f.date}
                   editable={true}
                   categorie={type}
+                  antecedents={antecedentsCreation}
                 />
               </div>
 
@@ -1212,7 +1364,30 @@ function CommandesContenu() {
                                     </div>
 
                                     <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-                                      <Button
+                                      {(detail.statut === "preparation" || detail.statut === "rejetee") && peutGerer && !enModeEdition && (
+                                          <>
+                                            <Button
+                                              size="sm"
+                                              onClick={demarrerModification}
+                                              className="h-8 text-xs gap-1.5 bg-ocean-profond hover:bg-ocean-nuit text-white font-bold shadow-2xs cursor-pointer"
+                                              title="Modifier ce bon de commande en cours de préparation"
+                                            >
+                                              <Pencil className="h-3.5 w-3.5" />
+                                              Modifier ce bon
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={onSupprimerBrouillon}
+                                              className="h-8 text-xs gap-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
+                                              title="Supprimer ce bon de commande"
+                                            >
+                                              <Trash2 className="h-3.5 w-3.5" />
+                                              Supprimer
+                                            </Button>
+                                          </>
+                                        )}
+                                        <Button
                                         id="btn-bon-proforma"
                                         size="sm"
                                         variant="outline"
@@ -1243,7 +1418,7 @@ function CommandesContenu() {
                                       </Button>
                                       <button
                                         type="button"
-                                        onClick={() => setSel(null)}
+                                        onClick={() => { setSel(null); setEnModeEdition(false); }}
                                         className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
                                         title="Fermer la vue détaillée"
                                       >
@@ -1260,6 +1435,151 @@ function CommandesContenu() {
                                     valideLe={detail.valideLe}
                                     validateur={detail.validateur}
                                   />
+
+                                  {/* Mode Modification d'un bon en préparation */}
+                                  {enModeEdition && (detail.statut === "preparation" || detail.statut === "rejetee") ? (
+                                    <div className="space-y-4 rounded-xl border border-amber-300 bg-amber-50/50 p-4 shadow-xs animate-in fade-in duration-200">
+                                      <div className="flex items-center justify-between border-b border-amber-200 pb-2">
+                                        <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
+                                          <Pencil className="h-4 w-4 text-amber-700" />
+                                          <span>Modification du bon {detail.reference} ({detail.type})</span>
+                                        </div>
+                                        <Flag variant="a-renseigner" size="xs">
+                                          Édition active
+                                        </Flag>
+                                      </div>
+
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                                        <div>
+                                          <label className="text-2xs font-bold uppercase tracking-wider text-slate-700 block mb-1">
+                                            Date du bon
+                                          </label>
+                                          <Input
+                                            type="date"
+                                            value={fModif.date}
+                                            onChange={(e) => setFModif({ ...fModif, date: e.target.value })}
+                                            className="h-8 text-xs bg-white font-mono"
+                                          />
+                                        </div>
+
+                                        <div>
+                                          <label className="text-2xs font-bold uppercase tracking-wider text-slate-700 block mb-1">
+                                            Fournisseur
+                                          </label>
+                                          <select
+                                            value={fModif.fournisseurId}
+                                            onChange={(e) => setFModif({ ...fModif, fournisseurId: e.target.value })}
+                                            className="h-8 w-full rounded-md border border-input bg-white px-2.5 text-xs text-encre focus:border-ocean-profond focus:outline-none"
+                                          >
+                                            <option value="">Sélectionner un fournisseur</option>
+                                            {(fournisseurs ?? []).map((fourn: any) => (
+                                              <option key={String(fourn._id)} value={String(fourn._id)}>
+                                                {fourn.nom} {fourn.ville ? `(${fourn.ville})` : ""}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+
+                                        <div>
+                                          <label className="text-2xs font-bold uppercase tracking-wider text-slate-700 block mb-1">
+                                            Libellé / Objet
+                                          </label>
+                                          <Input
+                                            value={fModif.libelle}
+                                            onChange={(e) => setFModif({ ...fModif, libelle: e.target.value })}
+                                            placeholder="Objet de la commande..."
+                                            className="h-8 text-xs bg-white"
+                                          />
+                                        </div>
+
+                                        <div>
+                                          <label className="text-2xs font-bold uppercase tracking-wider text-slate-700 block mb-1">
+                                            Demandeur
+                                          </label>
+                                          <Input
+                                            value={fModif.demandeur}
+                                            onChange={(e) => setFModif({ ...fModif, demandeur: e.target.value })}
+                                            className="h-8 text-xs bg-white"
+                                          />
+                                        </div>
+
+                                        <div>
+                                          <label className="text-2xs font-bold uppercase tracking-wider text-slate-700 block mb-1">
+                                            Service
+                                          </label>
+                                          <Input
+                                            value={fModif.service}
+                                            onChange={(e) => setFModif({ ...fModif, service: e.target.value })}
+                                            placeholder="Pharmacie, Accueil..."
+                                            className="h-8 text-xs bg-white"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div className="space-y-1.5 pt-1">
+                                        <div className="flex items-center justify-between">
+                                          <label className="text-2xs font-bold uppercase tracking-wider text-slate-700">
+                                            Articles & Consommations (Modifiables)
+                                          </label>
+                                          <span className="text-3xs text-slate-500 font-mono">
+                                            Nouveau montant : <b className="text-ocean-profond font-bold">{fcfa(totalLignesModif)}</b>
+                                          </span>
+                                        </div>
+                                        <RegistreCommandeTable
+                                          lignes={lignesModif}
+                                          onChange={setLignesModif}
+                                          dateCommande={fModif.date}
+                                          editable={true}
+                                          categorie={detail.type}
+                                          antecedents={antecedentsModif}
+                                        />
+                                      </div>
+
+                                      <div>
+                                        <label className="text-2xs font-bold uppercase tracking-wider text-slate-700 block mb-1">
+                                          Note d'ajustement ou motif de modification (optionnel)
+                                        </label>
+                                        <Input
+                                          value={fModif.commentaire}
+                                          onChange={(e) => setFModif({ ...fModif, commentaire: e.target.value })}
+                                          placeholder="Ex: Rectification des quantités demandées..."
+                                          className="h-8 text-xs bg-white"
+                                        />
+                                      </div>
+
+                                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-amber-200">
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => setEnModeEdition(false)}
+                                          className="text-xs"
+                                        >
+                                          Annuler
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          disabled={enEnregistrementModif || !lignesModif.some((l) => l.produit.trim())}
+                                          onClick={() => onEnregistrerModif(false)}
+                                          className="bg-white border-ocean-profond text-ocean-profond hover:bg-ocean-ceruleen/10 text-xs font-bold gap-1.5"
+                                        >
+                                          <Check className="h-3.5 w-3.5" />
+                                          {enEnregistrementModif ? "Enregistrement..." : "Enregistrer les modifications"}
+                                        </Button>
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          disabled={enEnregistrementModif || !lignesModif.some((l) => l.produit.trim())}
+                                          onClick={() => onEnregistrerModif(true)}
+                                          className="bg-ocean-profond hover:bg-ocean-nuit text-white text-xs font-bold gap-1.5 shadow-xs"
+                                        >
+                                          <Send className="h-3.5 w-3.5" />
+                                          {enEnregistrementModif ? "Enregistrement..." : "Enregistrer & Soumettre à la Direction"}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ) : null}
 
                                   {/* Cartouche des métadonnées */}
                                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 rounded-xl bg-papier/60 border border-filet text-xs">
@@ -1300,6 +1620,7 @@ function CommandesContenu() {
                                       dateCommande={detail.date}
                                       editable={false}
                                       categorie={detail.type}
+                                      antecedents={antecedentsCreation}
                                     />
                                   </div>
 
@@ -1432,15 +1753,28 @@ function CommandesContenu() {
                                         </div>
 
                                         {peutGerer && (
-                                          <Button
-                                            size="sm"
-                                            disabled={enTransition}
-                                            onClick={() => transitionStatut("en_attente")}
-                                            className="bg-ocean-profond hover:bg-ocean-nuit text-white text-xs font-bold gap-1.5 shrink-0 shadow-xs"
-                                          >
-                                            <Send className="h-3.5 w-3.5" />
-                                            Soumettre à la Direction Générale
-                                          </Button>
+                                          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                                            {!enModeEdition && (
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={demarrerModification}
+                                                className="bg-white text-ocean-profond border-ocean-profond/40 hover:bg-ocean-ceruleen/10 text-xs font-bold gap-1.5"
+                                              >
+                                                <Pencil className="h-3.5 w-3.5" />
+                                                Modifier ce bon
+                                              </Button>
+                                            )}
+                                            <Button
+                                              size="sm"
+                                              disabled={enTransition}
+                                              onClick={() => transitionStatut("en_attente")}
+                                              className="bg-ocean-profond hover:bg-ocean-nuit text-white text-xs font-bold gap-1.5 shrink-0 shadow-xs"
+                                            >
+                                              <Send className="h-3.5 w-3.5" />
+                                              Soumettre à la Direction Générale
+                                            </Button>
+                                          </div>
                                         )}
                                       </div>
                                     )}
@@ -1832,7 +2166,7 @@ function CommandesContenu() {
       <ModalFournisseur
         ouvert={modalFournisseurOuverte}
         onClose={() => setModalFournisseurOuverte(false)}
-        onFournisseurCree={(id, nom) => {
+        onFournisseurCree={(id, _nom) => {
           setF((prev) => ({ ...prev, fournisseurId: id }));
           setFournisseurFiltre(id);
         }}

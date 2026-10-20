@@ -1,10 +1,11 @@
-import { useState } from "react";
-import { Plus, Trash2, Calendar, Archive, ArrowRight, TrendingDown } from "lucide-react";
+import { useMemo, useEffect } from "react";
+import { Plus, Trash2, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { fcfa } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ChampDesignationAutocomplete } from "./champ-designation-autocomplete";
+import { normaliserCleProduit } from "../../../convex/lib/commandes";
 
 export interface LigneRegistre {
   produit: string;
@@ -17,12 +18,23 @@ export interface LigneRegistre {
   prixUnitaire: number;
 }
 
+export interface AntecedentAchat {
+  cle: string;
+  produit: string;
+  date: string;
+  quantite: number;
+  prixUnitaire: number;
+  reference: string;
+  commandeId: string;
+}
+
 interface RegistreCommandeTableProps {
   lignes: LigneRegistre[];
   onChange?: (nouvellesLignes: LigneRegistre[]) => void;
   dateCommande?: string;
   editable?: boolean;
   categorie?: "medicale" | "reactifs_labo" | "fourniture";
+  antecedents?: AntecedentAchat[] | Record<string, AntecedentAchat> | Map<string, AntecedentAchat>;
 }
 
 export function RegistreCommandeTable({
@@ -31,29 +43,126 @@ export function RegistreCommandeTable({
   dateCommande,
   editable = false,
   categorie,
+  antecedents,
 }: RegistreCommandeTableProps) {
+  // Indexation mémoire des antécédents d'achats par clé produit normalisée (sans accents/minuscules)
+  const antecedentsMap = useMemo(() => {
+    const map = new Map<string, AntecedentAchat>();
+    if (!antecedents) return map;
+    if (Array.isArray(antecedents)) {
+      for (const a of antecedents) {
+        const k = a.cle || normaliserCleProduit(a.produit);
+        if (k) map.set(k, a);
+      }
+    } else if (antecedents instanceof Map) {
+      return antecedents;
+    } else {
+      for (const [k, v] of Object.entries(antecedents)) {
+        map.set(normaliserCleProduit(k), v);
+      }
+    }
+    return map;
+  }, [antecedents]);
+
+  // Synchronisation automatique des lignes existantes lorsque les antécédents sont chargés depuis la BD
+  useEffect(() => {
+    if (!editable || !onChange || !antecedentsMap.size || !lignes.length) return;
+    let aModifie = false;
+    const maj = lignes.map((l) => {
+      if (!l.produit.trim()) return l;
+      const k = normaliserCleProduit(l.produit);
+      const ant = antecedentsMap.get(k);
+      if (!ant) return l;
+
+      let modifLigne = false;
+      const ancDate = ant.date;
+      const ancQte = ant.quantite;
+      const item = { ...l };
+
+      if (item.ancienneDate !== ancDate) {
+        item.ancienneDate = ancDate;
+        modifLigne = true;
+      }
+      if (item.ancienneQuantite !== ancQte) {
+        item.ancienneQuantite = ancQte;
+        modifLigne = true;
+      }
+      if (!item.prixUnitaire || Number(item.prixUnitaire) === 0) {
+        item.prixUnitaire = ant.prixUnitaire;
+        modifLigne = true;
+      }
+
+      // Calcul dynamique de quantiteUtilisee = ancienneQuantite - quantiteRestante
+      if (item.quantiteRestante !== undefined && item.quantiteRestante !== null) {
+        const nouvUt = Math.max(0, ancQte - Number(item.quantiteRestante));
+        if (item.quantiteUtilisee !== nouvUt) {
+          item.quantiteUtilisee = nouvUt;
+          modifLigne = true;
+        }
+      }
+
+      if (modifLigne) aModifie = true;
+      return item;
+    });
+
+    if (aModifie) {
+      onChange(maj);
+    }
+  }, [antecedentsMap, editable]);
+
   const majProduitEtPrix = (index: number, produit: string, prixSuggere?: number) => {
     if (!onChange) return;
     const copie = [...lignes];
     const item = { ...copie[index], produit };
-    if (prixSuggere && (!item.prixUnitaire || Number(item.prixUnitaire) === 0)) {
-      item.prixUnitaire = prixSuggere;
+    const k = normaliserCleProduit(produit);
+    const ant = k ? antecedentsMap.get(k) : undefined;
+
+    if (ant) {
+      // Option 1 : Antécédent en base trouvé -> verrouillage et pré-remplissage automatique
+      item.ancienneDate = ant.date;
+      item.ancienneQuantite = ant.quantite;
+      if (!item.prixUnitaire || Number(item.prixUnitaire) === 0) {
+        item.prixUnitaire = ant.prixUnitaire || prixSuggere || 0;
+      }
+      if (item.quantiteRestante !== undefined && item.quantiteRestante !== null) {
+        item.quantiteUtilisee = Math.max(0, ant.quantite - Number(item.quantiteRestante));
+      }
+    } else {
+      // Option 3 : Aucun antécédent (base vide ou nouveau produit) -> saisie manuelle libre
+      if (prixSuggere && (!item.prixUnitaire || Number(item.prixUnitaire) === 0)) {
+        item.prixUnitaire = prixSuggere;
+      }
     }
+
     copie[index] = item;
     onChange(copie);
   };
+
   const majLigne = (index: number, champ: keyof LigneRegistre, valeur: any) => {
     if (!onChange) return;
     const copie = [...lignes];
     const item = { ...copie[index], [champ]: valeur };
+    const k = normaliserCleProduit(item.produit);
+    const ant = k ? antecedentsMap.get(k) : undefined;
+    const anc = Number(ant?.quantite ?? item.ancienneQuantite) || 0;
 
-    // Si on modifie ancienneQuantite ou quantiteUtilisee et que quantiteRestante n'a pas été forcée,
-    // on aide l'utilisateur en pré-calculant quantiteRestante = Math.max(0, ancienne - utilisee)
-    if (champ === "ancienneQuantite" || champ === "quantiteUtilisee") {
-      const anc = Number(champ === "ancienneQuantite" ? valeur : item.ancienneQuantite) || 0;
-      const ut = Number(champ === "quantiteUtilisee" ? valeur : item.quantiteUtilisee) || 0;
-      if (anc > 0 && ut >= 0) {
+    // Calcul bidirectionnel automatique : Ancienne Qté = Utilisée + Restante
+    if (champ === "quantiteRestante") {
+      const rest = Number(valeur) || 0;
+      if (anc > 0) {
+        item.quantiteUtilisee = Math.max(0, anc - rest);
+      }
+    } else if (champ === "quantiteUtilisee") {
+      const ut = Number(valeur) || 0;
+      if (anc > 0) {
         item.quantiteRestante = Math.max(0, anc - ut);
+      }
+    } else if (champ === "ancienneQuantite") {
+      const nouvAnc = Number(valeur) || 0;
+      if (item.quantiteRestante !== undefined && item.quantiteRestante > 0) {
+        item.quantiteUtilisee = Math.max(0, nouvAnc - item.quantiteRestante);
+      } else if (item.quantiteUtilisee !== undefined && item.quantiteUtilisee > 0) {
+        item.quantiteRestante = Math.max(0, nouvAnc - item.quantiteUtilisee);
       }
     }
 
@@ -91,7 +200,7 @@ export function RegistreCommandeTable({
     <div className="rounded-xl border border-filet overflow-hidden bg-surface shadow-2xs">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
-          {/* En-tête multi-niveaux inspiré du registre manuscrit */}
+          {/* En-tête multi-niveaux inspiré du registre manuscrit de pharmacie */}
           <thead>
             <tr className="bg-slate-100/80 border-b border-filet text-3xs font-bold uppercase text-slate-700 tracking-wider">
               <th rowSpan={2} className="p-2.5 w-10 text-center border-r border-filet">
@@ -100,14 +209,30 @@ export function RegistreCommandeTable({
               <th rowSpan={2} className="p-2.5 min-w-[200px] border-r border-filet">
                 Désignation
               </th>
-              <th colSpan={2} className="p-2 text-center border-r border-filet bg-blue-50/60 text-ocean-profond">
-                Ancienne commande
+              <th
+                colSpan={2}
+                className="p-2 text-center border-r border-filet bg-blue-50/60 text-ocean-profond"
+                title="Antécédent d'achat : verrouillé automatiquement dès qu'un achat antérieur existe, ou saisie manuelle si 1er achat"
+              >
+                <div className="flex flex-col items-center justify-center gap-0.5">
+                  <span className="font-bold tracking-wider">Ancienne commande</span>
+                  <span className="inline-flex items-center gap-1 text-4xs font-medium px-2 py-0.5 rounded-full bg-white/90 border border-blue-200/80 text-ocean-profond shadow-2xs normal-case tracking-normal">
+                    <Lock className="h-2.5 w-2.5 shrink-0 text-ocean-profond" />
+                    <span>Auto &middot; Libre si vierge</span>
+                  </span>
+                </div>
               </th>
-              <th rowSpan={2} className="p-2.5 text-right w-24 border-r border-filet bg-amber-50/40 text-amber-900">
-                Qté utilisée
+              <th rowSpan={2} className="p-2.5 text-right w-24 border-r border-filet bg-amber-50/40 text-amber-900" title="Qté consommée = Ancienne Qté − Qté restante">
+                <div className="flex flex-col items-end">
+                  <span>Qté utilisée</span>
+                  <span className="text-4xs font-mono font-normal opacity-70">Anc. − Rest.</span>
+                </div>
               </th>
-              <th rowSpan={2} className="p-2.5 text-right w-24 border-r border-filet bg-emerald-50/40 text-emerald-900">
-                Qté restante
+              <th rowSpan={2} className="p-2.5 text-right w-24 border-r border-filet bg-emerald-50/40 text-emerald-900" title="Pointage physique en rayon">
+                <div className="flex flex-col items-end">
+                  <span>Qté restante</span>
+                  <span className="text-4xs font-normal opacity-70">En rayon</span>
+                </div>
               </th>
               <th colSpan={2} className="p-2 text-center border-r border-filet bg-purple-50/60 text-purple-900">
                 Nouvelle commande
@@ -144,6 +269,17 @@ export function RegistreCommandeTable({
               const pu = Number(l.prixUnitaire) || 0;
               const totalLigne = qte * pu;
 
+              const k = normaliserCleProduit(l.produit);
+              const ant = k ? antecedentsMap.get(k) : undefined;
+              const aUnAntecedent = Boolean(ant);
+
+              const affichageDateAnc = aUnAntecedent ? ant?.date : l.ancienneDate;
+              const affichageQteAnc = aUnAntecedent
+                ? ant?.quantite
+                : l.ancienneQuantite !== undefined
+                ? l.ancienneQuantite
+                : undefined;
+
               if (!editable) {
                 // Rendu en mode consultation (Fiche détaillée ou Registre)
                 return (
@@ -152,13 +288,24 @@ export function RegistreCommandeTable({
                       {i + 1}
                     </td>
                     <td className="p-2.5 font-semibold text-ocean-nuit border-r border-filet">
-                      {l.produit || <span className="text-slate-400 italic">Sans libellé</span>}
+                      <div className="flex items-center gap-1.5">
+                        <span>{l.produit || <span className="text-slate-400 italic">Sans libellé</span>}</span>
+                        {aUnAntecedent && (
+                          <span
+                            className="inline-flex items-center gap-0.5 text-4xs font-mono px-1 py-0.2 rounded bg-blue-50 text-ocean-profond border border-blue-200"
+                            title={`Historique issu du bon ${ant?.reference}`}
+                          >
+                            <Lock className="h-2.5 w-2.5" />
+                            {ant?.reference}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-2 text-center font-mono text-2xs text-slate-600 border-r border-filet bg-blue-50/10">
-                      {l.ancienneDate ? l.ancienneDate : "—"}
+                      {affichageDateAnc || "—"}
                     </td>
                     <td className="p-2 text-right font-mono font-medium text-slate-700 border-r border-filet bg-blue-50/10">
-                      {l.ancienneQuantite !== undefined ? l.ancienneQuantite : "—"}
+                      {affichageQteAnc !== undefined ? affichageQteAnc : "—"}
                     </td>
                     <td className="p-2 text-right font-mono font-medium text-amber-800 border-r border-filet bg-amber-50/10">
                       {l.quantiteUtilisee !== undefined ? l.quantiteUtilisee : "—"}
@@ -195,14 +342,14 @@ export function RegistreCommandeTable({
                 );
               }
 
-              // Rendu en mode saisie (Formulaire de commande / Registre)
+              // Rendu en mode saisie (Formulaire de commande / Registre éditable)
               return (
                 <tr key={i} className="hover:bg-slate-50/50">
                   <td className="p-2 text-center text-slate-400 font-mono text-2xs border-r border-filet">
                     {i + 1}
                   </td>
 
-                  {/* 1. Désignation avec autocomplétion prédictive DataForm */}
+                  {/* 1. Désignation avec autocomplétion prédictive */}
                   <td className="p-2 border-r border-filet min-w-[220px]">
                     <ChampDesignationAutocomplete
                       valeur={l.produit}
@@ -220,30 +367,53 @@ export function RegistreCommandeTable({
 
                   {/* 2. Ancienne commande - Date */}
                   <td className="p-1.5 border-r border-filet bg-blue-50/10">
-                    <Input
-                      type="date"
-                      value={l.ancienneDate ?? ""}
-                      onChange={(e) => majLigne(i, "ancienneDate", e.target.value)}
-                      className="h-7 text-2xs font-mono bg-white border-filet text-center px-1"
-                    />
+                    {aUnAntecedent ? (
+                      <div
+                        className="h-7 px-1.5 flex items-center justify-center gap-1 text-2xs font-mono font-semibold rounded bg-blue-50/80 border border-blue-200 text-blue-900 cursor-help select-none"
+                        title={`🔒 Verrouillé (Option 1) : Historique issu automatiquement du bon ${ant?.reference} (${ant?.date})`}
+                      >
+                        <Lock className="h-2.5 w-2.5 text-blue-700 shrink-0" />
+                        <span className="truncate">{affichageDateAnc}</span>
+                      </div>
+                    ) : (
+                      <Input
+                        type="date"
+                        value={l.ancienneDate ?? ""}
+                        onChange={(e) => majLigne(i, "ancienneDate", e.target.value)}
+                        className="h-7 text-2xs font-mono bg-white border-filet text-center px-1"
+                        placeholder="AAAA-MM-JJ"
+                        title="Option 3 : Saisie manuelle libre (aucun antécédent en base pour ce produit)"
+                      />
+                    )}
                   </td>
 
                   {/* 2. Ancienne commande - Qté */}
                   <td className="p-1.5 border-r border-filet bg-blue-50/10">
-                    <Input
-                      type="number"
-                      min={0}
-                      value={l.ancienneQuantite ?? ""}
-                      placeholder="0"
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) =>
-                        majLigne(i, "ancienneQuantite", e.target.value === "" ? 0 : Number(e.target.value))
-                      }
-                      className="h-7 text-xs text-right font-mono bg-white border-filet"
-                    />
+                    {aUnAntecedent ? (
+                      <div
+                        className="h-7 px-2 flex items-center justify-end gap-1 text-xs font-mono font-bold rounded bg-blue-50/80 border border-blue-200 text-blue-900 cursor-help select-none"
+                        title={`🔒 Verrouillé (Option 1) : ${ant?.quantite} unité(s) commandée(s) sur le bon ${ant?.reference}`}
+                      >
+                        <Lock className="h-2.5 w-2.5 text-blue-700 shrink-0" />
+                        <span>{affichageQteAnc}</span>
+                      </div>
+                    ) : (
+                      <Input
+                        type="number"
+                        min={0}
+                        value={l.ancienneQuantite ?? ""}
+                        placeholder="0"
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) =>
+                          majLigne(i, "ancienneQuantite", e.target.value === "" ? 0 : Number(e.target.value))
+                        }
+                        className="h-7 text-xs text-right font-mono bg-white border-filet"
+                        title="Option 3 : Saisie manuelle libre (aucun antécédent en base pour ce produit)"
+                      />
+                    )}
                   </td>
 
-                  {/* 3. Qté utilisée */}
+                  {/* 3. Qté utilisée (calculée automatiquement si restante renseignée, ou saisissable) */}
                   <td className="p-1.5 border-r border-filet bg-amber-50/10">
                     <Input
                       type="number"
@@ -254,11 +424,12 @@ export function RegistreCommandeTable({
                       onChange={(e) =>
                         majLigne(i, "quantiteUtilisee", e.target.value === "" ? 0 : Number(e.target.value))
                       }
-                      className="h-7 text-xs text-right font-mono bg-white border-filet text-amber-900 font-medium"
+                      className="h-7 text-xs text-right font-mono bg-amber-50/30 border-amber-200 text-amber-900 font-bold"
+                      title="Quantité utilisée/consommée = Ancienne Qté − Qté restante (calculée automatiquement)"
                     />
                   </td>
 
-                  {/* 4. Qté restante */}
+                  {/* 4. Qté restante (Pointage physique en rayon) */}
                   <td className="p-1.5 border-r border-filet bg-emerald-50/10">
                     <Input
                       type="number"
@@ -269,7 +440,8 @@ export function RegistreCommandeTable({
                       onChange={(e) =>
                         majLigne(i, "quantiteRestante", e.target.value === "" ? 0 : Number(e.target.value))
                       }
-                      className="h-7 text-xs text-right font-mono bg-white border-filet text-emerald-900 font-semibold"
+                      className="h-7 text-xs text-right font-mono bg-emerald-50/30 border-emerald-300 text-emerald-900 font-bold"
+                      title="Quantité constatée en rayon lors du pointage de stock"
                     />
                   </td>
 
@@ -353,14 +525,16 @@ export function RegistreCommandeTable({
             variant="outline"
             size="sm"
             onClick={ajouterLigne}
-            className="h-7 text-xs gap-1 border-filet bg-white hover:bg-purple-50 text-purple-950 font-semibold"
+            className="h-7 text-xs gap-1 border-filet bg-white hover:bg-purple-50 text-purple-950 font-semibold cursor-pointer"
           >
             <Plus className="h-3 w-3 text-purple-700" />
             Ajouter une ligne au registre
           </Button>
-          <span className="text-3xs text-slate-500 font-mono">
-            {lignes.filter((l) => l.produit.trim()).length} article(s) renseigné(s)
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-3xs text-slate-500 font-mono">
+              {lignes.filter((l) => l.produit.trim()).length} article(s) renseigné(s)
+            </span>
+          </div>
         </div>
       )}
     </div>
