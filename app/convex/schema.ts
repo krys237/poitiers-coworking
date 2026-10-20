@@ -447,6 +447,23 @@ export default defineSchema({
     majLe: v.optional(v.string()),
   }).index("by_categorie_periode", ["categorie", "periode"]),
 
+  // Jours fériés, par année. ADMINISTRABLE : les fêtes religieuses et les dates pascales sont
+  // fixées chaque année par acte administratif — elles ne peuvent pas être codées en dur
+  // (voir lib/joursFeriesCameroun.ts et docs/rh/CALIBRATION-PLANNING.md).
+  joursFeries: defineTable({
+    date: v.string(),                 // "YYYY-MM-DD"
+    libelle: v.string(),
+    chome: v.boolean(),               // false = férié travaillé dans l'entreprise, donc décompté
+    annee: v.number(),               // redondant avec `date`, mais indexable
+    origine: v.union(                 // d'où vient la date : sert à signaler ce qui reste à confirmer
+      v.literal("fixe"),              // date fixe du calendrier camerounais
+      v.literal("pascal"),            // calculée par le comput de Pâques
+      v.literal("saisi"),             // saisie à la main (Aïd, report administratif)
+    ),
+  })
+    .index("by_date", ["date"])
+    .index("by_annee", ["annee"]),
+
   // Journal d'activité : rôles/activations, clôtures, appels API, contrôles du barème (lib/journal.ts).
   journalActivite: defineTable({
     date: v.string(),                 // ISO
