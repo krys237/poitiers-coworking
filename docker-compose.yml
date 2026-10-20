@@ -1,0 +1,28 @@
+# À utiliser sur le Windows Server (Docker Desktop), PAS dans la CI GitLab.
+# La CI build + push les images sur Docker Hub ; ce fichier ne fait que les récupérer et les lancer.
+# Namespace Docker Hub : timotheefredy (même compte que hospital-management-dmi).
+#
+# Usage (une fois, car dépôts privés) :
+#   docker login -u timotheefredy
+# Puis à chaque mise à jour :
+#   docker compose pull && docker compose up -d
+# Pour pointer sur la version "dev" (staging) au lieu de "latest" (prod) :
+#   TAG=dev docker compose pull && TAG=dev docker compose up -d
+
+services:
+  frontend:
+    image: docker.io/${DOCKERHUB_NAMESPACE}/coworking-frontend:${TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+
+  api-proxy:
+    image: docker.io/${DOCKERHUB_NAMESPACE}/coworking-api-proxy:${TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    environment:
+      CONVEX_SITE_URL: ${CONVEX_SITE_URL}
+      FINANCIAL_API_KEY: ${FINANCIAL_API_KEY}
+      ALLOWED_IPS: ${ALLOWED_IPS}
+      RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-30}
