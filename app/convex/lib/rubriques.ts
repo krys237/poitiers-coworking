@@ -70,6 +70,9 @@ export const RUBRIQUES_DEFAUT: Rubrique[] = [
   r("66111", "Salaire du mois", 10, true, true, true, true, true),
   r("66112", "Forfait heures supplémentaires", 20, true, true, true, true, false),
   r("66116", "Prime d'ancienneté", 30, true, true, true, true, false),
+  // Second élément d'ancienneté (colonne distincte du récapitulatif, demande du 21/10/2026) :
+  // même nature fiscale et sociale que la prime d'ancienneté.
+  r("66117", "Ancienneté (colonne distincte)", 35, true, true, true, true, false),
   r("6613", "Congés payés", 40, true, true, true, false, false),
   r("66121", "Prime de transport", 50, true, true, /* cotisable */ false, false, true),
   r("66122", "Prime d'assiduité", 60, true, true, true, true, true),
@@ -286,6 +289,7 @@ export function validerRubriques(rubriques: Rubrique[]): string[] {
  */
 export const CHAMP_SAISIE_VERS_RUBRIQUE: Record<string, string> = {
   primesVariables: "66125",
+  ancienneteSeparee: "66117",
   transport: "66121",
   primeAssiduite: "66122",
   indemniteLogement: "6631",

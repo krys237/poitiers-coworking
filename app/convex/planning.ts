@@ -2,6 +2,7 @@ import { query, mutation, QueryCtx, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { requireDroit } from "./lib/authz";
+import { salaireDeBase } from "./lib/paie";
 import { resumeMois, joursCalendaires, joursDansMois, periodesTouchees, moisDeService, PAYE_PAR_DEFAUT, CONGES_PAR_MOIS_DEFAUT, TypeAbsence } from "./lib/absences";
 // Planning annuel (lot R1) : decompte en jours OUVRABLES et droit a conge.
 import {
@@ -491,7 +492,7 @@ export const remuneration = query({
     await requireDroit(ctx, "/paie/planning");
     const e = await ctx.db.get(a.employeId);
     if (!e) throw new Error("Employé introuvable.");
-    return remunererAbsence(a.type, a.jours, e.salaireBrut, {
+    return remunererAbsence(a.type, a.jours, salaireDeBase(e), {
       diviseurJournalier: e.joursBase ?? 30,
       rangMois: a.rangMois,
     });

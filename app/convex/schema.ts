@@ -112,7 +112,15 @@ export default defineSchema({
     email: v.optional(v.string()),    // destinataire du courrier de paie
     whatsapp: v.optional(v.string()), // numéro WhatsApp (+237…) : courrier de paie par WhatsApp
     societe: SOCIETE,
-    salaireBrut: v.number(),          // brut mensuel de référence
+    // Le SALAIRE DE BASE mensuel : c'est lui qui donne le salaire journalier (÷ joursBase) et
+    // dont découle le « Salaire du mois ». Les primes (transport, assiduité, logement,
+    // ancienneté…) s'y AJOUTENT dans le récapitulatif du mois : elles ne doivent jamais y être
+    // incluses, sous peine d'être comptées deux fois.
+    salaireBase: v.optional(v.number()),
+    // Ancien nom du même montant (il n'a jamais été un brut, malgré son nom). Conservé le temps
+    // de la migration `employes:migrerSalaireBase`, à supprimer ensuite. Lire via
+    // `lib/paie.salaireDeBase(employe)`, jamais directement.
+    salaireBrut: v.optional(v.number()),
     joursBase: v.optional(v.number()),// jours standard (déf. 30)
     contrat: v.optional(v.string()),  // CDI, CDD…
     dateDebut: v.optional(v.string()),// embauche — base de l'acquisition des congés
@@ -203,7 +211,8 @@ export default defineSchema({
     primesVariables: v.number(),      // FCFA (hors primes fixes récurrentes)
     transport: v.number(),
     heuresSup: v.number(),
-    anciennete: v.number(),
+    anciennete: v.number(),               // ancienneté du groupe « primes fixes »
+    ancienneteSeparee: v.optional(v.number()), // ancienneté de la colonne distincte (21/10/2026)
     mutuellePct: v.number(),          // % mutuelle
     dettesSoins: v.number(),
     acompte: v.number(),

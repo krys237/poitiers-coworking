@@ -67,7 +67,7 @@ export function Employes() {
     .sort((a, b) => a.nom.localeCompare(b.nom));
   const sansDate = actifs.filter((e) => !e.dateDebut).length;
   const sansCnps = actifs.filter((e) => !e.cnps).length;
-  const masseBrute = actifs.reduce((s, e) => s + e.salaireBrut, 0);
+  const masseBase = actifs.reduce((s, e) => s + (e.salaireBase ?? e.salaireBrut ?? 0), 0);
   const parSociete = (s: Societe) => actifs.filter((e) => e.societe === s).length;
 
   const onImport = async (file: File) => {
@@ -78,11 +78,12 @@ export function Employes() {
         fonction: r.fonction || undefined, adresse: r.adresse || undefined,
         cnps: r.cnps || undefined, niu: r.niu || undefined, email: r.email || undefined, whatsapp: r.whatsapp || undefined,
         societe: (SOCIETES.includes((r.societe ?? "").toUpperCase() as Societe) ? r.societe.toUpperCase() : "SGC") as Societe,
-        salaireBrut: toFcfa(r.salaire_brut ?? r.salairebrut ?? r.brut ?? "0"),
+        // `salaire_brut` reste accepté : c'est l'ancien en-tête des fichiers déjà diffusés.
+        salaireBase: toFcfa(r.salaire_base ?? r.salairebase ?? r.salaire_brut ?? r.salairebrut ?? r.brut ?? "0"),
         dateDebut: /^\d{4}-\d{2}-\d{2}$/.test(r.date_debut ?? "") ? r.date_debut : undefined,
       }))
       .filter((l) => l.matricule && l.nom);
-    if (!lignes.length) { toast.error("Aucune ligne valide dans ce fichier", { description: "Colonnes attendues : matricule ; nom ; fonction ; societe ; salaire_brut ; date_debut ; cnps ; email ; whatsapp" }); return; }
+    if (!lignes.length) { toast.error("Aucune ligne valide dans ce fichier", { description: "Colonnes attendues : matricule ; nom ; fonction ; societe ; salaire_base ; date_debut ; cnps ; email ; whatsapp" }); return; }
     try {
       const r = await importer({ lignes });
       toast.success(`Import terminé : ${r.crees} créé(s), ${r.majs} mis à jour`, { description: "Reconnaissance par matricule · les bulletins du mois se recalculent" });
@@ -91,19 +92,19 @@ export function Employes() {
 
   const fiche = (e: any): EmployeFiche => ({
     employeId: String(e._id), matricule: e.matricule, nom: e.nom, fonction: e.fonction, adresse: e.adresse, cnps: e.cnps, niu: e.niu,
-    email: e.email, whatsapp: e.whatsapp, societe: e.societe, salaireBrut: e.salaireBrut, dateDebut: e.dateDebut, congesInitial: e.congesInitial, actif: e.actif,
+    email: e.email, whatsapp: e.whatsapp, societe: e.societe, salaireBase: e.salaireBase ?? e.salaireBrut ?? 0, dateDebut: e.dateDebut, congesInitial: e.congesInitial, actif: e.actif,
   });
 
   return (
     <div className="space-y-4">
       <PageEnTete
         titre="Employés"
-        description="Registre des salariés : identité de paie, société de rattachement, brut de référence, date d'entrée (base de l'acquisition des congés). Tout est repris automatiquement par la paie."
+        description="Registre des salariés : identité de paie, société de rattachement, salaire de base, date d'entrée (base de l'acquisition des congés). Tout est repris automatiquement par la paie. Le salaire de base est HORS primes : elles s'y ajoutent dans le récapitulatif du mois."
         statut={sansDate || sansCnps ? <Flag variant="a-renseigner" size="sm" title="À compléter dans la fiche">{[sansDate ? `${sansDate} sans date d'entrée` : "", sansCnps ? `${sansCnps} sans n° CNPS` : ""].filter(Boolean).join(" · ")}</Flag> : null}
         actions={
           <>
             <input ref={fichierRef} type="file" accept=".csv,text/csv" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void onImport(f); e.target.value = ""; }} />
-            <Button variant="outline" size="sm" onClick={() => fichierRef.current?.click()} title="Colonnes : matricule ; nom ; fonction ; societe ; salaire_brut ; date_debut ; cnps ; email — mise à jour par matricule">
+            <Button variant="outline" size="sm" onClick={() => fichierRef.current?.click()} title="Colonnes : matricule ; nom ; fonction ; societe ; salaire_base ; date_debut ; cnps ; email — mise à jour par matricule">
               <UploadIcon /> Importer CSV / Excel
             </Button>
             {!persistant ? <FicheEmploye creer={creer as any} modifier={modifier as any} /> : null}
@@ -115,7 +116,7 @@ export function Employes() {
       <GrilleTuiles>
         <Tuile libelle="Effectif actif" valeur={employes ? actifs.length : undefined} note={employes ? `${tous.length - actifs.length} inactif(s) conservé(s)` : undefined} vedette />
         <Tuile libelle="Par société" valeur={employes ? <span className="font-mono text-lg tabular-nums">{parSociete("SESAME")} · {parSociete("SOFINA")} · {parSociete("SGC")}</span> : undefined} note="SESAME · SOFINA · SGC" />
-        <Tuile libelle="Masse brute de référence" valeur={employes ? <Montant valeur={masseBrute} zero="0" /> : undefined} note="somme des bruts mensuels des actifs" />
+        <Tuile libelle="Masse des salaires de base" valeur={employes ? <Montant valeur={masseBase} zero="0" /> : undefined} note="hors primes · salariés actifs" />
         <Tuile libelle="Fiches à compléter" valeur={employes ? sansDate + sansCnps : undefined} note="date d'entrée ou n° CNPS manquant" />
       </GrilleTuiles>
 
@@ -167,7 +168,7 @@ export function Employes() {
               <LigneSaisie
                 societeParDefaut={societe === "toutes" ? "SGC" : societe}
                 onEnregistrer={async (l) => {
-                  await creer({ matricule: l.matricule, nom: l.nom, fonction: l.fonction || undefined, societe: l.societe, salaireBrut: l.salaireBrut, dateDebut: l.dateDebut || undefined });
+                  await creer({ matricule: l.matricule, nom: l.nom, fonction: l.fonction || undefined, societe: l.societe, salaireBase: l.salaireBase, dateDebut: l.dateDebut || undefined });
                   toast.success(`${l.nom} ajouté à l'effectif`, { description: `${l.matricule} · ${l.societe} · complétez CNPS et adresse dans la fiche` });
                 }}
               />
@@ -178,7 +179,7 @@ export function Employes() {
                 <TableCell className="whitespace-nowrap text-[13px] font-semibold">{e.nom}</TableCell>
                 <TableCell className="max-w-[14rem] truncate text-xs text-encre-douce" title={e.fonction}>{e.fonction || <span className="text-encre-pale">—</span>}</TableCell>
                 <TableCell><Flag variant="neutre" size="xs">{e.societe}</Flag></TableCell>
-                <TableCell numerique className="font-mono text-xs font-semibold">{num(e.salaireBrut)}</TableCell>
+                <TableCell numerique className="font-mono text-xs font-semibold">{num(e.salaireBase ?? e.salaireBrut ?? 0)}</TableCell>
                 <TableCell className="whitespace-nowrap">
                   {e.dateDebut ? (
                     <span className="font-mono text-xs tabular-nums">{fmtDate(e.dateDebut)}</span>
@@ -235,10 +236,10 @@ export function Employes() {
 // --- Ligne de saisie permanente (skill §7) ---------------------------------------
 
 const CS = "bg-ocean-brume/40 align-middle";
-type Nouveau = { matricule: string; nom: string; fonction: string; societe: Societe; salaireBrut: number; dateDebut: string };
+type Nouveau = { matricule: string; nom: string; fonction: string; societe: Societe; salaireBase: number; dateDebut: string };
 
 function LigneSaisie({ societeParDefaut, onEnregistrer }: { societeParDefaut: Societe; onEnregistrer: (l: Nouveau) => Promise<void> }) {
-  const vierge = React.useCallback((): Nouveau => ({ matricule: "", nom: "", fonction: "", societe: societeParDefaut, salaireBrut: 0, dateDebut: "" }), [societeParDefaut]);
+  const vierge = React.useCallback((): Nouveau => ({ matricule: "", nom: "", fonction: "", societe: societeParDefaut, salaireBase: 0, dateDebut: "" }), [societeParDefaut]);
   const [l, setL] = React.useState(vierge);
   const [enCours, setEnCours] = React.useState(false);
   const premier = React.useRef<HTMLInputElement>(null);
@@ -247,7 +248,7 @@ function LigneSaisie({ societeParDefaut, onEnregistrer }: { societeParDefaut: So
   const vider = () => { setL(vierge()); premier.current?.focus(); };
   const valider = async () => {
     if (!l.matricule.trim() || !l.nom.trim()) { toast.error("Matricule et nom sont requis."); premier.current?.focus(); return; }
-    if (!(l.salaireBrut > 0)) { toast.error("Le salaire brut doit être supérieur à 0."); return; }
+    if (!(l.salaireBase > 0)) { toast.error("Le salaire de base doit être supérieur à 0."); return; }
     setEnCours(true);
     try {
       await onEnregistrer({ ...l, matricule: l.matricule.trim(), nom: l.nom.trim().toUpperCase(), fonction: l.fonction.trim() });
@@ -269,7 +270,7 @@ function LigneSaisie({ societeParDefaut, onEnregistrer }: { societeParDefaut: So
           <SelectContent>{SOCIETES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
         </Select>
       </TableCell>
-      <TableCell numerique className={CS}><span onKeyDown={k}><CelluleNombre libelle="Brut mensuel (nouvel employé)" valeur={l.salaireBrut} onChange={(n) => setL({ ...l, salaireBrut: n })} largeur={104} min={0} pas={5000} /></span></TableCell>
+      <TableCell numerique className={CS}><span onKeyDown={k}><CelluleNombre libelle="Salaire de base mensuel (nouvel employé)" valeur={l.salaireBase} onChange={(n) => setL({ ...l, salaireBase: n })} largeur={104} min={0} pas={5000} /></span></TableCell>
       <TableCell className={CS}><Input type="date" value={l.dateDebut} onChange={(e) => setL({ ...l, dateDebut: e.target.value })} onKeyDown={k} aria-label="Date d'entrée (nouvel employé)" className="h-8 w-[8.5rem] px-1.5 text-2xs" /></TableCell>
       <TableCell className={cn(CS, "text-2xs text-encre-pale")} colSpan={2}>CNPS, NIU, adresse : dans la fiche</TableCell>
       <TableCell className={cn(CS, "text-right")}>

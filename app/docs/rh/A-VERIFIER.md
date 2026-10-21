@@ -193,16 +193,39 @@ Aucun calcul ne peut les reproduire : il faut les corriger dans le classeur avan
 
 ---
 
-### A6 🔴 L'ancienneté doit-elle compter dans le groupe « primes fixes » ET dans sa propre colonne ?
-Demande du 21/10/2026 : « ancienneté va être dans les primes fixes avec l'ensemble des primes
-présentes dans le fichier DIPE […] ensuite nous allons ajouter une colonne nouvelle ancienneté ».
+### A6 🟠 Les DEUX anciennetés : quelle est la différence métier ?
+Précisé le 21/10/2026 : « il y a une distinction entre l'ancienneté qui se trouve dans les primes
+fixes et la nouvelle ancienneté qui a sa colonne bien à part ».
 
-Les deux à la fois produirait un **double comptage** dans le Total 1. Interprétation retenue pour
-l'instant, qui ne double rien : **« Heures sup » et « Ancienneté » ont chacune leur colonne**, et
-les 9 primes du DIPE rejoignent le groupe « Primes fixes / congé ». Si elle voulait réellement voir
-l'ancienneté *dans le détail du groupe* en plus de sa colonne, il faut l'afficher en lecture seule
-et l'exclure du total du groupe.
-**Bloque :** rien, l'interprétation est en place. **Qui tranche :** la RH.
+**Implémenté comme deux montants DISTINCTS**, donc sans aucun double comptage :
+
+| Champ | Où | Code de rubrique |
+|---|---|---|
+| `anciennete` | dans le groupe « Primes fixes / congé » | 66116 « Prime d'ancienneté » |
+| `ancienneteSeparee` | sa propre colonne « Ancienneté » | 66117 « Ancienneté (colonne distincte) » |
+
+Les deux sont taxables et cotisables, et chacune compte **une seule fois** dans le Total 1
+(vérifié par `npm run test:assiettes`). Le DIPE de la RH ne comporte qu'une seule colonne
+d'ancienneté (sa colonne G) : la seconde est donc une notion propre à l'entreprise.
+**Ce qui reste à savoir : ce que la seconde représente**, pour lui donner son vrai libellé et
+vérifier son régime fiscal. Pour l'instant elle est alignée sur la prime d'ancienneté.
+**Bloque :** rien. **Qui tranche :** la RH.
+
+---
+
+### A7 🟢 Le champ « salaire » de la fiche employé — **c'est le salaire de BASE**
+Confirmé par la RH, et conforme au moteur : `journalier = salaire ÷ joursBase`, puis
+`salaire du mois = journalier × jours travaillés`, et **toutes les primes s'ajoutent par-dessus**.
+Y saisir un brut complet compterait chaque prime deux fois, avec une erreur **silencieuse** (les
+deux valeurs sont plausibles, aucun contrôle ne peut les distinguer).
+
+→ Renommé partout le 21/10/2026 : champ `salaireBase`, libellés « Salaire de base mensuel »,
+« Masse des salaires de base », colonne d'import `salaire_base` (l'ancien `salaire_brut` reste
+accepté). `salaireBrut` est conservé en lecture seule le temps de la migration
+`employes:migrerSalaireBase`, à retirer du schéma ensuite.
+
+⚠️ **Ne pas confondre** avec le `salaireBrut` de `lib/dipe.ts`, qui désigne l'assiette V (le vrai
+salaire brut, primes incluses) et garde son nom à juste titre.
 
 ---
 

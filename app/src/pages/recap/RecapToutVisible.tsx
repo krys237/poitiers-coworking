@@ -263,7 +263,7 @@ export function RecapToutVisible({
                     </td>
                     <td className={cn(TD, "text-encre-douce")}>
                       <N valeur={d?.salaireJournalier ?? 0} />
-                      <div className="font-sans text-[10px] leading-none text-encre-pale">brut {num(b.salaireBrut)}</div>
+                      <div className="font-sans text-[10px] leading-none text-encre-pale">base {num(b.salaireBase)}</div>
                     </td>
                     <td className={TD}>{cel(b, "joursTravailles")}</td>
                     <td className={TD}><N valeur={d?.salaireBase ?? 0} /></td>
@@ -272,16 +272,17 @@ export function RecapToutVisible({
                         b={b} brouillon={brouillon} lectureSeule={ro} libelle="Primes fixes / congé"
                         champs={[
                           "primesVariables", "transport", "primeAssiduite", "indemniteLogement",
+                          "anciennete",
                           "primeCaisse", "primeRendement", "gratification",
                           "primeSalissure", "primePanier", "primeLait",
                           "indemniteRepresentation", "indemniteVehicule", "indemniteOutillage",
                         ]}
-                        total={(d?.primes ?? 0) + (d?.indemniteConges ?? 0)}
+                        total={(d?.primes ?? 0) + (d?.indemniteConges ?? 0) + (d?.anciennete ?? 0)}
                         sousTitre={`${d?.congesPris ?? 0} j congés`}
                       />
                     </td>
                     <td className={TD}>{cel(b, "heuresSup")}</td>
-                    <td className={TD}>{cel(b, "anciennete")}</td>
+                    <td className={TD}>{cel(b, "ancienneteSeparee")}</td>
                     <td className={cn(TD, "bg-ocean-brume font-semibold")}><N valeur={d?.total1 ?? b.brut} /></td>
                     <td className={TD}>{cel(b, "sanctions")}</td>
                     <td className={TD}>{cel(b, "absences")}</td>
@@ -321,9 +322,9 @@ export function RecapToutVisible({
                   </td>
                   <td className={TD} /><td className={TD} />
                   <td className={TD}><N valeur={t.salaireBase} /></td>
-                  <td className={TD}><N valeur={t.primes} /></td>
+                  <td className={TD}><N valeur={t.primes + t.anciennete} /></td>
                   <td className={TD}><N valeur={t.heuresSup} /></td>
-                  <td className={TD}><N valeur={t.anciennete} /></td>
+                  <td className={TD}><N valeur={t.ancienneteSeparee} /></td>
                   <td className={cn(TD, "bg-ocean-brume")}><N valeur={t.total1} /></td>
                   <td className={TD} /><td className={TD} /><td className={TD} />
                   <td className={TD}><N valeur={t.acompte} /></td>

@@ -37,19 +37,19 @@ import type { EmployeFiche } from "@/components/app/fiche-employe";
 
 export type Champ =
   | "joursTravailles" | "primesVariables" | "transport" | "primeAssiduite" | "indemniteLogement"
-  | "heuresSup" | "anciennete" | "sanctions" | "absences" | "dettesSoins" | "acompte" | "mutuellePct"
+  | "heuresSup" | "anciennete" | "ancienneteSeparee" | "sanctions" | "absences" | "dettesSoins" | "acompte" | "mutuellePct"
   // Primes du DIPE ajoutées au récapitulatif le 21/10/2026 (demande de la responsable RH).
   | "primeSalissure" | "primePanier" | "primeLait" | "indemniteRepresentation" | "indemniteVehicule" | "primeCaisse" | "primeRendement" | "indemniteOutillage" | "gratification";
 
 export const CHAMPS: Champ[] = [
   "joursTravailles", "primesVariables", "transport", "primeAssiduite", "indemniteLogement",
-  "heuresSup", "anciennete", "sanctions", "absences", "dettesSoins", "acompte", "mutuellePct",
+  "heuresSup", "anciennete", "ancienneteSeparee", "sanctions", "absences", "dettesSoins", "acompte", "mutuellePct",
   "primeSalissure", "primePanier", "primeLait", "indemniteRepresentation", "indemniteVehicule", "primeCaisse", "primeRendement", "indemniteOutillage", "gratification",
 ];
 
 export const DEFAUT: Record<Champ, number> = {
   joursTravailles: 30, primesVariables: 0, transport: 0, primeAssiduite: 0, indemniteLogement: 0,
-  heuresSup: 0, anciennete: 0, sanctions: 0, absences: 0, dettesSoins: 0, acompte: 0, mutuellePct: 0,
+  heuresSup: 0, anciennete: 0, ancienneteSeparee: 0, sanctions: 0, absences: 0, dettesSoins: 0, acompte: 0, mutuellePct: 0,
   primeSalissure: 0, primePanier: 0, primeLait: 0, indemniteRepresentation: 0, indemniteVehicule: 0, primeCaisse: 0, primeRendement: 0, indemniteOutillage: 0, gratification: 0,
 };
 
@@ -57,14 +57,14 @@ export const DEFAUT: Record<Champ, number> = {
 export const LIBELLE: Record<Champ, string> = {
   joursTravailles: "Jours travaillés", primesVariables: "Primes fixes", transport: "Prime transport",
   primeAssiduite: "Prime assiduité", indemniteLogement: "Indemnité logement", heuresSup: "Heures supplémentaires",
-  anciennete: "Ancienneté", sanctions: "Sanctions", absences: "Absences", dettesSoins: "Dettes de soins",
+  anciennete: "Ancienneté (primes fixes)", ancienneteSeparee: "Ancienneté", sanctions: "Sanctions", absences: "Absences", dettesSoins: "Dettes de soins",
   acompte: "Acompte", mutuellePct: "Mutuelle",
   primeSalissure: "Prime salissure", primePanier: "Prime panier", primeLait: "Prime lait", indemniteRepresentation: "Ind. représentation", indemniteVehicule: "Ind. véhicule / moto", primeCaisse: "Prime caisse", primeRendement: "Prime rendement", indemniteOutillage: "Ind. outillage", gratification: "Gratification",
 };
 
 export const UNITE: Record<Champ, string> = {
   joursTravailles: "j", primesVariables: "FCFA", transport: "FCFA", primeAssiduite: "FCFA", indemniteLogement: "FCFA",
-  heuresSup: "FCFA", anciennete: "FCFA", sanctions: "FCFA", absences: "FCFA", dettesSoins: "FCFA", acompte: "FCFA",
+  heuresSup: "FCFA", anciennete: "FCFA", ancienneteSeparee: "FCFA", sanctions: "FCFA", absences: "FCFA", dettesSoins: "FCFA", acompte: "FCFA",
   mutuellePct: "%",
   primeSalissure: "FCFA", primePanier: "FCFA", primeLait: "FCFA", indemniteRepresentation: "FCFA", indemniteVehicule: "FCFA", primeCaisse: "FCFA", primeRendement: "FCFA", indemniteOutillage: "FCFA", gratification: "FCFA",
 };
@@ -231,7 +231,7 @@ export function apercuBulletin(b: BulletinLigne, v: Valeurs, bareme: Bareme | nu
   const s: SaisieMois = {
     ...v,
     // journalier = brut ÷ joursBase → on retrouve la base de jours de la fiche employé.
-    joursBase: d && d.salaireJournalier > 0 ? Math.round(b.salaireBrut / d.salaireJournalier) : 30,
+    joursBase: d && d.salaireJournalier > 0 ? Math.round(b.salaireBase / d.salaireJournalier) : 30,
     congesPris: d?.congesPris ?? 0,
     congesAcquis: d?.congesAcquis ?? 0,
     congesRestants: d?.congesRestants,
@@ -241,7 +241,7 @@ export function apercuBulletin(b: BulletinLigne, v: Valeurs, bareme: Bareme | nu
     charges: b.cotisations.filter((l) => l.code === "RETENUE").map((l) => ({ libelle: l.libelle, montant: l.retenue })),
   };
   try {
-    return computeBulletin(b.salaireBrut, s, bareme, extras);
+    return computeBulletin(b.salaireBase, s, bareme, extras);
   } catch {
     return null;
   }
@@ -263,6 +263,7 @@ export function totaux(bulletins: BulletinLigne[]) {
     primes: t("primes") + t("indemniteConges"),
     heuresSup: t("heuresSup"),
     anciennete: t("anciennete"),
+    ancienneteSeparee: t("ancienneteSeparee"),
     total1,
     acompteImpotsCnps: t("acompteImpotsCnps"),
     // Les deux colonnes issues de la séparation du 21/10/2026 : l'acompte saisi d'un côté,
@@ -452,7 +453,7 @@ export function N({ valeur }: { valeur: number | undefined }) {
 export function ficheDe(b: BulletinLigne): EmployeFiche {
   return {
     employeId: String(b.employeId), matricule: b.matricule, nom: b.nom, fonction: b.fonction, adresse: b.adresse, cnps: b.cnps,
-    niu: b.niu, email: b.email, societe: b.societe, salaireBrut: b.salaireBrut, dateDebut: b.dateDebut, actif: true,
+    niu: b.niu, email: b.email, societe: b.societe, salaireBase: b.salaireBase, dateDebut: b.dateDebut, actif: true,
   };
 }
 

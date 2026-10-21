@@ -145,8 +145,24 @@ check("CFC patronal et FNE tombent à zéro", pat(jeune, "64132") === 0 && pat(j
 check("mais les cotisations SOCIALES CNPS restent dues", jeune.details.cnpsSalarie > 0 && pat(jeune, "66411") > 0 && pat(jeune, "66412") > 0 && pat(jeune, "66413") > 0);
 
 // ===========================================================================
+titre("Les DEUX anciennetés (distinction demandée le 21/10/2026)");
+const deuxAnc = computeBulletin(100000, { ...vide, anciennete: 30000, ancienneteSeparee: 20000 }, BAREME_DEFAUT);
+check("chaque ancienneté est comptée UNE fois dans le Total 1",
+  deuxAnc.brut === 100000 + 30000 + 20000, deuxAnc.brut);
+check("les deux figurent dans les lignes de gain, sous des codes distincts",
+  deuxAnc.lignesGain.find((l) => l.code === "66116")?.gain === 30000 &&
+    deuxAnc.lignesGain.find((l) => l.code === "66117")?.gain === 20000);
+check("aucune des deux n'entre dans l'agrégat « primes » (elles ont leurs propres colonnes)",
+  deuxAnc.details.primes === 0, deuxAnc.details.primes);
+check("les deux sont taxables et cotisables",
+  deuxAnc.details.assiettes!.taxable === 150000 && deuxAnc.details.assiettes!.cotisable === 150000,
+  deuxAnc.details.assiettes);
+check("l'ancienneté distincte est exposée dans les détails", deuxAnc.details.ancienneteSeparee === 20000);
+check("son absence vaut zéro, sans casser le total",
+  computeBulletin(100000, { ...vide, anciennete: 30000 }, BAREME_DEFAUT).brut === 130000);
+
 titre("Catalogue de rubriques");
-check("17 rubriques nommées + la ligne libre", RUBRIQUES_DEFAUT.length === 18, RUBRIQUES_DEFAUT.length);
+check("18 rubriques nommées + la ligne libre", RUBRIQUES_DEFAUT.length === 19, RUBRIQUES_DEFAUT.length);
 check("toutes les rubriques sont dans le brut", RUBRIQUES_DEFAUT.every((r) => r.dansBrut));
 check("le transport est taxable mais non cotisable", rub("66121").dansBrutIntermediaire && !rub("66121").dansCotisable);
 check("le logement est cotisable mais hors du brut intermédiaire", rub("6631").dansCotisable && !rub("6631").dansBrutIntermediaire);

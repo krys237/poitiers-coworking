@@ -22,6 +22,14 @@ import {
   type Rubrique,
 } from "./rubriques.ts";
 
+/**
+ * Salaire de base d'un employé, quel que soit le nom sous lequel il a été enregistré.
+ * `salaireBrut` est l'ancien nom du même montant : il n'a jamais désigné un brut, puisque toutes
+ * les primes s'ajoutent par-dessus. Unique point de lecture, pour que la migration soit invisible.
+ */
+export const salaireDeBase = (e: { salaireBase?: number; salaireBrut?: number }) =>
+  e.salaireBase ?? e.salaireBrut ?? 0;
+
 /** Groupes de risque CNPS accidents du travail / maladies professionnelles. */
 export const TAUX_ATMP: Record<"A" | "B" | "C", number> = { A: 1.75, B: 2.5, C: 5 };
 
@@ -79,6 +87,12 @@ export interface SaisieMois {
   indemniteLogement: number;
   heuresSup: number;
   anciennete: number;
+  /**
+   * Second élément d'ancienneté, demandé le 21/10/2026 : la RH distingue l'ancienneté qui figure
+   * dans le groupe « primes fixes » (`anciennete`) de celle qui a sa propre colonne au
+   * récapitulatif. Deux montants DISTINCTS, donc aucun double comptage.
+   */
+  ancienneteSeparee?: number;
   mutuellePct: number;      // %
   dettesSoins: number;
   acompte: number;
@@ -110,6 +124,8 @@ export interface DetailsBulletin {
   salaireJournalier: number; salaireBase: number; joursTravailles: number;
   congesAcquis: number; congesPris: number; congesRestants: number; indemniteConges: number;
   primes: number; heuresSup: number; anciennete: number;
+  /** OPTIONNEL : les snapshots des mois clôturés avant le 21/10/2026 ne le portent pas. */
+  ancienneteSeparee?: number;
   total1: number; total2: number; brutTaxable: number; baseCnps: number;
   mutuelle: number; acompteImpotsCnps: number; chargesSalariales: number; chargesPatronales: number;
   irpp: number; cac: number; tdl: number; rav: number; cnpsSalarie: number;
@@ -169,7 +185,7 @@ export function computeIrpp(baseImposable: number, brackets: Bareme["irppBracket
   return Math.round(irpp);
 }
 
-export function computeBulletin(salaireBrutRef: number, s: SaisieMois, b: Bareme, extras: Extras = {}): Bulletin {
+export function computeBulletin(salaireBaseRef: number, s: SaisieMois, b: Bareme, extras: Extras = {}): Bulletin {
   const joursBase = s.joursBase || 30;
   const abattementAnnuel = b.abattementIrppAnnuel ?? 500000;
   const tdlActif = b.tdlActif ?? true;
@@ -178,7 +194,7 @@ export function computeBulletin(salaireBrutRef: number, s: SaisieMois, b: Bareme
   const rubriques = b.rubriques ?? RUBRIQUES_DEFAUT;
 
   // 1. Salaire journalier, salaire de base, indemnité de congés.
-  const journalier = salaireBrutRef / joursBase;
+  const journalier = salaireBaseRef / joursBase;
   const salaireBase = Math.round(journalier * s.joursTravailles);
   const indemniteConges = Math.round(journalier * (s.congesPris || 0));
   const congesRestants = s.congesRestants ?? Math.max(0, (s.congesAcquis || 0) - (s.congesPris || 0));
@@ -189,12 +205,14 @@ export function computeBulletin(salaireBrutRef: number, s: SaisieMois, b: Bareme
   const autresRubriques = extras.rubriques ?? {};
   const primes = s.primesVariables + s.transport + s.primeAssiduite + s.indemniteLogement + primesLibres
     + Object.values(autresRubriques).reduce((t, m) => t + Math.round(m || 0), 0);
-  const total1 = salaireBase + primes + indemniteConges + s.heuresSup + s.anciennete;
+  const ancienneteSeparee = s.ancienneteSeparee ?? 0;
+  const total1 = salaireBase + primes + indemniteConges + s.heuresSup + s.anciennete + ancienneteSeparee;
 
   const lignesGain: LigneGain[] = [
     { code: "66111", libelle: "Salaire du mois", base: salaireBase, gain: salaireBase },
     { code: "66112", libelle: "Forfait heures supplémentaires", base: 0, gain: s.heuresSup },
     { code: "66116", libelle: "Ancienneté", base: 0, gain: s.anciennete },
+    { code: "66117", libelle: "Ancienneté (colonne distincte)", base: 0, gain: ancienneteSeparee },
     { code: "6613", libelle: "Congés payés", base: 0, gain: indemniteConges },
     { code: "66121", libelle: "Prime de transport", base: s.transport, gain: s.transport },
     { code: "66122", libelle: "Prime d'assiduité", base: s.primeAssiduite, gain: s.primeAssiduite },
@@ -216,6 +234,7 @@ export function computeBulletin(salaireBrutRef: number, s: SaisieMois, b: Bareme
     "66111": salaireBase,
     "66112": s.heuresSup,
     "66116": s.anciennete,
+    "66117": ancienneteSeparee,
     "6613": indemniteConges,
     "66121": s.transport,
     "66122": s.primeAssiduite,
@@ -300,7 +319,7 @@ export function computeBulletin(salaireBrutRef: number, s: SaisieMois, b: Bareme
     details: {
       salaireJournalier: Math.round(journalier), salaireBase, joursTravailles: s.joursTravailles,
       congesAcquis: s.congesAcquis || 0, congesPris: s.congesPris || 0, congesRestants, indemniteConges,
-      primes, heuresSup: s.heuresSup, anciennete: s.anciennete,
+      primes, heuresSup: s.heuresSup, anciennete: s.anciennete, ancienneteSeparee,
       total1, total2, brutTaxable, baseCnps, mutuelle, acompteImpotsCnps, chargesSalariales, chargesPatronales,
       irpp, cac, tdl, rav, cnpsSalarie, assiettes, exonereSalarial,
     },

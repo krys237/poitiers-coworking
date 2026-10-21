@@ -4,7 +4,7 @@ import { QueryCtx, MutationCtx } from "../_generated/server";
 import { Doc, Id } from "../_generated/dataModel";
 import { rubriquesPourPeriode } from "../rubriques";
 import { CHAMP_SAISIE_VERS_RUBRIQUE } from "./rubriques";
-import { computeBulletin, SaisieMois, Bareme, LigneGain, LigneCotisation, Extras, DetailsBulletin } from "./paie";
+import { salaireDeBase, computeBulletin, SaisieMois, Bareme, LigneGain, LigneCotisation, Extras, DetailsBulletin } from "./paie";
 import { resumeMois, CONGES_PAR_MOIS_DEFAUT } from "./absences";
 import { bornesPeriode } from "./periode";
 
@@ -25,7 +25,7 @@ export interface BulletinPeriode {
   departement?: string;
   dateDebut?: string;
   societe: "SESAME" | "SOFINA" | "SGC";
-  salaireBrut: number;    // brut mensuel de référence (fiche employé)
+  salaireBase: number;    // salaire de base mensuel (fiche employé)
   baremeId: Id<"baremes">;
   brut: number;
   totalRetenues: number;
@@ -72,7 +72,7 @@ function identite(e: Doc<"employes">) {
   return {
     employeId: e._id, matricule: e.matricule, nom: e.nom, fonction: e.fonction, adresse: e.adresse, cnps: e.cnps, niu: e.niu,
     email: e.email, whatsapp: e.whatsapp, categorie: e.categorie, echelon: e.echelon, departement: undefined as string | undefined, dateDebut: e.dateDebut, societe: e.societe,
-    salaireBrut: e.salaireBrut,
+    salaireBase: salaireDeBase(e),
   };
 }
 
@@ -140,7 +140,7 @@ export async function bulletinsPourPeriode(ctx: Ctx, periode: string): Promise<{
       if (typeof montant === "number" && montant) rubriquesSaisies[code] = montant;
     }
     const extras = { ...(await extrasPour(ctx, e._id, periode)), rubriques: rubriquesSaisies };
-    const calc = computeBulletin(e.salaireBrut, s, bareme, extras);
+    const calc = computeBulletin(salaireDeBase(e), s, bareme, extras);
     bulletins.push({
       ...identite(e), baremeId: baremeDoc._id, brut: calc.brut, totalRetenues: calc.totalRetenues, net: calc.net,
       lignesGain: calc.lignesGain, cotisations: calc.cotisations, details: calc.details,

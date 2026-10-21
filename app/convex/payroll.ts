@@ -54,7 +54,8 @@ export const saisiesDuMois = query({
 const VALEURS = v.object({
   joursTravailles: v.number(), absencesJours: v.number(), sanctions: v.number(),
   primesVariables: v.number(), transport: v.number(), heuresSup: v.number(),
-  anciennete: v.number(), mutuellePct: v.number(), dettesSoins: v.number(), acompte: v.number(),
+  anciennete: v.number(), ancienneteSeparee: v.optional(v.number()),
+  mutuellePct: v.number(), dettesSoins: v.number(), acompte: v.number(),
   primeAssiduite: v.optional(v.number()), indemniteLogement: v.optional(v.number()), absences: v.optional(v.number()),
   primeSalissure: v.optional(v.number()),
   primePanier: v.optional(v.number()),

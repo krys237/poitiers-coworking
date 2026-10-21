@@ -31,7 +31,7 @@ export const creer = mutation({
   args: {
     matricule: v.string(), nom: v.string(), fonction: v.optional(v.string()),
     adresse: v.optional(v.string()), cnps: v.optional(v.string()), niu: v.optional(v.string()),
-    email: v.optional(v.string()), whatsapp: v.optional(v.string()), societe: SOCIETE, salaireBrut: v.number(), contrat: v.optional(v.string()),
+    email: v.optional(v.string()), whatsapp: v.optional(v.string()), societe: SOCIETE, salaireBase: v.number(), contrat: v.optional(v.string()),
     dateDebut: v.optional(v.string()), dateFin: v.optional(v.string()), congesInitial: v.optional(v.number()),
     categorie: v.optional(v.string()), echelon: v.optional(v.string()),
   },
@@ -54,7 +54,7 @@ export const modifier = mutation({
     // "" efface le numéro WhatsApp ; absent = inchangé.
     whatsapp: v.optional(v.string()),
     cnps: v.optional(v.string()), niu: v.optional(v.string()), societe: v.optional(SOCIETE),
-    salaireBrut: v.optional(v.number()), actif: v.optional(v.boolean()),
+    salaireBase: v.optional(v.number()), actif: v.optional(v.boolean()),
     dateDebut: v.optional(v.string()), dateFin: v.optional(v.string()), congesInitial: v.optional(v.number()),
     categorie: v.optional(v.string()), echelon: v.optional(v.string()),
   },
@@ -73,7 +73,7 @@ export const importer = mutation({
     lignes: v.array(v.object({
       matricule: v.string(), nom: v.string(), fonction: v.optional(v.string()),
       adresse: v.optional(v.string()), cnps: v.optional(v.string()), niu: v.optional(v.string()),
-      email: v.optional(v.string()), whatsapp: v.optional(v.string()), societe: SOCIETE, salaireBrut: v.number(),
+      email: v.optional(v.string()), whatsapp: v.optional(v.string()), societe: SOCIETE, salaireBase: v.number(),
       dateDebut: v.optional(v.string()),
     })),
   },
@@ -93,5 +93,38 @@ export const importer = mutation({
       else { await ctx.db.insert("employes", { ...l, joursBase, actif: true }); crees++; }
     }
     return { crees, majs };
+  },
+});
+
+/**
+ * Migration du 21/10/2026 : `salaireBrut` → `salaireBase`.
+ *
+ * Le champ n'a jamais désigné un brut — toutes les primes s'ajoutent par-dessus — et son nom
+ * invitait à saisir le brut complet, ce qui aurait compté chaque prime deux fois. L'erreur
+ * aurait été silencieuse : les deux valeurs sont plausibles, aucun contrôle ne peut les distinguer.
+ *
+ * Séquence de déploiement en trois temps, pour qu'aucun push n'échoue :
+ *   1. le schéma déclare les DEUX champs en optionnel (état actuel) → le push passe ;
+ *   2. on lance cette mutation → `salaireBase` est renseigné partout ;
+ *   3. on retire `salaireBrut` du schéma et ce bloc devient inutile.
+ *
+ * Idempotente : une fiche déjà migrée n'est pas touchée.
+ */
+export const migrerSalaireBase = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await requireDroit(ctx, "/employes", "faire");
+    const employes = await ctx.db.query("employes").collect();
+    let migres = 0;
+    let dejaFaits = 0;
+    let sansMontant = 0;
+
+    for (const e of employes) {
+      if (e.salaireBase !== undefined) { dejaFaits++; continue; }
+      if (e.salaireBrut === undefined) { sansMontant++; continue; }
+      await ctx.db.patch(e._id, { salaireBase: e.salaireBrut });
+      migres++;
+    }
+    return { total: employes.length, migres, dejaFaits, sansMontant };
   },
 });
