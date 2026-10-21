@@ -7,14 +7,36 @@ Deux agents travaillent en parallèle sur ce projet. Ce fichier est le contrat e
 
 | Dossier | Branche | Agent | Périmètre |
 |---|---|---|---|
-| `C:\test\Js\poitiers-coworking` | `features` | **agent FRONT** | écrans, composants, styles |
-| `C:\test\Js\poitiers-coworking-role` | `role` | **agent AUTH/RBAC** | authentification, rôles, backend Convex |
+| `C:\test\Js\poitiers-coworking` | `clean` | **agent DÉPLOIEMENT** | `vercel.json`, `src/main.tsx`, `convex/seed.ts`, chaîne Vercel + Convex |
+| `C:\test\Js\poitiers-coworking-rh` | `rh` | **agent RH/PAIE** | planning annuel, DIPE, barème, schéma paie |
+| `C:\test\Js\poitiers-coworking-role` | `role` | **agent AUTH/RBAC** | authentification, rôles |
 
-Ce sont deux *worktrees* du même dépôt : deux dossiers, deux branches sorties en même temps, un seul historique Git.
+*(Table remise à jour le 21/10/2026 : `features` et `role` ont été remplacées dans les faits par
+`clean` et `rh`. `git worktree list` reste la source de vérité.)*
+
+Ce sont des *worktrees* du même dépôt : plusieurs dossiers, autant de branches sorties en même temps, un seul historique Git.
 
 **Règle n°1 : chaque agent reste dans son dossier.** Ne jamais faire `git checkout` d'une autre branche
 dans son propre dossier — cela arracherait les fichiers sous les pieds de l'autre.
 La commande `git worktree list` rappelle qui occupe quoi.
+
+**Règle n°2 : un seul agent pousse sur un déploiement Convex.** Il n'existe qu'un projet Convex
+(`coworking_app` : prod `focused-chipmunk-580`, dev `wonderful-shark-673`). Un `convex deploy`
+pousse **tout** le dossier `convex/` du worktree d'où il part, schéma compris : deux agents qui
+poussent depuis deux branches écrasent mutuellement leur schéma. Les changements de schéma passent
+par l'agent DÉPLOIEMENT, qui les séquence.
+
+En particulier, le renommage `salaireBrut` → `salaireBase` de la branche `rh` se déroule en trois
+temps, dans cet ordre, sinon Convex rejette les fiches déjà en base :
+1. pousser le schéma avec les **deux** champs en optionnel (état actuel de `rh`) ;
+2. lancer `employes:migrerSalaireBase` (idempotente, elle rend un compte rendu) ;
+3. seulement ensuite, retirer `salaireBrut` du schéma.
+
+Tout le code lit via `lib/paie.salaireDeBase()`, donc les deux états fonctionnent pendant la
+transition. Après déploiement, le planning exige deux initialisations avant d'accepter un congé
+(calendrier des jours fériés de l'année, et services), proposées en bandeau dans l'écran Planning
+annuel. Et `convex/_generated/` complété à la main sur `rh` sera régénéré par `npx convex dev` :
+c'est la régénération qui fait foi.
 
 ## Partage des fichiers
 

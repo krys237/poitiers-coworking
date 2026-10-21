@@ -1,7 +1,7 @@
 import { mutation, action } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { BAREME_DEFAUT } from "./lib/paie";
-import { DEV_TOKEN, requireLevelOuAmorcage } from "./lib/authz";
+import { DEV_TOKEN, requireLevel, requireLevelOuAmorcage } from "./lib/authz";
 
 // Amorçage de démonstration : membre DG (dev), entreprise, barème, effectif de démo.
 // Idempotent : ne recrée pas ce qui existe déjà ; complète la date d'embauche des employés de démo qui n'en ont pas.
@@ -128,7 +128,7 @@ export const phase2 = action({
   },
 });
 
-import { internalQuery } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 export const userDev = internalQuery({
   args: {},
   handler: async (ctx) => (await ctx.db.query("users").withIndex("by_token", (q) => q.eq("tokenIdentifier", DEV_TOKEN)).unique())?._id ?? null,
@@ -137,3 +137,81 @@ export const userDev = internalQuery({
 // Phase 3 : re-export pour conserver le nom `seed:phase3` / `seed:etatDemo` (code dans seedPhase3.ts).
 export { phase3, etatDemo } from "./seedPhase3";
 export { phase4, etatDemo4 } from "./seedPhase4";
+
+import { v } from "convex/values";
+import { createAccount, modifyAccountCredentials, retrieveAccount } from "@convex-dev/auth/server";
+
+// Équivalent de requireLevelOuAmorcage pour un contexte d'action (pas de ctx.db) :
+// ouvert tant qu'aucun membre n'existe, puis réservé au niveau demandé.
+export const verifierNiveauOuAmorcage = internalQuery({
+  args: { min: v.number() },
+  handler: async (ctx, { min }) => {
+    await requireLevelOuAmorcage(ctx, min);
+    return null;
+  },
+});
+
+// Helper interne de initialiserAdmin uniquement. Publique, elle promouvait n'importe quel
+// e-mail en super_admin actif sans aucun contrôle : jamais exposée.
+export const insererAdminUser = internalMutation({
+  args: { email: v.string() },
+  handler: async (ctx, { email }) => {
+    const propre = email.trim().toLowerCase();
+    const existant = await ctx.db.query("users").withIndex("email", (q) => q.eq("email", propre)).first();
+    if (!existant) {
+      return await ctx.db.insert("users", {
+        email: propre,
+        nom: "Super Administrateur",
+        role: "super_admin",
+        poste: "Directeur Général",
+        departement: "Direction",
+        isActive: true,
+      });
+    } else {
+      await ctx.db.patch(existant._id, { role: "super_admin", isActive: true });
+      return existant._id;
+    }
+  },
+});
+
+export const initialiserAdmin = action({
+  args: { email: v.string(), motDePasse: v.string() },
+  handler: async (ctx, { email, motDePasse }) => {
+    // Ouvert uniquement sur un déploiement vierge (c'est elle qui crée le premier admin) ;
+    // dès qu'un membre existe, réservé au Directeur Général. Sans cette garde, n'importe qui
+    // connaissant l'URL du déploiement (elle est dans le bundle public) se créait un super_admin.
+    await ctx.runQuery(internal.seed.verifierNiveauOuAmorcage, { min: 8 });
+    const propre = email.trim().toLowerCase();
+    await ctx.runMutation(internal.seed.insererAdminUser, { email: propre });
+    const existe = await retrieveAccount(ctx, { provider: "password", account: { id: propre } }).catch(() => null);
+    if (existe) {
+      await modifyAccountCredentials(ctx, { provider: "password", account: { id: propre, secret: motDePasse } });
+    } else {
+      await createAccount(ctx, {
+        provider: "password",
+        account: { id: propre, secret: motDePasse },
+        profile: { email: propre, role: "super_admin", isActive: true },
+      });
+    }
+    return { succes: true, email: propre };
+  },
+});
+
+export const viderEmployesDemo = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // Suppression irréversible de tout l'effectif : pas d'échappatoire d'amorçage ici,
+    // on exige un Directeur Général authentifié.
+    await requireLevel(ctx, 8);
+    const employes = await ctx.db.query("employes").collect();
+    for (const e of employes) {
+      await ctx.db.delete(e._id);
+    }
+    // Nettoyer aussi le compte démo dg@poitiers.local s'il existe
+    const devDg = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("tokenIdentifier", DEV_TOKEN)).unique();
+    if (devDg) {
+      await ctx.db.delete(devDg._id);
+    }
+    return { employesSupprimes: employes.length, dgDevSupprime: !!devDg };
+  },
+});

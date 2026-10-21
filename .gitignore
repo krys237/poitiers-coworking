@@ -23,3 +23,6 @@ api-doc.html
 *.zip
 *.log
 .claude/
+
+.vercel
+.env*
