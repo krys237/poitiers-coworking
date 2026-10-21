@@ -262,7 +262,17 @@ export const creer = mutation({
       .query("commandes")
       .withIndex("by_date", (q) => q.gte("date", `${annee}-01-01`).lte("date", `${annee}-12-31`))
       .collect();
-    const ref = reference("CMD", annee, existantes.length + 1);
+    // Numérotation reprise sur la plus haute séquence existante, et non sur le nombre de bons :
+    // depuis l'ajout de `supprimer`, l'année peut comporter des trous et `length + 1` réattribuerait
+    // une référence déjà portée par un autre bon. L'index `by_reference` n'étant pas unique, la
+    // collision passerait totalement inaperçue et deux bons partageraient la même identité.
+    const prefixeRef = `CMD-${annee}-`;
+    const sequenceMax = existantes.reduce((max, c) => {
+      if (!c.reference.startsWith(prefixeRef)) return max;
+      const n = Number.parseInt(c.reference.slice(prefixeRef.length), 10);
+      return Number.isFinite(n) && n > max ? n : max;
+    }, 0);
+    const ref = reference("CMD", annee, sequenceMax + 1);
     const auteur = user.nom ?? user.email;
     const initialStatut = a.statut ?? "preparation";
 
