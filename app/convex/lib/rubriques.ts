@@ -278,3 +278,24 @@ export function validerRubriques(rubriques: Rubrique[]): string[] {
   }
   return erreurs;
 }
+
+/**
+ * Correspondance entre les champs de `saisiesMensuelles` et les codes de rubrique.
+ * Les quatre premiers existaient déjà ; les neuf suivants sont les primes du DIPE ajoutées au
+ * récapitulatif des salaires le 21/10/2026, à la demande de la responsable RH.
+ */
+export const CHAMP_SAISIE_VERS_RUBRIQUE: Record<string, string> = {
+  primesVariables: "66125",
+  transport: "66121",
+  primeAssiduite: "66122",
+  indemniteLogement: "6631",
+  primeSalissure: "6632",
+  primePanier: "6633",
+  primeLait: "6634",
+  indemniteRepresentation: "6635",
+  indemniteVehicule: "6636",
+  primeCaisse: "66123",
+  primeRendement: "66124",
+  indemniteOutillage: "6637",
+  gratification: "66118",
+};

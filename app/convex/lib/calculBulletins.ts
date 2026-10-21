@@ -3,6 +3,7 @@
 import { QueryCtx, MutationCtx } from "../_generated/server";
 import { Doc, Id } from "../_generated/dataModel";
 import { rubriquesPourPeriode } from "../rubriques";
+import { CHAMP_SAISIE_VERS_RUBRIQUE } from "./rubriques";
 import { computeBulletin, SaisieMois, Bareme, LigneGain, LigneCotisation, Extras, DetailsBulletin } from "./paie";
 import { resumeMois, CONGES_PAR_MOIS_DEFAUT } from "./absences";
 import { bornesPeriode } from "./periode";
@@ -129,7 +130,16 @@ export async function bulletinsPourPeriode(ctx: Ctx, periode: string): Promise<{
       joursTravailles: saisie?.joursTravailles ?? r.joursTravailles, joursBase: e.joursBase ?? 30,
       congesPris: r.congesPrisMois, congesAcquis: r.congesAcquisCumul, congesRestants: r.soldeConges,
     };
-    const extras = await extrasPour(ctx, e._id, periode);
+    // Les primes nommées du DIPE sont saisies dans des colonnes dédiées de `saisiesMensuelles`
+    // et traduites en montants par code de rubrique, seule forme comprise par les assiettes.
+    const rubriquesSaisies: Record<string, number> = {};
+    for (const [champ, code] of Object.entries(CHAMP_SAISIE_VERS_RUBRIQUE)) {
+      // Les quatre champs historiques sont déjà portés par `SaisieMois` : ne pas les compter deux fois.
+      if (champ in SAISIE_VIDE || champ === "primeAssiduite" || champ === "indemniteLogement") continue;
+      const montant = (saisie as Record<string, unknown> | null)?.[champ];
+      if (typeof montant === "number" && montant) rubriquesSaisies[code] = montant;
+    }
+    const extras = { ...(await extrasPour(ctx, e._id, periode)), rubriques: rubriquesSaisies };
     const calc = computeBulletin(e.salaireBrut, s, bareme, extras);
     bulletins.push({
       ...identite(e), baremeId: baremeDoc._id, brut: calc.brut, totalRetenues: calc.totalRetenues, net: calc.net,

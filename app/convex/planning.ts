@@ -8,12 +8,22 @@ import {
   compterOuvrables, controlerLigne, dateRetour, dernierJourConge, droitConge, indexFeries,
 } from "./lib/congesOuvrables";
 import {
+  EVENEMENTS_FAMILIAUX, PLAFOND_EVENEMENTS_FAMILIAUX_AN, TYPES_ABSENCE,
+  controlerAbsence, joursServiceEffectif, remunererAbsence,
+} from "./lib/absencesLegales";
+import {
   COULEUR_NEUTRE, LIBELLE_OBSERVATION, OBSERVATION_CONSOMME, detecterChevauchements,
   doublonsEmploye, graduationsMois, joursDeLAnnee, observationDeduite, segmentFrise,
   type CongePose, type Observation,
 } from "./lib/planningAnnuel";
 
-const TYPE = v.union(v.literal("conge_paye"), v.literal("absence"), v.literal("maladie"), v.literal("autre"));
+// Doit rester aligné sur `schema.ts` et sur le catalogue de `lib/absencesLegales.ts`.
+const TYPE = v.union(
+  v.literal("conge_paye"), v.literal("absence"), v.literal("maladie"), v.literal("autre"),
+  v.literal("maternite"), v.literal("accident_travail"), v.literal("evenement_familial"),
+  v.literal("chomage_technique"), v.literal("mise_a_pied"), v.literal("sans_solde"),
+  v.literal("formation_syndicale"),
+);
 
 async function tauxConges(ctx: QueryCtx | MutationCtx) {
   const p = await ctx.db.query("parametresEntreprise").first();
@@ -386,5 +396,104 @@ export const enregistrerCongeAnnuel = mutation({
       ...new Set([...periodesAvant, ...periodesTouchees({ dateDebut: a.dateDebut, dateFin })]),
     ];
     return { dateFin, dateRetour: retour, periodes: await appliquerAuxSaisies(ctx, a.employeId, periodes) };
+  },
+});
+
+// =====================================================================================
+// Absences légales (lot R5) — catalogue, contrôles et rémunération.
+// Les contrôles AVERTISSENT sans bloquer : la RH est la professionnelle, et plusieurs plafonds
+// légaux sont prorogeables ou imputables sur le congé annuel à la demande du salarié. L'outil
+// signale, il ne décide pas. Même principe que la fenêtre des comptes rendus.
+// =====================================================================================
+
+/** Le catalogue légal, pour l'écran : libellés, textes fondateurs, qui paie, plafonds. */
+export const catalogueAbsences = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireDroit(ctx, "/paie/planning");
+    return {
+      types: TYPES_ABSENCE,
+      evenementsFamiliaux: EVENEMENTS_FAMILIAUX,
+      plafondEvenementsFamiliaux: PLAFOND_EVENEMENTS_FAMILIAUX_AN,
+    };
+  },
+});
+
+/**
+ * Contrôle légal d'une absence envisagée, avant saisie : plafonds et justificatif.
+ * Le cumul annuel est calculé pour le même employé, le même type et la même année.
+ */
+export const controlerAvantSaisie = query({
+  args: {
+    employeId: v.id("employes"),
+    type: TYPE,
+    dateDebut: v.string(),
+    jours: v.number(),
+    justificatifFourni: v.optional(v.boolean()),
+    absenceIdExclue: v.optional(v.id("absences")),
+  },
+  handler: async (ctx, a) => {
+    await requireDroit(ctx, "/paie/planning");
+    const annee = a.dateDebut.slice(0, 4);
+    const toutes = await ctx.db
+      .query("absences")
+      .withIndex("by_employe", (q) => q.eq("employeId", a.employeId))
+      .collect();
+    const cumulAnneeJours = toutes
+      .filter((x) => x.type === a.type && x.dateDebut.slice(0, 4) === annee && x._id !== a.absenceIdExclue)
+      .reduce((t, x) => t + x.jours, 0);
+
+    return {
+      cumulAnneeJours,
+      avertissements: controlerAbsence({
+        cle: a.type,
+        jours: a.jours,
+        cumulAnneeJours,
+        justificatifFourni: a.justificatifFourni,
+      }),
+    };
+  },
+});
+
+/**
+ * Service effectif d'un employé sur une année (art. 89 al. 3) : ce qui ouvre réellement
+ * droit à congé. La maladie compte dans la limite de 6 mois, l'accident du travail sans
+ * limite, l'absence injustifiée et le sans-solde pas du tout.
+ */
+export const serviceEffectif = query({
+  args: { employeId: v.id("employes"), annee: v.number() },
+  handler: async (ctx, { employeId, annee }) => {
+    await requireDroit(ctx, "/paie/planning");
+    const toutes = await ctx.db
+      .query("absences")
+      .withIndex("by_employe", (q) => q.eq("employeId", employeId))
+      .collect();
+    const delAnnee = toutes.filter((x) => +x.dateDebut.slice(0, 4) === annee);
+    // Jours calendaires de l'année moins les absences : approximation volontaire, le détail
+    // par jour ouvrable relève du lot R4 (liaison planning → paie).
+    const joursAnnee = new Date(Date.UTC(annee, 11, 31)).getUTCDate() === 31 ? 365 : 365;
+    const absents = delAnnee.reduce((t, x) => t + x.jours, 0);
+    const r = joursServiceEffectif(
+      delAnnee.map((x) => ({ cle: x.type, jours: x.jours })),
+      Math.max(0, joursAnnee - absents),
+    );
+    return { annee, ...r, joursAbsence: absents };
+  },
+});
+
+/**
+ * Rémunération d'une absence : part employeur, part CNPS et retenue.
+ * Le diviseur journalier n'est imposé par aucun texte (voir A-VERIFIER) : il vient des réglages.
+ */
+export const remuneration = query({
+  args: { employeId: v.id("employes"), type: TYPE, jours: v.number(), rangMois: v.optional(v.number()) },
+  handler: async (ctx, a) => {
+    await requireDroit(ctx, "/paie/planning");
+    const e = await ctx.db.get(a.employeId);
+    if (!e) throw new Error("Employé introuvable.");
+    return remunererAbsence(a.type, a.jours, e.salaireBrut, {
+      diviseurJournalier: e.joursBase ?? 30,
+      rangMois: a.rangMois,
+    });
   },
 });

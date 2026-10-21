@@ -149,14 +149,17 @@ charges fiscales et patronales sur ces salaires — les charges **sociales CNPS 
 
 ---
 
-## C. Retenue à la source sur les honoraires des médecins (lot R6)
+## M. Retenue à la source sur les honoraires des médecins (lot R6)
 
-### C1 🔴 Le taux de 5 % ou 10 % est-il « tout compris » ?
+> ⚠️ Ces points s'appelaient C1 et C2 jusqu'au 21/10/2026 : le préfixe entrait en collision avec
+> les corrections **C1 à C10** du moteur de paie (lot R2). Renommés **M1/M2** pour lever l'ambiguïté.
+
+### M1 🔴 Le taux de 5 % ou 10 % est-il « tout compris » ?
 Faut-il y ajouter les centimes additionnels communaux de 10 %, comme pour l'IRPP des salariés, ou
 le taux annoncé est-il définitif ?
 **Bloque :** le lot R6. **Qui tranche :** comptable.
 
-### C2 🔴 Les 30 % sur la part espèces : abattement ou base réduite ?
+### M2 🔴 Les 30 % sur la part espèces : abattement ou base réduite ?
 Spécification reçue : la retenue porte sur 100 % du CA généré sur les patients assurés et sur 30 %
 du CA généré sur les patients payant en espèces. S'agit-il d'un abattement pour frais
 professionnels (donc paramétrable et susceptible d'évoluer) ou d'une règle figée ?
@@ -190,6 +193,19 @@ Aucun calcul ne peut les reproduire : il faut les corriger dans le classeur avan
 
 ---
 
+### A6 🔴 L'ancienneté doit-elle compter dans le groupe « primes fixes » ET dans sa propre colonne ?
+Demande du 21/10/2026 : « ancienneté va être dans les primes fixes avec l'ensemble des primes
+présentes dans le fichier DIPE […] ensuite nous allons ajouter une colonne nouvelle ancienneté ».
+
+Les deux à la fois produirait un **double comptage** dans le Total 1. Interprétation retenue pour
+l'instant, qui ne double rien : **« Heures sup » et « Ancienneté » ont chacune leur colonne**, et
+les 9 primes du DIPE rejoignent le groupe « Primes fixes / congé ». Si elle voulait réellement voir
+l'ancienneté *dans le détail du groupe* en plus de sa colonne, il faut l'afficher en lecture seule
+et l'exclure du total du groupe.
+**Bloque :** rien, l'interprétation est en place. **Qui tranche :** la RH.
+
+---
+
 ## E. Points tranchés (mémoire)
 
 | # | Point | Décision | Date |
@@ -203,7 +219,7 @@ Aucun calcul ne peut les reproduire : il faut les corriger dans le classeur avan
 | E7 🟢 | Bulletin présenté aux impôts | **Deux documents distincts** : le bulletin de paie interne (toutes retenues) et le bulletin / état fiscal (retenues fiscales et sociales seulement). | 20/10/2026 |
 | E8 🟢 | Âge des enfants (majoration mère) | Apprécié **au jour du départ en congé** (art. 90). L'hypothèse d'un jour de congé offert le jour du départ est **écartée** par la calibration (4/56 contre 48/56). | 20/10/2026 |
 | E9 🟢 | Multi-société | Un employé peut relever de plusieurs sociétés ; **un bulletin par société** ; chaque DIPE ne reprend que les rémunérations de la société déclarante. SESAME déclare de son côté : pluri-emploi régulier. | 20/10/2026 |
-| E10 🟢 | Retenue médecins | Hors moteur de paie → module Primes médecins, lot **R6**. Taux 5 % ou 10 % **par médecin**, base = 100 % du CA assurance + 30 % du CA espèces. *(restent C1 et C2)* | 20/10/2026 |
+| E10 🟢 | Retenue médecins | Hors moteur de paie → module Primes médecins, lot **R6**. Taux 5 % ou 10 % **par médecin**, base = 100 % du CA assurance + 30 % du CA espèces. *(restent M1 et M2)* | 20/10/2026 |
 | E11 🟢 | Modèle de planning | Pas d'autre document à venir : le classeur `MODELE PLANNING CONGE ANNUEL.xlsx` est la seule source. | 20/10/2026 |
 | E12 🟢 | Données nominatives | Le dossier `modele/` n'est **jamais** versionné (noms, salaires et situations de famille de 78 personnes). | 20/10/2026 |
 
@@ -219,5 +235,5 @@ Aucun calcul ne peut les reproduire : il faut les corriger dans le classeur avan
 | **R2** ✅ | table `rubriquesPaie` datée + les quatre assiettes + corrections C1→C10 | — *(livré ; reste à renseigner B5, qui n'est plus bloquant)* |
 | **R3** ✅ | écran DIPE + export CSV + récapitulatif par destinataire + rapport d'écart typé | — *(livré)* |
 | **R4** | allocation de congé (1/16) + liaison planning → paie | **A1**, **A2**, A3 |
-| **R5** | absences élargies (maternité, AT/MP, chômage technique, permissions) | — |
-| **R6** | retenue à la source médecins | **C1**, **C2** |
+| **R5** ✅ | absences élargies (maternité, AT/MP, chômage technique, permissions, sans solde, mise à pied, formation syndicale) | — *(livré)* |
+| **R6** | retenue à la source médecins | **M1**, **M2** |

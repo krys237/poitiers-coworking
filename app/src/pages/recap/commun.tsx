@@ -37,16 +37,20 @@ import type { EmployeFiche } from "@/components/app/fiche-employe";
 
 export type Champ =
   | "joursTravailles" | "primesVariables" | "transport" | "primeAssiduite" | "indemniteLogement"
-  | "heuresSup" | "anciennete" | "sanctions" | "absences" | "dettesSoins" | "acompte" | "mutuellePct";
+  | "heuresSup" | "anciennete" | "sanctions" | "absences" | "dettesSoins" | "acompte" | "mutuellePct"
+  // Primes du DIPE ajoutées au récapitulatif le 21/10/2026 (demande de la responsable RH).
+  | "primeSalissure" | "primePanier" | "primeLait" | "indemniteRepresentation" | "indemniteVehicule" | "primeCaisse" | "primeRendement" | "indemniteOutillage" | "gratification";
 
 export const CHAMPS: Champ[] = [
   "joursTravailles", "primesVariables", "transport", "primeAssiduite", "indemniteLogement",
   "heuresSup", "anciennete", "sanctions", "absences", "dettesSoins", "acompte", "mutuellePct",
+  "primeSalissure", "primePanier", "primeLait", "indemniteRepresentation", "indemniteVehicule", "primeCaisse", "primeRendement", "indemniteOutillage", "gratification",
 ];
 
 export const DEFAUT: Record<Champ, number> = {
   joursTravailles: 30, primesVariables: 0, transport: 0, primeAssiduite: 0, indemniteLogement: 0,
   heuresSup: 0, anciennete: 0, sanctions: 0, absences: 0, dettesSoins: 0, acompte: 0, mutuellePct: 0,
+  primeSalissure: 0, primePanier: 0, primeLait: 0, indemniteRepresentation: 0, indemniteVehicule: 0, primeCaisse: 0, primeRendement: 0, indemniteOutillage: 0, gratification: 0,
 };
 
 /** Libellé court de chaque champ (en-têtes, libellés accessibles). */
@@ -55,12 +59,14 @@ export const LIBELLE: Record<Champ, string> = {
   primeAssiduite: "Prime assiduité", indemniteLogement: "Indemnité logement", heuresSup: "Heures supplémentaires",
   anciennete: "Ancienneté", sanctions: "Sanctions", absences: "Absences", dettesSoins: "Dettes de soins",
   acompte: "Acompte", mutuellePct: "Mutuelle",
+  primeSalissure: "Prime salissure", primePanier: "Prime panier", primeLait: "Prime lait", indemniteRepresentation: "Ind. représentation", indemniteVehicule: "Ind. véhicule / moto", primeCaisse: "Prime caisse", primeRendement: "Prime rendement", indemniteOutillage: "Ind. outillage", gratification: "Gratification",
 };
 
 export const UNITE: Record<Champ, string> = {
   joursTravailles: "j", primesVariables: "FCFA", transport: "FCFA", primeAssiduite: "FCFA", indemniteLogement: "FCFA",
   heuresSup: "FCFA", anciennete: "FCFA", sanctions: "FCFA", absences: "FCFA", dettesSoins: "FCFA", acompte: "FCFA",
   mutuellePct: "%",
+  primeSalissure: "FCFA", primePanier: "FCFA", primeLait: "FCFA", indemniteRepresentation: "FCFA", indemniteVehicule: "FCFA", primeCaisse: "FCFA", primeRendement: "FCFA", indemniteOutillage: "FCFA", gratification: "FCFA",
 };
 
 export const SOCIETES = ["SESAME", "SOFINA", "SGC"] as const;
@@ -255,9 +261,17 @@ export function totaux(bulletins: BulletinLigne[]) {
     effectif: bulletins.length,
     salaireBase: t("salaireBase"),
     primes: t("primes") + t("indemniteConges"),
-    heuresSupAnciennete: t("heuresSup") + t("anciennete"),
+    heuresSup: t("heuresSup"),
+    anciennete: t("anciennete"),
     total1,
     acompteImpotsCnps: t("acompteImpotsCnps"),
+    // Les deux colonnes issues de la séparation du 21/10/2026 : l'acompte saisi d'un côté,
+    // les retenues fiscales et sociales de l'autre.
+    acompte: bulletins.reduce(
+      (x, b) => x + (b.cotisations.find((c) => c.libelle === "Acompte")?.retenue ?? 0),
+      0,
+    ),
+    chargesSalariales: t("chargesSalariales"),
     mutuelle: t("mutuelle"),
     total2,
     net,

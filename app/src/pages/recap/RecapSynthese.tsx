@@ -24,7 +24,8 @@ import {
 
 const GROUPES: { titre: string; champs: Champ[]; colonnes: string }[] = [
   { titre: "Temps de travail", champs: ["joursTravailles", "absences"], colonnes: "grid-cols-3" },
-  { titre: "Gains", champs: ["primesVariables", "transport", "primeAssiduite", "indemniteLogement", "heuresSup", "anciennete"], colonnes: "grid-cols-3" },
+  // Les 9 primes du DIPE ont été ajoutées le 21/10/2026 : le groupe passe à 15 champs.
+  { titre: "Gains", champs: ["primesVariables", "transport", "primeAssiduite", "indemniteLogement", "heuresSup", "anciennete", "primeCaisse", "primeRendement", "gratification", "primeSalissure", "primePanier", "primeLait", "indemniteRepresentation", "indemniteVehicule", "indemniteOutillage"], colonnes: "grid-cols-3" },
   { titre: "Retenues", champs: ["sanctions", "dettesSoins", "acompte", "mutuellePct"], colonnes: "grid-cols-4" },
 ];
 

@@ -140,11 +140,27 @@ function CellulePopover({
 }
 
 const COLONNES = [
-  "w-[164px]", "w-[66px]", "w-[52px]", "w-[74px]", "w-[82px]", "w-[78px]", "w-[78px]", "w-[66px]", "w-[64px]",
-  "w-[60px]", "w-[94px]", "w-[46px]", "w-[60px]", "w-[78px]", "w-[70px]", "w-[70px]", "w-[70px]", "w-[32px]",
+  "w-[164px]", // Noms
+  "w-[66px]",  // Sal. journalier
+  "w-[52px]",  // Jours trav.
+  "w-[74px]",  // Salaire de base
+  "w-[86px]",  // Primes fixes / congé — regroupe 13 primes dans son infobulle
+  "w-[66px]",  // Heures sup                 ← séparé de l'ancienneté
+  "w-[66px]",  // Ancienneté                 ← nouvelle colonne
+  "w-[78px]",  // Total 1
+  "w-[62px]",  // Sanctions
+  "w-[62px]",  // Absence
+  "w-[60px]",  // Dettes de soins
+  "w-[72px]",  // Acompte / dette            ← séparé des impôts
+  "w-[78px]",  // Impôts & CNPS              ← nouvelle colonne
+  "w-[46px]",  // Mut. %
+  "w-[60px]",  // Mutuelle
+  "w-[78px]",  // Total 2
+  "w-[70px]", "w-[70px]", "w-[70px]", // SESAME / SOFINA / SGC
+  "w-[32px]",  // Bulletin
 ];
-const TH = "px-1.5 py-1.5 text-right text-[10px] font-semibold uppercase leading-tight tracking-wide whitespace-normal align-bottom";
-const TD = "h-10 px-1.5 text-right font-mono text-[11.5px] tabular-nums whitespace-nowrap border-b border-filet-clair";
+const TH = "px-2 py-2.5 text-right text-[10px] font-semibold uppercase leading-tight tracking-wide whitespace-normal align-bottom";
+const TD = "h-12 px-2 text-right font-mono text-[11.5px] tabular-nums whitespace-nowrap border-b border-filet-clair";
 
 export function RecapToutVisible({
   periode, onPeriode, recap, brouillon, filtre, actif, actions,
@@ -187,7 +203,7 @@ export function RecapToutVisible({
           className="overflow-auto rounded-xl border border-filet bg-surface"
           style={hauteurMax ? { maxHeight: hauteurMax } : undefined}
         >
-          <table className="w-full min-w-[1180px] table-fixed border-collapse text-sm">
+          <table className="w-full min-w-[1412px] table-fixed border-collapse text-sm">
             {/* Largeurs calibrées pour 1336 px utiles (1440 − rail 64 − marges) : aucune colonne ne déborde. */}
             <colgroup>
               {COLONNES.map((w, i) => <col key={i} className={w} />)}
@@ -199,12 +215,14 @@ export function RecapToutVisible({
                 <th className={TH}>Jours trav.</th>
                 <th className={TH}>Salaire de base</th>
                 <th className={TH}>Primes fixes / congé</th>
-                <th className={TH}>H. sup / ancienneté</th>
+                <th className={TH}>Heures sup</th>
+                <th className={TH}>Ancienneté</th>
                 <th className={cn(TH, "bg-ocean-nuit")}>Total 1</th>
                 <th className={TH}>Sanctions</th>
                 <th className={TH}>Absence</th>
                 <th className={TH}>Dettes de soins</th>
-                <th className={TH}>Acompte / dette / impôts &amp; CNPS</th>
+                <th className={TH}>Acompte / dette</th>
+                <th className={TH}>Impôts &amp; CNPS</th>
                 <th className={TH}>Mut. %</th>
                 <th className={TH}>Mutuelle</th>
                 <th className={cn(TH, "bg-ocean-nuit")}>Total 2</th>
@@ -252,27 +270,25 @@ export function RecapToutVisible({
                     <td className={TD}>
                       <CellulePopover
                         b={b} brouillon={brouillon} lectureSeule={ro} libelle="Primes fixes / congé"
-                        champs={["primesVariables", "transport", "primeAssiduite", "indemniteLogement"]}
+                        champs={[
+                          "primesVariables", "transport", "primeAssiduite", "indemniteLogement",
+                          "primeCaisse", "primeRendement", "gratification",
+                          "primeSalissure", "primePanier", "primeLait",
+                          "indemniteRepresentation", "indemniteVehicule", "indemniteOutillage",
+                        ]}
                         total={(d?.primes ?? 0) + (d?.indemniteConges ?? 0)}
                         sousTitre={`${d?.congesPris ?? 0} j congés`}
                       />
                     </td>
-                    <td className={TD}>
-                      <CellulePopover
-                        b={b} brouillon={brouillon} lectureSeule={ro} libelle="Heures sup / ancienneté"
-                        champs={["heuresSup", "anciennete"]}
-                        total={(d?.heuresSup ?? 0) + (d?.anciennete ?? 0)}
-                      />
-                    </td>
+                    <td className={TD}>{cel(b, "heuresSup")}</td>
+                    <td className={TD}>{cel(b, "anciennete")}</td>
                     <td className={cn(TD, "bg-ocean-brume font-semibold")}><N valeur={d?.total1 ?? b.brut} /></td>
                     <td className={TD}>{cel(b, "sanctions")}</td>
                     <td className={TD}>{cel(b, "absences")}</td>
                     <td className={TD}>{cel(b, "dettesSoins")}</td>
-                    <td className={TD}>
-                      {cel(b, "acompte")}
-                      <div className="font-sans text-[10px] leading-none text-encre-pale">
-                        = <b className="font-mono text-encre"><N valeur={d?.acompteImpotsCnps ?? 0} /></b> avec impôts
-                      </div>
+                    <td className={TD}>{cel(b, "acompte")}</td>
+                    <td className={TD} title="CNPS + IRPP + CAC + TDL + RAV + CFC salarial">
+                      <N valeur={d?.chargesSalariales ?? 0} />
                     </td>
                     <td className={TD}>{cel(b, "mutuellePct", true)}</td>
                     <td className={TD}><N valeur={d?.mutuelle ?? 0} /></td>
@@ -294,7 +310,7 @@ export function RecapToutVisible({
                 );
               })}
               {bulletins.length === 0 && (
-                <TableVide colonnes={18}>{filtre.recherche ? "Aucun employé ne correspond à la recherche." : "Aucun employé actif pour ce mois."}</TableVide>
+                <TableVide colonnes={20}>{filtre.recherche ? "Aucun employé ne correspond à la recherche." : "Aucun employé actif pour ce mois."}</TableVide>
               )}
             </tbody>
             {bulletins.length > 0 && (
@@ -306,10 +322,12 @@ export function RecapToutVisible({
                   <td className={TD} /><td className={TD} />
                   <td className={TD}><N valeur={t.salaireBase} /></td>
                   <td className={TD}><N valeur={t.primes} /></td>
-                  <td className={TD}><N valeur={t.heuresSupAnciennete} /></td>
+                  <td className={TD}><N valeur={t.heuresSup} /></td>
+                  <td className={TD}><N valeur={t.anciennete} /></td>
                   <td className={cn(TD, "bg-ocean-brume")}><N valeur={t.total1} /></td>
                   <td className={TD} /><td className={TD} /><td className={TD} />
-                  <td className={TD}><N valeur={t.acompteImpotsCnps} /></td>
+                  <td className={TD}><N valeur={t.acompte} /></td>
+                  <td className={TD}><N valeur={t.chargesSalariales} /></td>
                   <td className={TD} />
                   <td className={TD}><N valeur={t.mutuelle} /></td>
                   <td className={cn(TD, "bg-ocean-brume")}><N valeur={t.total2} /></td>

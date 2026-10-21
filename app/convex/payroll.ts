@@ -56,6 +56,15 @@ const VALEURS = v.object({
   primesVariables: v.number(), transport: v.number(), heuresSup: v.number(),
   anciennete: v.number(), mutuellePct: v.number(), dettesSoins: v.number(), acompte: v.number(),
   primeAssiduite: v.optional(v.number()), indemniteLogement: v.optional(v.number()), absences: v.optional(v.number()),
+  primeSalissure: v.optional(v.number()),
+  primePanier: v.optional(v.number()),
+  primeLait: v.optional(v.number()),
+  indemniteRepresentation: v.optional(v.number()),
+  indemniteVehicule: v.optional(v.number()),
+  primeCaisse: v.optional(v.number()),
+  primeRendement: v.optional(v.number()),
+  indemniteOutillage: v.optional(v.number()),
+  gratification: v.optional(v.number()),
 });
 
 // Saisie/màj des éléments variables d'un employé pour un mois (déclenche le recalcul réactif).

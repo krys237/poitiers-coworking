@@ -210,6 +210,16 @@ export default defineSchema({
     primeAssiduite: v.optional(v.number()),   // prime d'assiduité (FCFA)
     indemniteLogement: v.optional(v.number()),// indemnité de logement (FCFA)
     absences: v.optional(v.number()),         // retenue pour absences (FCFA) — colonne « ABSENCE » du récapitulatif
+    // Primes du DIPE ajoutées au récapitulatif le 21/10/2026 (lib/rubriques.CHAMP_SAISIE_VERS_RUBRIQUE).
+    primeSalissure: v.optional(v.number()),
+    primePanier: v.optional(v.number()),
+    primeLait: v.optional(v.number()),
+    indemniteRepresentation: v.optional(v.number()),
+    indemniteVehicule: v.optional(v.number()),
+    primeCaisse: v.optional(v.number()),
+    primeRendement: v.optional(v.number()),
+    indemniteOutillage: v.optional(v.number()),
+    gratification: v.optional(v.number()),
   })
     .index("by_periode", ["periode"])
     .index("by_employe_periode", ["employeId", "periode"]),
@@ -229,7 +239,20 @@ export default defineSchema({
   // Événements d'absence (planning). Les agrégats mensuels et le solde de congés en dérivent.
   absences: defineTable({
     employeId: v.id("employes"),
-    type: v.union(v.literal("conge_paye"), v.literal("absence"), v.literal("maladie"), v.literal("autre")),
+    // Catalogue légal : voir lib/absencesLegales.ts. Les 4 premières valeurs sont les clés
+    // HISTORIQUES et restent acceptées — aucune donnée existante n'est invalidée.
+    type: v.union(
+      v.literal("conge_paye"), v.literal("absence"), v.literal("maladie"), v.literal("autre"),
+      v.literal("maternite"), v.literal("accident_travail"), v.literal("evenement_familial"),
+      v.literal("chomage_technique"), v.literal("mise_a_pied"), v.literal("sans_solde"),
+      v.literal("formation_syndicale"),
+    ),
+    // Pièce justificative fournie (certificat médical, acte d'état civil…).
+    justificatifFourni: v.optional(v.boolean()),
+    /** Événement familial précis, quand le type est `evenement_familial`. */
+    evenementFamilial: v.optional(v.string()),
+    /** Rang du mois d'absence, pour le barème dégressif du chômage technique. */
+    rangMois: v.optional(v.number()),
     dateDebut: v.string(),            // "YYYY-MM-DD"
     dateFin: v.string(),              // inclus
     jours: v.number(),                // jours calendaires inclus
