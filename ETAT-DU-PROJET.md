@@ -108,6 +108,39 @@ Autres décisions en attente, moins bloquantes : validation papier du bulletin p
 7. **Finitions** : unifier les tuiles des cinq écrans refondus en parallèle, retirer `legacy.css`, politique de mot
    de passe (10 caractères), passe accessibilité.
 
+### Chantier RH (lots R0 → R6)
+
+Branche `rh`, poussée sur GitHub le 22/10/2026. **Aucun écran n'a encore tourné contre des données
+réelles** : ce qui est garanti, c'est le typecheck, le build et la logique pure (310 vérifications).
+Le registre détaillé des points ouverts vit dans `app/docs/rh/A-VERIFIER.md` ; les questions
+formulées pour la RH et le comptable dans `app/docs/rh/QUESTIONS-A-TRANCHER.md`.
+
+| Lot | Contenu | État | Bloqué par |
+|---|---|---|---|
+| **R0** | jours fériés + décompte des congés en jours ouvrables | ✅ livré | — |
+| **R1** | planning : services, sexe/enfants, statuts, droit calculé, frise annuelle, chevauchements | ✅ livré *(à cocher au registre)* | — |
+| **R2** | table `rubriquesPaie` datée + les quatre assiettes + corrections C1 → C10 | ✅ livré | — |
+| **R2 bis** | **multi-société : un bulletin par société, un DIPE par déclarant** | **à faire** | — *(débloqué : B2 tranché le 20/10)* |
+| **R3** | écran DIPE + export CSV + récapitulatif par destinataire + rapport d'écart typé | ✅ livré | — |
+| **R4** | allocation de congé (1/16) + liaison planning → paie | à faire | **A1**, **A2** — la RH tranche |
+| **R5** | absences élargies : maternité, AT/MP, chômage technique, permissions, sans solde, mise à pied, formation syndicale | ✅ livré | — |
+| **R6** | retenue à la source sur les honoraires des médecins | à faire | **M1**, **M2** — le comptable tranche |
+
+**Pourquoi R4 a été sauté et R5 fait à sa place** : R4 dépend de deux inconnues numériques relevées
+dans le DIPE d'août 2026 (le facteur 0,9984 et la détermination de N), que seule la RH peut
+expliquer. R5 n'était bloqué par rien.
+
+**Préalables avant tout déploiement de `rh`** : reporter `clean` sur `rh` (sans quoi la branche
+arrive sans `convex deploy` dans son build, avec le repli Convex codé en dur et sans l'`ErrorBoundary`) ;
+pousser son backend sur un déploiement Convex ; puis initialiser le calendrier des jours fériés de
+l'année et les services depuis les bandeaux de l'écran Planning annuel. **Cycle impératif :
+`rh` → `dev` → validation en recette → `clean`.** Jamais directement sur `clean`.
+
+**Le piège du renommage** `salaireBrut` → `salaireBase`, en trois temps et dans cet ordre :
+pousser le schéma avec les deux champs optionnels, lancer `employes:migrerSalaireBase`, puis
+seulement retirer l'ancien champ. L'ordre inverse fait rejeter les fiches existantes par Convex.
+Ne concerne qu'une base peuplée.
+
 ### Backlog non planifié
 Comparaison réelle du barème avec la source officielle · agrégats mensuels stockés pour l'audit au-delà de 24 mois ·
 réinitialisation de mot de passe (« mot de passe oublié »).
