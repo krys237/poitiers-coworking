@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { requireDroit, requireUnDesDroits } from "./lib/authz";
 import { journaliser } from "./lib/journal";
 import { bulletinsPourPeriode } from "./lib/calculBulletins";
+import { cleCouple, pourSociete, societePrincipale, SOCIETES } from "./lib/societes";
 import { internal } from "./_generated/api";
 import { lireReglages } from "./parametres";
 
@@ -41,13 +42,31 @@ export const genererEtCloturer = mutation({
   },
 });
 
-// Les saisies brutes du mois (pour l'édition), indexées par employé.
+/**
+ * Les saisies brutes du mois (pour l'édition), indexées par COUPLE `<employeId>:<SOCIETE>` — la
+ * même clé que `BulletinPeriode.cle`. Une ligne enregistrée avant le lot R2 bis n'a pas de société
+ * et relève de la société porteuse de la fiche : elle garde donc sa clé d'origine et reste
+ * modifiable, avant comme après la migration.
+ */
 export const saisiesDuMois = query({
   args: { periode: v.string() },
   handler: async (ctx, { periode }) => {
     await requireDroit(ctx, "/paie/saisie");
     const rows = await ctx.db.query("saisiesMensuelles").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
-    return Object.fromEntries(rows.map((r) => [r.employeId, r]));
+    const principaleDe = new Map<string, "SESAME" | "SOFINA" | "SGC">();
+    for (const r of rows) {
+      const id = String(r.employeId);
+      if (r.societe || principaleDe.has(id)) continue;
+      const e = await ctx.db.get(r.employeId);
+      if (!e) continue;
+      const lignes = await ctx.db.query("rattachements").withIndex("by_employe", (q) => q.eq("employeId", r.employeId)).collect();
+      principaleDe.set(id, societePrincipale(e, lignes));
+    }
+    return Object.fromEntries(rows.map((r) => {
+      const societe = r.societe ?? principaleDe.get(String(r.employeId));
+      // Fiche employé disparue : la ligne reste exposée sous son identifiant brut plutôt que perdue.
+      return [societe ? cleCouple(String(r.employeId), societe) : String(r.employeId), r];
+    }));
   },
 });
 
@@ -68,10 +87,15 @@ const VALEURS = v.object({
   gratification: v.optional(v.number()),
 });
 
-// Saisie/màj des éléments variables d'un employé pour un mois (déclenche le recalcul réactif).
+// Saisie/màj des éléments variables d'un COUPLE (employé, société) pour un mois : chaque société
+// verse sa part et la saisit à part (décision du 20/10/2026). `societe` absente = société porteuse
+// de la fiche, ce qui laisse tous les appels existants fonctionner à l'identique.
 export const saisirMois = mutation({
-  args: { employeId: v.id("employes"), periode: v.string(), valeurs: VALEURS },
-  handler: async (ctx, { employeId, periode, valeurs }) => {
+  args: {
+    employeId: v.id("employes"), periode: v.string(), valeurs: VALEURS,
+    societe: v.optional(v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"))),
+  },
+  handler: async (ctx, { employeId, periode, valeurs, societe: societeDemandee }) => {
     await requireDroit(ctx, "/paie/saisie", "faire");
     const clos = await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
     if (clos) throw new Error(`Le mois ${periode} est clôturé : saisie en lecture seule.`);
@@ -84,10 +108,26 @@ export const saisirMois = mutation({
       if (x < 0) throw new Error(`Montant négatif interdit (${k}).`);
       if (k !== "joursTravailles" && k !== "mutuellePct" && k !== "absencesJours" && x > plafond) throw new Error(`Montant invraisemblable pour ${k} (> ${plafond.toLocaleString("fr-FR")} FCFA — plafond réglable dans Paramètres).`);
     }
-    const existant = await ctx.db.query("saisiesMensuelles")
-      .withIndex("by_employe_periode", (q) => q.eq("employeId", employeId).eq("periode", periode)).unique();
+    const employe = await ctx.db.get(employeId);
+    if (!employe) throw new Error("Fiche employé introuvable.");
+    const lignes = await ctx.db.query("rattachements").withIndex("by_employe", (q) => q.eq("employeId", employeId)).collect();
+    const principale = societePrincipale(employe, lignes);
+    const societe = societeDemandee ?? principale;
+    if (!SOCIETES.includes(societe)) throw new Error("Société inconnue.");
+    // La société doit effectivement rémunérer cet employé : sinon la saisie produirait un bulletin
+    // chez un employeur qui ne l'emploie pas.
+    const actives = lignes.filter((l) => l.actif).map((l) => l.societe);
+    if (actives.length && !actives.includes(societe)) {
+      throw new Error(`${employe.nom} n'est pas rattaché à ${societe} : ajoutez le rattachement dans l'écran Employés.`);
+    }
+
+    // Toutes les saisies du couple (employé, mois), société comprise ou non : `pourSociete` retrouve
+    // la bonne et évite de créer un doublon à côté d'une ligne antérieure sans société.
+    const toutes = await ctx.db.query("saisiesMensuelles")
+      .withIndex("by_employe_periode", (q) => q.eq("employeId", employeId).eq("periode", periode)).collect();
+    const existant = pourSociete(toutes, societe, principale);
     const v2 = { ...valeurs, primeAssiduite: valeurs.primeAssiduite ?? 0, indemniteLogement: valeurs.indemniteLogement ?? 0, absences: valeurs.absences ?? 0 };
-    if (existant) await ctx.db.patch(existant._id, v2);
-    else await ctx.db.insert("saisiesMensuelles", { employeId, periode, ...v2 });
+    if (existant) await ctx.db.patch(existant._id, { ...v2, societe });
+    else await ctx.db.insert("saisiesMensuelles", { employeId, periode, societe, ...v2 });
   },
 });

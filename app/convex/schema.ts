@@ -88,6 +88,16 @@ export default defineSchema({
     })),
     // Droits VOIR / FAIRE par rôle et par module, quand ils diffèrent du défaut (rbac.droitsEffectifs).
     droitsRoles: v.optional(v.array(v.object({ role: v.string(), module: v.string(), voir: v.boolean(), faire: v.boolean() }))),
+    // Identité DÉCLARANTE de chaque société (lot R2 bis). « SESAME déclare de son côté » : chaque
+    // société dépose son propre DIPE sous son propre NIU et son propre numéro CNPS. À défaut, le
+    // DIPE retombe sur le NIU et le numéro CNPS de l'entreprise ci-dessus — comportement actuel.
+    societes: v.optional(v.array(v.object({
+      societe: SOCIETE,
+      raisonSociale: v.optional(v.string()),
+      adresse: v.optional(v.string()),
+      niu: v.optional(v.string()),
+      numeroCnps: v.optional(v.string()),
+    }))),
   }),
 
   // Services d'affectation (colonne SERVICE du planning de congé). La COULEUR est un paramètre
@@ -145,6 +155,48 @@ export default defineSchema({
     .index("by_societe", ["societe"])
     .index("by_service", ["serviceId"]),
 
+  // Rattachement d'un employé à UNE société employeuse (lot R2 bis, décision du 20/10/2026).
+  //
+  // « SESAME déclare de son côté » : les trois sociétés sont des employeurs juridiquement
+  // distincts, chacun avec son NIU et son numéro CNPS. Un employé peut relever de deux ou trois
+  // d'entre elles — pluri-emploi régulier — et chaque société ne verse, ne déclare et ne cotise
+  // que sur SA part. Un bulletin par société, un DIPE par déclarant, et donc un plafond CNPS et
+  // des tranches d'IRPP PAR EMPLOYEUR, sans consolidation (conséquence assumée).
+  //
+  // Table dédiée et non tableau sur la fiche : les saisies mensuelles, les bulletins figés et les
+  // lignes de primes sont indexés par couple (employé, société), ce qu'un élément de tableau sans
+  // identité stable ne permet pas de désigner. Voir `lib/societes.ts` pour la lecture — qui
+  // fonctionne AVANT comme APRÈS la migration `employes:migrerRattachements` : sans aucune ligne,
+  // c'est `employes.societe` qui fait foi, exactement comme aujourd'hui.
+  rattachements: defineTable({
+    employeId: v.id("employes"),
+    societe: SOCIETE,
+    // Données PROPRES À L'EMPLOYEUR : deux sociétés ne numérotent pas, ne classent pas et ne
+    // paient pas de la même façon. Toutes optionnelles : la RH déclare l'appartenance d'abord et
+    // chiffre ensuite (le repli est la fiche employé, `lib/societes.rattachementsEffectifs`).
+    matriculeEmployeur: v.optional(v.string()),
+    cnpsEmployeur: v.optional(v.string()),
+    niuEmployeur: v.optional(v.string()),
+    salaireBase: v.optional(v.number()),   // salaire de base versé par CETTE société (hors primes)
+    joursBase: v.optional(v.number()),
+    categorie: v.optional(v.string()),
+    echelon: v.optional(v.string()),
+    contrat: v.optional(v.string()),
+    dateDebut: v.optional(v.string()),     // "YYYY-MM-DD" — entrée chez cet employeur
+    dateFin: v.optional(v.string()),
+    // Indicateur d'activité : c'est lui, et non les dates, qui décide si le couple produit un
+    // bulletin — le moteur n'a jamais regardé `employes.dateDebut` pour cela.
+    actif: v.boolean(),
+    // Société PORTEUSE de la fiche (celle de `employes.societe`). Une seule par employé : elle sert
+    // de clé de compatibilité pour les saisies et primes enregistrées avant ce lot, qui n'ont pas
+    // de société et lui appartiennent.
+    principal: v.optional(v.boolean()),
+    creeLe: v.optional(v.string()),
+  })
+    .index("by_employe", ["employeId"])
+    .index("by_societe", ["societe"])
+    .index("by_employe_societe", ["employeId", "societe"]),
+
   // Barème officiel DATÉ (CNPS / CGI). Un bulletin référence la version applicable à sa période.
   baremes: defineTable({
     effectiveFrom: v.string(),        // "YYYY-MM-DD" — début d'applicabilité
@@ -201,9 +253,13 @@ export default defineSchema({
     })),
   }).index("by_effective", ["effectiveFrom"]),
 
-  // Éléments variables saisis par mois et par employé.
+  // Éléments variables saisis par mois et par COUPLE (employé, société) depuis le lot R2 bis.
   saisiesMensuelles: defineTable({
     employeId: v.id("employes"),
+    // Société qui verse ces éléments. ABSENTE = ligne antérieure au lot R2 bis : elle appartient
+    // à la société porteuse de la fiche (`lib/societes.pourSociete`). Jamais requise, pour que
+    // les saisies déjà faites restent lisibles et modifiables.
+    societe: v.optional(SOCIETE),
     periode: v.string(),              // "YYYY-MM"
     joursTravailles: v.number(),
     absencesJours: v.number(),
@@ -236,6 +292,9 @@ export default defineSchema({
   // Lignes libres de primes / charges datées (alimentent les totaux du mois).
   primesCharges: defineTable({
     employeId: v.id("employes"),
+    // Société qui verse la prime ou retient la charge. Absente = société porteuse de la fiche
+    // (lignes antérieures au lot R2 bis) : une prime ne doit jamais changer de déclarant.
+    societe: v.optional(SOCIETE),
     periode: v.string(),
     libelle: v.string(),
     montant: v.number(),
@@ -330,6 +389,9 @@ export default defineSchema({
   // Journal des envois de courrier de paie (e-mail). Un enregistrement par tentative.
   envois: defineTable({
     employeId: v.id("employes"),
+    // Société du bulletin envoyé (lot R2 bis) : un pluri-employé reçoit un courrier par société.
+    // Absente = envoi antérieur, donc société porteuse de la fiche.
+    societe: v.optional(SOCIETE),
     periode: v.string(),
     email: v.string(),                // adresse du canal : e-mail, ou numéro WhatsApp
     canal: v.optional(v.union(v.literal("email"), v.literal("whatsapp"))), // absent = e-mail (envois antérieurs)

@@ -59,7 +59,9 @@ export function Bulletins() {
   const liste = tous.filter((b) => !qq || sansAccents(`${b.nom} ${b.matricule} ${b.societe}`).includes(qq));
   // À imprimer : le salarié filtré par l'adresse, sinon tous.
   const aImprimer = filtre ? tous.filter((b) => b.matricule === filtre) : tous;
-  const selection = tous.find((b) => b.matricule === ouvert) ?? tous[0] ?? null;
+  // `ouvert` est la clé du couple (employé, société) depuis le lot R2 bis ; le lien profond
+  // `?employe=<matricule>` continue de désigner un salarié, d’où la reconnaissance des deux formes.
+  const selection = tous.find((b) => b.cle === ouvert || b.matricule === ouvert) ?? tous[0] ?? null;
   const total = (cle: "brut" | "totalRetenues" | "net", src: any[] = tous) => src.reduce((t, b) => t + (b[cle] ?? 0), 0);
   const nomEntreprise = entreprise?.nom ?? "POITIERS COWORKING";
 
@@ -160,7 +162,7 @@ export function Bulletins() {
               </TableHeader>
               <TableBody>
                 {liste.map((b, i) => (
-                  <TableRow key={String(b.employeId)} active={selection?.matricule === b.matricule} className="cursor-pointer" tabIndex={0} onClick={() => setOuvert(b.matricule)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOuvert(b.matricule); } }}>
+                  <TableRow key={b.cle} active={selection?.cle === b.cle} className="cursor-pointer" tabIndex={0} onClick={() => setOuvert(b.cle)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOuvert(b.cle); } }}>
                     <TableCell className="font-mono text-2xs text-encre-pale">{i + 1}</TableCell>
                     <TableCell className="whitespace-nowrap">
                       <div className="text-[13px] font-semibold">{b.nom}</div>
@@ -219,7 +221,7 @@ export function Bulletins() {
               <thead><tr><th className="c">N°</th><th>Nom et prénoms</th><th>Matricule</th><th className="c">Société</th><th className="r">Brut (FCFA)</th><th className="r">Retenues</th><th className="r">Net à payer</th></tr></thead>
               <tbody>
                 {aImprimer.map((b, i) => (
-                  <tr key={String(b.employeId)}><td className="c">{i + 1}</td><td>{b.nom}</td><td className="c">{b.matricule}</td><td className="c">{b.societe}</td><td className="r">{num(b.brut)}</td><td className="r">{num(b.totalRetenues)}</td><td className="r">{num(b.net)}</td></tr>
+                  <tr key={b.cle}><td className="c">{i + 1}</td><td>{b.nom}</td><td className="c">{b.matricule}</td><td className="c">{b.societe}</td><td className="r">{num(b.brut)}</td><td className="r">{num(b.totalRetenues)}</td><td className="r">{num(b.net)}</td></tr>
                 ))}
                 <tr className="appuyee"><td colSpan={4}>TOTAUX</td><td className="r">{num(total("brut", aImprimer))}</td><td className="r">{num(total("totalRetenues", aImprimer))}</td><td className="r">{num(total("net", aImprimer))}</td></tr>
               </tbody>
@@ -227,7 +229,7 @@ export function Bulletins() {
             <MentionDocument valide={!!paie?.cloture} dateValidation={aImprimer[0]?.valideLe ? new Date(aImprimer[0].valideLe).toLocaleDateString("fr-FR") : undefined} />
           </Feuille>
         )}
-        {aImprimer.map((b, i) => <BulletinCard key={String(b.employeId)} b={b} entreprise={entreprise} page={`page ${i + 1}/${aImprimer.length}`} />)}
+        {aImprimer.map((b, i) => <BulletinCard key={b.cle} b={b} entreprise={entreprise} page={`page ${i + 1}/${aImprimer.length}`} />)}
       </div>
     </div>
   );

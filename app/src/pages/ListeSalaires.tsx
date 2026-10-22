@@ -135,7 +135,7 @@ export function ListeSalaires() {
             </TableHeader>
             <TableBody>
               {lignes.map((b, i) => (
-                <TableRow key={String(b.employeId)}>
+                <TableRow key={b.cle}>
                   <TableCell className="font-mono text-xs text-encre-pale">{i + 1}</TableCell>
                   <TableCell className="leading-tight">
                     <div className="whitespace-nowrap text-[13px] font-semibold">{b.nom}</div>
@@ -183,7 +183,7 @@ export function ListeSalaires() {
             </thead>
             <tbody>
               {lignes.map((b, i) => (
-                <tr key={String(b.employeId)}>
+                <tr key={b.cle}>
                   <td>{i + 1}</td><td>{b.nom}</td>
                   {SOCIETES.map((s) => <td key={s} className="num">{b.societe === s ? num(b.net) : "—"}</td>)}
                   <td className="num">{primesDe(b) ? num(primesDe(b)) : "—"}</td>

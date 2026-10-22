@@ -35,7 +35,8 @@ function FicheSaisie({
 }: {
   b: BulletinLigne; brouillon: Brouillon; bareme: any; periode: string; cloture: boolean; onFermer: () => void; recap: RecapPaie;
 }) {
-  const id = String(b.employeId);
+  // La saisie porte sur le COUPLE (employé, société) : chaque employeur verse sa propre part.
+  const id = b.cle;
   const [v, setV] = React.useState<Valeurs>(() => brouillon.valeurs(id));
   const [err, setErr] = React.useState<Partial<Record<Champ, string>>>({});
   const [enCours, setEnCours] = React.useState(false);
@@ -152,7 +153,7 @@ export function RecapSynthese({
   React.useEffect(() => setSelection(null), [periode]);
   const t = totaux(bulletins);
   // La fiche reste ouverte même si la recherche masque la ligne sélectionnée.
-  const choisi = recap.bulletins.find((b) => String(b.employeId) === selection) ?? null;
+  const choisi = recap.bulletins.find((b) => b.cle === selection) ?? null;
   const retenues = (b: BulletinLigne) => (b.details?.total1 ?? b.brut) - (b.details?.total2 ?? b.net);
 
   return (
@@ -182,7 +183,7 @@ export function RecapSynthese({
               </TableHeader>
               <TableBody>
                 {bulletins.map((b) => {
-                  const id = String(b.employeId);
+                  const id = b.cle;
                   const d = b.details;
                   const active = selection === id;
                   return (

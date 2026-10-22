@@ -16,6 +16,8 @@
 import type { Assiettes, Rubrique } from "./rubriques.ts";
 
 export interface SourceBulletin {
+  /** Clé du couple (employé, société) : un pluri-employé a une ligne par DÉCLARANT. */
+  cle: string;
   matricule: string;
   matriculeCnps?: string;
   nom: string;
@@ -39,6 +41,7 @@ export interface SourceBulletin {
 
 export interface LigneDipe {
   no: number;
+  cle: string;
   matricule: string;
   matriculeCnps: string;
   nom: string;
@@ -91,6 +94,7 @@ export function ligneDipe(src: SourceBulletin, no: number): LigneDipe {
 
   return {
     no,
+    cle: src.cle,
     matricule: src.matricule,
     matriculeCnps: src.matriculeCnps ?? "",
     nom: src.nom,
@@ -197,6 +201,66 @@ export function recapitulatifDipe(lignes: LigneDipe[]): RecapitulatifDipe {
     netAPayer: somme(lignes, "netDipe"),
     coutEmployeur: somme(lignes, "coutEmployeur"),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Un DIPE PAR DÉCLARANT (lot R2 bis)
+//
+// « SESAME déclare de son côté » (20/10/2026) : chaque société dépose son propre DIPE, sous son
+// propre NIU et son propre numéro CNPS, et n'y reprend QUE les rémunérations qu'elle a versées.
+// On ne consolide donc jamais les trois états : les additionner n'aurait aucun destinataire.
+// ---------------------------------------------------------------------------
+
+/** Identité sous laquelle une société dépose sa déclaration. */
+export interface Declarant {
+  societe: string;
+  raisonSociale: string;
+  adresse: string;
+  niu: string;
+  numeroCnps: string;
+  /** Faux si le NIU ou le numéro CNPS propres à cette société manquent encore (Paramètres). */
+  complet: boolean;
+  /** Vrai quand l'identité vient de l'entreprise globale, faute d'identité propre renseignée. */
+  reprisDeLEntreprise: boolean;
+}
+
+/**
+ * Identité déclarante d'une société : la sienne si elle est renseignée dans les paramètres, sinon
+ * celle de l'entreprise — ce qui reproduit le comportement d'avant ce lot, en le signalant.
+ */
+export function declarantPourSociete(
+  societe: string,
+  propres: { societe: string; raisonSociale?: string; adresse?: string; niu?: string; numeroCnps?: string }[] | undefined,
+  entreprise: { nom?: string; adresse?: string; niu?: string; numeroCnps?: string },
+): Declarant {
+  const p = (propres ?? []).find((x) => x.societe === societe);
+  const niu = p?.niu?.trim() || "";
+  const numeroCnps = p?.numeroCnps?.trim() || "";
+  const reprisDeLEntreprise = !niu && !numeroCnps;
+  return {
+    societe,
+    raisonSociale: p?.raisonSociale?.trim() || entreprise.nom || societe,
+    adresse: p?.adresse?.trim() || entreprise.adresse || "",
+    niu: niu || entreprise.niu || "",
+    numeroCnps: numeroCnps || entreprise.numeroCnps || "",
+    complet: !!(niu || entreprise.niu) && !!(numeroCnps || entreprise.numeroCnps),
+    reprisDeLEntreprise,
+  };
+}
+
+/**
+ * Découpe l'état du mois en une déclaration PAR SOCIÉTÉ. Les numéros de ligne sont renumérotés
+ * dans chaque déclaration : le DIPE déposé par SOFINA commence à 1, comme tout formulaire.
+ */
+export function grouperParSociete(lignes: LigneDipe[]): { societe: string; lignes: LigneDipe[]; recapitulatif: RecapitulatifDipe }[] {
+  const par = new Map<string, LigneDipe[]>();
+  for (const l of lignes) par.set(l.societe, [...(par.get(l.societe) ?? []), l]);
+  return [...par.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([societe, siennes]) => {
+      const renumerotees = siennes.map((l, i) => ({ ...l, no: i + 1 }));
+      return { societe, lignes: renumerotees, recapitulatif: recapitulatifDipe(renumerotees) };
+    });
 }
 
 // ---------------------------------------------------------------------------

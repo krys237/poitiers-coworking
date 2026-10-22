@@ -3,6 +3,10 @@ import { v } from "convex/values";
 import { Doc } from "./_generated/dataModel";
 import { requireDroit } from "./lib/authz";
 import { bulletinsPourPeriode } from "./lib/calculBulletins";
+import { rattachementsEffectifs, type Societe } from "./lib/societes";
+
+// Société demandée quand le salarié relève de plusieurs employeurs (lot R2 bis).
+const SOCIETE_OPT = v.optional(v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC")));
 
 // « Mes bulletins » (demande de M. GAMBOU, 28/09/2026) : un membre consulte et télécharge SES bulletins.
 // Seuls les mois clôturés sont montrés : un bulletin provisoire peut encore changer.
@@ -25,16 +29,20 @@ async function entrepriseDocument(ctx: QueryCtx) {
 }
 
 // Le bulletin figé d'un mois clôturé, au format unifié (celui de l'écran, du courrier et du PDF).
-async function monBulletin(ctx: QueryCtx, periode: string) {
+// Depuis le lot R2 bis, un pluri-employé a UN bulletin PAR SOCIÉTÉ pour le même mois : chacune ne
+// porte que la part qu'elle verse (c'est normal, et non un oubli). Sans société demandée, on rend
+// le premier — celui de la société porteuse de sa fiche.
+async function monBulletin(ctx: QueryCtx, periode: string, societe?: Societe) {
   const me = await requireDroit(ctx, "/mes-bulletins");
   const emp = await employeDuMembre(ctx, me);
   if (!emp) throw new Error("Votre compte n'est relié à aucune fiche employé. Demandez à la Direction de faire le lien (écran Membres).");
-  const fige = await ctx.db.query("bulletins").withIndex("by_employe_periode", (q) => q.eq("employeId", emp._id).eq("periode", periode)).unique();
-  if (!fige) throw new Error("Aucun bulletin validé pour ce mois.");
+  const figes = await ctx.db.query("bulletins").withIndex("by_employe_periode", (q) => q.eq("employeId", emp._id).eq("periode", periode)).collect();
+  if (!figes.length) throw new Error("Aucun bulletin validé pour ce mois.");
   const r = await bulletinsPourPeriode(ctx, periode);
-  const bulletin = r.bulletins.find((b) => String(b.employeId) === String(emp._id));
+  const miens = r.bulletins.filter((b) => String(b.employeId) === String(emp._id));
+  const bulletin = (societe ? miens.find((b) => b.societe === societe) : undefined) ?? miens[0];
   if (!bulletin) throw new Error("Aucun bulletin validé pour ce mois.");
-  return { bulletin, entreprise: await entrepriseDocument(ctx), nom: emp.nom };
+  return { bulletin, entreprise: await entrepriseDocument(ctx), nom: emp.nom, societes: miens.map((b) => b.societe) };
 }
 
 /** Mes mois clôturés, du plus récent au plus ancien. */
@@ -45,23 +53,26 @@ export const liste = query({
     const emp = await employeDuMembre(ctx, me);
     if (!emp) return { employe: null, bulletins: [] };
     const figes = await ctx.db.query("bulletins").withIndex("by_employe_periode", (q) => q.eq("employeId", emp._id)).collect();
+    const lignes = await ctx.db.query("rattachements").withIndex("by_employe", (q) => q.eq("employeId", emp._id)).collect();
+    const societes = rattachementsEffectifs(emp, lignes).map((r) => r.societe);
     return {
-      employe: { nom: emp.nom, matricule: emp.matricule, societe: emp.societe },
+      employe: { nom: emp.nom, matricule: emp.matricule, societe: emp.societe, societes },
+      // Un bulletin par mois ET PAR SOCIÉTÉ : la clé de la liste est le couple, pas la période.
       bulletins: figes
-        .map((b) => ({ periode: b.periode, brut: b.brut, retenues: b.totalRetenues, net: b.net, genereLe: b.genereLe }))
-        .sort((a, b) => b.periode.localeCompare(a.periode)),
+        .map((b) => ({ cle: `${b.periode}:${b.societe}`, periode: b.periode, societe: b.societe, brut: b.brut, retenues: b.totalRetenues, net: b.net, genereLe: b.genereLe }))
+        .sort((a, b) => b.periode.localeCompare(a.periode) || a.societe.localeCompare(b.societe)),
     };
   },
 });
 
-/** Un de mes bulletins, pour l'afficher. */
+/** Un de mes bulletins, pour l'afficher. `societe` désigne l'employeur quand il y en a plusieurs. */
 export const detail = query({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => await monBulletin(ctx, periode),
+  args: { periode: v.string(), societe: SOCIETE_OPT },
+  handler: async (ctx, { periode, societe }) => await monBulletin(ctx, periode, societe),
 });
 
 /** Même chose pour l'action PDF (l'identité est propagée par ctx.runQuery). */
 export const pourPdf = internalQuery({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => await monBulletin(ctx, periode),
+  args: { periode: v.string(), societe: SOCIETE_OPT },
+  handler: async (ctx, { periode, societe }) => await monBulletin(ctx, periode, societe),
 });

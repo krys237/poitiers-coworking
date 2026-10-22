@@ -111,8 +111,9 @@ export type RecapPaie = ReturnType<typeof useRecapPaie>;
 export type EtatLigne = "modifie" | "enregistrement" | "enregistre";
 
 /**
- * Le brouillon est indexé par employé ET remis à zéro à chaque changement de
- * période : une valeur tapée en septembre ne réapparaît plus en octobre.
+ * Le brouillon est indexé par COUPLE (employé, société) — la clé `BulletinPeriode.cle` — et remis
+ * à zéro à chaque changement de période : une valeur tapée en septembre ne réapparaît plus en
+ * octobre, et la part versée par SOFINA ne se mélange pas à celle de SGC.
  * Chaque modification programme un enregistrement 800 ms plus tard ; `flush`
  * l'exécute tout de suite (sortie de champ, fermeture d'un dialogue).
  */
@@ -137,7 +138,7 @@ export function useBrouillon(recap: RecapPaie, periode: string) {
     [brouillon, saisies]
   );
 
-  /** Valeurs complètes d'un employé (brouillon + saisie serveur + défauts). */
+  /** Valeurs complètes d'un couple (employé, société) : brouillon + saisie serveur + défauts. */
   const valeurs = React.useCallback(
     (id: string): Valeurs => Object.fromEntries(CHAMPS.map((c) => [c, val(id, c)])) as Valeurs,
     [val]
@@ -153,8 +154,11 @@ export function useBrouillon(recap: RecapPaie, periode: string) {
       ) as Valeurs;
       setEtats((e) => ({ ...e, [id]: "enregistrement" }));
       try {
+        // `id` est la clé du couple : `<employeId>:<SOCIETE>`. Chaque société saisit sa part.
+        const [employeId, societe] = id.split(":");
         await saisir({
-          employeId: id as Id<"employes">,
+          employeId: employeId as Id<"employes">,
+          societe: societe as Societe | undefined,
           periode,
           valeurs: { ...base, absencesJours: (saisies?.[id] as any)?.absencesJours ?? 0 },
         });

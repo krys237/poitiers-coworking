@@ -6,7 +6,13 @@ import { query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireDroit } from "./lib/authz";
 import { bulletinsPourPeriode } from "./lib/calculBulletins";
-import { ligneDipe, recapitulatifDipe, type LigneDipe, type SourceBulletin } from "./lib/dipe";
+import {
+  declarantPourSociete, grouperParSociete, ligneDipe, recapitulatifDipe,
+  type LigneDipe, type SourceBulletin,
+} from "./lib/dipe";
+import { SOCIETES } from "./lib/societes";
+
+const SOCIETE = v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"));
 import { rubriquesPourPeriode } from "./rubriques";
 import type { Assiettes } from "./lib/rubriques";
 import type { LigneCotisation, LigneGain } from "./lib/paie";
@@ -52,9 +58,17 @@ function assiettesOuRepli(
   };
 }
 
+/**
+ * L'état du mois, pour UNE société déclarante ou pour toutes.
+ *
+ * « SESAME déclare de son côté » (20/10/2026) : chaque société dépose son propre DIPE sous son
+ * propre NIU et son propre numéro CNPS, et n'y reprend que ce qu'elle a versé. `societe` absente
+ * rend l'état consolidé des trois — utile pour la vue d'ensemble de la RH, jamais à déposer tel
+ * quel : ce n'est la déclaration de personne.
+ */
 export const etat = query({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => {
+  args: { periode: v.string(), societe: v.optional(SOCIETE) },
+  handler: async (ctx, { periode, societe }) => {
     // Le DIPE sert la RH et le comptable : son propre module, visible dès le niveau 3.
     await requireDroit(ctx, "/paie/dipe");
 
@@ -65,11 +79,14 @@ export const etat = query({
     const lignes: LigneDipe[] = [];
     let reconstituees = 0;
 
+    // On construit TOUTES les lignes, puis on filtre : les compteurs par société restent justes
+    // même quand l'écran n'affiche qu'un déclarant.
     r.bulletins.forEach((b, i) => {
       const { assiettes, reconstituees: repli } = assiettesOuRepli(b.details, b.brut);
       if (repli) reconstituees++;
       const src: SourceBulletin = {
-        matricule: b.matricule,
+        cle: b.cle,
+        matricule: b.matriculeEmployeur ?? b.matricule,
         matriculeCnps: b.cnps,
         nom: b.nom,
         societe: b.societe,
@@ -91,6 +108,24 @@ export const etat = query({
       lignes.push(ligneDipe(src, i + 1));
     });
 
+    const parSociete = grouperParSociete(lignes);
+    // La déclaration demandée, renumérotée à partir de 1 ; à défaut, l'état consolidé.
+    const retenues = societe
+      ? parSociete.find((d) => d.societe === societe)?.lignes ?? []
+      : lignes;
+    const declarants = SOCIETES.map((s) => {
+      const d = parSociete.find((x) => x.societe === s);
+      return {
+        ...declarantPourSociete(s, parametres?.societes, {
+          nom: parametres?.nom, adresse: parametres?.adresse, niu: parametres?.niu, numeroCnps: parametres?.numeroCnps,
+        }),
+        effectif: d?.lignes.length ?? 0,
+        masseBrute: d?.recapitulatif.masseBrute ?? 0,
+        totalImpots: d?.recapitulatif.totalImpots ?? 0,
+        totalCnps: d?.recapitulatif.totalCnps ?? 0,
+      };
+    });
+
     // Échéance légale : avant le 15 du mois suivant la période de paie.
     const [an, mois] = [+periode.slice(0, 4), +periode.slice(5, 7)];
     const suivant = mois === 12 ? { an: an + 1, mois: 1 } : { an, mois: mois + 1 };
@@ -108,10 +143,21 @@ export const etat = query({
         numeroCnps: parametres?.numeroCnps ?? "",
       },
       rubriques,
-      lignes,
-      recapitulatif: recapitulatifDipe(lignes),
+      // Société déclarante retenue (absente = vue consolidée des trois, qui ne se dépose pas).
+      societe: societe ?? null,
+      declarant: societe
+        ? declarants.find((d) => d.societe === societe) ?? null
+        : null,
+      declarants,
+      lignes: retenues,
+      recapitulatif: recapitulatifDipe(retenues),
       // Nombre de lignes dont les assiettes ont été reconstituées depuis un ancien snapshot.
       assiettesReconstituees: reconstituees,
+      // Salariés déclarés par PLUSIEURS sociétés ce mois-là : à expliquer au contrôleur, c'est du
+      // pluri-emploi régulier et non une double déclaration.
+      pluriEmployes: new Set(
+        lignes.filter((l, _, t) => t.filter((x) => x.matricule === l.matricule).length > 1).map((l) => l.matricule),
+      ).size,
     };
   },
 });

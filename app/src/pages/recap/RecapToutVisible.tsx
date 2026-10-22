@@ -72,7 +72,7 @@ function CellulePopover({
 }: {
   b: BulletinLigne; champs: Champ[]; total: number; sousTitre?: React.ReactNode; brouillon: Brouillon; lectureSeule: boolean; libelle: string;
 }) {
-  const id = String(b.employeId);
+  const id = b.cle;
   const [open, setOpen] = React.useState(false);
   const [v, setV] = React.useState<Partial<Valeurs>>({});
   React.useEffect(() => {
@@ -175,7 +175,7 @@ export function RecapToutVisible({
   const ro = cloture;
 
   const cel = (b: BulletinLigne, c: Champ, decimales = false) => {
-    const id = String(b.employeId);
+    const id = b.cle;
     return (
       <CelluleInline
         libelle={`${LIBELLE[c]} — ${b.nom}`}
@@ -234,7 +234,7 @@ export function RecapToutVisible({
             </thead>
             <tbody className="[&>tr:nth-child(even)]:bg-bande [&>tr:hover]:bg-sceau-clair/70 [&>tr:focus-within]:bg-sceau-clair [&>tr:focus-within]:shadow-[inset_3px_0_0_var(--ocean-ceruleen)]">
               {bulletins.map((b) => {
-                const id = String(b.employeId);
+                const id = b.cle;
                 const d = b.details;
                 return (
                   <tr key={id}>

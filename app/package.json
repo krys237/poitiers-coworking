@@ -24,6 +24,7 @@
     "test:conges": "node --experimental-strip-types tests/congesOuvrables.test.ts",
     "test:planning": "node --experimental-strip-types tests/planningAnnuel.test.ts",
     "test:fournisseurs": "node --experimental-strip-types tests/fournisseurs.test.ts",
+    "test:societes": "node --experimental-strip-types tests/societes.test.ts",
     "proxy": "node api-proxy/server.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },

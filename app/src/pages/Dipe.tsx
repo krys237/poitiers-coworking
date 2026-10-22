@@ -12,6 +12,12 @@
  *
  * La comparaison se fait **entièrement dans le navigateur** (logique pure de `convex/lib/dipe`) :
  * son fichier n'est jamais envoyé au serveur.
+ *
+ * UN DIPE PAR DÉCLARANT (lot R2 bis, décision du 20/10/2026) : « SESAME déclare de son côté. »
+ * Chaque société dépose son propre état, sous son propre NIU et son propre numéro CNPS, et n'y
+ * reprend que les rémunérations QU'ELLE a versées. Le sélecteur de société choisit le déclarant ;
+ * « Les trois » n'est qu'une vue d'ensemble pour la RH — ce n'est la déclaration de personne et
+ * elle ne se dépose pas telle quelle.
  */
 import * as React from "react";
 import { useQuery } from "convex/react";
@@ -42,6 +48,8 @@ import {
 } from "@/components/ui/table";
 
 type Onglet = "etat" | "recapitulatif" | "ecarts";
+type Declarante = "SESAME" | "SOFINA" | "SGC";
+const SOCIETES: Declarante[] = ["SESAME", "SOFINA", "SGC"];
 const fcfa = (n: number) => n.toLocaleString("fr-FR");
 const fmtDate = (s: string) => new Date(s + "T00:00:00").toLocaleDateString("fr-FR");
 
@@ -58,8 +66,10 @@ export function Dipe() {
   const [onglet, setOnglet] = React.useState<Onglet>("etat");
   const [sien, setSien] = React.useState<Record<string, Partial<Record<keyof LigneDipe, number>>> | null>(null);
   const [importMsg, setImportMsg] = React.useState<string | null>(null);
+  // Société déclarante : « toutes » = vue d'ensemble, jamais un document à déposer.
+  const [societe, setSociete] = React.useState<Declarante | "toutes">("toutes");
 
-  const vue = useQuery(api.dipe.etat, { periode });
+  const vue = useQuery(api.dipe.etat, societe === "toutes" ? { periode } : { periode, societe });
   const lignes = vue?.lignes ?? [];
   const recap = vue?.recapitulatif;
 
@@ -127,7 +137,7 @@ export function Dipe() {
             disabled={!lignes.length}
             onClick={() =>
               telecharger(
-                `DIPE-${periode}.csv`,
+                `DIPE-${societe === "toutes" ? "consolide" : societe}-${periode}.csv`,
                 exportCsvDipe(lignes as LigneDipe[], vue!.rubriques),
               )
             }
@@ -145,6 +155,26 @@ export function Dipe() {
             échéance de dépôt : <strong>{fmtDate(vue.echeance)}</strong>
           </span>
         ) : null}
+        <div role="tablist" aria-label="Société déclarante" className="flex items-center gap-1 rounded-xl border border-filet bg-slate-100/80 p-1">
+          {([["toutes", "Les trois"], ...SOCIETES.map((x) => [x, x])] as [Declarante | "toutes", string][]).map(([k, l]) => {
+            const d = vue?.declarants.find((x) => x.societe === k);
+            return (
+              <button
+                key={k} role="tab" aria-selected={societe === k} onClick={() => setSociete(k)}
+                title={k === "toutes" ? "Vue d'ensemble des trois sociétés : ne se dépose pas" : `DIPE déposé par ${k}`}
+                className={
+                  "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors " +
+                  (societe === k ? "bg-ocean-profond text-white shadow-xs" : "text-encre-douce hover:bg-white hover:text-encre")
+                }
+              >
+                {l}
+                <span className={"font-mono text-[10px] tabular-nums " + (societe === k ? "text-white/80" : "text-encre-pale")}>
+                  {k === "toutes" ? (vue?.declarants.reduce((t, x) => t + x.effectif, 0) ?? "") : (d?.effectif ?? "")}
+                </span>
+              </button>
+            );
+          })}
+        </div>
         <span className="flex-1" />
         <Tabs value={onglet} onValueChange={(v) => setOnglet(v as Onglet)}>
           <TabsList>
@@ -162,6 +192,43 @@ export function Dipe() {
         </div>
       ) : null}
 
+      {vue && societe !== "toutes" && vue.declarant ? (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-2xl border border-filet bg-surface px-4 py-3 shadow-xs">
+          <span className="text-sm font-semibold">{vue.declarant.raisonSociale}</span>
+          <span className="text-xs text-encre-douce">
+            NIU <strong className="font-mono tabular-nums">{vue.declarant.niu || "—"}</strong>
+          </span>
+          <span className="text-xs text-encre-douce">
+            N° CNPS <strong className="font-mono tabular-nums">{vue.declarant.numeroCnps || "—"}</strong>
+          </span>
+          <span className="flex-1" />
+          {vue.declarant.reprisDeLEntreprise ? (
+            <Flag variant="a-renseigner" size="sm" title="Paramètres → identité déclarante de chaque société">
+              identité reprise de l'entreprise
+            </Flag>
+          ) : null}
+          {!vue.declarant.complet ? <Flag variant="a-renseigner" size="sm">NIU ou n° CNPS manquant</Flag> : null}
+        </div>
+      ) : null}
+
+      {vue && societe === "toutes" && vue.declarants.filter((d) => d.effectif).length > 1 ? (
+        <div className="flex items-start gap-3 rounded-2xl border border-filet bg-bande px-4 py-3">
+          <InfoIcon className="h-5 w-5 shrink-0 text-ocean-ceruleen" aria-hidden="true" />
+          <p className="text-sm">
+            Vue d'ensemble des trois sociétés : <strong>ce n'est la déclaration de personne</strong>.
+            Chaque société dépose son propre DIPE sous son propre NIU — choisissez-la ci-dessus pour
+            obtenir le document à déposer.
+            {vue.pluriEmployes ? (
+              <>
+                {" "}
+                <strong>{vue.pluriEmployes} salarié(s)</strong> sont déclarés par plusieurs sociétés :
+                c'est du pluri-emploi régulier, chaque employeur ne déclarant que ce qu'il verse.
+              </>
+            ) : null}
+          </p>
+        </div>
+      ) : null}
+
       {vue && vue.assiettesReconstituees > 0 ? (
         <div className="flex items-center gap-3 rounded-2xl border border-filet bg-bande px-4 py-3">
           <InfoIcon className="h-5 w-5 shrink-0 text-ocean-ceruleen" aria-hidden="true" />
@@ -174,7 +241,7 @@ export function Dipe() {
       ) : null}
 
       <GrilleTuiles>
-        <Tuile libelle="Effectif déclaré" valeur={recap?.effectif} note={libellePeriode(periode)} />
+        <Tuile libelle="Effectif déclaré" valeur={recap?.effectif} note={`${libellePeriode(periode)} · ${societe === "toutes" ? "les trois sociétés" : societe}`} />
         <Tuile libelle="Masse brute" valeur={recap ? fcfa(recap.masseBrute) : undefined} note="FCFA" />
         <Tuile libelle="À reverser à la DGI" valeur={recap ? fcfa(recap.totalImpots) : undefined} note="IRPP, CAC, CFC, TDL, RAV, FNE" />
         <Tuile libelle="À reverser à la CNPS" valeur={recap ? fcfa(recap.totalCnps) : undefined} note="PVID, PF, AT/MP" vedette />
@@ -205,7 +272,7 @@ export function Dipe() {
                   </TableVide>
                 ) : (
                   lignes.map((l) => (
-                    <TableRow key={l.matricule}>
+                    <TableRow key={l.cle}>
                       <TableCell className="tabular-nums">{l.no}</TableCell>
                       <TableCell className="font-medium">{l.matricule}</TableCell>
                       <TableCell className="whitespace-nowrap">{l.nom}</TableCell>

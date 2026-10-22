@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 import { requireDroit } from "./lib/authz";
 import { salaireDeBase } from "./lib/paie";
+import { rattachementsEffectifs, type Societe } from "./lib/societes";
 import { resumeMois, joursCalendaires, joursDansMois, periodesTouchees, moisDeService, PAYE_PAR_DEFAUT, CONGES_PAR_MOIS_DEFAUT, TypeAbsence } from "./lib/absences";
 // Planning annuel (lot R1) : decompte en jours OUVRABLES et droit a conge.
 import {
@@ -39,21 +40,30 @@ export const vueMensuelle = query({
     const congesParMois = await tauxConges(ctx);
     const cloture = await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
     const saisies = await ctx.db.query("saisiesMensuelles").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
-    const saisieDe = new Map(saisies.map((s) => [String(s.employeId), s]));
+    // Un pluri-employé a UNE saisie PAR SOCIÉTÉ (lot R2 bis) : on les groupe, là où une Map par
+    // employé n'en aurait gardé qu'une au hasard et aurait faussé l'état « à recaler ».
+    const saisiesDe = new Map<string, typeof saisies>();
+    for (const s of saisies) {
+      const k = String(s.employeId);
+      saisiesDe.set(k, [...(saisiesDe.get(k) ?? []), s]);
+    }
     const employes = (await ctx.db.query("employes").collect()).filter((e) => e.actif);
 
     const lignes = [];
     for (const e of employes) {
       const evs = await ctx.db.query("absences").withIndex("by_employe", (q) => q.eq("employeId", e._id)).collect();
       const r = resumeMois({ employe: e, evenements: evs, periode, congesParMois });
-      const s = saisieDe.get(String(e._id));
+      const ss = saisiesDe.get(String(e._id)) ?? [];
+      const s = ss[0];
       lignes.push({
         employeId: e._id, nom: e.nom, societe: e.societe, fonction: e.fonction, dateDebut: e.dateDebut, ...r,
         evenements: evs.filter((ev) => joursDansMois(ev, periode) > 0).sort((a, b) => a.dateDebut.localeCompare(b.dateDebut)),
         paie: s ? { joursTravailles: s.joursTravailles, absencesJours: s.absencesJours } : null,
+        // Jours travaillés et absences sont des faits de la PERSONNE : toutes ses sociétés doivent
+        // porter le même décompte, sinon le planning n'est pas répercuté partout.
         // Sans saisie, la paie utilise les défauts (joursBase, 0 absence) : synchronisée si le planning y correspond.
-        paieSynchronisee: s
-          ? s.joursTravailles === r.joursTravailles && s.absencesJours === r.absencesNonPayees
+        paieSynchronisee: ss.length
+          ? ss.every((x) => x.joursTravailles === r.joursTravailles && x.absencesJours === r.absencesNonPayees)
           : r.joursTravailles === r.joursBase && r.absencesNonPayees === 0,
       });
     }
@@ -68,17 +78,28 @@ async function appliquerAuxSaisies(ctx: MutationCtx, employeId: Id<"employes">, 
   const congesParMois = await tauxConges(ctx);
   const evs = await ctx.db.query("absences").withIndex("by_employe", (q) => q.eq("employeId", employeId)).collect();
   const faites: string[] = [];
+  // Un congé est un fait de la PERSONNE, pas de l'employeur : il se répercute sur la saisie de
+  // CHAQUE société qui la rémunère (lot R2 bis). Chacune en tirera son propre bulletin proratisé.
+  const lignesRattachement = await ctx.db.query("rattachements").withIndex("by_employe", (q) => q.eq("employeId", employeId)).collect();
+  const societes: Societe[] = rattachementsEffectifs(e, lignesRattachement).map((x) => x.societe);
+
   for (const periode of periodes) {
     const clos = await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
     if (clos) continue;
     const r = resumeMois({ employe: e, evenements: evs, periode, congesParMois });
-    const existant = await ctx.db.query("saisiesMensuelles")
-      .withIndex("by_employe_periode", (q) => q.eq("employeId", employeId).eq("periode", periode)).unique();
-    if (existant) await ctx.db.patch(existant._id, { joursTravailles: r.joursTravailles, absencesJours: r.absencesNonPayees });
-    else await ctx.db.insert("saisiesMensuelles", {
-      employeId, periode, joursTravailles: r.joursTravailles, absencesJours: r.absencesNonPayees,
-      sanctions: 0, primesVariables: 0, transport: 0, heuresSup: 0, anciennete: 0, mutuellePct: 0, dettesSoins: 0, acompte: 0,
-    });
+    const toutes = await ctx.db.query("saisiesMensuelles")
+      .withIndex("by_employe_periode", (q) => q.eq("employeId", employeId).eq("periode", periode)).collect();
+    for (const societe of societes) {
+      // Une ligne sans société appartient à la société porteuse de la fiche : elle est ici la
+      // première du tableau `societes`, d'où le repli sur `toutes[0]` pour ce seul cas.
+      const existant = toutes.find((x) => x.societe === societe)
+        ?? (societe === societes[0] ? toutes.find((x) => x.societe === undefined) : undefined);
+      if (existant) await ctx.db.patch(existant._id, { joursTravailles: r.joursTravailles, absencesJours: r.absencesNonPayees });
+      else await ctx.db.insert("saisiesMensuelles", {
+        employeId, periode, societe, joursTravailles: r.joursTravailles, absencesJours: r.absencesNonPayees,
+        sanctions: 0, primesVariables: 0, transport: 0, heuresSup: 0, anciennete: 0, mutuellePct: 0, dettesSoins: 0, acompte: 0,
+      });
+    }
     faites.push(periode);
   }
   return faites;
