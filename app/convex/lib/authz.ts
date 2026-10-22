@@ -70,12 +70,19 @@ export async function requireUnDesDroits(ctx: Ctx, modules: string[], action: Ac
   return user;
 }
 
-// Amorçage d'un déploiement neuf : tant qu'AUCUN membre n'existe, la fonction est ouverte
-// (c'est elle qui crée le premier DG) ; dès qu'un membre existe, le niveau est exigé normalement.
-// Réservé aux fonctions d'initialisation (seed) — ne jamais l'utiliser sur une fonction métier.
+// Amorçage d'un déploiement neuf : tant que PERSONNE ne peut se connecter, la fonction est ouverte
+// (c'est elle qui crée le premier compte) ; dès qu'un identifiant de connexion existe, le niveau est
+// exigé normalement. Réservé aux fonctions d'initialisation (seed) — jamais sur une fonction métier.
+//
+// Le test porte sur `authAccounts` et non sur `users`, et ce n'est pas un détail : `seed:initialiser`
+// crée un membre « dev » identifié par un jeton, SANS identifiant de connexion. Tester l'existence
+// d'un membre concluait donc que l'amorçage était terminé sur un déploiement où aucune porte d'entrée
+// n'existait, et exigeait un DG authentifié que personne ne pouvait être. C'est ce qui a verrouillé
+// la recette le 22/10/2026, après la fermeture de `seed:initialiserAdmin`. La garde se referme
+// maintenant dès la première connexion possible, ce qui est le vrai signal de fin d'amorçage.
 export async function requireLevelOuAmorcage(ctx: Ctx, min: number) {
-  const premier = await ctx.db.query("users").first();
-  if (!premier) return null;
+  const compte = await ctx.db.query("authAccounts").first();
+  if (!compte) return null;
   return await requireLevel(ctx, min);
 }
 
