@@ -31,6 +31,10 @@ const valeursV = v.object({
   tauxCfcSal: v.number(), tauxCfcPat: v.number(), tauxFne: v.number(), abattementIrppPct: v.number(), tauxCac: v.number(),
   irppBrackets: v.array(v.object({ jusqua: v.union(v.number(), v.null()), taux: v.number() })),
   abattementIrppAnnuel: v.optional(v.number()), tdlActif: v.optional(v.boolean()), ravActif: v.optional(v.boolean()),
+  // Corrections du lot R2 : absentes = comportement d'avant la correction.
+  transportTaxable: v.optional(v.boolean()), atmpPlafonne: v.optional(v.boolean()),
+  cfcPatronalEtFneSurBrut: v.optional(v.boolean()), seuilExoneration: v.optional(v.number()),
+  groupeRisqueAtmp: v.optional(v.union(v.literal("A"), v.literal("B"), v.literal("C"))),
 });
 
 // Nouvelle version datée (DG). Sans `valeurs` : BAREME_DEFAUT (amorçage).
@@ -46,6 +50,9 @@ export const upsert = mutation({
       effectiveFrom, plafondCnps: b.plafondCnps, tauxPvidSal: b.tauxPvidSal, tauxPvidPat: b.tauxPvidPat, tauxPf: b.tauxPf, tauxAtmp: b.tauxAtmp,
       tauxCfcSal: b.tauxCfcSal, tauxCfcPat: b.tauxCfcPat, tauxFne: b.tauxFne, abattementIrppPct: b.abattementIrppPct, tauxCac: b.tauxCac,
       irppBrackets: tranches, abattementIrppAnnuel: b.abattementIrppAnnuel ?? 500000, tdlActif: b.tdlActif ?? true, ravActif: b.ravActif ?? true,
+      transportTaxable: b.transportTaxable, atmpPlafonne: b.atmpPlafonne,
+      cfcPatronalEtFneSurBrut: b.cfcPatronalEtFneSurBrut, seuilExoneration: b.seuilExoneration,
+      groupeRisqueAtmp: b.groupeRisqueAtmp,
       source, controleLe: new Date().toISOString(), statut: "actif",
     });
     await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "bareme_version", cible: effectiveFrom, detail: source });

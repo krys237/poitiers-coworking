@@ -76,7 +76,9 @@ export function Courrier() {
   const lignes = (apercu?.lignes ?? []) as any[];
   const entreprise = apercu?.entreprise;
   // Par défaut tout le monde est destinataire quand la période change.
-  React.useEffect(() => { if (apercu) setSelection(new Set(lignes.map((l) => String(l.bulletin.employeId)))); }, [periode, apercu?.lignes.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  // La sélection porte sur le COUPLE (employé, société) : un pluri-employé a un courrier par
+  // employeur, et on doit pouvoir n'en cocher qu'un.
+  React.useEffect(() => { if (apercu) setSelection(new Set(lignes.map((l) => String(l.bulletin.cle)))); }, [periode, apercu?.lignes.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const q = sansAccents(recherche.trim());
   const visibles = lignes.filter((l) => {
@@ -84,28 +86,28 @@ export function Courrier() {
     const ok = filtre === "tous" || (filtre === "sans_email" ? !b.email : filtre === "non_envoyes" ? !(d && d.statut === "envoye") : d?.statut === "echec");
     return ok && (!q || sansAccents(`${b.nom} ${b.email ?? ""} ${b.societe}`).includes(q));
   });
-  const selectionnees = lignes.filter((l) => selection.has(String(l.bulletin.employeId)));
+  const selectionnees = lignes.filter((l) => selection.has(String(l.bulletin.cle)));
   const sansEmail = lignes.filter((l) => !l.bulletin.email);
   const sansEmailSel = selectionnees.filter((l) => !l.bulletin.email).length;
   const sansWhatsappSel = selectionnees.filter((l) => !l.bulletin.whatsapp).length;
   const envoyes = lignes.filter((l) => l.dernierEnvoi?.statut === "envoye").length;
   const echecs = lignes.filter((l) => l.dernierEnvoi?.statut === "echec").length;
-  const toutesVisiblesCochees = visibles.length > 0 && visibles.every((l) => selection.has(String(l.bulletin.employeId)));
+  const toutesVisiblesCochees = visibles.length > 0 && visibles.every((l) => selection.has(String(l.bulletin.cle)));
 
   const toggle = (id: string) => setSelection((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const cocherVisibles = (on: boolean) => setSelection((s) => { const n = new Set(s); for (const l of visibles) { const id = String(l.bulletin.employeId); if (on) n.add(id); else n.delete(id); } return n; });
+  const cocherVisibles = (on: boolean) => setSelection((s) => { const n = new Set(s); for (const l of visibles) { const id = String(l.bulletin.cle); if (on) n.add(id); else n.delete(id); } return n; });
 
   const lancerEnvoi = async () => {
     setEnvoiEnCours(true);
     try {
-      const r = await envoyer({ periode, employeIds: selectionnees.map((l) => l.bulletin.employeId), canaux: [...canaux] });
+      const r = await envoyer({ periode, cles: selectionnees.map((l) => String(l.bulletin.cle)), canaux: [...canaux] });
       // Une simulation ne doit jamais passer pour un envoi : on le dit en toutes lettres.
       const simulation = r.simules ? ` — ${r.simules} simulé(s) : RIEN n'est parti pour ceux-là (clé absente du déploiement ou interrupteur fermé)` : "";
       return `${r.envoyes} réellement envoyé(s), ${r.echecs} échec(s) sur ${r.total}${simulation} · PDF : ${Math.round(r.pdfOctets / 1024)} Ko`;
     } finally { setEnvoiEnCours(false); }
   };
 
-  const ligneApercu = lignes.find((l) => String(l.bulletin.employeId) === apercuDe) ?? null;
+  const ligneApercu = lignes.find((l) => String(l.bulletin.cle) === apercuDe) ?? null;
 
   return (
     <div className="space-y-4">
@@ -222,7 +224,7 @@ export function Courrier() {
                 </TableHeader>
                 <TableBody>
                   {visibles.map((l) => {
-                    const b = l.bulletin, id = String(b.employeId), d = l.dernierEnvoi;
+                    const b = l.bulletin, id = String(b.cle), d = l.dernierEnvoi;
                     return (
                       <TableRow key={id}>
                         <TableCell><Checkbox checked={selection.has(id)} onCheckedChange={() => toggle(id)} aria-label={`Sélectionner ${b.nom}`} /></TableCell>
@@ -333,7 +335,7 @@ export function Courrier() {
       {/* Impression : lettre + bulletin par destinataire sélectionné */}
       <div className="hidden print:block">
         {selectionnees.map((l) => (
-          <React.Fragment key={String(l.bulletin.employeId)}>
+          <React.Fragment key={String(l.bulletin.cle)}>
             <Lettre entreprise={entreprise} periode={periode} texte={l.lettre} />
             <BulletinCard b={l.bulletin} entreprise={entreprise} />
           </React.Fragment>

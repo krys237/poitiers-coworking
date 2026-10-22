@@ -24,7 +24,8 @@ import {
 
 const GROUPES: { titre: string; champs: Champ[]; colonnes: string }[] = [
   { titre: "Temps de travail", champs: ["joursTravailles", "absences"], colonnes: "grid-cols-3" },
-  { titre: "Gains", champs: ["primesVariables", "transport", "primeAssiduite", "indemniteLogement", "heuresSup", "anciennete"], colonnes: "grid-cols-3" },
+  // Les 9 primes du DIPE ont été ajoutées le 21/10/2026 : le groupe passe à 15 champs.
+  { titre: "Gains", champs: ["primesVariables", "transport", "primeAssiduite", "indemniteLogement", "heuresSup", "anciennete", "ancienneteSeparee", "primeCaisse", "primeRendement", "gratification", "primeSalissure", "primePanier", "primeLait", "indemniteRepresentation", "indemniteVehicule", "indemniteOutillage"], colonnes: "grid-cols-3" },
   { titre: "Retenues", champs: ["sanctions", "dettesSoins", "acompte", "mutuellePct"], colonnes: "grid-cols-4" },
 ];
 
@@ -34,7 +35,8 @@ function FicheSaisie({
 }: {
   b: BulletinLigne; brouillon: Brouillon; bareme: any; periode: string; cloture: boolean; onFermer: () => void; recap: RecapPaie;
 }) {
-  const id = String(b.employeId);
+  // La saisie porte sur le COUPLE (employé, société) : chaque employeur verse sa propre part.
+  const id = b.cle;
   const [v, setV] = React.useState<Valeurs>(() => brouillon.valeurs(id));
   const [err, setErr] = React.useState<Partial<Record<Champ, string>>>({});
   const [enCours, setEnCours] = React.useState(false);
@@ -65,7 +67,7 @@ function FicheSaisie({
           <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-encre-douce">
             <span>{b.fonction ?? "—"}</span>
             <PastilleSociete societe={b.societe} />
-            <span className="font-mono tabular-nums text-encre-pale">{b.matricule} · brut {num(b.salaireBrut)}</span>
+            <span className="font-mono tabular-nums text-encre-pale">{b.matricule} · base {num(b.salaireBase)}</span>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -151,7 +153,7 @@ export function RecapSynthese({
   React.useEffect(() => setSelection(null), [periode]);
   const t = totaux(bulletins);
   // La fiche reste ouverte même si la recherche masque la ligne sélectionnée.
-  const choisi = recap.bulletins.find((b) => String(b.employeId) === selection) ?? null;
+  const choisi = recap.bulletins.find((b) => b.cle === selection) ?? null;
   const retenues = (b: BulletinLigne) => (b.details?.total1 ?? b.brut) - (b.details?.total2 ?? b.net);
 
   return (
@@ -181,7 +183,7 @@ export function RecapSynthese({
               </TableHeader>
               <TableBody>
                 {bulletins.map((b) => {
-                  const id = String(b.employeId);
+                  const id = b.cle;
                   const d = b.details;
                   const active = selection === id;
                   return (

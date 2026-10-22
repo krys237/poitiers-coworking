@@ -247,6 +247,8 @@ async function envoyerWhatsapp(numero: string, pdf: Uint8Array, nomDuFichier: st
 export const envoyerCourrier = action({
   args: {
     periode: v.string(), employeIds: v.optional(v.array(v.id("employes"))),
+    // Couples (employé, société) retenus : un pluri-employé a un courrier par employeur.
+    cles: v.optional(v.array(v.string())),
     canaux: v.optional(v.array(v.union(v.literal("email"), v.literal("whatsapp")))),
   },
   handler: async (ctx, { canaux, ...args }): Promise<ResultatEnvoi> => {
@@ -262,7 +264,7 @@ export const envoyerCourrier = action({
 
     for (const p of lots) {
       if (parWhatsapp) {
-        const base = { employeId: p.employeId as Id<"employes">, periode: args.periode, email: p.whatsapp as string, canal: "whatsapp" as const };
+        const base = { employeId: p.employeId as Id<"employes">, societe: p.societe, periode: args.periode, email: p.whatsapp as string, canal: "whatsapp" as const };
         if (!p.whatsapp) {
           echecs++;
           await ctx.runMutation(internal.courrier.enregistrerEnvoi, { ...base, statut: "echec", mode: modeWa, erreur: "Numéro WhatsApp manquant" });
@@ -285,7 +287,7 @@ export const envoyerCourrier = action({
         }
       }
       if (!parEmail) continue;
-      const base = { employeId: p.employeId as Id<"employes">, periode: args.periode, email: p.email as string, canal: "email" as const };
+      const base = { employeId: p.employeId as Id<"employes">, societe: p.societe, periode: args.periode, email: p.email as string, canal: "email" as const };
       if (!p.email) {
         echecs++;
         await ctx.runMutation(internal.courrier.enregistrerEnvoi, { ...base, statut: "echec", mode: modeEnvoi, erreur: "Adresse e-mail manquante" });
@@ -348,9 +350,9 @@ export const pdfBulletins = action({
 
 // « Mes bulletins » : le PDF de SON bulletin d'un mois clôturé (contrôle dans mesBulletins.pourPdf).
 export const pdfMonBulletin = action({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }): Promise<{ pdf: ArrayBuffer; nomFichier: string }> => {
-    const r: any = await ctx.runQuery(internal.mesBulletins.pourPdf, { periode });
+  args: { periode: v.string(), societe: v.optional(v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"))) },
+  handler: async (ctx, { periode, societe }): Promise<{ pdf: ArrayBuffer; nomFichier: string }> => {
+    const r: any = await ctx.runQuery(internal.mesBulletins.pourPdf, { periode, societe });
     const octets = await buildPdf({ bulletin: r.bulletin, periode, entreprise: r.entreprise });
     return { pdf: octets.buffer.slice(octets.byteOffset, octets.byteOffset + octets.byteLength) as ArrayBuffer, nomFichier: nomFichier(r.entreprise?.nom ?? "PAIE", r.nom, periode) };
   },

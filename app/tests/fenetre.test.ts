@@ -1,4 +1,4 @@
-import { estJourOuvrable, estDansFenetre, finFenetre, prochaineOuverture, instantDouala, dateDouala, pointsPour, heureDouala, dispenseDeFenetre, NIVEAU_DISPENSE_FENETRE } from "../convex/lib/fenetre.ts";
+import { estJourOuvrable, estDansFenetre, finFenetre, prochaineOuverture, instantDouala, dateDouala, pointsPour, pointsDuJour, heureDouala, dispenseDeFenetre, NIVEAU_DISPENSE_FENETRE } from "../convex/lib/fenetre.ts";
 
 let echecs = 0;
 const check = (nom: string, cond: boolean, detail?: unknown) => { if (cond) console.log(`  ok  ${nom}`); else { console.error(`  KO  ${nom}`, detail ?? ""); echecs++; } };
@@ -36,5 +36,17 @@ check("RH niv. 4 : soumis à la fenêtre", !dispenseDeFenetre(4));
 check("DAF niv. 5 : dispensé de fenêtre", dispenseDeFenetre(5));
 check("DG niv. 7 : dispensé de fenêtre", dispenseDeFenetre(7));
 check("super admin niv. 8 : dispensé de fenêtre", dispenseDeFenetre(8));
+
+// Invariant du 22/10/2026 : plusieurs comptes rendus pour une même journée, un seul point de présence.
+// (Le tableau dit, pour chaque dépôt du jour pris dans l'ordre, s'il est tombé hors créneau.)
+const total = (l: boolean[]) => pointsDuJour(l).reduce((t, p) => t + p, 0);
+check("un dépôt dans le créneau = 1 point", total([false]) === 1);
+check("un dépôt hors créneau = 0 point", total([true]) === 0);
+check("deux dépôts hors créneau : toujours 0 point", total([true, true]) === 0);
+check("deux dépôts dans le créneau : 1 point, pas 2", total([false, false]) === 1, pointsDuJour([false, false]));
+check("hors créneau puis dans le créneau : la journée gagne son point", total([true, false]) === 1 && pointsDuJour([true, false])[1] === 1);
+check("dans le créneau puis hors créneau : le point reste acquis", total([false, true]) === 1 && pointsDuJour([false, true])[0] === 1);
+check("trois dépôts : jamais plus d'un point", total([true, false, false]) === 1);
+check("journée sans dépôt : aucun point", pointsDuJour([]).length === 0);
 
 if (echecs) { console.error(`\n${echecs} test(s) en échec`); process.exit(1); } else console.log("\nTous les tests passent.");

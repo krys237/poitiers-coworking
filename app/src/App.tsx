@@ -9,6 +9,7 @@ import { Bulletins } from "./pages/Bulletins";
 import { Courrier } from "./pages/Courrier";
 import { Planning } from "./pages/Planning";
 import { Primes } from "./pages/Primes";
+import { Dipe } from "./pages/Dipe";
 import { Archives } from "./pages/Archives";
 import { MesBulletins } from "./pages/MesBulletins";
 import { MonCompte } from "./pages/MonCompte";
@@ -27,6 +28,7 @@ import { Journal } from "./pages/Journal";
 import { ApiReadme } from "./pages/ApiReadme";
 import { Bareme } from "./pages/Bareme";
 import { Charte } from "./pages/Charte";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 // Table des routes. `perm` est la clé du module (convex/rbac.ts, `MODULES`) dont le droit VOIR commande l'accès.
 // Jusqu'ici le menu était filtré mais les routes ne l'étaient pas : taper une URL directement
@@ -44,6 +46,7 @@ const ROUTES: { path: string; perm: string; element: JSX.Element }[] = [
   { path: "/paie/courrier", perm: "/paie/courrier", element: <Courrier /> },
   { path: "/paie/planning", perm: "/paie/planning", element: <Planning /> },
   { path: "/paie/primes", perm: "/paie/primes", element: <Primes /> },
+  { path: "/paie/dipe", perm: "/paie/dipe", element: <Dipe /> },
   { path: "/paie/archives", perm: "/paie/archives", element: <Archives /> },
   { path: "/mes-bulletins", perm: "/mes-bulletins", element: <MesBulletins /> },
   { path: "/financier", perm: "/financier", element: <Financier /> },
@@ -81,7 +84,21 @@ export function App() {
               <Routes>
                 <Route element={<Layout />}>
                   {ROUTES.map((r) => (
-                    <Route key={r.path} path={r.path} element={<Guard perm={r.perm}>{r.element}</Guard>} />
+                    <Route
+                      key={r.path}
+                      path={r.path}
+                      element={
+                        <Guard perm={r.perm}>
+                          {/* Une requête Convex qui lève pendant le rendu faisait disparaître l'écran
+                              sans un mot : page blanche, aucune piste, et au rechargement l'onglet
+                              revenait à son défaut, ce qui effaçait jusqu'au symptôme. La barrière
+                              affiche le message d'erreur et laisse la coquille (menu, navigation) en
+                              place. Posée ici, par route : React Router démonte l'écran précédent en
+                              changeant de page, donc une erreur ne colle pas à l'écran suivant. */}
+                          <ErrorBoundary>{r.element}</ErrorBoundary>
+                        </Guard>
+                      }
+                    />
                   ))}
                   {/* « Caisse & primes médecins » a été scindé en deux écrans le 09/10/2026 :
                       les anciens liens et favoris arrivent sur la caisse. */}

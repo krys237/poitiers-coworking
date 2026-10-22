@@ -1,10 +1,16 @@
 // Logique PURE du planning des absences : jours calendaires, ventilation par mois, acquisition et solde de congés.
-export type TypeAbsence = "conge_paye" | "absence" | "maladie" | "autre";
+import { TYPES_ABSENCE } from "./absencesLegales.ts";
 
-export const PAYE_PAR_DEFAUT: Record<TypeAbsence, boolean> = { conge_paye: true, absence: false, maladie: true, autre: false };
-export const LIBELLE_TYPE: Record<TypeAbsence, string> = {
-  conge_paye: "Congé payé", absence: "Absence non justifiée", maladie: "Maladie", autre: "Autre",
-};
+export type TypeAbsence = string;
+
+// Dérivés du catalogue légal (lib/absencesLegales.ts) : une seule source de vérité.
+// « payé » = rémunéré par l'employeur ou la CNPS, donc n'entame pas les jours travaillés.
+export const PAYE_PAR_DEFAUT: Record<string, boolean> = Object.fromEntries(
+  TYPES_ABSENCE.map((t) => [t.cle, t.quiPaie !== "personne"]),
+);
+export const LIBELLE_TYPE: Record<string, string> = Object.fromEntries(
+  TYPES_ABSENCE.map((t) => [t.cle, t.libelle]),
+);
 export const CONGES_PAR_MOIS_DEFAUT = 1.5; // jours acquis par mois de service
 
 export interface Evenement { type: TypeAbsence; dateDebut: string; dateFin: string; paye: boolean; }

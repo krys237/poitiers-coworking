@@ -26,16 +26,18 @@ export type Societe = (typeof SOCIETES)[number];
 export type EmployeFiche = {
   employeId?: string;
   matricule: string; nom: string; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string;
-  societe: Societe; salaireBrut: number; dateDebut?: string; congesInitial?: number; actif?: boolean;
+  societe: Societe; salaireBase?: number; salaireBrut?: number; dateDebut?: string; congesInitial?: number; actif?: boolean;
 };
-type Champs = Required<Omit<EmployeFiche, "employeId" | "actif">>;
+// `salaireBrut` est l'ancien nom, encore présent dans les fiches non migrées : le formulaire
+// ne l'édite jamais, il ne travaille que sur `salaireBase`.
+type Champs = Required<Omit<EmployeFiche, "employeId" | "actif" | "salaireBrut">>;
 
-export type CreerEmploye = (a: { matricule: string; nom: string; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string; societe: Societe; salaireBrut: number; dateDebut?: string; congesInitial?: number }) => Promise<unknown>;
-export type ModifierEmploye = (a: { employeId: any; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string; societe?: Societe; salaireBrut?: number; dateDebut?: string; congesInitial?: number; actif?: boolean }) => Promise<unknown>;
+export type CreerEmploye = (a: { matricule: string; nom: string; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string; societe: Societe; salaireBase: number; dateDebut?: string; congesInitial?: number }) => Promise<unknown>;
+export type ModifierEmploye = (a: { employeId: any; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string; societe?: Societe; salaireBase?: number; dateDebut?: string; congesInitial?: number; actif?: boolean }) => Promise<unknown>;
 
 const depuis = (e?: EmployeFiche): Champs => ({
   matricule: e?.matricule ?? "", nom: e?.nom ?? "", fonction: e?.fonction ?? "", adresse: e?.adresse ?? "", cnps: e?.cnps ?? "",
-  niu: e?.niu ?? "", email: e?.email ?? "", whatsapp: e?.whatsapp ?? "", societe: e?.societe ?? "SGC", salaireBrut: e?.salaireBrut ?? 0,
+  niu: e?.niu ?? "", email: e?.email ?? "", whatsapp: e?.whatsapp ?? "", societe: e?.societe ?? "SGC", salaireBase: e?.salaireBase ?? e?.salaireBrut ?? 0,
   dateDebut: e?.dateDebut ?? "", congesInitial: e?.congesInitial ?? 0,
 });
 
@@ -64,11 +66,11 @@ export function FicheEmploye({
   const enregistrer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (creation && (!f.nom.trim() || !f.matricule.trim())) { toast.error("Matricule et nom sont requis."); return; }
-    if (f.salaireBrut <= 0) { toast.error("Le salaire brut doit être supérieur à 0."); return; }
+    if (f.salaireBase <= 0) { toast.error("Le salaire de base doit être supérieur à 0."); return; }
     setEnCours(true);
     const commun = {
       fonction: f.fonction || undefined, adresse: f.adresse || undefined, cnps: f.cnps || undefined, niu: f.niu || undefined,
-      email: f.email || undefined, societe: f.societe, salaireBrut: Math.round(f.salaireBrut), dateDebut: f.dateDebut || undefined,
+      email: f.email || undefined, societe: f.societe, salaireBase: Math.round(f.salaireBase), dateDebut: f.dateDebut || undefined,
       congesInitial: f.congesInitial || undefined,
     };
     // WhatsApp : transmis seulement s'il a changé (les écrans qui ne le chargent pas ne l'effacent pas).
@@ -105,7 +107,7 @@ export function FicheEmploye({
             <DialogDescription>
               {creation
                 ? "La fiche crée l'identité de paie ; le récapitulatif du mois se recalcule aussitôt."
-                : `Matricule ${employe!.matricule}. Le brut de référence alimente le salaire journalier (brut ÷ 30).`}
+                : `Matricule ${employe!.matricule}. Le salaire de base alimente le salaire journalier (brut ÷ 30).`}
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 sm:grid-cols-3">
@@ -124,7 +126,7 @@ export function FicheEmploye({
                 </Select>
               )}
             </Champ>
-            <ChampNombre libelle="Salaire brut mensuel" unite="FCFA" requis min={0} step={5000} valeur={f.salaireBrut} onChange={(n) => setF({ ...f, salaireBrut: n })} />
+            <ChampNombre libelle="Salaire de base mensuel" aide="Hors primes : transport, assiduité, logement et ancienneté se saisissent dans le récapitulatif du mois." unite="FCFA" requis min={0} step={5000} valeur={f.salaireBase} onChange={(n) => setF({ ...f, salaireBase: n })} />
             {texte("cnps", "N° CNPS", "351-1213677-6")}
             {texte("niu", "NIU", "M072517858332C")}
             {texte("email", "E-mail (courrier de paie)", "prenom.nom@…", false, "email")}

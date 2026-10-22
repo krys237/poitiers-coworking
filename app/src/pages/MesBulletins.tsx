@@ -21,9 +21,11 @@ import { BulletinCard } from "../components/BulletinCard";
 export function MesBulletins() {
   const liste = useQuery(api.mesBulletins.liste);
   const pdf = useAction(api.paiePdf.pdfMonBulletin);
-  const [periode, setPeriode] = React.useState<string | null>(null);
-  const choisi = periode ?? liste?.bulletins[0]?.periode ?? null;
-  const detail = useQuery(api.mesBulletins.detail, choisi ? { periode: choisi } : "skip");
+  // Un pluri-employé a un bulletin par mois ET PAR SOCIÉTÉ : chacun ne porte que la part versée
+  // par cet employeur, ce qui est normal et non un oubli. La sélection est donc le couple.
+  const [cle, setCle] = React.useState<string | null>(null);
+  const choisi = (cle ? liste?.bulletins.find((b) => b.cle === cle) : undefined) ?? liste?.bulletins[0] ?? null;
+  const detail = useQuery(api.mesBulletins.detail, choisi ? { periode: choisi.periode, societe: choisi.societe } : "skip");
 
   if (liste === undefined) return <SqueletteTexte lignes={6} />;
 
@@ -32,7 +34,7 @@ export function MesBulletins() {
       <PageEnTete
         titre="Mes bulletins"
         description={liste.employe
-          ? `${liste.employe.nom} · ${liste.employe.matricule} · ${liste.employe.societe}. Les bulletins des mois clôturés, à consulter ou télécharger en PDF.`
+          ? `${liste.employe.nom} · ${liste.employe.matricule} · ${liste.employe.societes.join(" · ")}. Les bulletins des mois clôturés, à consulter ou télécharger en PDF.${liste.employe.societes.length > 1 ? " Chaque société vous paie et vous déclare de son côté : vous avez un bulletin par société." : ""}`
           : "Vos bulletins de paie, une fois le mois clôturé."}
       />
 
@@ -49,17 +51,21 @@ export function MesBulletins() {
           {/* `content-start` : sans lui la grille étire ses rangées sur la hauteur de l'aperçu et des trous apparaissent entre les mois. */}
           <ul className="grid content-start gap-2 sm:grid-cols-2 lg:grid-cols-1" aria-label="Mois disponibles">
             {liste.bulletins.map((b) => (
-              <li key={b.periode}>
+              <li key={b.cle}>
                 <button
                   type="button"
-                  onClick={() => setPeriode(b.periode)}
-                  aria-current={b.periode === choisi}
+                  onClick={() => setCle(b.cle)}
+                  aria-current={b.cle === choisi?.cle}
                   className={cn(
                     "w-full rounded-xl border bg-surface px-3.5 py-3 text-left shadow-xs transition-colors",
-                    b.periode === choisi ? "border-ocean-profond ring-1 ring-ocean-profond" : "border-filet hover:border-ocean-ciel",
+                    b.cle === choisi?.cle ? "border-ocean-profond ring-1 ring-ocean-profond" : "border-filet hover:border-ocean-ciel",
                   )}
                 >
-                  <div className="text-sm font-semibold">{libellePeriode(b.periode)}</div>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-sm font-semibold">{libellePeriode(b.periode)}</span>
+                    {/* La société n'apparaît que si plusieurs employeurs le rémunèrent. */}
+                    {liste.employe.societes.length > 1 ? <span className="rounded-full border border-filet bg-bande px-2 py-0.5 text-[10px] font-semibold tracking-wide text-encre-douce">{b.societe}</span> : null}
+                  </div>
                   <div className="mt-0.5 flex items-baseline justify-between gap-2 text-xs">
                     <span className="text-encre-douce">Net à payer</span>
                     <span className="font-mono font-bold text-ocean-profond">{fcfa(b.net)}</span>
@@ -73,8 +79,8 @@ export function MesBulletins() {
           {choisi && (
             <section className="overflow-hidden rounded-xl border border-filet bg-surface shadow-xs">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-filet px-3.5 py-2.5">
-                <div className="text-sm font-semibold">Bulletin de {libellePeriode(choisi)}</div>
-                <BoutonPdf variant="default" titre="Télécharger ce bulletin en PDF" generer={() => pdf({ periode: choisi })}>Télécharger le PDF</BoutonPdf>
+                <div className="text-sm font-semibold">Bulletin de {libellePeriode(choisi.periode)}{liste.employe.societes.length > 1 ? ` — ${choisi.societe}` : ""}</div>
+                <BoutonPdf variant="default" titre="Télécharger ce bulletin en PDF" generer={() => pdf({ periode: choisi.periode, societe: choisi.societe })}>Télécharger le PDF</BoutonPdf>
               </div>
               <div className="bg-papier p-2 sm:p-3">
                 {detail === undefined ? <SqueletteTexte lignes={8} /> : <ApercuFeuille><BulletinCard b={detail.bulletin} entreprise={detail.entreprise} page="page 1/1" /></ApercuFeuille>}

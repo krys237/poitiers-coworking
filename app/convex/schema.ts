@@ -88,7 +88,28 @@ export default defineSchema({
     })),
     // Droits VOIR / FAIRE par rôle et par module, quand ils diffèrent du défaut (rbac.droitsEffectifs).
     droitsRoles: v.optional(v.array(v.object({ role: v.string(), module: v.string(), voir: v.boolean(), faire: v.boolean() }))),
+    // Identité DÉCLARANTE de chaque société (lot R2 bis). « SESAME déclare de son côté » : chaque
+    // société dépose son propre DIPE sous son propre NIU et son propre numéro CNPS. À défaut, le
+    // DIPE retombe sur le NIU et le numéro CNPS de l'entreprise ci-dessus — comportement actuel.
+    societes: v.optional(v.array(v.object({
+      societe: SOCIETE,
+      raisonSociale: v.optional(v.string()),
+      adresse: v.optional(v.string()),
+      niu: v.optional(v.string()),
+      numeroCnps: v.optional(v.string()),
+    }))),
   }),
+
+  // Services d'affectation (colonne SERVICE du planning de congé). La COULEUR est un paramètre
+  // demandé par la RH : « définir une couleur pour un service pour savoir qui dans quel service a
+  // déjà un congé ». Dans la frise, l'encodage principal reste le regroupement des lignes ; la
+  // couleur n'est qu'un repère secondaire (lib/planningAnnuel.PALETTE_SERVICES).
+  services: defineTable({
+    nom: v.string(),
+    couleur: v.string(),              // hex "#rrggbb"
+    ordre: v.number(),
+    actif: v.boolean(),
+  }).index("by_nom", ["nom"]),
 
   // ---- Paie (Phase 1) ----
   employes: defineTable({
@@ -101,7 +122,15 @@ export default defineSchema({
     email: v.optional(v.string()),    // destinataire du courrier de paie
     whatsapp: v.optional(v.string()), // numéro WhatsApp (+237…) : courrier de paie par WhatsApp
     societe: SOCIETE,
-    salaireBrut: v.number(),          // brut mensuel de référence
+    // Le SALAIRE DE BASE mensuel : c'est lui qui donne le salaire journalier (÷ joursBase) et
+    // dont découle le « Salaire du mois ». Les primes (transport, assiduité, logement,
+    // ancienneté…) s'y AJOUTENT dans le récapitulatif du mois : elles ne doivent jamais y être
+    // incluses, sous peine d'être comptées deux fois.
+    salaireBase: v.optional(v.number()),
+    // Ancien nom du même montant (il n'a jamais été un brut, malgré son nom). Conservé le temps
+    // de la migration `employes:migrerSalaireBase`, à supprimer ensuite. Lire via
+    // `lib/paie.salaireDeBase(employe)`, jamais directement.
+    salaireBrut: v.optional(v.number()),
     joursBase: v.optional(v.number()),// jours standard (déf. 30)
     contrat: v.optional(v.string()),  // CDI, CDD…
     dateDebut: v.optional(v.string()),// embauche — base de l'acquisition des congés
@@ -110,9 +139,63 @@ export default defineSchema({
     categorie: v.optional(v.string()),     // catégorie professionnelle (bulletin)
     echelon: v.optional(v.string()),       // échelon (bulletin)
     actif: v.boolean(),
+    // --- Planning des congés (lot R1) ---
+    serviceId: v.optional(v.id("services")),  // service d'affectation — colonne SERVICE du planning
+    // Le sexe conditionne la majoration « mère de famille » de l'art. 90 ; il n'a pas d'autre usage.
+    sexe: v.optional(v.union(v.literal("F"), v.literal("M"))),
+    // Enfants à charge : seul l'âge au jour du départ en congé compte (art. 90).
+    enfants: v.optional(v.array(v.object({
+      prenom: v.optional(v.string()),
+      dateNaissance: v.string(),            // "YYYY-MM-DD"
+    }))),
+    // Groupe de risque CNPS accidents du travail : A 1,75 % / B 2,50 % / C 5 % (voir A-VERIFIER B5).
+    groupeRisqueAt: v.optional(v.union(v.literal("A"), v.literal("B"), v.literal("C"))),
   })
     .index("by_matricule", ["matricule"])
-    .index("by_societe", ["societe"]),
+    .index("by_societe", ["societe"])
+    .index("by_service", ["serviceId"]),
+
+  // Rattachement d'un employé à UNE société employeuse (lot R2 bis, décision du 20/10/2026).
+  //
+  // « SESAME déclare de son côté » : les trois sociétés sont des employeurs juridiquement
+  // distincts, chacun avec son NIU et son numéro CNPS. Un employé peut relever de deux ou trois
+  // d'entre elles — pluri-emploi régulier — et chaque société ne verse, ne déclare et ne cotise
+  // que sur SA part. Un bulletin par société, un DIPE par déclarant, et donc un plafond CNPS et
+  // des tranches d'IRPP PAR EMPLOYEUR, sans consolidation (conséquence assumée).
+  //
+  // Table dédiée et non tableau sur la fiche : les saisies mensuelles, les bulletins figés et les
+  // lignes de primes sont indexés par couple (employé, société), ce qu'un élément de tableau sans
+  // identité stable ne permet pas de désigner. Voir `lib/societes.ts` pour la lecture — qui
+  // fonctionne AVANT comme APRÈS la migration `employes:migrerRattachements` : sans aucune ligne,
+  // c'est `employes.societe` qui fait foi, exactement comme aujourd'hui.
+  rattachements: defineTable({
+    employeId: v.id("employes"),
+    societe: SOCIETE,
+    // Données PROPRES À L'EMPLOYEUR : deux sociétés ne numérotent pas, ne classent pas et ne
+    // paient pas de la même façon. Toutes optionnelles : la RH déclare l'appartenance d'abord et
+    // chiffre ensuite (le repli est la fiche employé, `lib/societes.rattachementsEffectifs`).
+    matriculeEmployeur: v.optional(v.string()),
+    cnpsEmployeur: v.optional(v.string()),
+    niuEmployeur: v.optional(v.string()),
+    salaireBase: v.optional(v.number()),   // salaire de base versé par CETTE société (hors primes)
+    joursBase: v.optional(v.number()),
+    categorie: v.optional(v.string()),
+    echelon: v.optional(v.string()),
+    contrat: v.optional(v.string()),
+    dateDebut: v.optional(v.string()),     // "YYYY-MM-DD" — entrée chez cet employeur
+    dateFin: v.optional(v.string()),
+    // Indicateur d'activité : c'est lui, et non les dates, qui décide si le couple produit un
+    // bulletin — le moteur n'a jamais regardé `employes.dateDebut` pour cela.
+    actif: v.boolean(),
+    // Société PORTEUSE de la fiche (celle de `employes.societe`). Une seule par employé : elle sert
+    // de clé de compatibilité pour les saisies et primes enregistrées avant ce lot, qui n'ont pas
+    // de société et lui appartiennent.
+    principal: v.optional(v.boolean()),
+    creeLe: v.optional(v.string()),
+  })
+    .index("by_employe", ["employeId"])
+    .index("by_societe", ["societe"])
+    .index("by_employe_societe", ["employeId", "societe"]),
 
   // Barème officiel DATÉ (CNPS / CGI). Un bulletin référence la version applicable à sa période.
   baremes: defineTable({
@@ -134,14 +217,49 @@ export default defineSchema({
     abattementIrppAnnuel: v.optional(v.number()), // abattement annuel IRPP (déf. 500 000), appliqué ÷ 12
     tdlActif: v.optional(v.boolean()),  // appliquer la taxe de développement local (barème forfaitaire)
     ravActif: v.optional(v.boolean()),  // appliquer la redevance audiovisuelle (barème forfaitaire)
+    // --- Corrections du lot R2 (voir lib/paie.ts). ABSENTES = comportement d'avant la
+    // correction : une version de barème déjà enregistrée reste donc rejouable à l'identique.
+    transportTaxable: v.optional(v.boolean()),          // C1 : le transport entre dans le taxable
+    atmpPlafonne: v.optional(v.boolean()),              // C3 : la loi ne plafonne PAS l'AT/MP
+    cfcPatronalEtFneSurBrut: v.optional(v.boolean()),   // C4 : base = salaire brut
+    seuilExoneration: v.optional(v.number()),           // C6 : 62 000, retenues SALARIALES seules
+    groupeRisqueAtmp: v.optional(v.union(v.literal("A"), v.literal("B"), v.literal("C"))), // C8
     source: v.string(),               // origine du barème
     controleLe: v.optional(v.string()),
     statut: v.union(v.literal("actif"), v.literal("brouillon")),
   }).index("by_effective", ["effectiveFrom"]),
 
-  // Éléments variables saisis par mois et par employé.
+  // Catalogue des rubriques de paie et leur APPARTENANCE AUX ASSIETTES (lot R2).
+  // Daté comme le barème (décision E4 du 20/10/2026 : « ajout au niveau du barème ») : un
+  // bulletin résout la version applicable à SA période, donc un mois clôturé n'est jamais
+  // recalculé avec une définition d'assiette plus récente. Voir lib/rubriques.ts.
+  rubriquesPaie: defineTable({
+    effectiveFrom: v.string(),        // "YYYY-MM-DD" — début d'applicabilité
+    source: v.string(),
+    rubriques: v.array(v.object({
+      code: v.string(),
+      libelle: v.string(),
+      sens: v.union(v.literal("gain"), v.literal("retenue")),
+      ordre: v.number(),
+      dansBrut: v.boolean(),               // V  — salaire brut
+      dansBrutIntermediaire: v.boolean(),  // W  — éléments entièrement taxables
+      dansCotisable: v.boolean(),          // AA — assiette CNPS
+      dansAllocConge: v.boolean(),         // assiette de l'allocation de congé (art. 73)
+      proratisable: v.boolean(),
+      avantageNature: v.optional(v.object({
+        tauxForfait: v.number(),           // % du salaire brut intermédiaire (logement 15 %…)
+        plafonnerAuForfait: v.boolean(),   // retenir min(forfait ; montant versé)
+      })),
+    })),
+  }).index("by_effective", ["effectiveFrom"]),
+
+  // Éléments variables saisis par mois et par COUPLE (employé, société) depuis le lot R2 bis.
   saisiesMensuelles: defineTable({
     employeId: v.id("employes"),
+    // Société qui verse ces éléments. ABSENTE = ligne antérieure au lot R2 bis : elle appartient
+    // à la société porteuse de la fiche (`lib/societes.pourSociete`). Jamais requise, pour que
+    // les saisies déjà faites restent lisibles et modifiables.
+    societe: v.optional(SOCIETE),
     periode: v.string(),              // "YYYY-MM"
     joursTravailles: v.number(),
     absencesJours: v.number(),
@@ -149,13 +267,24 @@ export default defineSchema({
     primesVariables: v.number(),      // FCFA (hors primes fixes récurrentes)
     transport: v.number(),
     heuresSup: v.number(),
-    anciennete: v.number(),
+    anciennete: v.number(),               // ancienneté du groupe « primes fixes »
+    ancienneteSeparee: v.optional(v.number()), // ancienneté de la colonne distincte (21/10/2026)
     mutuellePct: v.number(),          // % mutuelle
     dettesSoins: v.number(),
     acompte: v.number(),
     primeAssiduite: v.optional(v.number()),   // prime d'assiduité (FCFA)
     indemniteLogement: v.optional(v.number()),// indemnité de logement (FCFA)
     absences: v.optional(v.number()),         // retenue pour absences (FCFA) — colonne « ABSENCE » du récapitulatif
+    // Primes du DIPE ajoutées au récapitulatif le 21/10/2026 (lib/rubriques.CHAMP_SAISIE_VERS_RUBRIQUE).
+    primeSalissure: v.optional(v.number()),
+    primePanier: v.optional(v.number()),
+    primeLait: v.optional(v.number()),
+    indemniteRepresentation: v.optional(v.number()),
+    indemniteVehicule: v.optional(v.number()),
+    primeCaisse: v.optional(v.number()),
+    primeRendement: v.optional(v.number()),
+    indemniteOutillage: v.optional(v.number()),
+    gratification: v.optional(v.number()),
   })
     .index("by_periode", ["periode"])
     .index("by_employe_periode", ["employeId", "periode"]),
@@ -163,6 +292,9 @@ export default defineSchema({
   // Lignes libres de primes / charges datées (alimentent les totaux du mois).
   primesCharges: defineTable({
     employeId: v.id("employes"),
+    // Société qui verse la prime ou retient la charge. Absente = société porteuse de la fiche
+    // (lignes antérieures au lot R2 bis) : une prime ne doit jamais changer de déclarant.
+    societe: v.optional(SOCIETE),
     periode: v.string(),
     libelle: v.string(),
     montant: v.number(),
@@ -175,15 +307,48 @@ export default defineSchema({
   // Événements d'absence (planning). Les agrégats mensuels et le solde de congés en dérivent.
   absences: defineTable({
     employeId: v.id("employes"),
-    type: v.union(v.literal("conge_paye"), v.literal("absence"), v.literal("maladie"), v.literal("autre")),
+    // Catalogue légal : voir lib/absencesLegales.ts. Les 4 premières valeurs sont les clés
+    // HISTORIQUES et restent acceptées — aucune donnée existante n'est invalidée.
+    type: v.union(
+      v.literal("conge_paye"), v.literal("absence"), v.literal("maladie"), v.literal("autre"),
+      v.literal("maternite"), v.literal("accident_travail"), v.literal("evenement_familial"),
+      v.literal("chomage_technique"), v.literal("mise_a_pied"), v.literal("sans_solde"),
+      v.literal("formation_syndicale"),
+    ),
+    // Pièce justificative fournie (certificat médical, acte d'état civil…).
+    justificatifFourni: v.optional(v.boolean()),
+    /** Événement familial précis, quand le type est `evenement_familial`. */
+    evenementFamilial: v.optional(v.string()),
+    /** Rang du mois d'absence, pour le barème dégressif du chômage technique. */
+    rangMois: v.optional(v.number()),
     dateDebut: v.string(),            // "YYYY-MM-DD"
     dateFin: v.string(),              // inclus
     jours: v.number(),                // jours calendaires inclus
     paye: v.boolean(),                // rémunéré (n'entame pas les jours travaillés) ou non
     motif: v.optional(v.string()),
+    // --- Planning annuel (lot R1) ---
+    // Année de référence du droit : remplace les en-têtes « RAPPEL 2025 » / « PLANIFICATION 2026 »
+    // écrits en dur dans le classeur, qu'il fallait reprendre à la main chaque 1er janvier.
+    anneeReference: v.optional(v.number()),
+    // Décompte en JOURS OUVRABLES (lib/congesOuvrables) et date de retour calculée.
+    // `jours` reste le décompte calendaire dont dépend la paie aujourd'hui : les deux cohabitent
+    // jusqu'à la bascule du lot R4.
+    joursOuvrables: v.optional(v.number()),
+    dateRetour: v.optional(v.string()),   // 1er jour de service après le congé
+    // Colonne « observation » réclamée par la RH (lib/planningAnnuel.OBSERVATIONS).
+    observation: v.optional(v.string()),
+    commentaire: v.optional(v.string()),
+    // Colonne REMPLACANT CONGES : un collègue, ou la mention libre « CONTINUITE ».
+    remplacantId: v.optional(v.id("employes")),
+    remplacantTexte: v.optional(v.string()),
+    // Droit à congé : calculé (ancienneté + enfants) mais surchargeable à la main avec motif (E5).
+    congeSuppCalcule: v.optional(v.number()),
+    congeSuppManuel: v.optional(v.number()),
+    congeSuppMotif: v.optional(v.string()),
   })
     .index("by_employe", ["employeId"])
-    .index("by_debut", ["dateDebut"]),
+    .index("by_debut", ["dateDebut"])
+    .index("by_annee", ["anneeReference"]),
 
   // Bulletins GÉNÉRÉS (snapshot). Les mois ouverts sont calculés à la volée;
   // à la génération/clôture on fige le résultat ici.
@@ -224,6 +389,9 @@ export default defineSchema({
   // Journal des envois de courrier de paie (e-mail). Un enregistrement par tentative.
   envois: defineTable({
     employeId: v.id("employes"),
+    // Société du bulletin envoyé (lot R2 bis) : un pluri-employé reçoit un courrier par société.
+    // Absente = envoi antérieur, donc société porteuse de la fiche.
+    societe: v.optional(SOCIETE),
     periode: v.string(),
     email: v.string(),                // adresse du canal : e-mail, ou numéro WhatsApp
     canal: v.optional(v.union(v.literal("email"), v.literal("whatsapp"))), // absent = e-mail (envois antérieurs)
@@ -446,6 +614,23 @@ export default defineSchema({
     auteurId: v.id("users"),
     majLe: v.optional(v.string()),
   }).index("by_categorie_periode", ["categorie", "periode"]),
+
+  // Jours fériés, par année. ADMINISTRABLE : les fêtes religieuses et les dates pascales sont
+  // fixées chaque année par acte administratif — elles ne peuvent pas être codées en dur
+  // (voir lib/joursFeriesCameroun.ts et docs/rh/CALIBRATION-PLANNING.md).
+  joursFeries: defineTable({
+    date: v.string(),                 // "YYYY-MM-DD"
+    libelle: v.string(),
+    chome: v.boolean(),               // false = férié travaillé dans l'entreprise, donc décompté
+    annee: v.number(),               // redondant avec `date`, mais indexable
+    origine: v.union(                 // d'où vient la date : sert à signaler ce qui reste à confirmer
+      v.literal("fixe"),              // date fixe du calendrier camerounais
+      v.literal("pascal"),            // calculée par le comput de Pâques
+      v.literal("saisi"),             // saisie à la main (Aïd, report administratif)
+    ),
+  })
+    .index("by_date", ["date"])
+    .index("by_annee", ["annee"]),
 
   // Journal d'activité : rôles/activations, clôtures, appels API, contrôles du barème (lib/journal.ts).
   journalActivite: defineTable({

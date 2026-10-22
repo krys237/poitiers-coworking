@@ -25,7 +25,7 @@ import {
   Check,
   AlertCircle,
   FileText,
-
+  PencilIcon,
   MessageSquare,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -77,12 +77,16 @@ export function ComptesRendus() {
   const me = useMe();
   const espace = useQuery(api.comptesRendus.monEspace);
   const soumettre = useMutation(api.comptesRendus.soumettre);
+  const modifierCompteRendu = useMutation(api.comptesRendus.modifier);
   const changerStatut = useMutation(api.comptesRendus.changerStatut);
   const ajouterCommentaire = useMutation(api.comptesRendus.ajouterCommentaire);
 
   const [contenu, setContenu] = useState("");
   const [date, setDate] = useState("");
   const [formOuvert, setFormOuvert] = useState(false);
+  // Identifiant du compte rendu repris depuis l'historique : le même formulaire sert au dépôt d'un
+  // jour vierge et à la correction d'une ligne existante, il faut savoir d'où l'on vient.
+  const [editionId, setEditionId] = useState<string | null>(null);
   const [enEnvoi, setEnEnvoi] = useState(false);
   const [tick, setTick] = useState(Date.now());
   const [jourSup, setJourSup] = useState("");
@@ -94,7 +98,9 @@ export function ComptesRendus() {
   const [envoiCommentaire, setEnvoiCommentaire] = useState(false);
   // Dépliage en ligne dans le tableau superviseur
   const [ligneDetailId, setLigneDetailId] = useState<string | null>(null);
-  const [texteCommentaireLigne, setTexteCommentaireLigne] = useState("");
+  // Une remarque par compte rendu : un membre peut en avoir plusieurs pour la même journée, chaque
+  // saisie doit rester attachée au rapport qu'elle commente.
+  const [texteCommentaireLigne, setTexteCommentaireLigne] = useState<Record<string, string>>({});
   const [envoiCommentaireLigne, setEnvoiCommentaireLigne] = useState(false);
   const lignesVisibles = useLignesVisibles("comptes-rendus:supervision");
 
@@ -119,13 +125,13 @@ export function ComptesRendus() {
     return () => clearInterval(t);
   }, []);
 
-  // Synchronisation des valeurs initiales lorsque les données sont chargées
+  // Synchronisation des valeurs initiales lorsque les données sont chargées.
+  // Le contenu n'est volontairement PAS pré-rempli avec le compte rendu du jour : le formulaire est
+  // un dépôt, pas une mise à jour déguisée (demande du propriétaire : le bouton principal doit rester
+  // disponible pour déposer). La reprise d'un texte existant passe par l'action « Modifier » de la liste.
   useEffect(() => {
     if (espace && !date) {
       setDate(espace.fenetre.aujourdHui);
-    }
-    if (espace?.aujourdHui && !contenu) {
-      setContenu(espace.aujourdHui.contenu);
     }
   }, [espace?.fenetre.aujourdHui]);
 
@@ -156,9 +162,47 @@ export function ComptesRendus() {
   }, [fen, tick, estDispense]);
 
   // Statut de soumission du jour
-  const estSoumisAujourdhui = !!espace?.aujourdHui;
   const estRattrapage = Boolean(fen && date && date !== fen.aujourdHui);
   const seraHorsFenetre = Boolean(!estDispense && (estRattrapage || (fen && !fen.ouverte)));
+
+  // Droit « Comptes rendus : plusieurs par jour » (matrice des droits, décision du 22/10/2026) : il
+  // change le sens du dépôt — ajout à la journée au lieu de remplacement du compte rendu du jour.
+  const plusieursParJour = Boolean(espace?.plusieursParJour);
+  // Comptes rendus déjà déposés pour la date choisie, dans l'ordre des dépôts. La détection porte sur
+  // l'historique chargé (30 derniers dépôts) ; au-delà, c'est le serveur qui tranche de toute façon.
+  const existantsPourDate = useMemo(
+    () => (espace?.historique ?? []).filter((c: any) => c.date === date).slice().reverse(),
+    [espace?.historique, date]
+  );
+  const dernierPourDate = existantsPourDate[existantsPourDate.length - 1] ?? null;
+  // Sans le droit, le dépôt remplace le dernier compte rendu du jour : s'il est validé, le serveur
+  // refuse. Avec le droit, un compte rendu validé n'empêche pas d'en ajouter un autre.
+  const existantVerrouille = !plusieursParJour && dernierPourDate?.statut === "valide";
+  // Comptes rendus du jour (liste : la journée peut en porter plusieurs).
+  const crDuJour: any[] = espace?.aujourdHui ?? [];
+  const dernierDuJour = crDuJour[crDuJour.length - 1] ?? null;
+
+  // Le bouton d'en-tête ouvre toujours un dépôt : on repart d'une feuille blanche à la date du jour
+  // dès qu'on sortait d'une correction, sinon on préserve le brouillon en cours de rédaction.
+  const ouvrirDepot = () => {
+    if (editionId) {
+      setEditionId(null);
+      setContenu("");
+      setDate(espace?.fenetre.aujourdHui ?? "");
+    }
+    setFormOuvert(true);
+  };
+
+  // Reprise d'une ligne de l'historique : correction CIBLÉE de ce compte rendu (mutation `modifier`),
+  // pas un nouveau dépôt. Le formulaire est au-dessus de la liste, d'où la remontée du défilement —
+  // sans elle, le clic depuis le bas de page paraît sans effet.
+  const ouvrirEdition = (c: any) => {
+    setEditionId(String(c._id));
+    setDate(c.date);
+    setContenu(c.contenu);
+    setFormOuvert(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   // Modèles de structure rapide pour aider le collaborateur
   const insererModele = (titre: string) => {
@@ -172,11 +216,35 @@ export function ComptesRendus() {
       toast.error("Veuillez rédiger le contenu de votre compte rendu.");
       return;
     }
+    // Expliqué ici plutôt que de laisser remonter l'erreur brute de la mutation, qui refuse aussi.
+    if (!editionId && existantVerrouille) {
+      toast.error("Compte rendu déjà validé", {
+        description: `Le compte rendu du ${fmtDateCourte(date)} a été validé par la hiérarchie : il n'est plus modifiable.`,
+      });
+      return;
+    }
 
     setEnEnvoi(true);
     try {
+      // Correction d'un compte rendu précis : ni l'heure de dépôt ni le point de présence ne bougent.
+      if (editionId) {
+        const r = await modifierCompteRendu({ compteRenduId: editionId as any, contenu: contenu.trim() });
+        toast.success(`Compte rendu du ${fmtDateCourte(r.date)} corrigé`, {
+          description: `Dépôt de ${r.heure} conservé${r.points ? " · point de présence conservé" : ""}.`,
+        });
+        setFormOuvert(false);
+        setEditionId(null);
+        setContenu("");
+        setDate(espace?.fenetre.aujourdHui ?? date);
+        return;
+      }
       const r = await soumettre({ date: date || undefined, contenu: contenu.trim() });
-      if (r.horsFenetre) {
+      if (r.ajout && r.nbDuJour > 1) {
+        // Dépôt supplémentaire : le droit « plusieurs par jour » ajoute, il ne remplace pas.
+        toast.success(`Compte rendu ajouté au ${fmtDateCourte(r.date)}`, {
+          description: `${r.nbDuJour} comptes rendus pour cette journée · point de présence : ${r.pointsJour}/1 (acquis une seule fois par jour).`,
+        });
+      } else if (r.horsFenetre) {
         toast.warning(`Compte rendu du ${fmtDateCourte(r.date)} enregistré`, {
           description: `Soumis à ${r.heure} hors créneau (0 point). Les superviseurs en ont été notifiés.`,
         });
@@ -187,7 +255,12 @@ export function ComptesRendus() {
             : `Enregistré à ${r.heure} dans le créneau officiel : +${r.points} point de présence attribué.`,
         });
       }
+      // Dépôt terminé : on vide la saisie pour que le prochain « Nouveau compte rendu » ne reprenne
+      // pas le texte qui vient d'être envoyé (le dépôt s'ajoute ou remplace, selon le droit).
       setFormOuvert(false);
+      setEditionId(null);
+      setContenu("");
+      setDate(espace?.fenetre.aujourdHui ?? date);
     } catch (err) {
       toast.error("Échec de la soumission", {
         description: messageErreur(err),
@@ -247,12 +320,14 @@ export function ComptesRendus() {
   };
 
   const handleEnvoyerCommentaireLigne = async (compteRenduId: any) => {
-    if (!texteCommentaireLigne.trim()) return;
+    const cle = String(compteRenduId);
+    const texte = (texteCommentaireLigne[cle] ?? "").trim();
+    if (!texte) return;
     setEnvoiCommentaireLigne(true);
     try {
-      await ajouterCommentaire({ compteRenduId, texte: texteCommentaireLigne.trim() });
+      await ajouterCommentaire({ compteRenduId, texte });
       toast.success("Remarque enregistrée et transmise au collaborateur");
-      setTexteCommentaireLigne("");
+      setTexteCommentaireLigne((prev) => ({ ...prev, [cle]: "" }));
     } catch (err) {
       toast.error("Erreur lors de l'enregistrement de la remarque", {
         description: messageErreur(err),
@@ -282,12 +357,13 @@ export function ComptesRendus() {
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
           {/* Badge d'état du jour */}
-          {espace?.aujourdHui ? (
+          {dernierDuJour ? (
             <Flag
-              variant={STATUT_INFO[espace.aujourdHui.statut]?.variant ?? "especes"}
+              variant={STATUT_INFO[dernierDuJour.statut]?.variant ?? "especes"}
               size="sm"
             >
-              Aujourd'hui : {STATUT_INFO[espace.aujourdHui.statut]?.label} ({espace.aujourdHui.heure})
+              Aujourd'hui : {STATUT_INFO[dernierDuJour.statut]?.label} ({dernierDuJour.heure})
+              {crDuJour.length > 1 && ` · ${crDuJour.length} dépôts`}
             </Flag>
           ) : (
             <Flag variant={fen?.ouverte ? "a-renseigner" : "neutre"} size="sm">
@@ -298,7 +374,7 @@ export function ComptesRendus() {
           {/* Bouton primaire rétractable pour déplier/replier la rédaction */}
           <Button
             size="sm"
-            onClick={() => setFormOuvert((v) => !v)}
+            onClick={() => (formOuvert ? setFormOuvert(false) : ouvrirDepot())}
             className={cn(
               "text-xs font-bold gap-1.5 shadow-xs transition-colors",
               formOuvert
@@ -313,7 +389,7 @@ export function ComptesRendus() {
             ) : (
               <>
                 <Plus className="h-3.5 w-3.5" />
-                {estSoumisAujourdhui ? "Modifier mon compte rendu" : "Rédiger mon compte rendu"}
+                Nouveau compte rendu
               </>
             )}
           </Button>
@@ -344,29 +420,29 @@ export function ComptesRendus() {
             <span className="truncate">Statut du jour</span>
             <Flag
               variant={
-                espace?.aujourdHui
-                  ? STATUT_INFO[espace.aujourdHui.statut]?.variant ?? "especes"
+                dernierDuJour
+                  ? STATUT_INFO[dernierDuJour.statut]?.variant ?? "especes"
                   : "a-renseigner"
               }
               size="xs"
             >
-              {espace?.aujourdHui ? "Déposé" : "En attente"}
+              {dernierDuJour ? (crDuJour.length > 1 ? `${crDuJour.length} dépôts` : "Déposé") : "En attente"}
             </Flag>
           </div>
           <div className="mt-1">
             <div className="text-base sm:text-lg font-bold font-mono text-ocean-nuit truncate">
-              {espace?.aujourdHui ? `Soumis à ${espace.aujourdHui.heure}` : "Non renseigné"}
+              {dernierDuJour ? `Soumis à ${dernierDuJour.heure}` : "Non renseigné"}
             </div>
+            {/* Le point de présence vient de la journée entière, pas du dernier dépôt : plusieurs
+                comptes rendus le même jour ne valent qu'un point (décision du 22/10/2026). */}
             <div className="text-3xs text-encre-pale truncate">
-              {estDispense
-                ? espace?.aujourdHui
-                  ? "Dépôt enregistré (+1 pt)"
-                  : "Dépôt libre en continu"
-                : espace?.aujourdHui?.horsFenetre
-                ? "Hors créneau (0 pt)"
-                : espace?.aujourdHui
-                ? "+1 point accordé"
-                : `À déposer avant ${fen?.fermeture ?? 20}h00`}
+              {!dernierDuJour
+                ? estDispense
+                  ? "Dépôt libre en continu"
+                  : `À déposer avant ${fen?.fermeture ?? 20}h00`
+                : (espace?.pointsDuJour ?? 0) > 0
+                ? "+1 point de présence (une fois par jour)"
+                : "Hors créneau (0 pt)"}
             </div>
           </div>
         </div>
@@ -423,12 +499,12 @@ export function ComptesRendus() {
             ) : (
               <>
                 <div className="text-base sm:text-lg font-bold text-ocean-nuit truncate">
-                  {espace?.aujourdHui
-                    ? STATUT_INFO[espace.aujourdHui.statut]?.label ?? "En cours"
+                  {dernierDuJour
+                    ? STATUT_INFO[dernierDuJour.statut]?.label ?? "En cours"
                     : "En attente"}
                 </div>
                 <div className="text-3xs text-encre-pale">
-                  {espace?.aujourdHui?.statut === "valide"
+                  {dernierDuJour?.statut === "valide"
                     ? "Validé par le superviseur"
                     : "En cours de lecture"}
                 </div>
@@ -446,8 +522,12 @@ export function ComptesRendus() {
               <div className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-ocean-profond" />
                 <CardTitle className="text-sm sm:text-base font-bold text-ocean-nuit">
-                  {estSoumisAujourdhui && date === fen?.aujourdHui
-                    ? "Mise à jour de votre compte rendu du jour"
+                  {editionId
+                    ? `Correction du compte rendu du ${fmtDateCourte(date)}`
+                    : existantsPourDate.length > 0
+                    ? plusieursParJour
+                      ? `Compte rendu supplémentaire pour le ${fmtDateCourte(date)}`
+                      : `Nouveau dépôt pour le ${fmtDateCourte(date)} (remplacement)`
                     : "Rédaction et soumission du compte rendu journalier"}
                 </CardTitle>
               </div>
@@ -466,8 +546,68 @@ export function ComptesRendus() {
           </CardHeader>
 
           <CardContent className="p-4 sm:p-5 space-y-4">
-            {/* Avertissements contextuels de fenêtre */}
-            {estDispense ? (
+            {/* Correction : rien d'autre que le texte ne change (ni heure de dépôt, ni point), donc
+                aucun avertissement de créneau n'a de sens ici. */}
+            {editionId && (
+              <div className="flex items-start gap-2.5 rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs text-ocean-nuit">
+                <PencilIcon className="h-4 w-4 text-ocean-profond shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Correction d'un compte rendu déposé : </span>
+                  vous corrigez le texte du compte rendu du <b>{fmtDateLongue(date)}</b>. L'heure de dépôt et le
+                  point de présence déjà acquis sont conservés ; aucun nouveau compte rendu n'est créé.
+                </div>
+              </div>
+            )}
+
+            {/* Un dépôt sur une date déjà renseignée s'AJOUTE (droit « plusieurs par jour ») ou REMPLACE
+                le compte rendu de ce jour : on l'annonce, et on bloque net si la hiérarchie l'a validé. */}
+            {!editionId && existantsPourDate.length > 0 &&
+              (plusieursParJour ? (
+                <div className="flex items-start gap-2.5 rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs text-ocean-nuit">
+                  <History className="h-4 w-4 text-ocean-profond shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">
+                      {existantsPourDate.length} compte{existantsPourDate.length > 1 ? "s" : ""} rendu
+                      {existantsPourDate.length > 1 ? "s" : ""} déjà déposé{existantsPourDate.length > 1 ? "s" : ""} pour ce jour :{" "}
+                    </span>
+                    celui-ci sera <b>ajouté</b> aux autres (dépôts de {existantsPourDate.map((c: any) => c.heure).join(", ")}),
+                    sans rien remplacer. Le <b>point de présence reste acquis une seule fois par journée</b>.
+                    Pour corriger un compte rendu déjà déposé, utilisez le crayon de votre historique.
+                  </div>
+                </div>
+              ) : existantVerrouille ? (
+                <div className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50/80 p-3 text-xs text-rose-900">
+                  <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Compte rendu déjà validé : </span>
+                    Celui du <b>{fmtDateLongue(date)}</b> a été validé par la hiérarchie, il n'est plus modifiable.
+                    Choisissez une autre date pour déposer un nouveau compte rendu.
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-900">
+                  <History className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Un compte rendu existe déjà pour ce jour : </span>
+                    déposé à {dernierPourDate?.heure} ({STATUT_INFO[dernierPourDate?.statut]?.label ?? "en cours"}).
+                    L'enregistrement <b>remplacera son contenu</b> — un seul compte rendu est conservé par journée.
+                    Pour corriger ce texte sans toucher à l'heure de dépôt, utilisez plutôt le crayon de votre historique.
+                    {(dernierPourDate?.points ?? 0) > 0 && seraHorsFenetre && (
+                      <>
+                        {" "}
+                        <b>
+                          Ce compte rendu a déjà rapporté {dernierPourDate?.points} point ; réenregistré hors créneau,
+                          il repassera à 0.
+                        </b>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+            {/* Avertissements contextuels de fenêtre (dépôt seulement : une correction ne recalcule
+                ni l'heure, ni le point de présence). */}
+            {!editionId && (estDispense ? (
               <div className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50/70 p-3 text-xs text-ocean-nuit">
                 <CheckCircle2 className="h-4 w-4 text-ocean-profond shrink-0" />
                 <span>
@@ -499,7 +639,7 @@ export function ComptesRendus() {
                   La soumission de ce compte rendu validera <b>1 point de présence</b> pour votre journée.
                 </span>
               </div>
-            )}
+            ))}
 
             <form onSubmit={onSoumettre} className="space-y-3.5">
               {/* Ligne date concernée & raccourcis */}
@@ -508,12 +648,16 @@ export function ComptesRendus() {
                   <label className="text-xs font-bold text-slate-700 shrink-0">
                     Jour concerné :
                   </label>
+                  {/* En correction, la date est celle du compte rendu repris : la déplacer reviendrait
+                      à déposer pour un autre jour, ce qui est le rôle du bouton « Nouveau compte rendu ». */}
                   <Input
                     type="date"
                     value={date}
                     max={fen?.aujourdHui}
+                    disabled={!!editionId}
+                    title={editionId ? "Jour du compte rendu corrigé : non modifiable" : undefined}
                     onChange={(e) => setDate(e.target.value)}
-                    className="h-8 text-xs w-40 bg-white border-filet rounded-lg font-mono"
+                    className="h-8 text-xs w-40 bg-white border-filet rounded-lg font-mono disabled:bg-slate-100 disabled:text-slate-500"
                   />
                   {date && (
                     <span className="text-2xs text-slate-500 hidden md:inline">
@@ -583,14 +727,20 @@ export function ComptesRendus() {
                 <Button
                   type="submit"
                   size="sm"
-                  disabled={!contenu.trim() || enEnvoi}
+                  disabled={!contenu.trim() || enEnvoi || existantVerrouille}
                   className="bg-ocean-profond hover:bg-ocean-nuit text-white text-xs font-bold shadow-xs gap-1.5"
                 >
                   <Send className="h-3.5 w-3.5" />
                   {enEnvoi
                     ? "Enregistrement en cours…"
-                    : estSoumisAujourdhui && date === fen?.aujourdHui
-                    ? "Mettre à jour mon compte rendu"
+                    : editionId
+                    ? `Enregistrer la correction du ${fmtDateCourte(date)}`
+                    : existantVerrouille
+                    ? "Compte rendu validé — non modifiable"
+                    : existantsPourDate.length > 0
+                    ? plusieursParJour
+                      ? `Ajouter ce compte rendu au ${fmtDateCourte(date)}`
+                      : `Remplacer le compte rendu du ${fmtDateCourte(date)}`
                     : "Soumettre mon compte rendu"}
                 </Button>
               </div>
@@ -599,23 +749,30 @@ export function ComptesRendus() {
         </Card>
       )}
 
-      {/* 3 bis. Remarques du superviseur sur le compte rendu du jour */}
-      {espace?.aujourdHui && (espace.aujourdHui.commentaires?.length ?? 0) > 0 && (
+      {/* 3 bis. Remarques du superviseur sur les comptes rendus du jour */}
+      {(() => {
+        // La journée peut porter plusieurs comptes rendus : on rassemble leurs remarques en gardant
+        // l'heure du dépôt commenté, pour que le collaborateur sache lequel est visé.
+        const remarques = crDuJour.flatMap((c: any) =>
+          (c.commentaires ?? []).map((comm: any) => ({ ...comm, heureDepot: c.heure }))
+        );
+        if (remarques.length === 0) return null;
+        return (
         <div className="rounded-2xl border border-ocean-ceruleen/40 bg-gradient-to-r from-blue-50/90 via-sky-50/50 to-white p-4 shadow-xs space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-ocean-profond" />
               <h3 className="text-sm font-bold text-ocean-nuit">
-                Remarques de la hiérarchie sur votre compte rendu d'aujourd'hui
+                Remarques de la hiérarchie sur {crDuJour.length > 1 ? "vos comptes rendus" : "votre compte rendu"} d'aujourd'hui
               </h3>
             </div>
             <Flag variant="finance" size="xs">
-              {espace.aujourdHui.commentaires.length} remarque{espace.aujourdHui.commentaires.length > 1 ? "s" : ""}
+              {remarques.length} remarque{remarques.length > 1 ? "s" : ""}
             </Flag>
           </div>
 
           <div className="space-y-2">
-            {espace.aujourdHui.commentaires.map((comm: any, idx: number) => {
+            {remarques.map((comm: any, idx: number) => {
               const estMoi = me?._id && String(comm.auteurId) === String(me._id);
               return (
                 <div
@@ -630,6 +787,9 @@ export function ComptesRendus() {
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <span className="font-bold text-xs text-ocean-nuit">
                       {comm.auteur} {estMoi ? "(Vous)" : "(Superviseur)"}
+                      {crDuJour.length > 1 && (
+                        <span className="font-normal text-slate-500"> · sur le dépôt de {comm.heureDepot}</span>
+                      )}
                     </span>
                     <span className="text-3xs text-slate-400 font-mono">
                       {fmtDateHeure(comm.date)}
@@ -647,7 +807,8 @@ export function ComptesRendus() {
             Observations et consignes formulées par votre responsable (lecture seule).
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* 4. Historique personnel des comptes rendus */}
       <div className="rounded-2xl border border-filet bg-surface p-4 shadow-xs space-y-3">
@@ -659,7 +820,7 @@ export function ComptesRendus() {
             </h2>
           </div>
           <Flag variant="neutre" size="sm" className="font-mono">
-            30 derniers jours
+            30 derniers dépôts
           </Flag>
         </div>
 
@@ -714,6 +875,33 @@ export function ComptesRendus() {
                       >
                         {estOuvert ? "Réduire" : "Lire"}
                       </button>
+                      {/* Correction d'un compte rendu déjà déposé : action de ligne, comme partout
+                          ailleurs dans l'application. Le bouton d'en-tête reste dédié au dépôt. */}
+                      {c.statut === "valide" ? (
+                        <span
+                          className="inline-flex"
+                          title="Compte rendu validé par la hiérarchie : il n'est plus modifiable."
+                        >
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            disabled
+                            aria-label={`Modification impossible — compte rendu du ${fmtDateCourte(c.date)} validé`}
+                          >
+                            <PencilIcon className="h-3.5 w-3.5" />
+                          </Button>
+                        </span>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => ouvrirEdition(c)}
+                          title="Modifier ce compte rendu"
+                          aria-label={`Modifier le compte rendu du ${fmtDateCourte(c.date)}`}
+                        >
+                          <PencilIcon className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </div>
 
@@ -957,6 +1145,13 @@ export function ComptesRendus() {
                               <span className="font-mono text-xs tabular-nums">
                                 Déposé à {l.heure}
                               </span>
+                              {/* Dépôts multiples (droit « plusieurs par jour ») : on dit combien il y
+                                  en a eu, sans suivre aucun nombre attendu. */}
+                              {l.nbDepots > 1 && (
+                                <Flag variant="finance" size="xs" title="Plusieurs comptes rendus déposés ce jour">
+                                  {l.nbDepots} dépôts
+                                </Flag>
+                              )}
                               {l.horsFenetre && (
                                 <Flag variant="verrou" size="xs">
                                   Hors créneau
@@ -999,7 +1194,6 @@ export function ComptesRendus() {
                               variant={ligneDetailId === String(l.id) ? "default" : "outline"}
                               onClick={() => {
                                 setLigneDetailId(ligneDetailId === String(l.id) ? null : String(l.id));
-                                setTexteCommentaireLigne("");
                               }}
                               className={cn(
                                 "mr-1 h-7 gap-1 px-2.5 text-3xs font-semibold",
@@ -1010,7 +1204,7 @@ export function ComptesRendus() {
                               title="Lire le rapport directement dans le tableau"
                             >
                               <FileText className="h-3 w-3" />
-                              {ligneDetailId === String(l.id) ? "Masquer" : "Lire le rapport"}
+                              {ligneDetailId === String(l.id) ? "Masquer" : l.nbDepots > 1 ? `Lire les ${l.nbDepots} rapports` : "Lire le rapport"}
                               {l.nbCommentaires > 0 && ` (${l.nbCommentaires})`}
                             </Button>
                           )}
@@ -1038,22 +1232,21 @@ export function ComptesRendus() {
                         </TableCell>
                       </TableRow>
 
-                      {/* Panneau déplié de lecture directe du compte rendu */}
+                      {/* Panneau déplié de lecture directe : TOUS les comptes rendus que le membre a
+                          déposés ce jour-là (il peut en avoir plusieurs), chacun avec son heure. */}
                       {l.id && ligneDetailId === String(l.id) && (() => {
-                        const c = (sup?.contenus ?? []).find((x: any) => String(x._id) === String(l.id));
-                        if (!c) return null;
+                        const siens = (sup?.contenus ?? []).filter((x: any) => String(x.auteurId) === String(l.membreId));
+                        if (siens.length === 0) return null;
                         return (
                           <tr className="border-b border-filet bg-papier/70 animate-in fade-in duration-150">
                             <td colSpan={7} className="p-3 sm:p-4">
-                              <div className="rounded-xl border border-ocean-ceruleen/40 bg-white p-4 shadow-sm space-y-3">
-                                <div className="flex items-center justify-between border-b border-filet pb-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-bold text-xs text-ocean-nuit">
-                                      Compte rendu de {l.nom} · {c.heure}
-                                    </span>
-                                    {c.horsFenetre && <Flag variant="verrou" size="xs">Hors créneau</Flag>}
-                                    {c.dispenseFenetre && <Flag variant="finance" size="xs">Direction (Libre)</Flag>}
-                                  </div>
+                              <div className="space-y-2.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-2xs font-bold uppercase tracking-wider text-slate-500">
+                                    {siens.length > 1
+                                      ? `${siens.length} comptes rendus de ${l.nom} · ${fmtDateLongue(sup?.date ?? "")}`
+                                      : `Compte rendu de ${l.nom}`}
+                                  </span>
                                   <Button
                                     size="sm"
                                     variant="ghost"
@@ -1062,6 +1255,22 @@ export function ComptesRendus() {
                                   >
                                     Fermer
                                   </Button>
+                                </div>
+                                {siens.map((c: any, i: number) => (
+                              <div key={String(c._id)} className="rounded-xl border border-ocean-ceruleen/40 bg-white p-4 shadow-sm space-y-3">
+                                <div className="flex items-center justify-between border-b border-filet pb-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-xs text-ocean-nuit">
+                                      {siens.length > 1 ? `Dépôt ${i + 1} sur ${siens.length} · ${c.heure}` : `Compte rendu de ${l.nom} · ${c.heure}`}
+                                    </span>
+                                    {c.horsFenetre && <Flag variant="verrou" size="xs">Hors créneau</Flag>}
+                                    {c.dispenseFenetre && <Flag variant="finance" size="xs">Direction (Libre)</Flag>}
+                                    {STATUT_INFO[c.statut] && (
+                                      <Flag variant={STATUT_INFO[c.statut].variant} size="xs">
+                                        {STATUT_INFO[c.statut].label}
+                                      </Flag>
+                                    )}
+                                  </div>
                                 </div>
 
                                 <div className="text-xs text-encre font-sans whitespace-pre-line leading-relaxed bg-papier/60 p-3 rounded-lg border border-filet">
@@ -1096,8 +1305,8 @@ export function ComptesRendus() {
                                   </label>
                                   <div className="flex gap-2">
                                     <Input
-                                      value={texteCommentaireLigne}
-                                      onChange={(e) => setTexteCommentaireLigne(e.target.value)}
+                                      value={texteCommentaireLigne[String(c._id)] ?? ""}
+                                      onChange={(e) => setTexteCommentaireLigne((prev) => ({ ...prev, [String(c._id)]: e.target.value }))}
                                       placeholder="Ex: Merci de relancer le client X, point à approfondir..."
                                       className="h-8 text-xs bg-white"
                                       onKeyDown={(e) => {
@@ -1110,7 +1319,7 @@ export function ComptesRendus() {
                                     <Button
                                       size="sm"
                                       type="button"
-                                      disabled={!texteCommentaireLigne.trim() || envoiCommentaireLigne}
+                                      disabled={!(texteCommentaireLigne[String(c._id)] ?? "").trim() || envoiCommentaireLigne}
                                       onClick={() => void handleEnvoyerCommentaireLigne(c._id)}
                                       className="h-8 text-xs bg-ocean-profond hover:bg-ocean-nuit text-white px-3 gap-1 shrink-0 font-semibold"
                                     >
@@ -1119,6 +1328,8 @@ export function ComptesRendus() {
                                     </Button>
                                   </div>
                                 </div>
+                              </div>
+                                ))}
                               </div>
                             </td>
                           </tr>

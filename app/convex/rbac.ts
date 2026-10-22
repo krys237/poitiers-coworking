@@ -79,6 +79,9 @@ export type Module = {
 
 export const MODULES: Module[] = [
   { cle: "/comptes-rendus", libelle: "Comptes rendus", categorie: "Exploitation", voir: "Rédiger et suivre ses comptes rendus", faire: "Superviser l'équipe (taux, validation)", niveauVoir: 1, niveauFaire: 2 },
+  // Décision du 22/10/2026 : sans cette case, un membre n'a qu'un compte rendu par journée (le
+  // nouveau dépôt remplace le précédent). Accordée par défaut à la DAF, le DG l'ouvre à qui il veut.
+  { cle: "/comptes-rendus/plusieurs-par-jour", libelle: "Comptes rendus : plusieurs par jour", categorie: "Exploitation", voir: null, faire: "Déposer plusieurs comptes rendus pour une même journée (le point de présence reste acquis une seule fois)", niveauVoir: 5, niveauFaire: 5 },
   { cle: "/interventions", libelle: "Interventions", categorie: "Exploitation", voir: "Déposer, suivre et commenter ses propres demandes", faire: "Valider, clôturer, rejeter", niveauVoir: 1, niveauFaire: 5 },
   // Décision du 13/10/2026 : sans cette case, « Voir » se limite aux demandes déposées par la personne.
   { cle: "/interventions/toutes", libelle: "Interventions : toutes les demandes", categorie: "Exploitation", voir: "Voir et suivre les demandes de tout le monde", faire: null, niveauVoir: 2, niveauFaire: 2 },
@@ -98,6 +101,7 @@ export const MODULES: Module[] = [
   { cle: "/paie/courrier", libelle: "Courrier de paie", categorie: "Paie", voir: "Consulter, imprimer", faire: "Envoyer, modifier la lettre", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/paie/planning", libelle: "Planning des absences", categorie: "Paie", voir: "Consulter", faire: "Saisir, synchroniser la paie", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/paie/primes", libelle: "Primes & retenues", categorie: "Paie", voir: "Consulter", faire: "Ajouter, modifier, supprimer", niveauVoir: 4, niveauFaire: 4 },
+  { cle: "/paie/dipe", libelle: "DIPE (impôts & CNPS)", categorie: "Paie", voir: "Consulter et exporter l'état mensuel", faire: "Comparer avec le classeur de la RH", niveauVoir: 3, niveauFaire: 4 },
   { cle: "/paie/archives", libelle: "Archives de paie", categorie: "Paie", voir: "Consulter les mois clôturés", faire: "Générer les PDF", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/bareme", libelle: "Barème", categorie: "Paie", voir: "Consulter, contrôler la source", faire: "Publier une nouvelle version", niveauVoir: 4, niveauFaire: 7 },
   { cle: "/financier", libelle: "Récapitulatif financier (grand livre)", categorie: "Finances", voir: "Consulter", faire: "Saisir la journée, justificatifs, clôturer", niveauVoir: 5, niveauFaire: 5 },
@@ -121,6 +125,10 @@ export function celluleParDefaut(role: Role, m: Module): Cellule {
   if (m.cloisonne) { const ok = role === "auditeur_externe" || ROLES_AUDIT.includes(role); return { voir: ok, faire: ok }; }
   if (role === "auditeur_externe") return { voir: !AUDITEUR_EXCLUS.has(m.cle), faire: false };
   if (role === "comptable" && m.cle === "/financier") return { voir: true, faire: true }; // décision du 28/09/2026
+  // Décision du 22/10/2026 : la DAF seule par défaut — ni le DG ni l'encadrement intermédiaire ne
+  // l'ont demandé, et l'échelle des niveaux l'aurait donné à tous les niveaux >= 5. Le super
+  // administrateur l'obtient de toute façon par le garde-fou technique (estVerrouille).
+  if (m.cle === "/comptes-rendus/plusieurs-par-jour") { const ok = role === "da1"; return { voir: ok, faire: ok }; }
   if (m.cle === "/membres/mot-de-passe") { const ok = role === "gestionnaire_rh" || role === "dg" || role === "super_admin"; return { voir: ok, faire: ok }; } // décision du 13/10/2026 : DG et RH (la DAF sur demande, dans la matrice)
   const n = NIVEAU[role];
   return { voir: n >= m.niveauVoir, faire: n >= m.niveauFaire };
@@ -156,6 +164,8 @@ export function droitsEffectifs(role: Role, surcharges: SurchargeRole[] = [], ex
   }
   // Réinitialiser un mot de passe suppose de trouver le membre : la case ouvre la consultation de Membres.
   if (d["/membres/mot-de-passe"].faire && !d["/membres"].voir) d["/membres"] = { voir: true, faire: false };
+  // Déposer plusieurs comptes rendus suppose d'avoir l'écran : la case ouvre « Comptes rendus ».
+  if (d["/comptes-rendus/plusieurs-par-jour"].faire && !d["/comptes-rendus"].voir) d["/comptes-rendus"] = { voir: true, faire: false };
   // Clés dérivées, hors matrice.
   d["/"] = { voir: true, faire: false }; // tableau de bord : tout membre autorisé
   const paie = MODULES.filter((m) => m.cle.startsWith("/paie/")).some((m) => d[m.cle].voir); // « Mes bulletins » n'en fait pas partie

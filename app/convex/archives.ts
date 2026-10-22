@@ -36,7 +36,8 @@ export const bulletinsDuMois = query({
     for (const b of bulletins) {
       const e = await ctx.db.get(b.employeId);
       out.push({
-        bulletinId: b._id, employeId: b.employeId, nom: e?.nom ?? "?", matricule: e?.matricule ?? "", societe: b.societe,
+        // Clé du couple (employé, société) : un pluri-employé a un bulletin figé par employeur.
+        bulletinId: b._id, cle: `${b.employeId}:${b.societe}`, employeId: b.employeId, nom: e?.nom ?? "?", matricule: e?.matricule ?? "", societe: b.societe,
         brut: b.brut, net: b.net, statut: b.statut, envoyeLe: b.envoyeLe, genereLe: b.genereLe,
         pdfUrl: b.pdfId ? await ctx.storage.getUrl(b.pdfId) : null,
       });
