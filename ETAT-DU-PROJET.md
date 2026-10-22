@@ -112,6 +112,16 @@ Autres décisions en attente, moins bloquantes : validation papier du bulletin p
 Comparaison réelle du barème avec la source officielle · agrégats mensuels stockés pour l'audit au-delà de 24 mois ·
 réinitialisation de mot de passe (« mot de passe oublié »).
 
+**Performance — `comptesRendus.vueSuperviseur`** (relevé le 22/10/2026, à traiter avant la montée en effectif) :
+la vue superviseur fait **une requête par membre actif** pour recalculer son score cumulé
+(`by_auteur` + `.collect()` dans la boucle sur les membres), et collecte tout l'historique de chacun à chaque
+affichage. L'écran reste fluide sur l'effectif actuel, mais le coût croît avec le produit
+*nombre de membres × nombre de comptes rendus déposés*, sans borne. Deux pistes : stocker le score cumulé sur la
+fiche du membre et l'incrémenter à l'écriture, ou ne calculer les scores que sur une fenêtre glissante (le mois en
+cours) plutôt que depuis l'origine. Même remarque, moindre, pour `convex/commandes.ts` : `derniersAchats` et les
+deux boucles d'antécédents font un `.collect()` non borné sur toutes les commandes d'un type à chaque chargement
+et à chaque création.
+
 ---
 
 ## 5. Incohérences de calcul à arbitrer
