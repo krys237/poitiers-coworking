@@ -37,6 +37,10 @@ export function Dashboard() {
   const paie = useQuery(api.payroll.bulletinsDuMois, me && voit("/paie/bulletins") ? { periode } : "skip");
   const fin = useQuery(api.financier.kpi, me ? {} : "skip");
   const cr = useQuery(api.comptesRendus.monEspace, me && voit("/comptes-rendus") ? {} : "skip");
+  // Un membre peut déposer plusieurs comptes rendus pour la même journée (droit « plusieurs par
+  // jour ») : `aujourdHui` est une liste, et c est le dernier dépôt qui représente la journée.
+  const crDuJour: { heure: string; horsFenetre: boolean }[] = cr?.aujourdHui ?? [];
+  const dernierCrDuJour = crDuJour[crDuJour.length - 1] ?? null;
   const st = useQuery(api.caisse.kpi, me && voit("/caisse") ? { periode } : "skip");
   const pm = useQuery(api.primesMedecins.kpi, me && voit("/primes-medecins") ? { periode } : "skip");
   const audit = useQuery(api.audit.resume, me && voit("/audit") ? { periode } : "skip");
@@ -313,7 +317,7 @@ export function Dashboard() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-          ) : cr && !cr.aujourdHui ? (
+          ) : cr && crDuJour.length === 0 ? (
             /* Alerte opérationnelle : Compte rendu du jour en attente */
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl bg-white/[0.08] backdrop-blur-md border border-white/15 px-4 py-2.5 text-white shadow-lg shadow-black/10 hover:bg-white/[0.11] transition-all">
               <div className="flex items-center gap-3 min-w-0">
@@ -529,10 +533,10 @@ export function Dashboard() {
                     Compte rendu du jour
                   </span>
                   {cr ? (
-                    cr.aujourdHui ? (
+                    dernierCrDuJour ? (
                       <Statut etat="soumis">
-                        {cr.aujourdHui.heure}
-                        {cr.aujourdHui.horsFenetre && " (hors fenêtre)"}
+                        {dernierCrDuJour.heure}
+                        {dernierCrDuJour.horsFenetre && " (hors fenêtre)"}
                       </Statut>
                     ) : (
                       <Statut etat="non_soumis">En attente</Statut>
@@ -542,7 +546,9 @@ export function Dashboard() {
                   )}
                 </div>
                 <p className="text-2xs text-encre-douce">
-                  {cr?.aujourdHui
+                  {crDuJour.length > 1
+                    ? `${crDuJour.length} comptes rendus enregistrés pour aujourd'hui (le point de présence est acquis une fois par jour).`
+                    : crDuJour.length === 1
                     ? "Votre compte rendu de journée a été enregistré."
                     : cr?.dispenseFenetre || (me?.niveau ?? 0) >= 5
                     ? "Votre compte rendu journalier est à renseigner selon votre disponibilité."
@@ -550,12 +556,12 @@ export function Dashboard() {
                 </p>
                 <Button
                   asChild
-                  variant={cr?.aujourdHui ? "outline" : "default"}
+                  variant={crDuJour.length ? "outline" : "default"}
                   size="sm"
                   className="w-full text-xs"
                 >
                   <Link to="/comptes-rendus">
-                    {cr?.aujourdHui ? "Consulter mes comptes rendus" : "Rédiger mon compte rendu →"}
+                    {crDuJour.length ? "Consulter mes comptes rendus" : "Rédiger mon compte rendu →"}
                   </Link>
                 </Button>
               </div>

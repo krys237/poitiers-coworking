@@ -177,7 +177,9 @@ Convex agent skills for common tasks can be installed by running
   workflow `ouverte → en_cours (validation) | rejetee ; en_cours → cloturee | rejetee` — niveau 5+ pour toute transition.
 - **Comptes rendus** (`convex/comptesRendus.ts`, `lib/fenetre.ts`) : un par membre et par jour (`by_auteur_date`), fenêtre lun–ven
   16h–20h **heure de Douala (UTC+1 fixe)** ; hors fenêtre accepté mais marqué, `points` = 1 dans la fenêtre / 0 sinon (score = cumul) ;
-  un compte rendu validé n'est plus modifiable ; vue superviseur (niv. 2+) = taux de soumission sur les membres actifs. Tests `test:fenetre`.
+  un compte rendu validé n'est plus modifiable ; vue superviseur (niv. 2+) = taux de soumission sur les membres actifs.
+  Côté écran (22/10/2026) le bouton d'en-tête reste un **dépôt** (« Nouveau compte rendu » + sélecteur de jour, remplacement
+  annoncé si la date est déjà servie) et la correction d'un dépôt passe par l'action crayon de l'historique. Tests `test:fenetre`.
 - **Caisse du mois** (`convex/caisse.ts`) et **Primes médecins** (`convex/primesMedecins.ts`) : **deux modules distincts** depuis le
   09/10/2026 (ils ne relèvent pas des mêmes personnes) ; logique de calcul partagée dans `lib/stats.ts`. Caisse : table `statsCaisse`,
   `totalEspeces` = 8 postes espèces, `chiffreAffaires` = espèces + assurance + TEP (les sorties ne sont pas des recettes). Primes :
@@ -254,10 +256,19 @@ Convex agent skills for common tasks can be installed by running
 
 ## Déploiement du frontend (Vercel)
 Convex n'héberge que le backend ; le frontend React se déploie sur Vercel (`vercel.json` à la racine de `app/`).
-- Projet Vercel : **Root Directory = `app`**, framework Vite, build `npm run build`, sortie `dist` (préréglés par `vercel.json`).
-- Variable d'environnement **`VITE_CONVEX_URL`** = URL du déploiement Convex (dev : `https://wonderful-shark-673.eu-west-1.convex.cloud` ;
-  prod : créer un déploiement de production avec `npx convex deploy` et utiliser son URL, ou brancher l'intégration
-  Convex↔Vercel avec `CONVEX_DEPLOY_KEY` et la commande `npx convex deploy --cmd 'npm run build'`).
+- Projet Vercel : **Root Directory = `app`**, framework Vite, sortie `dist` (préréglés par `vercel.json`).
+- **Le build déploie aussi le backend** : `vercel.json` utilise `npx convex deploy --cmd 'npm run build'`. Sans cela,
+  seul le frontend partait et les nouvelles fonctions Convex n'atteignaient jamais le déploiement visé (constaté le
+  20/10/2026 : la prod servait un frontend à jour sur un backend d'avant-veille).
+- **`CONVEX_DEPLOY_KEY` est obligatoire**, et **défini par environnement Vercel** : clé de *production* sur le scope
+  Production, clé de *preview* sur le scope Preview. Une clé de production laissée sur « All Environments » ferait
+  pousser le backend de prod à chaque déploiement de preview.
+- **`VITE_CONVEX_URL` n'est plus à saisir à la main** : `convex deploy --cmd` l'injecte dans le build, donc le
+  frontend parle toujours au backend qu'il vient de déployer. Il n'y a **plus aucun repli codé en dur** dans
+  `src/main.tsx` : variable absente → écran « Erreur de configuration Convex », pas de bascule silencieuse vers une
+  autre base (c'est ainsi que la recette a tourné sur le déploiement de dev sans que rien ne le signale).
+- Prérequis sur **chaque** déploiement Convex visé (sinon application silencieusement déconnectée) :
+  `JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL` — à créer **avant** le premier `convex deploy`.
 - Les liens profonds (`/paie/saisie`…) sont réécrits vers `index.html` (SPA) ; `sw.js` n'est pas mis en cache.
 - ⚠ Tant que `AUTH_DEV_BYPASS=true` est actif sur le déploiement Convex ciblé, **toute personne ayant le lien est DG** :
   réserver le lien à la présentation, ou brancher l'OIDC avant une diffusion large.

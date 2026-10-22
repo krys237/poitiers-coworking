@@ -6,13 +6,19 @@ import { App } from "./App";
 import { Toaster } from "@/components/ui/sonner";
 import "./styles.css";
 
-const convexUrl =
-  (import.meta.env.VITE_CONVEX_URL as string) ||
-  "https://wonderful-shark-673.eu-west-1.convex.cloud";
+// Aucun repli codé en dur. Un repli silencieux fait parler l'application à une autre base
+// que celle attendue : la recette tournait ainsi sur un déploiement de développement sans
+// que rien ne le signale. Variable absente → on s'arrête net, le bloc catch affiche la cause.
+const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined;
 
 const rootEl = document.getElementById("root")!;
 
 try {
+  if (!convexUrl) {
+    throw new Error(
+      "VITE_CONVEX_URL n'est pas définie : le backend Convex à joindre est inconnu."
+    );
+  }
   const convex = new ConvexReactClient(convexUrl);
 
   ReactDOM.createRoot(rootEl).render(

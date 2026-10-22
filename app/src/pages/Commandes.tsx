@@ -457,10 +457,20 @@ function CommandesContenu() {
       });
 
       if (etSoumettre) {
+        // TRANSITIONS n'autorise que rejetee → preparation : sans cette étape, la soumission d'un bon
+        // rejeté échouait systématiquement *après* l'enregistrement des lignes — modifications bien
+        // écrites, message d'erreur, et formulaire resté ouvert.
+        if (detail.statut === "rejetee") {
+          await changerStatut({ commandeId: detail._id, statut: "preparation" });
+        }
         await changerStatut({ commandeId: detail._id, statut: "en_attente" });
         toast.success(`Bon ${detail.reference} mis à jour et soumis à la Direction`);
       } else {
-        toast.success(`Bon ${detail.reference} mis à jour avec succès (enregistré en préparation)`);
+        toast.success(
+          detail.statut === "rejetee"
+            ? `Bon ${detail.reference} mis à jour (toujours au statut « Rejeté »)`
+            : `Bon ${detail.reference} mis à jour avec succès (enregistré en préparation)`
+        );
       }
       setEnModeEdition(false);
     } catch (err) {
@@ -1615,12 +1625,15 @@ function CommandesContenu() {
                                       <span className="font-mono text-ocean-profond font-bold">{fcfa(detail.total)}</span>
                                     </div>
 
+                                    {/* antecedentsModif exclut le bon affiché (saufCommandeId) : avec
+                                        antecedentsCreation, le bon le plus récent devenait son propre
+                                        antécédent, ce qui masquait ses vraies valeurs historiques. */}
                                     <RegistreCommandeTable
                                       lignes={detail.lignes}
                                       dateCommande={detail.date}
                                       editable={false}
                                       categorie={detail.type}
-                                      antecedents={antecedentsCreation}
+                                      antecedents={antecedentsModif}
                                     />
                                   </div>
 
