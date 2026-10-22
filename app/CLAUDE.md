@@ -177,7 +177,9 @@ Convex agent skills for common tasks can be installed by running
   workflow `ouverte → en_cours (validation) | rejetee ; en_cours → cloturee | rejetee` — niveau 5+ pour toute transition.
 - **Comptes rendus** (`convex/comptesRendus.ts`, `lib/fenetre.ts`) : un par membre et par jour (`by_auteur_date`), fenêtre lun–ven
   16h–20h **heure de Douala (UTC+1 fixe)** ; hors fenêtre accepté mais marqué, `points` = 1 dans la fenêtre / 0 sinon (score = cumul) ;
-  un compte rendu validé n'est plus modifiable ; vue superviseur (niv. 2+) = taux de soumission sur les membres actifs. Tests `test:fenetre`.
+  un compte rendu validé n'est plus modifiable ; vue superviseur (niv. 2+) = taux de soumission sur les membres actifs.
+  Côté écran (22/10/2026) le bouton d'en-tête reste un **dépôt** (« Nouveau compte rendu » + sélecteur de jour, remplacement
+  annoncé si la date est déjà servie) et la correction d'un dépôt passe par l'action crayon de l'historique. Tests `test:fenetre`.
 - **Caisse du mois** (`convex/caisse.ts`) et **Primes médecins** (`convex/primesMedecins.ts`) : **deux modules distincts** depuis le
   09/10/2026 (ils ne relèvent pas des mêmes personnes) ; logique de calcul partagée dans `lib/stats.ts`. Caisse : table `statsCaisse`,
   `totalEspeces` = 8 postes espèces, `chiffreAffaires` = espèces + assurance + TEP (les sorties ne sont pas des recettes). Primes :

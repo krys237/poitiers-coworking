@@ -47,6 +47,23 @@ verifie("DG réinitialise un mot de passe", droitsEffectifs("dg")["/membres/mot-
 verifie("DAF ne réinitialise pas par défaut (à donner dans la matrice)", !droitsEffectifs("da1")["/membres/mot-de-passe"].faire);
 verifie("auditeur ne réinitialise pas", !droitsEffectifs("auditeur_externe")["/membres/mot-de-passe"].faire);
 
+// Décision du 22/10/2026 : « plusieurs comptes rendus par jour » = la DAF par défaut, et elle seule.
+// Ni le DG ni l'encadrement intermédiaire ne l'ont demandé : le défaut ne suit donc pas l'échelle des
+// niveaux (le super administrateur l'a par le garde-fou technique, comme tous les modules).
+const PLUSIEURS = "/comptes-rendus/plusieurs-par-jour";
+verifie("DAF dépose plusieurs comptes rendus par jour", droitsEffectifs("da1")[PLUSIEURS].faire);
+verifie("employé : un seul compte rendu par jour", !droitsEffectifs("employe")[PLUSIEURS].faire);
+verifie("chef d'équipe : un seul compte rendu par jour", !droitsEffectifs("chef_equipe")[PLUSIEURS].faire);
+verifie("comptable : un seul compte rendu par jour", !droitsEffectifs("comptable")[PLUSIEURS].faire);
+verifie("RH : un seul compte rendu par jour", !droitsEffectifs("gestionnaire_rh")[PLUSIEURS].faire);
+verifie("DG : non accordé par défaut (à donner dans la matrice)", !droitsEffectifs("dg")[PLUSIEURS].faire);
+verifie("auditeur : jamais de dépôt", !droitsEffectifs("auditeur_externe")[PLUSIEURS].faire && !droitsEffectifs("auditeur_externe")[PLUSIEURS].voir);
+verifie("le DG l'accorde par surcharge de rôle", droitsEffectifs("employe", [{ role: "employe", module: PLUSIEURS, voir: false, faire: true }])[PLUSIEURS].faire);
+verifie("ou à une personne par exception", droitsEffectifs("employe", [], [{ module: PLUSIEURS, voir: true, faire: true }])[PLUSIEURS].faire);
+verifie("case unique : faire ⇒ voir", droitsEffectifs("da1")[PLUSIEURS].voir);
+// La case ne sert à rien sans l'écran : elle ouvre « Comptes rendus » en lecture.
+verifie("la case ouvre l'écran Comptes rendus", droitsEffectifs("auditeur_externe", [], [{ module: PLUSIEURS, voir: true, faire: true }])["/comptes-rendus"].voir);
+
 // 2. Anciennes actions à niveau propre, reprises en FAIRE.
 verifie("chef d'équipe supervise les comptes rendus", droitsEffectifs("chef_equipe")["/comptes-rendus"].faire);
 verifie("employé ne supervise pas", !droitsEffectifs("employe")["/comptes-rendus"].faire);

@@ -59,6 +59,17 @@ export function prochaineOuverture(d: Date, f: Fenetre = FENETRE_DEFAUT): Date {
 
 export const pointsPour = (horsFenetre: boolean) => (horsFenetre ? POINTS_HORS_FENETRE : POINTS_DANS_FENETRE);
 
+// Décision du 22/10/2026 : avec le droit « Comptes rendus : plusieurs par jour », un membre peut
+// déposer plusieurs comptes rendus pour la même journée — mais la journée ne vaut qu'UN point de
+// présence. Le point revient au premier dépôt réalisé dans le créneau (ordre chronologique) ; si
+// aucun ne l'est, la journée vaut 0. Les points sont donc RECALCULÉS à chaque écriture et jamais
+// figés au dépôt : l'ordre des dépôts (hors créneau puis dans le créneau, ou l'inverse) ne change
+// rien au total de la journée.
+export function pointsDuJour(horsFenetre: boolean[]): number[] {
+  const credite = horsFenetre.findIndex((h) => !h);
+  return horsFenetre.map((_, i) => (i === credite ? POINTS_DANS_FENETRE : POINTS_HORS_FENETRE));
+}
+
 // Durée lisible "1h 46min".
 export function dureeLisible(ms: number): string {
   const total = Math.max(0, Math.round(ms / 60000));
