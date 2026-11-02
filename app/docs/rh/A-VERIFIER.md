@@ -4,7 +4,10 @@
 > **Règle : rien de ce qui est listé ici n'est codé en dur avant réponse.** Chaque point indique
 > ce qu'il bloque, pour qu'on sache ce qui peut avancer en attendant.
 >
-> Dernière mise à jour : 20/10/2026.
+> Dernière mise à jour : 26/10/2026.
+>
+> **Points encore bloquants : A1, A2 (la RH) · M1, M2 (le comptable) · D1 (la RH).** Ils sont
+> reformulés pour être posés tels quels dans [`QUESTIONS-A-TRANCHER.md`](QUESTIONS-A-TRANCHER.md).
 
 ## Légende
 

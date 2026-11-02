@@ -110,17 +110,20 @@ Autres décisions en attente, moins bloquantes : validation papier du bulletin p
 
 ### Chantier RH (lots R0 → R6)
 
-Branche `rh`, poussée sur GitHub le 22/10/2026. **Aucun écran n'a encore tourné contre des données
-réelles** : ce qui est garanti, c'est le typecheck, le build et la logique pure (310 vérifications).
+Branche `rh`, poussée sur GitHub le 22/10/2026, puis fusionnée dans `dev` le même jour — le chantier
+est en recette. **Aucun écran n'a encore tourné contre des données réelles** : ce qui est garanti,
+c'est le typecheck, le build et la logique pure — **478 vérifications réparties sur 17 suites**, dont
+346 pour les seuls lots RH. Depuis le 26/10, le CI GitLab lance **les 17 suites** et les deux
+typecheck (front et `convex/`) ; il n'en lançait que 11 et ignorait toutes les suites RH.
 Le registre détaillé des points ouverts vit dans `app/docs/rh/A-VERIFIER.md` ; les questions
 formulées pour la RH et le comptable dans `app/docs/rh/QUESTIONS-A-TRANCHER.md`.
 
 | Lot | Contenu | État | Bloqué par |
 |---|---|---|---|
 | **R0** | jours fériés + décompte des congés en jours ouvrables | ✅ livré | — |
-| **R1** | planning : services, sexe/enfants, statuts, droit calculé, frise annuelle, chevauchements | ✅ livré *(à cocher au registre)* | — |
+| **R1** | planning : services, sexe/enfants, statuts, droit calculé, frise annuelle, chevauchements | ✅ livré | — |
 | **R2** | table `rubriquesPaie` datée + les quatre assiettes + corrections C1 → C10 | ✅ livré | — |
-| **R2 bis** | **multi-société : un bulletin par société, un DIPE par déclarant** | **à faire** | — *(débloqué : B2 tranché le 20/10)* |
+| **R2 bis** | **multi-société : table `rattachements`, un bulletin par société, un DIPE par déclarant** | ✅ livré | — |
 | **R3** | écran DIPE + export CSV + récapitulatif par destinataire + rapport d'écart typé | ✅ livré | — |
 | **R4** | allocation de congé (1/16) + liaison planning → paie | à faire | **A1**, **A2** — la RH tranche |
 | **R5** | absences élargies : maternité, AT/MP, chômage technique, permissions, sans solde, mise à pied, formation syndicale | ✅ livré | — |
