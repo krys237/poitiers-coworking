@@ -19,13 +19,28 @@ test_job:
     - cd app
     - npm ci
   script:
+    # Le typage du front ET celui des fonctions Convex : `npm run typecheck` ne couvre que
+    # tsconfig.json, qui exclut le dossier convex/. Sans la seconde ligne, une erreur de type
+    # dans le backend ne serait vue qu'au déploiement.
     - npm run typecheck
+    - npx tsc --noEmit -p convex/tsconfig.json
+    # Paie et fiscalité
     - npm run test:paie
+    - npm run test:assiettes
+    - npm run test:dipe
+    - npm run test:societes
+    # Congés, planning et absences
+    - npm run test:conges
+    - npm run test:planning
+    - npm run test:absences
+    # Finances et exploitation
     - npm run test:tresorerie
     - npm run test:fenetre
     - npm run test:commandes
+    - npm run test:fournisseurs
     - npm run test:stats
     - npm run test:audit
+    # Accès et intégration
     - npm run test:api
     - npm run test:proxy
     - npm run test:droits
