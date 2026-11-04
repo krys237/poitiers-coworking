@@ -39,6 +39,20 @@ base dans les trois cas. Hypothèses non vérifiées : un salaire de référence
 augmentation, un arrondi, une retenue forfaitaire.
 **Bloque :** le calcul exact de l'allocation (lot R4). **Qui tranche :** la RH.
 
+> ### 🔎 Piste forte trouvée le 04/11/2026 — ce n'est probablement PAS un facteur
+> Le décret n°75/28 dit que pour une période de référence excédant douze mois, l'allocation
+> s'obtient en appliquant la fraction au salaire mensuel moyen des douze derniers mois multiplié
+> par le **« nombre de mois ET FRACTIONS DE MOIS »** de la période de référence.
+>
+> Les N non entiers sont donc **normaux** : 15,974 n'est pas un facteur de 0,9984 appliqué à 16,
+> c'est une période de référence de 15 mois et 29 jours environ. Trois salariés partageant
+> exactement 15,974 ont simplement la même date de retour du congé précédent et la même date de
+> départ — courant dans un service où l'on part groupé.
+>
+> **A1 et A2 se réduisent donc à UNE seule question** : comment la fraction de mois est-elle
+> comptée — jours ÷ 30, ÷ 30,44, ou autrement ? Un exemple chiffré sur une ligne suffit.
+> Voir `PROPOSITION-INTEGRATION-NOV.md` §3.
+
 ### A2 🔴 Comment est déterminé N, le nombre de mois de la période de référence
 `allocation = N × (salaire + ancienneté) ÷ 16`. N impliqué : 16,00 / 15,97 / 15,97 / 15,97 / 13,22 /
 12,17 selon les lignes. La loi dit que la période court du retour du congé précédent à la veille du
