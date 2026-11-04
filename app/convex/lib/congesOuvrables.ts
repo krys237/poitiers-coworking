@@ -210,6 +210,33 @@ export interface DroitConge {
   detail: string[];
 }
 
+/**
+ * Mois de service effectif **sur une année de référence**, plafonnés à 12.
+ *
+ * ⚠️ Ne pas confondre avec `absences.moisDeService`, qui compte depuis la date d'embauche SANS
+ * borne : c'est son rôle pour l'acquisition cumulée depuis l'entrée dans l'outil, mais l'employer
+ * pour le droit ANNUEL donnait « 1,5 j × 70 mois » — soit 105 jours de congé au lieu de 18 pour
+ * un salarié embauché en 2021 (défaut relevé par la RH le 22/10/2026).
+ *
+ * Un salarié embauché avant l'année de référence a ses 12 mois ; embauché en cours d'année, il a
+ * le prorata (mars → 10 mois) ; embauché après, il n'a rien.
+ *
+ * ⚠️ L'année retenue est l'année CIVILE, comme dans le classeur de la RH. La période de référence
+ * légale court du 1ᵉʳ juin au 31 mai (décret n°75/28) : à rendre paramétrable si elle le confirme.
+ */
+export function moisDeServiceSurAnnee(
+  dateEmbauche: string | undefined,
+  annee: number,
+  plafond = 12,
+): number {
+  if (!dateEmbauche) return plafond;
+  const an = +dateEmbauche.slice(0, 4);
+  if (an < annee) return plafond;
+  if (an > annee) return 0;
+  const mois = +dateEmbauche.slice(5, 7);
+  return Math.max(0, Math.min(plafond, 12 - mois + 1));
+}
+
 /** Âge révolu, en années, à une date donnée. */
 export function ageA(dateNaissance: string, aLaDate: string): number {
   let ans = +aLaDate.slice(0, 4) - +dateNaissance.slice(0, 4);

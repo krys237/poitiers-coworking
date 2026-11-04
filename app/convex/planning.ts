@@ -4,10 +4,11 @@ import { Id } from "./_generated/dataModel";
 import { requireDroit } from "./lib/authz";
 import { salaireDeBase } from "./lib/paie";
 import { rattachementsEffectifs, type Societe } from "./lib/societes";
-import { resumeMois, joursCalendaires, joursDansMois, periodesTouchees, moisDeService, PAYE_PAR_DEFAUT, CONGES_PAR_MOIS_DEFAUT, TypeAbsence } from "./lib/absences";
+import { resumeMois, joursCalendaires, joursDansMois, periodesTouchees, PAYE_PAR_DEFAUT, CONGES_PAR_MOIS_DEFAUT, TypeAbsence } from "./lib/absences";
 // Planning annuel (lot R1) : decompte en jours OUVRABLES et droit a conge.
 import {
   compterOuvrables, controlerLigne, dateRetour, dernierJourConge, droitConge, indexFeries,
+  moisDeServiceSurAnnee,
 } from "./lib/congesOuvrables";
 import {
   EVENEMENTS_FAMILIAUX, PLAFOND_EVENEMENTS_FAMILIAUX_AN, TYPES_ABSENCE,
@@ -225,7 +226,8 @@ export const vueAnnuelle = query({
 
       // Droit à congé : calculé, puis surchargé si la RH l'a forcé (décision E5 du 20/10/2026).
       const droit = droitConge({
-        moisDeService: moisDeService(e.dateDebut, `${annee}-12`),
+        // Plafonné à 12 : sans cela le droit valait 1,5 j × (mois depuis l'embauche).
+        moisDeService: moisDeServiceSurAnnee(e.dateDebut, annee),
         dateDepart: principal?.dateDebut ?? `${annee}-01-01`,
         dateEmbauche: e.dateDebut,
         sexe: e.sexe,

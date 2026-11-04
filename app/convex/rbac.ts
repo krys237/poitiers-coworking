@@ -24,7 +24,9 @@ export const LIBELLE: Record<Role, string> = {
   employe: "Employé",
   chef_equipe: "Chef d'équipe",
   comptable: "Comptable",
-  gestionnaire_rh: "Gestionnaire RH",
+  // Libellé renommé le 04/11/2026 à la demande de la RH. La CLÉ `gestionnaire_rh` ne
+  // change PAS : la renommer invaliderait les rôles déjà attribués en base.
+  gestionnaire_rh: "Responsable RH",
   da1: "Directeur Administratif (DAF)",
   dg: "Directeur Général (Admin)",
   super_admin: "Super administrateur (technique)",

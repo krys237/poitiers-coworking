@@ -148,6 +148,14 @@ export default defineSchema({
       prenom: v.optional(v.string()),
       dateNaissance: v.string(),            // "YYYY-MM-DD"
     }))),
+    // --- Immatriculation (lot R7/R8, arbitrage du 04/11/2026 : c'est celle de l'EMPLOYÉ) ---
+    // Un employé non immatriculé aux impôts reçoit un « Récapitulatif de paie » non
+    // téléchargeable au lieu d'un « Bulletin de paie », et n'apparaît pas au DIPE.
+    // Absent = non renseigné : l'écran le signale plutôt que de supposer.
+    immatriculeImpots: v.optional(v.boolean()),
+    // Date d'entrée à la CNPS, distincte de la date d'embauche — les deux diffèrent souvent et
+    // l'attestation de présence effective réclame le matricule CNPS.
+    dateEntreeCnps: v.optional(v.string()),   // "YYYY-MM-DD"
     // Groupe de risque CNPS accidents du travail : A 1,75 % / B 2,50 % / C 5 % (voir A-VERIFIER B5).
     groupeRisqueAt: v.optional(v.union(v.literal("A"), v.literal("B"), v.literal("C"))),
   })

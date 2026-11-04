@@ -7,6 +7,8 @@
  * matricule ne se modifient pas (identité de paie) ; ils se saisissent à la création.
  */
 import * as React from "react";
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 import { toast } from "sonner";
 import { UserRoundPenIcon, UserRoundPlusIcon } from "lucide-react";
 import { messageErreur } from "@/lib/format";
@@ -27,18 +29,23 @@ export type EmployeFiche = {
   employeId?: string;
   matricule: string; nom: string; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string;
   societe: Societe; salaireBase?: number; salaireBrut?: number; dateDebut?: string; congesInitial?: number; actif?: boolean;
+  serviceId?: string; immatriculeImpots?: boolean; dateEntreeCnps?: string;
 };
 // `salaireBrut` est l'ancien nom, encore présent dans les fiches non migrées : le formulaire
 // ne l'édite jamais, il ne travaille que sur `salaireBase`.
 type Champs = Required<Omit<EmployeFiche, "employeId" | "actif" | "salaireBrut">>;
 
-export type CreerEmploye = (a: { matricule: string; nom: string; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string; societe: Societe; salaireBase: number; dateDebut?: string; congesInitial?: number }) => Promise<unknown>;
-export type ModifierEmploye = (a: { employeId: any; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string; societe?: Societe; salaireBase?: number; dateDebut?: string; congesInitial?: number; actif?: boolean }) => Promise<unknown>;
+export type CreerEmploye = (a: { matricule: string; nom: string; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string; societe: Societe; salaireBase: number; dateDebut?: string; congesInitial?: number;
+  serviceId?: string; immatriculeImpots?: boolean; dateEntreeCnps?: string }) => Promise<unknown>;
+export type ModifierEmploye = (a: { employeId: any; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string; societe?: Societe; salaireBase?: number; dateDebut?: string; congesInitial?: number; actif?: boolean;
+  serviceId?: string; immatriculeImpots?: boolean; dateEntreeCnps?: string }) => Promise<unknown>;
 
 const depuis = (e?: EmployeFiche): Champs => ({
   matricule: e?.matricule ?? "", nom: e?.nom ?? "", fonction: e?.fonction ?? "", adresse: e?.adresse ?? "", cnps: e?.cnps ?? "",
   niu: e?.niu ?? "", email: e?.email ?? "", whatsapp: e?.whatsapp ?? "", societe: e?.societe ?? "SGC", salaireBase: e?.salaireBase ?? e?.salaireBrut ?? 0,
   dateDebut: e?.dateDebut ?? "", congesInitial: e?.congesInitial ?? 0,
+  serviceId: e?.serviceId ?? "", immatriculeImpots: e?.immatriculeImpots ?? false,
+  dateEntreeCnps: e?.dateEntreeCnps ?? "",
 });
 
 export function FicheEmploye({
@@ -52,6 +59,9 @@ export function FicheEmploye({
   onEnregistre?: (id?: string) => void;
 }) {
   const creation = !employe?.employeId;
+  // Les services alimentent le sélecteur : sans service, la frise annuelle affiche un
+  // code couleur neutre, ce que la RH avait signalé le 03/11/2026.
+  const services = useQuery(api.services.liste, {});
   const [open, setOpen] = React.useState(false);
   const [f, setF] = React.useState<Champs>(() => depuis(employe));
   const [enCours, setEnCours] = React.useState(false);
@@ -71,6 +81,8 @@ export function FicheEmploye({
     const commun = {
       fonction: f.fonction || undefined, adresse: f.adresse || undefined, cnps: f.cnps || undefined, niu: f.niu || undefined,
       email: f.email || undefined, societe: f.societe, salaireBase: Math.round(f.salaireBase), dateDebut: f.dateDebut || undefined,
+      serviceId: f.serviceId || undefined, immatriculeImpots: f.immatriculeImpots,
+      dateEntreeCnps: f.dateEntreeCnps || undefined,
       congesInitial: f.congesInitial || undefined,
     };
     // WhatsApp : transmis seulement s'il a changé (les écrans qui ne le chargent pas ne l'effacent pas).
@@ -134,7 +146,32 @@ export function FicheEmploye({
               {(a) => <ChampTelephone id={a.id} aria-describedby={a["aria-describedby"]} aria-invalid={a["aria-invalid"]} valeur={f.whatsapp} onChange={(v) => setF({ ...f, whatsapp: v })} />}
             </Champ>
             <div className="min-[480px]:col-span-2 sm:col-span-3">{texte("adresse", "Adresse", "Akwa, Douala")}</div>
+            <Champ libelle="Service" aide="Porte la couleur du planning annuel et sert à détecter qu'un service se dégarnit">
+              {(a) => (
+                <Select value={f.serviceId || "aucun"} onValueChange={(v) => setF({ ...f, serviceId: v === "aucun" ? "" : v })}>
+                  <SelectTrigger id={a.id} className="w-full" aria-label="Service"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="aucun">Sans service</SelectItem>
+                    {(services ?? []).map((x) => (
+                      <SelectItem key={x._id} value={x._id}>{x.nom}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </Champ>
             {texte("dateDebut", "Date d'entrée", undefined, false, "date")}
+            {texte("dateEntreeCnps", "Date d'entrée à la CNPS", undefined, false, "date")}
+            <Champ libelle="Immatriculé aux impôts" aide="Un employé non immatriculé reçoit un « Récapitulatif de paie » non téléchargeable et n'apparaît pas au DIPE">
+              {(a) => (
+                <Select value={f.immatriculeImpots ? "oui" : "non"} onValueChange={(v) => setF({ ...f, immatriculeImpots: v === "oui" })}>
+                  <SelectTrigger id={a.id} className="w-full" aria-label="Immatriculé aux impôts"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="oui">Oui — bulletin de paie</SelectItem>
+                    <SelectItem value="non">Non — récapitulatif de paie</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </Champ>
             <ChampNombre libelle="Congés initiaux" unite="j" min={0} step={0.5} decimales valeur={f.congesInitial} onChange={(n) => setF({ ...f, congesInitial: n })} aide="Solde reporté à l'arrivée" />
           </div>
           <DialogFooter className="mt-5 sm:justify-between">

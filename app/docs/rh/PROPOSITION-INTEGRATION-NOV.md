@@ -153,16 +153,16 @@ sa précision : SESAME et SOFINA versent et déclarent **hors de la plateforme**
 produisons est celui de SGC. La conséquence assumée de R2 bis — plafond CNPS et tranches d'IRPP
 **par employeur** — reste valable et `tests/societes.test.ts` continue de la verrouiller.
 
-**⚠️ À confirmer avant de coder**, parce que ça change le comportement de trois écrans : est-ce
-l'**immatriculation de la société** qui décide (SGC immatriculée, les deux autres non), ou
-l'**immatriculation du salarié** (son NIU personnel) ? Les deux lectures sont possibles et ne
-donnent pas le même résultat pour un salarié sans NIU payé par SGC.
+**✅ Tranché le 04/11/2026 : c'est l'immatriculation de l'EMPLOYÉ**, pas celle de la société.
+Le drapeau `employes.immatriculeImpots` est donc porté par la fiche et **renseigné par la RH**
+(livré au lot R7). Le comportement qui en découle — bulletin ou récapitulatif, téléchargement,
+présence au DIPE — reste le lot R8.
 
 ---
 
 ## 5. Les lots proposés
 
-### Lot R7 — Corrections et cohérence du planning *(aucun arbitrage requis)*
+### Lot R7 — Corrections et cohérence du planning ✅ **LIVRÉ le 04/11/2026**
 
 Le plus rentable, et rien ne le bloque.
 
@@ -321,7 +321,7 @@ actes          modeleCode, employeId?, reference, periode?, valeurs (record),
 | Lot | Contenu | Bloqué par |
 |---|---|---|
 | **R7** | corrections du planning, services, impression, libellé du rôle | — **rien** |
-| **R8** | immatriculation, bulletin / récapitulatif, DIPE filtré, date CNPS | l'arbitrage du §4 |
+| **R8** | bulletin / récapitulatif, téléchargement conditionnel, DIPE filtré | — *(tranché : l'immatriculation est celle de l'employé ; le champ est livré en R7)* |
 | **R9** | Vue RH du barème, tranches TDL et RAV éditables | — rien |
 | **R10** | référentiel de fonctions, sélecteur d'employé, sociétés à la création, méthode d'envoi | — rien *(sauf le point 6, qui attend A6)* |
 | **R11** | générateur d'actes | les quatre précisions du §6 |

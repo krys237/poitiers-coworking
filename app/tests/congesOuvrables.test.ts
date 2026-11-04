@@ -24,6 +24,7 @@ import {
   estOuvrable,
   indexFeries,
   jourSemaine,
+  moisDeServiceSurAnnee,
   prochainJourOuvrable,
   ventilerParMois,
   REGLES_OUVRABLES_DEFAUT,
@@ -311,6 +312,25 @@ check(
 );
 
 // ---------------------------------------------------------------------------
+titre("Mois de service sur l'année — le défaut du « 1,5 j × 70 mois »");
+check("embauché avant l'année de référence → 12 mois", moisDeServiceSurAnnee("2021-03-01", 2026) === 12);
+check("embauché en 2016, toujours 12 et non 130", moisDeServiceSurAnnee("2016-07-01", 2026) === 12);
+check("embauché en mars de l'année → 10 mois (mars à décembre)", moisDeServiceSurAnnee("2026-03-15", 2026) === 10);
+check("embauché en janvier → 12 mois", moisDeServiceSurAnnee("2026-01-01", 2026) === 12);
+check("embauché en décembre → 1 mois", moisDeServiceSurAnnee("2026-12-20", 2026) === 1);
+check("embauché après l'année de référence → 0", moisDeServiceSurAnnee("2027-02-01", 2026) === 0);
+check("sans date d'embauche → 12 par défaut", moisDeServiceSurAnnee(undefined, 2026) === 12);
+// Le cas exact signalé : un salarié embauché en mars 2021 donnait 70 mois au lieu de 12.
+check(
+  "le droit retombe à 18 jours et non 105",
+  droitConge({ moisDeService: moisDeServiceSurAnnee("2021-03-01", 2026), dateDepart: "2026-01-05" }).principal === 18,
+  droitConge({ moisDeService: moisDeServiceSurAnnee("2021-03-01", 2026), dateDepart: "2026-01-05" }).principal,
+);
+check(
+  "une embauche en cours d'année n'ouvre pas encore le droit à la jouissance",
+  droitConge({ moisDeService: moisDeServiceSurAnnee("2026-03-15", 2026), dateDepart: "2026-11-02" }).droitOuvert === false,
+);
+
 titre("Droit à congé annuel (art. 89 et 90)");
 const base = droitConge({ moisDeService: 12, dateDepart: "2026-01-05" });
 check("12 mois × 1,5 j = 18 jours — le « congé principal » de la RH", base.total === 18, base);
