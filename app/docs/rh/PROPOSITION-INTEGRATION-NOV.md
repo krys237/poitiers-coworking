@@ -119,11 +119,51 @@ congés supplément. = (congé principal ÷ 18) × nombre de jours supplémentai
 indemnité totale  = congé principal + congés supplémentaires
 ```
 
-Le taux journalier est donc `principal ÷ 18`, appliqué aux jours au-delà des 18 réglementaires.
+### ⚠️ Le diviseur 18 n'est juste que dans un seul cas — vérifié le 04/11/2026
 
-**Il ne reste qu'une question pour ouvrir R4** : comment compte-t-elle la fraction de mois — en
-jours divisés par 30, par 30,44, ou autrement ? Un seul exemple chiffré suffit. C'est à reporter
-dans `QUESTIONS-A-TRANCHER.md` en remplacement des points A1 et A2, qui étaient mal posés.
+Le doute du propriétaire sur le 18 est **fondé**. Voici pourquoi.
+
+**D'où vient le 1/16 :** l'équivalence légale de l'art. 89 dit qu'un mois de service ouvre
+1,5 jour de congé, et qu'un mois vaut 24 jours ouvrables. Or **1,5 ÷ 24 = 1/16** : le seizième
+*encode déjà* le 1,5 jour par mois. Il en découle que le taux journalier légal est la rémunération
+mensuelle **÷ 24**, et qu'il est **invariant** — il ne dépend pas de N.
+
+Deux lectures s'affrontent donc, et elles ne divergent que lorsque la période de référence
+dépasse douze mois :
+
+| | Droit en jours | Taux journalier | Sur la ligne 8 (R = 151 628, N = 15,974) |
+|---|---|---|---|
+| **A — légale** | 1,5 × N = **23,96 j** | allocation ÷ 23,96 = **R ÷ 24** | **6 318 FCFA** |
+| **B — sa pratique** | principal fixé à **18 j** | allocation ÷ 18 | **8 410 FCFA** |
+
+Sur 6 jours supplémentaires : **37 907 FCFA** en lecture A contre **50 460** en lecture B, soit
+**33 % de plus**. Les deux ne coïncident que si **N = 12** — car 1,5 × 12 = 18.
+
+**Les deux lectures sont cohérentes en elles-mêmes.** Sa pratique fixe le congé principal à
+18 jours quel que soit N, et étale l'allocation sur ces 18 jours : le diviseur 18 est alors juste.
+La loi, elle, fait accroître le droit de 1,5 jour par mois — une période de 16 mois ouvre donc
+24 jours de principal, pas 18, et le taux reste R ÷ 24.
+
+*(Remarque : mon « taux de 8 410 » du 20/10 était la lecture B. Je l'avais rectifié comme une
+erreur, alors que c'était une lecture non identifiée. Les deux chiffres se rejoignent ici.)*
+
+**Un confondant à signaler** : son planning attribue 24 jours à « 18 principal + 6 ancienneté ».
+Mais 1,5 × 16 mois donne aussi 24. Les deux explications produisent le même total pour les
+anciens — impossible de les départager sur les seuls chiffres du classeur.
+
+**Deux questions pour ouvrir R4, et non une :**
+
+1. **Comment compte-t-elle la fraction de mois** — jours ÷ 30, ÷ 30,44, autrement ?
+2. **Le congé principal est-il toujours 18 jours**, ou croît-il de 1,5 jour par mois de période de
+   référence ? C'est ce qui décide du diviseur : 18 fixe, ou 1,5 × N.
+
+La seconde est la plus lourde : elle change l'indemnité de **33 %** sur les jours supplémentaires
+des salariés anciens. Je recommande de poser les deux ensemble, avec le tableau ci-dessus — il
+rend l'enjeu visible sans exiger de connaître le droit.
+
+Sources : [décret n°75/28 — modalités des congés payés](https://oiseaudumonde.blogspot.com/2017/12/modalites-dapplication-des-conges-payes.html),
+[Code du travail, art. 89](https://www.ilo.org/sites/default/files/wcmsp5/groups/public/@africa/@ro-abidjan/@sro-yaounde/documents/genericdocument/wcms_323616.pdf),
+[Comprendre le congé payé au Cameroun](https://www.droitsocialenpratique.com/conges-payes-au-cameroun-ce-que-vous-devez-savoir/).
 
 ---
 
