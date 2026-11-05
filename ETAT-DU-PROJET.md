@@ -133,6 +133,33 @@ formulées pour la RH et le comptable dans `app/docs/rh/QUESTIONS-A-TRANCHER.md`
 dans le DIPE d'août 2026 (le facteur 0,9984 et la détermination de N), que seule la RH peut
 expliquer. R5 n'était bloqué par rien.
 
+#### Changements de schéma à pousser — note pour l'agent de déploiement
+
+Tout est **additif et optionnel** : aucune donnée existante n'est invalidée, et chaque lecture
+retombe sur l'ancien comportement quand le champ est absent. Un push peut donc se faire d'un bloc.
+
+| Lot | Tables créées | Champs ajoutés (tous optionnels) |
+|---|---|---|
+| R0 | `joursFeries` | — |
+| R1 | `services` | `employes` : serviceId, sexe, enfants[], groupeRisqueAt · `absences` : anneeReference, joursOuvrables, dateRetour, observation, commentaire, remplaçant, congeSupp* |
+| R2 | `rubriquesPaie` | `baremes` : transportTaxable, atmpPlafonne, cfcPatronalEtFneSurBrut, seuilExoneration, groupeRisqueAtmp · `saisiesMensuelles` : 9 primes du DIPE + ancienneteSeparee |
+| R2 bis | `rattachements` | `parametresEntreprise.societes` · `societe` devenue optionnelle sur saisiesMensuelles, primesCharges, envois |
+| R5 | — | `absences` : 7 nouveaux types, justificatifFourni, evenementFamilial, rangMois |
+| R7 | — | `employes` : **salaireBase**, immatriculeImpots, dateEntreeCnps |
+| R9 | — | `baremes` : tdlBareme, ravBareme |
+
+**Deux migrations à lancer APRÈS le push, dans cet ordre :**
+
+1. `employes:migrerSalaireBase` — recopie `salaireBrut` → `salaireBase`. Les deux champs sont
+   déclarés optionnels exprès : **inverser l'ordre fait rejeter par Convex les fiches déjà en
+   base**. Le champ `salaireBrut` ne se retire du schéma qu'après.
+2. `employes:migrerRattachements` — crée une ligne de rattachement par fiche. Sans elle,
+   `employes.societe` continue de faire foi : rien ne casse, mais le multi-société reste inactif.
+
+Puis les deux initialisations depuis les bandeaux du Planning annuel : le **calendrier des jours
+fériés** de l'année et les **services**. Sans le calendrier, la pose d'un congé est refusée — et
+c'est voulu, un décompte sans jours fériés serait faux.
+
 **Préalables avant tout déploiement de `rh`** : reporter `clean` sur `rh` (sans quoi la branche
 arrive sans `convex deploy` dans son build, avec le repli Convex codé en dur et sans l'`ErrorBoundary`) ;
 pousser son backend sur un déploiement Convex ; puis initialiser le calendrier des jours fériés de
