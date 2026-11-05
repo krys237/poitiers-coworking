@@ -135,20 +135,37 @@ check("les trois lisent l'identité juridique depuis les paramètres",
     ["niu", "registreCommerce", "dirigeant"].every((n) =>
       m.champs.find((c) => c.nom === n)?.source.de === "entreprise")));
 
-titre("Le CDD porte les articles que le CDI a perdus");
+titre("CDD et CDI ouvrent les mêmes droits");
 const cdd = modele("CONTRAT_CDD"), cdi = modele("CONTRAT_CDI");
-check("le CDD a un article « Des congés »", cdd.corps.includes("Des congés"));
-check("le CDD a un article « De la protection sociale »", cdd.corps.includes("De la protection sociale"));
-// Transcription fidèle : l'omission du CDI est conservée telle quelle, et consignée.
-check("l'omission du CDI est conservée, non comblée en douce", !cdi.corps.includes("Des congés"));
+// Son CDI Word avait perdu ces deux articles ; ajoutés sur décision du 05/11/2026.
+for (const [code, m] of [["CDD", cdd], ["CDI", cdi]] as const) {
+  check(`le ${code} a un article « Des congés »`, m.corps.includes("Article 5 : Des congés"));
+  check(`le ${code} ouvre 1,5 jour ouvrable par mois`, m.corps.includes("1,5 jour ouvrable par mois"));
+  check(`le ${code} a un article « De la protection sociale »`, m.corps.includes("De la protection sociale"));
+  check(`le ${code} affilie à la CNPS`, m.corps.includes("Caisse Nationale de Prévoyance Sociale"));
+}
+// Le vrai garde-fou : les deux articles sont PARTAGÉS, donc impossibles à faire diverger par
+// une correction appliquée d'un seul côté — c'est exactement ainsi que son CDI avait dérivé.
+const art = (m: typeof cdd, titreArt: string) =>
+  m.corps.split(`Article`).find((b) => b.includes(titreArt))?.split(":").slice(1).join(":").trim();
+// Sans ce garde-fou, une extraction ratée des DEUX côtés ferait passer la comparaison à vide.
+check("l'extraction des articles comparés a bien trouvé du texte",
+  (art(cdd, "Des congés")?.length ?? 0) > 80 && (art(cdi, "De la protection sociale")?.length ?? 0) > 80);
+check("l'article des congés est identique mot pour mot dans les deux",
+  art(cdd, "Des congés") === art(cdi, "Des congés"));
+check("l'article de protection sociale est identique mot pour mot dans les deux",
+  art(cdd, "De la protection sociale") === art(cdi, "De la protection sociale"));
 // Sa numérotation Word est corrigée : son CDI portait DEUX articles « 5 ».
 const numeros = [...cdi.corps.matchAll(/^Article (\d+) :/gm)].map((m) => +m[1]);
 check("la numérotation du CDI est corrigée et continue",
-  numeros.join() === "1,2,3,4,5,6", numeros);
+  numeros.join() === "1,2,3,4,5,6,7,8", numeros);
 const numCdd = [...cdd.corps.matchAll(/^Article (\d+) :/gm)].map((m) => +m[1]);
 check("la numérotation du CDD va de 1 à 8", numCdd.join() === "1,2,3,4,5,6,7,8", numCdd);
+check("les deux contrats ont désormais le même plan", numeros.join() === numCdd.join());
 check("seul le CDD est à durée déterminée", cdd.corps.includes("durée déterminée"));
 check("le CDI est à durée indéterminée", cdi.corps.includes("durée indéterminée"));
+check("seul le CDD a une durée à saisir",
+  cdd.champs.some((c) => c.nom === "dureeContrat") && !cdi.champs.some((c) => c.nom === "dureeContrat"));
 
 titre("L'autorisation de stage est une fiche à deux visas, pas une lettre");
 const autor = modele("STAGE_AUTORISATION");

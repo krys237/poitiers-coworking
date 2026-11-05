@@ -290,23 +290,28 @@ en silence.
 **À faire :** confirmer le bon numéro auprès du greffe ou sur le dernier extrait RCCM, puis le
 saisir dans les paramètres.
 
-### T2 🟠 Le CDI a perdu deux articles que le CDD porte
+### T2 🟢 Le CDI a perdu deux articles que le CDD porte — **tranché le 05/11/2026**
 
-Son `CDD` compte huit articles ; son `CDI` en compte six, et il lui manque :
+Son `CDD` comptait huit articles ; son `CDI` six, et il lui manquait :
 
 - **Des congés** (1,5 jour ouvrable par mois de service effectif, exigible au terme de 12 mois) ;
 - **De la protection sociale** (affiliation CNPS — vieillesse, invalidité, décès, allocations
   familiales, AT/MP).
 
-L'omission paraît accidentelle : un CDI ouvre exactement les mêmes droits qu'un CDD sur ces deux
-points, et le reste du texte est identique mot pour mot. Mais c'est du **contenu juridique**, pas
-une faute de frappe : les deux articles n'ont **pas** été ajoutés d'office.
+L'omission était accidentelle : le reste du texte est identique mot pour mot, et un CDI ouvre
+exactement les mêmes droits qu'un CDD sur ces deux points.
 
-**À faire :** confirmer l'ajout. Les modèles étant éditables en base, coller les deux articles du
-CDD dans le CDI prend une minute une fois la réponse connue.
+**Décision : les deux articles sont ajoutés au CDI**, qui compte désormais huit articles comme le
+CDD, dans le même ordre. Ils ne sont pas recopiés mais **partagés** par les deux modèles — une
+correction appliquée d'un seul côté est devenue impossible, et c'est exactement ainsi que son CDI
+avait dérivé. Deux tests comparent les deux textes article par article.
 
-*(Sa numérotation, elle, a été corrigée : son CDI portait **deux** articles « 5 » — résiliation,
-puis dispositions finales. Lus 5 et 6. C'est bien une coquille de forme.)*
+*(Sa numérotation est corrigée du même coup : son CDI portait **deux** articles « 5 » — résiliation,
+puis dispositions finales.)*
+
+Le « 1,5 jour » reste écrit en clair, et non tiré de `parametresEntreprise.congesParMois` : c'est le
+minimum du décret n°75/28, un contrat l'énonce littéralement, et un paramètre vide imprimerait des
+pointillés là où un droit doit figurer.
 
 ### T3 🟠 La durée du CDD et le plafond légal
 
@@ -371,6 +376,7 @@ non par voie électronique, qui demanderait une autre conception).
 | E10 🟢 | Retenue médecins | Hors moteur de paie → module Primes médecins, lot **R6**. Taux 5 % ou 10 % **par médecin**, base = 100 % du CA assurance + 30 % du CA espèces. *(restent M1 et M2)* | 20/10/2026 |
 | E11 🟢 | Modèle de planning | Pas d'autre document à venir : le classeur `MODELE PLANNING CONGE ANNUEL.xlsx` est la seule source. | 20/10/2026 |
 | E12 🟢 | Données nominatives | Le dossier `modele/` n'est **jamais** versionné (noms, salaires et situations de famille de 78 personnes). | 20/10/2026 |
+| E13 🟢 | Articles manquants du CDI | Les articles **« Des congés »** et **« De la protection sociale »** sont **ajoutés** au CDI, qui s'aligne sur le CDD (huit articles). Les deux modèles les **partagent** : plus de divergence possible. Voir **T2**. | 05/11/2026 |
 
 ---
 
@@ -390,4 +396,4 @@ non par voie électronique, qui demanderait une autre conception).
 | **R8** ✅ | immatriculation de l'employé aux impôts : bulletin ou récapitulatif | — *(livré)* |
 | **R9** ✅ | vue RH du barème : le calcul expliqué en clair, sur un exemple réel | — *(livré ; A8 reste ouvert, 4 FCFA)* |
 | **R10** 🟡 | 32 demandes de novembre : autocomplétion, fonctions, rattachements, dépôt répété | rattachements à la création, « du … au … », routage par ligne, incrément d'ancienneté (**A6**) |
-| **R11** 🟡 | générateur d'actes RH : 13 modèles, pré-remplissage depuis le bulletin, référence numérotée, archivage | **T1** (n° RC), T2 (articles du CDI), T3 (plafond du CDD), T4, T6 |
+| **R11** 🟡 | générateur d'actes RH : 13 modèles, pré-remplissage depuis le bulletin, référence numérotée, archivage | **T1** (n° RC), T3 (plafond du CDD), T4, T6 — *(T2 tranché)* |

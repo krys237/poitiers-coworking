@@ -138,6 +138,18 @@ const ART_REMUNERATION = `Au cours de son activité l'employé(e) percevra une r
 Salaire de base : {{salaireBase}}
 Indemnités et primes : {{indemnites}}`;
 
+// Les deux articles que son CDI avait perdus — ajoutés sur décision du 05/11/2026 (A-VERIFIER
+// E13). Désormais PARTAGÉS par le CDD et le CDI : les deux contrats ne peuvent plus diverger sur
+// les droits qu'ils ouvrent.
+//
+// Le « 1,5 jour » reste écrit en clair et non tiré de `parametresEntreprise.congesParMois` : c'est
+// le minimum du décret n°75/28, un contrat l'énonce littéralement, et un paramètre vide
+// imprimerait des pointillés là où un droit doit figurer.
+const ART_CONGES = `L'employé(e) a droit à un congé de 1,5 jour ouvrable par mois de service effectif. Il/elle ne pourra bénéficier du congé qu'au terme de 12 mois consécutifs de service effectif.
+Les droits et allocations dus seront calculés et versés suivant les textes prévus en vigueur.`;
+
+const ART_PROTECTION_SOCIALE = `L'employeur s'engage à affilier l'employé(e) à la Caisse Nationale de Prévoyance Sociale pour la couverture des pensions vieillesse, invalidité et décès, allocations familiales, accidents du travail et maladies professionnelles, conformément à la législation en vigueur.`;
+
 const ART_RESILIATION = `Le présent contrat pourra être résilié dans les conditions prévues aux articles 34 et suivants du Code du travail.`;
 
 const ART_FINALES = `L'employé(e) prendra connaissance du règlement intérieur et des règles de travail lors de la période de son insertion sociale. Le présent contrat est régi par le droit camerounais en vigueur. En cas de conflit, seules les juridictions camerounaises seront compétentes pour en répondre.`;
@@ -517,11 +529,10 @@ Article 4 : De la rémunération
 ${ART_REMUNERATION}
 
 Article 5 : Des congés
-L'employé(e) a droit à un congé de 1,5 jour ouvrable par mois de service effectif. Il/elle ne pourra bénéficier du congé qu'au terme de 12 mois consécutifs de service effectif.
-Les droits et allocations dus seront calculés et versés suivant les textes prévus en vigueur.
+${ART_CONGES}
 
 Article 6 : De la protection sociale
-L'employeur s'engage à affilier l'employé(e) à la Caisse Nationale de Prévoyance Sociale pour la couverture des pensions vieillesse, invalidité et décès, allocations familiales, accidents du travail et maladies professionnelles, conformément à la législation en vigueur.
+${ART_PROTECTION_SOCIALE}
 
 Article 7 : De la résiliation du contrat
 ${ART_RESILIATION}
@@ -548,14 +559,14 @@ ${SIGNATURES_CONTRAT}`,
     famille: "contrat",
     ordre: 110,
     formatReference: "{n}/PP/DAF/DRH/{mm}-{aaaa}",
-    // ⚠️ Son modèle CDI numérote DEUX articles « 5 » (résiliation, puis dispositions finales) :
-    // la numérotation est corrigée ici en 5 et 6.
+    // Deux écarts de son modèle Word sont corrigés ici.
     //
-    // ⚠️ Son CDI n'a ni article « Des congés » ni article « De la protection sociale », alors que
-    // son CDD porte les deux. L'omission paraît accidentelle — un CDI ouvre les mêmes droits.
-    // Les deux articles ne sont PAS ajoutés d'office (c'est du contenu juridique, pas une
-    // coquille) : voir A-VERIFIER. Les modèles étant éditables en base, les coller depuis le CDD
-    // est l'affaire d'une minute une fois la réponse connue.
+    //  1. Il numérotait DEUX articles « 5 » (résiliation, puis dispositions finales).
+    //  2. Il n'avait ni article « Des congés » ni article « De la protection sociale », alors que
+    //     son CDD portait les deux — pour un texte par ailleurs identique mot pour mot.
+    //     L'omission était accidentelle : un CDI ouvre exactement les mêmes droits. Les deux
+    //     articles sont ajoutés sur décision du 05/11/2026 (A-VERIFIER E13) et PARTAGÉS avec le
+    //     CDD, de sorte que les deux contrats ne puissent plus diverger sur ce qu'ils accordent.
     corps: `CONTRAT DE TRAVAIL N° {{reference}}
 
 Entre les soussignés :
@@ -580,10 +591,16 @@ ${ART_LIEUX}
 Article 4 : De la rémunération
 ${ART_REMUNERATION}
 
-Article 5 : De la résiliation du contrat
+Article 5 : Des congés
+${ART_CONGES}
+
+Article 6 : De la protection sociale
+${ART_PROTECTION_SOCIALE}
+
+Article 7 : De la résiliation du contrat
 ${ART_RESILIATION}
 
-Article 6 : Des dispositions transitoires et finales
+Article 8 : Des dispositions transitoires et finales
 ${ART_FINALES}
 
 ${SIGNATURES_CONTRAT}`,
