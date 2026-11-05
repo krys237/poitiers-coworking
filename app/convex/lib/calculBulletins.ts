@@ -82,6 +82,7 @@ export function baremeFromDoc(b: Doc<"baremes">): Bareme {
     transportTaxable: b.transportTaxable, atmpPlafonne: b.atmpPlafonne,
     cfcPatronalEtFneSurBrut: b.cfcPatronalEtFneSurBrut, seuilExoneration: b.seuilExoneration,
     groupeRisqueAtmp: b.groupeRisqueAtmp,
+    tdlBareme: b.tdlBareme, ravBareme: b.ravBareme,
   };
 }
 

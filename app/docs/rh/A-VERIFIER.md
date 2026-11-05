@@ -86,6 +86,20 @@ problème pour ne pas recréer l'écart.
 
 ---
 
+### A8 🟠 Les bornes de l'IRPP sont décalées de 4 FCFA
+Les tranches sont stockées en base **mensuelle** : 2 000 000 ÷ 12 = 166 666,67, arrondi à
+**166 667**. Le moteur les remultiplie par 12 (`jusqua * 12`), donc la borne réelle de la première
+tranche est **2 000 004** et non 2 000 000 — idem pour la troisième (5 000 004).
+
+Conséquence en argent : 4 FCFA d'assiette imposés à 10 % au lieu de 15 %, soit **0,20 FCFA**.
+Négligeable, mais réel, et il se verrait dans la Vue RH si on n'y faisait rien — c'est pourquoi
+l'affichage arrondit au millier pour restituer les bornes de l'art. 69.
+
+**Correctif propre** : stocker les tranches en base **annuelle** dans le barème, puisque c'est
+ainsi que la loi les énonce, et laisser le moteur diviser. Cela demande une migration des versions
+déjà enregistrées, donc à faire au prochain changement de barème plutôt qu'isolément.
+**Bloque :** rien. **Qui tranche :** personne — c'est une décision technique, à planifier.
+
 ## B. Arbitrages fiscaux et sociaux
 
 ### B1 🟢 La prime de transport est-elle taxable à l'IRPP ? — **OUI**

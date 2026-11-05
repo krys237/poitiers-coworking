@@ -238,7 +238,7 @@ Le plus rentable, et rien ne le bloque.
 6. **Champ « date d'entrée à la CNPS »** sur la fiche, distinct de la date d'embauche : les deux
    diffèrent souvent et l'attestation de présence effective réclame le matricule CNPS.
 
-### Lot R9 — Barème : la « Vue RH »
+### Lot R9 — Barème : la « Vue RH » ✅ **LIVRÉ le 05/11/2026**
 
 Sa demande est explicite et la solution l'est aussi : **laisser l'écran Barème tel quel et ajouter
 un bouton « Vue RH »** qui déplie tout le détail des règles.
@@ -362,7 +362,7 @@ actes          modeleCode, employeId?, reference, periode?, valeurs (record),
 |---|---|---|
 | **R7** | corrections du planning, services, impression, libellé du rôle | — **rien** |
 | **R8** | bulletin / récapitulatif, téléchargement conditionnel, DIPE filtré | — *(tranché : l'immatriculation est celle de l'employé ; le champ est livré en R7)* |
-| **R9** | Vue RH du barème, tranches TDL et RAV éditables | — rien |
+| **R9** ✅ | Vue RH du barème, tranches TDL et RAV portées par le barème daté | — *(livré)* |
 | **R10** | référentiel de fonctions, sélecteur d'employé, sociétés à la création, méthode d'envoi | — rien *(sauf le point 6, qui attend A6)* |
 | **R11** | générateur d'actes | les quatre précisions du §6 |
 | R4 | allocation de congé | **une seule question** : comment compter la fraction de mois |

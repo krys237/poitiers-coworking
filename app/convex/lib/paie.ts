@@ -33,6 +33,9 @@ export const salaireDeBase = (e: { salaireBase?: number; salaireBrut?: number })
 /** Groupes de risque CNPS accidents du travail / maladies professionnelles. */
 export const TAUX_ATMP: Record<"A" | "B" | "C", number> = { A: 1.75, B: 2.5, C: 5 };
 
+/** Tranche d'un barème forfaitaire : `jusqua` exclusif, `null` = au-delà. */
+export interface TrancheForfait { jusqua: number | null; montant: number }
+
 export interface Bareme {
   plafondCnps: number;
   tauxPvidSal: number;      // %
@@ -73,6 +76,13 @@ export interface Bareme {
   seuilExoneration?: number;
   /** C8 — groupe de risque AT/MP de l'établissement ; prime sur `tauxAtmp` s'il est renseigné. */
   groupeRisqueAtmp?: "A" | "B" | "C";
+  /**
+   * Tranches forfaitaires de la TDL et de la RAV, portées par le barème DATÉ.
+   * `jusqua` est le seuil EXCLUSIF (« en deçà de »), `null` pour la dernière tranche ouverte —
+   * même convention que `irppBrackets`. Absentes, les tables par défaut s'appliquent.
+   */
+  tdlBareme?: TrancheForfait[];
+  ravBareme?: TrancheForfait[];
   /** Catalogue de rubriques applicable à la période (déf. `RUBRIQUES_DEFAUT`). */
   rubriques?: Rubrique[];
 }
@@ -163,6 +173,38 @@ export const RAV_BAREME: [number, number][] = [
   [100000, 750], [200000, 1950], [300000, 3250], [400000, 4550], [500000, 5850], [600000, 7150],
   [700000, 8450], [800000, 9750], [900000, 11050], [1000000, 12350], [Infinity, 13000],
 ];
+
+/** Convertit les tranches stockées (`jusqua: null` = au-delà) en table interne. */
+export const trancheVersTable = (t: TrancheForfait[]): [number, number][] =>
+  t.map((x) => [x.jusqua ?? Infinity, x.montant]);
+
+/** Et l'inverse, pour afficher ou enregistrer une table par défaut. */
+export const tableVersTranches = (t: [number, number][]): TrancheForfait[] =>
+  t.map(([seuil, montant]) => ({ jusqua: Number.isFinite(seuil) ? seuil : null, montant }));
+
+/**
+ * Contrôle d'un barème forfaitaire saisi : seuils strictement croissants et dernière tranche
+ * ouverte. Sans cela une tranche inatteignable passerait inaperçue — `baremeInf` renvoie la
+ * PREMIÈRE tranche satisfaite, donc un seuil mal ordonné masque silencieusement les suivants.
+ */
+export function validerTranches(t: TrancheForfait[], nom: string): string[] {
+  const e: string[] = [];
+  if (!t.length) return [`${nom} : au moins une tranche est nécessaire.`];
+  if (t[t.length - 1].jusqua !== null)
+    e.push(`${nom} : la dernière tranche doit être ouverte (seuil vide).`);
+  for (let i = 0; i < t.length; i++) {
+    if (t[i].montant < 0) e.push(`${nom} : montant négatif sur la tranche ${i + 1}.`);
+    if (t[i].jusqua === null && i !== t.length - 1)
+      e.push(`${nom} : seule la dernière tranche peut être ouverte (tranche ${i + 1}).`);
+    if (i > 0) {
+      const p = t[i - 1].jusqua;
+      const c = t[i].jusqua;
+      if (p !== null && c !== null && c <= p)
+        e.push(`${nom} : le seuil de la tranche ${i + 1} (${c}) doit dépasser le précédent (${p}).`);
+    }
+  }
+  return e;
+}
 
 /** Lecture d'un barème forfaitaire à seuils exclusifs. */
 export const baremeInf = (table: [number, number][], montant: number) =>
@@ -267,8 +309,10 @@ export function computeBulletin(salaireBaseRef: number, s: SaisieMois, b: Bareme
   const tranchesAnnuelles = b.irppBrackets.map((t) => ({ jusqua: t.jusqua === null ? null : t.jusqua * 12, taux: t.taux }));
   const irpp = siDu(Math.round(computeIrpp(baseIrppMensuelle * 12, tranchesAnnuelles) / 12));
   const cac = pct(irpp, b.tauxCac);
-  const tdl = tdlActif ? siDu(baremeInf(TDL_BAREME, salaireBase)) : 0;
-  const rav = ravActif ? siDu(baremeInf(RAV_BAREME, brutTaxable)) : 0;
+  const tableTdl = b.tdlBareme?.length ? trancheVersTable(b.tdlBareme) : TDL_BAREME;
+  const tableRav = b.ravBareme?.length ? trancheVersTable(b.ravBareme) : RAV_BAREME;
+  const tdl = tdlActif ? siDu(baremeInf(tableTdl, salaireBase)) : 0;
+  const rav = ravActif ? siDu(baremeInf(tableRav, brutTaxable)) : 0;
 
   // 5. Charges PATRONALES — aucun plancher : dès qu'un salaire est versé, l'employeur cotise.
   //    L'exonération « jeunes » de la LF 2026 ne couvre PAS les charges sociales CNPS.

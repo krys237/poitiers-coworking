@@ -51,6 +51,7 @@ import type * as lib_rubriques from "../lib/rubriques.js";
 import type * as lib_societes from "../lib/societes.js";
 import type * as lib_stats from "../lib/stats.js";
 import type * as lib_telephone from "../lib/telephone.js";
+import type * as lib_vueRH from "../lib/vueRH.js";
 import type * as lib_tresorerie from "../lib/tresorerie.js";
 import type * as lib_verrouSaisie from "../lib/verrouSaisie.js";
 import type * as mesBulletins from "../mesBulletins.js";
@@ -118,6 +119,7 @@ declare const fullApi: ApiFromModules<{
   "lib/societes": typeof lib_societes;
   "lib/stats": typeof lib_stats;
   "lib/telephone": typeof lib_telephone;
+  "lib/vueRH": typeof lib_vueRH;
   "lib/tresorerie": typeof lib_tresorerie;
   "lib/verrouSaisie": typeof lib_verrouSaisie;
   mesBulletins: typeof mesBulletins;

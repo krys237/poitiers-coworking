@@ -225,6 +225,11 @@ export default defineSchema({
     abattementIrppAnnuel: v.optional(v.number()), // abattement annuel IRPP (déf. 500 000), appliqué ÷ 12
     tdlActif: v.optional(v.boolean()),  // appliquer la taxe de développement local (barème forfaitaire)
     ravActif: v.optional(v.boolean()),  // appliquer la redevance audiovisuelle (barème forfaitaire)
+    // Tranches forfaitaires, editables depuis l'ecran Barème (lot R9). `jusqua` est le seuil
+    // EXCLUSIF (« en deçà de »), `null` pour la tranche ouverte — même convention que
+    // `irppBrackets`. Absentes, les tables par défaut de `lib/paie.ts` s'appliquent.
+    tdlBareme: v.optional(v.array(v.object({ jusqua: v.union(v.number(), v.null()), montant: v.number() }))),
+    ravBareme: v.optional(v.array(v.object({ jusqua: v.union(v.number(), v.null()), montant: v.number() }))),
     // --- Corrections du lot R2 (voir lib/paie.ts). ABSENTES = comportement d'avant la
     // correction : une version de barème déjà enregistrée reste donc rejouable à l'identique.
     transportTaxable: v.optional(v.boolean()),          // C1 : le transport entre dans le taxable
