@@ -43,11 +43,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 // --- Vocabulaire ----------------------------------------------------------------
 
 type Entreprise = {
-  nom: string; adresse: string; niu: string; numeroCnps: string; logoUrl: string; couleurEntete: string; filigrane: string;
+  nom: string; adresse: string; niu: string; numeroCnps: string; dirigeant: string; registreCommerce: string; logoUrl: string; couleurEntete: string; filigrane: string;
   responsableRH: string; jourPaiement: number; congesParMois: number; emailExpediteur: string; modeleCourrier: string;
 };
 const entrepriseDe = (p: any): Entreprise => ({
-  nom: p?.nom ?? "", adresse: p?.adresse ?? "", niu: p?.niu ?? "", numeroCnps: p?.numeroCnps ?? "", logoUrl: p?.logoUrl ?? "",
+  nom: p?.nom ?? "", adresse: p?.adresse ?? "", niu: p?.niu ?? "", numeroCnps: p?.numeroCnps ?? "", dirigeant: p?.dirigeant ?? "", registreCommerce: p?.registreCommerce ?? "", logoUrl: p?.logoUrl ?? "",
   couleurEntete: p?.couleurEntete ?? "#0f2a44", filigrane: p?.filigrane ?? "", responsableRH: p?.responsableRH ?? "",
   jourPaiement: p?.jourPaiement ?? 5, congesParMois: p?.congesParMois ?? 1.5, emailExpediteur: p?.emailExpediteur ?? "", modeleCourrier: p?.modeleCourrier ?? "",
 });
@@ -105,6 +105,7 @@ export function Parametres() {
         logoUrl: e.logoUrl.trim() || undefined, filigrane: e.filigrane.trim() || undefined, emailExpediteur: e.emailExpediteur.trim() || undefined,
         modeleCourrier: e.modeleCourrier.trim() || undefined, congesParMois: e.congesParMois,
         niu: e.niu.trim() || undefined, numeroCnps: e.numeroCnps.trim() || undefined, responsableRH: e.responsableRH.trim() || undefined,
+        dirigeant: e.dirigeant.trim() || undefined, registreCommerce: e.registreCommerce.trim() || undefined,
         jourPaiement: e.jourPaiement,
       });
       if (dirtyR) await enregistrerReglages({ reglages: r });
@@ -151,7 +152,7 @@ export function Parametres() {
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-filet bg-surface px-3.5 py-2 shadow-xs sm:py-2.5">
           <TabsList className="h-auto flex-wrap gap-1 rounded-xl border border-filet bg-slate-100/80 p-1">
             {([
-              ["entreprise", "Entreprise & documents", (["nom", "adresse", "niu", "numeroCnps", "logoUrl", "couleurEntete", "filigrane"] as (keyof Entreprise)[]).some(modifieE)],
+              ["entreprise", "Entreprise & documents", (["nom", "adresse", "niu", "numeroCnps", "dirigeant", "registreCommerce", "logoUrl", "couleurEntete", "filigrane"] as (keyof Entreprise)[]).some(modifieE)],
               ["paie", "Paie & congés", (["responsableRH", "jourPaiement", "congesParMois"] as (keyof Entreprise)[]).some(modifieE) || (["joursBaseDefaut", "plafondSaisie", "pdfAutoCloture"] as (keyof Reglages)[]).some(modifieR)],
               ["courrier", "Courrier & e-mail", (["emailExpediteur", "modeleCourrier"] as (keyof Entreprise)[]).some(modifieE) || modifieR("envoiReelActive") || modifieR("whatsappReelActive")],
               ["fonctionnement", "Fonctionnement", (["crHeureOuverture", "crHeureFermeture", "crSamedi", "verrouFinancierMin", "verrouCaisseMin", "iaDocumentsActive"] as (keyof Reglages)[]).some(modifieR)],
@@ -181,6 +182,11 @@ export function Parametres() {
                   <Champ libelle="Adresse" requis className={cn("sm:col-span-2", modif(modifieE("adresse")))}>{(a) => <Input {...a} value={e.adresse} onChange={(x) => majE("adresse", x.target.value)} />}</Champ>
                   <Champ libelle="NIU (entreprise)" aide="Numéro d'identifiant unique, bloc employeur du bulletin" className={modif(modifieE("niu"))}>{(a) => <Input {...a} value={e.niu} onChange={(x) => majE("niu", x.target.value)} placeholder="M0…" className="font-mono" />}</Champ>
                   <Champ libelle="N° CNPS employeur" className={modif(modifieE("numeroCnps"))}>{(a) => <Input {...a} value={e.numeroCnps} onChange={(x) => majE("numeroCnps", x.target.value)} className="font-mono" />}</Champ>
+                  {/* Identité juridique des contrats de travail et du certificat de fin de stage.
+                      Ses trois modèles Word portent DEUX n° de registre du commerce différents pour
+                      la même société : la valeur arbitrée se saisit ici, une fois, pour les trois. */}
+                  <Champ libelle="Dirigeant" aide="Signe les contrats de travail et le certificat de fin de stage" className={modif(modifieE("dirigeant"))}>{(a) => <Input {...a} value={e.dirigeant} onChange={(x) => majE("dirigeant", x.target.value)} placeholder="Nom du dirigeant" />}</Champ>
+                  <Champ libelle="N° registre du commerce" aide="En-tête des contrats de travail" className={modif(modifieE("registreCommerce"))}>{(a) => <Input {...a} value={e.registreCommerce} onChange={(x) => majE("registreCommerce", x.target.value)} placeholder="RC/…" className="font-mono" />}</Champ>
                 </Grille>
               </Bloc>
               <Bloc titre="Aperçu de l'en-tête" description="Tel qu'il apparaît sur un document imprimé." className="lg:row-span-2">

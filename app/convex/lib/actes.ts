@@ -82,6 +82,70 @@ const DU_SALARIE = {
 const SIGNATURE = ch("signataire", "Signataire", "texte", { de: "entreprise", cle: "responsableRH" });
 const LE_JOUR = ch("date", "Fait le", "date", { de: "aujourdhui" });
 
+/**
+ * L'en-tête d'identité de l'employeur, commun aux TROIS contrats (essai, CDD, CDI).
+ *
+ * ⚠️ Il n'est volontairement PAS écrit en dur. Ses trois modèles portent le même NIU
+ * (M110800026452Z) mais DEUX numéros de registre du commerce différents pour la même société :
+ * `RC/DOUALA/2008/B/2014` sur l'engagement à l'essai, `RC/DLA/2008/B/2361` sur le CDD et le CDI.
+ * L'un des deux est faux (voir A-VERIFIER). Les contrats lisent donc les paramètres de
+ * l'entreprise, où figure la seule version arbitrée — et la corriger une fois corrige les trois.
+ */
+const EMPLOYEUR = `La Polyclinique de Poitiers, NIU {{niu}}, enregistrée au registre du commerce sous le numéro {{registreCommerce}}, représentée par son dirigeant {{dirigeant}}, ci-après désigné l'employeur d'une part ;`;
+
+const CHAMPS_EMPLOYEUR: ChampActe[] = [
+  ch("niu", "NIU de l'entreprise", "texte", { de: "entreprise", cle: "niu" }, false),
+  ch("registreCommerce", "N° registre du commerce", "texte", { de: "entreprise", cle: "registreCommerce" }, false),
+  ch("dirigeant", "Dirigeant", "texte", { de: "entreprise", cle: "dirigeant" }, false),
+];
+
+/** L'état civil de l'employé(e), identique mot pour mot dans les trois contrats. */
+const IDENTITE_EMPLOYE = `Mme/Mlle/M. {{nom}}
+Né(e) le {{dateNaissance}} à {{lieuNaissance}}
+Fils/fille de {{pere}} et de {{mere}}
+Résidant à {{residence}}, quartier {{quartier}}
+Statut matrimonial : {{statutMatrimonial}}
+Ayant à sa charge {{enfants}} enfant(s)
+Profession : {{profession}} — diplôme : {{diplome}}
+CNI N° {{cni}} délivrée le {{dateCni}}
+ci-après dénommé(e) l'employé(e) d'autre part ;`;
+
+const CHAMPS_IDENTITE_EMPLOYE: ChampActe[] = [
+  DU_SALARIE.nom,
+  ch("dateNaissance", "Date de naissance", "date", { de: "saisie" }),
+  ch("lieuNaissance", "Lieu de naissance", "texte", { de: "saisie" }),
+  ch("pere", "Nom du père", "texte", { de: "saisie" }, false),
+  ch("mere", "Nom de la mère", "texte", { de: "saisie" }, false),
+  ch("residence", "Résidence", "texte", { de: "employe", cle: "adresse" }),
+  ch("quartier", "Quartier", "texte", { de: "saisie" }, false),
+  ch("statutMatrimonial", "Statut matrimonial", "texte", { de: "saisie" }, false),
+  ch("enfants", "Enfants à charge", "nombre", { de: "saisie" }, false),
+  ch("profession", "Profession", "texte", { de: "saisie" }, false),
+  ch("diplome", "Diplôme", "texte", { de: "saisie" }, false),
+  ch("cni", "N° CNI", "texte", { de: "saisie" }, false),
+  ch("dateCni", "CNI délivrée le", "date", { de: "saisie" }, false),
+];
+
+/** Corps d'articles repris à l'identique dans le CDD et le CDI — le numéro, lui, diffère. */
+const ART_LIEUX = `L'employé(e) exerce ses fonctions au sein de la structure. Toutefois, l'employeur se réserve le droit de le déployer partout ailleurs selon les nécessités qui pourront apparaître au cours de l'exécution du contrat.
+Les horaires de travail sont définis par le règlement intérieur.`;
+
+const ART_OBLIGATIONS = `L'employé(e) s'engage pour la période qui lui est due à exercer les fonctions de {{fonction}} qui le situe à la catégorie {{categorie}} échelon {{echelon}} selon la grille salariale de la structure.
+Par ailleurs l'employé(e) est tenu(e) au respect strict de la réglementation au sein de l'entreprise, notamment le règlement intérieur, la discipline, la déontologie et toutes les instructions administratives qui lui seront transmises.
+En retour l'employeur garantit au travailleur la mise en place d'un cadre de travail dans le respect des mesures de sécurité sociale. Il lui fournira les outils nécessaires à l'exécution de ses tâches au sein de la structure.`;
+
+const ART_REMUNERATION = `Au cours de son activité l'employé(e) percevra une rémunération mensuelle égale à {{remuneration}} francs CFA. Les composantes de ladite rémunération sont réparties ainsi qu'il suit :
+Salaire de base : {{salaireBase}}
+Indemnités et primes : {{indemnites}}`;
+
+const ART_RESILIATION = `Le présent contrat pourra être résilié dans les conditions prévues aux articles 34 et suivants du Code du travail.`;
+
+const ART_FINALES = `L'employé(e) prendra connaissance du règlement intérieur et des règles de travail lors de la période de son insertion sociale. Le présent contrat est régi par le droit camerounais en vigueur. En cas de conflit, seules les juridictions camerounaises seront compétentes pour en répondre.`;
+
+const SIGNATURES_CONTRAT = `Fait à Douala, le {{date}}
+
+L'employé(e)                                        L'Employeur`;
+
 /** Les seize montants de son attestation de salaire — tous tirés du bulletin de la période. */
 const MONTANTS_BULLETIN: ChampActe[] = [
   ch("salaireBase", "Salaire de base", "montant", { de: "bulletin", cle: "salaireBase" }),
@@ -326,19 +390,11 @@ Fait à Douala, le {{date}}
 
 Entre les soussignés :
 
-La Polyclinique de Poitiers représentée par son gérant Monsieur TCHIDJO KENMEGNIE MAGLOIRE, NIU M110800026452Z enregistré au registre du commerce au numéro RC/DOUALA/2008/B/2014, ci-après désigné l'employeur d'une part ;
+${EMPLOYEUR}
 
 Et
 
-Mme/Mlle/M. {{nom}}
-Né(e) le {{dateNaissance}} à {{lieuNaissance}}
-Fils/fille de {{pere}} et de {{mere}}
-Résidant à {{residence}}, quartier {{quartier}}
-Statut matrimonial : {{statutMatrimonial}}
-Ayant à sa charge {{enfants}} enfant(s)
-Profession : {{profession}} — diplôme : {{diplome}}
-CNI N° {{cni}} délivrée le {{dateCni}}
-ci-après dénommé(e) l'employé(e) d'autre part ;
+${IDENTITE_EMPLOYE}
 
 Il est établi le présent contrat.
 
@@ -346,40 +402,199 @@ Article 1 : De la durée
 Le présent contrat est conclu pour une période de {{dureeEssai}} mois renouvelable une fois à compter du {{dateDebutContrat}}. À l'issue de cette période d'essai, un test d'évaluation pourra être effectué avant l'embauche définitive de l'employé(e).
 
 Article 2 : Des obligations des parties
-L'employé(e) s'engage pour la période qui lui est due à exercer les fonctions de {{fonction}} qui le situe à la catégorie {{categorie}} échelon {{echelon}} selon la grille salariale de la structure.
-Par ailleurs l'employé(e) est tenu(e) au respect strict de la réglementation au sein de l'entreprise, notamment le règlement intérieur, la discipline, la déontologie et toutes les instructions administratives qui lui seront transmises.
-En retour l'employeur garantit au travailleur la mise en place d'un cadre de travail dans le respect des mesures de sécurité sociale. Il lui fournira les outils nécessaires à l'exécution de ses tâches au sein de la structure.
+${ART_OBLIGATIONS}
 
 Article 3 : De la rémunération
 Au cours de son activité l'employé(e) percevra une rémunération mensuelle égale à {{remuneration}} francs CFA.
 
 Article 4 : De la résiliation du contrat
-Le présent contrat pourra être résilié dans les conditions prévues aux articles 34 et suivants du Code du travail.
+${ART_RESILIATION}
 
 Article 5 : Des dispositions transitoires et finales
-L'employé(e) prendra connaissance du règlement intérieur et des règles de travail lors de la période de son insertion sociale. Le présent contrat est régi par le droit camerounais en vigueur. En cas de conflit, seules les juridictions camerounaises seront compétentes pour en répondre.
+${ART_FINALES}
 
-Fait à Douala, le {{date}}
-
-L'employé(e)                                        L'Employeur`,
+${SIGNATURES_CONTRAT}`,
     champs: [
-      DU_SALARIE.nom,
-      ch("dateNaissance", "Date de naissance", "date", { de: "saisie" }),
-      ch("lieuNaissance", "Lieu de naissance", "texte", { de: "saisie" }),
-      ch("pere", "Nom du père", "texte", { de: "saisie" }, false),
-      ch("mere", "Nom de la mère", "texte", { de: "saisie" }, false),
-      ch("residence", "Résidence", "texte", { de: "employe", cle: "adresse" }),
-      ch("quartier", "Quartier", "texte", { de: "saisie" }, false),
-      ch("statutMatrimonial", "Statut matrimonial", "texte", { de: "saisie" }, false),
-      ch("enfants", "Enfants à charge", "nombre", { de: "saisie" }, false),
-      ch("profession", "Profession", "texte", { de: "saisie" }, false),
-      ch("diplome", "Diplôme", "texte", { de: "saisie" }, false),
-      ch("cni", "N° CNI", "texte", { de: "saisie" }, false),
-      ch("dateCni", "CNI délivrée le", "date", { de: "saisie" }, false),
+      ...CHAMPS_EMPLOYEUR,
+      ...CHAMPS_IDENTITE_EMPLOYE,
       ch("dureeEssai", "Durée de l'essai (mois)", "nombre", { de: "saisie" }),
       ch("dateDebutContrat", "Prise d'effet", "date", { de: "employe", cle: "dateDebut" }),
       DU_SALARIE.fonction, DU_SALARIE.categorie, DU_SALARIE.echelon,
       ch("remuneration", "Rémunération mensuelle", "montant", { de: "employe", cle: "salaireBase" }),
+      LE_JOUR,
+    ],
+  },
+  {
+    code: "STAGE_AUTORISATION",
+    libelle: "Autorisation de stage",
+    famille: "stage",
+    ordre: 55,
+    formatReference: "{n}/PP/DAF/DRH/{mm}-{aaaa}",
+    // Seul modèle du lot qui n'est PAS une lettre : c'est une fiche de circuit interne, visée
+    // successivement par les RH puis par la Direction générale. Elle ne porte donc ni « Fait le »
+    // ni signataire unique — les deux visas sont manuscrits, côte à côte, comme dans son Word.
+    corps: `AUTORISATION DE STAGE N° {{reference}}
+
+TYPE DE STAGE : {{typeStage}}
+NATURE DU STAGE : {{natureStage}}
+DÉPARTEMENT : {{departement}}
+NOMS ET PRÉNOMS : {{nom}}
+NIVEAU D'ÉTUDE : {{niveauEtude}}
+OPTION / SPÉCIALITÉ : {{option}}
+PÉRIODE DE STAGE : du {{dateDebutStage}} au {{dateFinStage}}
+
+
+Accord du Service des Ressources Humaines                 Accord de la Direction Générale`,
+    champs: [
+      ch("typeStage", "Type de stage", "texte", { de: "saisie" }, true, "Ex. : « académique », « professionnel », « vacances »"),
+      ch("natureStage", "Nature du stage", "texte", { de: "saisie" }, true, "Ex. : « rémunéré », « non rémunéré »"),
+      ch("departement", "Département d'accueil", "texte", { de: "saisie" }),
+      ch("nom", "Noms et prénoms", "texte", { de: "saisie" }),
+      ch("niveauEtude", "Niveau d'étude", "texte", { de: "saisie" }, false),
+      ch("option", "Option / spécialité", "texte", { de: "saisie" }, false),
+      ch("dateDebutStage", "Début du stage", "date", { de: "saisie" }),
+      ch("dateFinStage", "Fin du stage", "date", { de: "saisie" }),
+    ],
+  },
+  {
+    code: "STAGE_CERTIFICAT_FIN",
+    libelle: "Certificat de fin de stage",
+    famille: "stage",
+    ordre: 85,
+    // ⚠️ Le seul acte du lot signé par le DIRECTEUR GÉNÉRAL et non par la RH : son modèle écrit
+    // « Je soussigné, …, Directeur Général de la Polyclinique de Poitiers ». Le signataire est
+    // donc tiré du dirigeant, pas du visa RH.
+    //
+    // Deux coquilles de son Word ne sont pas reprises : « du …… au 30 …… » (le « 30 » est un
+    // reste de saisie, la date de fin est un champ comme l'autre) et « Fait à douala » en
+    // minuscule. Voir A-VERIFIER si elle tient au libellé d'origine.
+    corps: `CERTIFICAT DE FIN DE STAGE
+
+Je soussigné, {{signataire}}, Directeur Général de la Polyclinique de Poitiers, atteste que Mme/Mlle/M. {{nom}} a été employé(e) dans notre structure durant la période du {{dateDebutStage}} au {{dateFinStage}}, et a occupé les fonctions de {{fonction}}.
+
+Il/Elle nous quitte ce jour libre de tout engagement.
+
+En foi de quoi, nous lui délivrons cette attestation pour servir et valoir ce que de droit.
+
+Fait à Douala, le {{date}}`,
+    champs: [
+      ch("nom", "Noms et prénoms du stagiaire", "texte", { de: "saisie" }),
+      ch("dateDebutStage", "Début du stage", "date", { de: "saisie" }),
+      ch("dateFinStage", "Fin du stage", "date", { de: "saisie" }),
+      ch("fonction", "Fonctions occupées", "texte", { de: "saisie" }),
+      ch("signataire", "Signataire (Directeur Général)", "texte", { de: "entreprise", cle: "dirigeant" }),
+      LE_JOUR,
+    ],
+  },
+  {
+    code: "CONTRAT_CDD",
+    libelle: "Contrat de travail à durée déterminée",
+    famille: "contrat",
+    ordre: 100,
+    formatReference: "{n}/PP/DAF/DRH/{mm}-{aaaa}",
+    corps: `CONTRAT DE TRAVAIL N° {{reference}}
+
+Entre les soussignés :
+
+${EMPLOYEUR}
+
+Et
+
+${IDENTITE_EMPLOYE}
+
+Il est établi le présent contrat.
+
+Article 1 : De la durée
+Le présent contrat est un contrat à durée déterminée. Il est conclu pour une période de {{dureeContrat}}, renouvelable une fois sous accord des parties. Il prendra effet à compter du {{dateDebutContrat}}.
+
+Article 2 : Des obligations des parties
+${ART_OBLIGATIONS}
+
+Article 3 : Des lieux et horaires du travail
+${ART_LIEUX}
+
+Article 4 : De la rémunération
+${ART_REMUNERATION}
+
+Article 5 : Des congés
+L'employé(e) a droit à un congé de 1,5 jour ouvrable par mois de service effectif. Il/elle ne pourra bénéficier du congé qu'au terme de 12 mois consécutifs de service effectif.
+Les droits et allocations dus seront calculés et versés suivant les textes prévus en vigueur.
+
+Article 6 : De la protection sociale
+L'employeur s'engage à affilier l'employé(e) à la Caisse Nationale de Prévoyance Sociale pour la couverture des pensions vieillesse, invalidité et décès, allocations familiales, accidents du travail et maladies professionnelles, conformément à la législation en vigueur.
+
+Article 7 : De la résiliation du contrat
+${ART_RESILIATION}
+
+Article 8 : Des dispositions transitoires et finales
+${ART_FINALES}
+
+${SIGNATURES_CONTRAT}`,
+    champs: [
+      ...CHAMPS_EMPLOYEUR,
+      ...CHAMPS_IDENTITE_EMPLOYE,
+      ch("dureeContrat", "Durée du contrat", "texte", { de: "saisie" }, true, "Son modèle écrit « ……… an » : préciser l'unité, p. ex. « 12 mois » ou « 2 ans »"),
+      ch("dateDebutContrat", "Prise d'effet", "date", { de: "employe", cle: "dateDebut" }),
+      DU_SALARIE.fonction, DU_SALARIE.categorie, DU_SALARIE.echelon,
+      ch("remuneration", "Rémunération mensuelle totale", "montant", { de: "saisie" }, true, "Le total convenu : base + indemnités et primes"),
+      ch("salaireBase", "Dont salaire de base", "montant", { de: "employe", cle: "salaireBase" }),
+      ch("indemnites", "Dont indemnités et primes", "montant", { de: "saisie" }, false),
+      LE_JOUR,
+    ],
+  },
+  {
+    code: "CONTRAT_CDI",
+    libelle: "Contrat de travail à durée indéterminée",
+    famille: "contrat",
+    ordre: 110,
+    formatReference: "{n}/PP/DAF/DRH/{mm}-{aaaa}",
+    // ⚠️ Son modèle CDI numérote DEUX articles « 5 » (résiliation, puis dispositions finales) :
+    // la numérotation est corrigée ici en 5 et 6.
+    //
+    // ⚠️ Son CDI n'a ni article « Des congés » ni article « De la protection sociale », alors que
+    // son CDD porte les deux. L'omission paraît accidentelle — un CDI ouvre les mêmes droits.
+    // Les deux articles ne sont PAS ajoutés d'office (c'est du contenu juridique, pas une
+    // coquille) : voir A-VERIFIER. Les modèles étant éditables en base, les coller depuis le CDD
+    // est l'affaire d'une minute une fois la réponse connue.
+    corps: `CONTRAT DE TRAVAIL N° {{reference}}
+
+Entre les soussignés :
+
+${EMPLOYEUR}
+
+Et
+
+${IDENTITE_EMPLOYE}
+
+Il est établi le présent contrat.
+
+Article 1 : De la durée
+Le présent contrat est un contrat à durée indéterminée. Il prendra effet à compter du {{dateDebutContrat}}.
+
+Article 2 : Des obligations des parties
+${ART_OBLIGATIONS}
+
+Article 3 : Des lieux et horaires du travail
+${ART_LIEUX}
+
+Article 4 : De la rémunération
+${ART_REMUNERATION}
+
+Article 5 : De la résiliation du contrat
+${ART_RESILIATION}
+
+Article 6 : Des dispositions transitoires et finales
+${ART_FINALES}
+
+${SIGNATURES_CONTRAT}`,
+    champs: [
+      ...CHAMPS_EMPLOYEUR,
+      ...CHAMPS_IDENTITE_EMPLOYE,
+      ch("dateDebutContrat", "Prise d'effet", "date", { de: "employe", cle: "dateDebut" }),
+      DU_SALARIE.fonction, DU_SALARIE.categorie, DU_SALARIE.echelon,
+      ch("remuneration", "Rémunération mensuelle totale", "montant", { de: "saisie" }, true, "Le total convenu : base + indemnités et primes"),
+      ch("salaireBase", "Dont salaire de base", "montant", { de: "employe", cle: "salaireBase" }),
+      ch("indemnites", "Dont indemnités et primes", "montant", { de: "saisie" }, false),
       LE_JOUR,
     ],
   },

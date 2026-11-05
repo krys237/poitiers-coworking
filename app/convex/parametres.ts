@@ -17,7 +17,7 @@ export const enregistrer = mutation({
     filigrane: v.optional(v.string()), couleurEntete: v.optional(v.string()),
     modeleCourrier: v.optional(v.string()), emailExpediteur: v.optional(v.string()),
     congesParMois: v.optional(v.number()),
-    niu: v.optional(v.string()), numeroCnps: v.optional(v.string()), responsableRH: v.optional(v.string()), jourPaiement: v.optional(v.number()),
+    niu: v.optional(v.string()), numeroCnps: v.optional(v.string()), dirigeant: v.optional(v.string()), registreCommerce: v.optional(v.string()), responsableRH: v.optional(v.string()), jourPaiement: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const me = await requireDroit(ctx, "/parametres", "faire");

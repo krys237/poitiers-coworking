@@ -147,6 +147,15 @@ retombe sur l'ancien comportement quand le champ est absent. Un push peut donc s
 | R5 | — | `absences` : 7 nouveaux types, justificatifFourni, evenementFamilial, rangMois |
 | R7 | — | `employes` : **salaireBase**, immatriculeImpots, dateEntreeCnps |
 | R9 | — | `baremes` : tdlBareme, ravBareme |
+| R10 | `fonctions` | `employes` : methodeEnvoi |
+| R11 | `modelesActes`, `actes` | `parametresEntreprise` : **dirigeant**, **registreCommerce** |
+
+`parametresEntreprise.dirigeant` et `.registreCommerce` ne sont pas cosmétiques : les trois
+contrats de travail les lisent au lieu de figer une identité. Les modèles Word de la RH portent
+**deux numéros de registre du commerce contradictoires** pour la même société (voir A-VERIFIER
+**T1**) ; tant que le champ est vide, les contrats impriment des pointillés plutôt qu'un numéro
+peut-être faux. Rien à migrer — mais à renseigner dans *Paramètres → Entreprise & documents* avant
+le premier contrat délivré.
 
 **Deux migrations à lancer APRÈS le push, dans cet ordre :**
 

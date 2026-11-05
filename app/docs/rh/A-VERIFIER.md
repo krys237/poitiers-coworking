@@ -260,6 +260,101 @@ salaire brut, primes incluses) et garde son nom à juste titre.
 
 ---
 
+## T. Actes RH — libellés et contenu juridique (lot R11)
+
+Points relevés **en transcrivant ses 13 modèles Word**. Aucun ne bloque la génération : les actes
+sortent déjà. Mais chacun porte sur le texte d'un document qui engage la Polyclinique, donc aucun
+n'a été tranché tout seul.
+
+### T1 🔴 Deux numéros de registre du commerce pour la même société
+
+Ses trois contrats portent le **même NIU** — `M110800026452Z` — mais **deux numéros de registre du
+commerce différents** :
+
+| Modèle | N° RC |
+|---|---|
+| `MODEL ENGAGEMENT A LESSAI.docx` | `RC/DOUALA/2008/B/2014` |
+| `MODELE DE CONTRAT DE TRAVAIL CDD.xlsx.docx` | `RC/DLA/2008/B/2361` |
+| `MODELE DE CONTRAT DE TRAVAIL CDI.xlsx.docx` | `RC/DLA/2008/B/2361` |
+
+Une société n'a qu'un numéro d'immatriculation : **l'un des deux est faux**, et il figure
+aujourd'hui sur des contrats signés. Ce n'est pas qu'une coquille de forme — c'est l'identification
+légale de l'employeur dans l'acte.
+
+**Traitement retenu :** aucun des deux n'est écrit en dur. Les trois contrats lisent
+`parametresEntreprise.registreCommerce` (et `.dirigeant`, `.niu`), saisis dans *Paramètres →
+Entreprise & documents*. La valeur arbitrée se renseigne **une fois**, et corrige les trois
+modèles. Tant qu'elle est vide, les contrats impriment des pointillés — visible, donc jamais faux
+en silence.
+
+**À faire :** confirmer le bon numéro auprès du greffe ou sur le dernier extrait RCCM, puis le
+saisir dans les paramètres.
+
+### T2 🟠 Le CDI a perdu deux articles que le CDD porte
+
+Son `CDD` compte huit articles ; son `CDI` en compte six, et il lui manque :
+
+- **Des congés** (1,5 jour ouvrable par mois de service effectif, exigible au terme de 12 mois) ;
+- **De la protection sociale** (affiliation CNPS — vieillesse, invalidité, décès, allocations
+  familiales, AT/MP).
+
+L'omission paraît accidentelle : un CDI ouvre exactement les mêmes droits qu'un CDD sur ces deux
+points, et le reste du texte est identique mot pour mot. Mais c'est du **contenu juridique**, pas
+une faute de frappe : les deux articles n'ont **pas** été ajoutés d'office.
+
+**À faire :** confirmer l'ajout. Les modèles étant éditables en base, coller les deux articles du
+CDD dans le CDI prend une minute une fois la réponse connue.
+
+*(Sa numérotation, elle, a été corrigée : son CDI portait **deux** articles « 5 » — résiliation,
+puis dispositions finales. Lus 5 et 6. C'est bien une coquille de forme.)*
+
+### T3 🟠 La durée du CDD et le plafond légal
+
+Son article 1 écrit « conclu pour une période de **………  an**, renouvelable une fois sous accord des
+parties ». Deux questions :
+
+1. **L'unité.** « an » au singulier suggère une durée en années, mais la ligne de pointillés
+   accueille aussi bien « 6 mois ». Le champ est donc libre (`Durée du contrat`), avec une aide de
+   saisie qui demande de préciser l'unité.
+2. **Le plafond.** Le Code du travail (loi n°92/007) encadre la durée du CDD et son
+   renouvellement. Si le plafond est de 2 ans renouvelable une fois, une saisie à « 3 ans »
+   produirait un contrat irrégulier. **Faut-il que l'application refuse une durée hors plafond ?**
+
+**À faire :** faire préciser le plafond applicable par le comptable ou le conseil, et dire si le
+contrôle doit bloquer ou seulement avertir.
+
+### T4 🟡 Le certificat de fin de stage est signé par le Directeur Général
+
+Tous les autres actes portent le visa de la RH (`parametresEntreprise.responsableRH`). Celui-ci
+écrit « Je soussigné, ……, **Directeur Général** de la Polyclinique de Poitiers ». Son signataire est
+donc tiré de `parametresEntreprise.dirigeant`.
+
+À noter : il **double** l'`ATTESTATION DE FIN DE STAGE`, qui dit la même chose mais est signée par
+la RH. Les deux sont livrés — ce sont deux documents distincts dans son classeur.
+
+**À faire :** confirmer que les deux coexistent bien, et que le certificat relève bien de la DG.
+
+### T5 🟡 Deux coquilles non reprises
+
+| Son texte | Repris comme | Pourquoi |
+|---|---|---|
+| « durant la période du …… **au 30** …………… » | « du {{dateDebutStage}} au {{dateFinStage}} » | le « 30 » est un reste de saisie : la date de fin est un champ comme l'autre |
+| « Fait à **douala**, le …… » | « Fait à Douala, le …… » | majuscule, comme partout ailleurs dans son classeur |
+
+**À faire :** rien, sauf si elle tient au libellé d'origine.
+
+### T6 🟡 L'autorisation de stage n'est pas une lettre
+
+C'est la seule **fiche de circuit interne** du lot : des champs en colonne, puis deux cases de visa
+manuscrit côte à côte — *Accord du Service des Ressources Humaines* / *Accord de la Direction
+Générale*. Elle ne porte donc ni « Fait le » ni signataire unique, et tous ses champs se saisissent
+à la main : le stagiaire n'existe pas encore comme employé.
+
+**À faire :** confirmer que cette fiche circule bien sur papier pour recueillir les deux visas (et
+non par voie électronique, qui demanderait une autre conception).
+
+---
+
 ## E. Points tranchés (mémoire)
 
 | # | Point | Décision | Date |
@@ -291,3 +386,8 @@ salaire brut, primes incluses) et garde son nom à juste titre.
 | **R4** | allocation de congé (1/16) + liaison planning → paie | **A1**, **A2**, A3 |
 | **R5** ✅ | absences élargies (maternité, AT/MP, chômage technique, permissions, sans solde, mise à pied, formation syndicale) | — *(livré)* |
 | **R6** | retenue à la source médecins | **M1**, **M2** |
+| **R7** ✅ | droit à congé proratisé sur l'année (correction du décompte depuis l'embauche) | — *(livré)* |
+| **R8** ✅ | immatriculation de l'employé aux impôts : bulletin ou récapitulatif | — *(livré)* |
+| **R9** ✅ | vue RH du barème : le calcul expliqué en clair, sur un exemple réel | — *(livré ; A8 reste ouvert, 4 FCFA)* |
+| **R10** 🟡 | 32 demandes de novembre : autocomplétion, fonctions, rattachements, dépôt répété | rattachements à la création, « du … au … », routage par ligne, incrément d'ancienneté (**A6**) |
+| **R11** 🟡 | générateur d'actes RH : 13 modèles, pré-remplissage depuis le bulletin, référence numérotée, archivage | **T1** (n° RC), T2 (articles du CDI), T3 (plafond du CDD), T4, T6 |

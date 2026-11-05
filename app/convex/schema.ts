@@ -78,6 +78,8 @@ export default defineSchema({
     congesParMois: v.optional(v.number()),    // jours de congé acquis par mois de service (déf. 1.5)
     niu: v.optional(v.string()),              // NIU de l'entreprise (en-tête bulletin)
     numeroCnps: v.optional(v.string()),       // N° CNPS employeur (en-tête bulletin)
+    dirigeant: v.optional(v.string()),        // nom du dirigeant — en-tête des contrats et certificat de fin de stage
+    registreCommerce: v.optional(v.string()), // n° RC — ses modèles Word en portent DEUX versions, voir A-VERIFIER
     responsableRH: v.optional(v.string()),    // visa du responsable RH sur les bulletins
     jourPaiement: v.optional(v.number()),     // jour de paiement du mois suivant (déf. 5)
     reglages: v.optional(v.object({           // réglages de fonctionnement — voir lib/reglages.ts (défauts = anciennes constantes)

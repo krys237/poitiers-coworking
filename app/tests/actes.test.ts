@@ -15,7 +15,7 @@ const modele = (code: string) => MODELES_DEFAUT.find((m) => m.code === code)!;
 
 // ===========================================================================
 titre("Catalogue des modèles");
-check("au moins 9 modèles", MODELES_DEFAUT.length >= 9, MODELES_DEFAUT.length);
+check("les 13 modèles de son classeur", MODELES_DEFAUT.length === 13, MODELES_DEFAUT.length);
 check("aucun code en double",
   new Set(MODELES_DEFAUT.map((m) => m.code)).size === MODELES_DEFAUT.length);
 check("quatre familles nommées", Object.keys(LIBELLE_FAMILLE).length === 4);
@@ -108,6 +108,69 @@ check("seule la situation est saisie à la main",
   sal.champs.filter((c) => c.source.de === "saisie").length === 1,
   sal.champs.filter((c) => c.source.de === "saisie").map((c) => c.nom));
 
+titre("Les quatre familles sont toutes servies");
+for (const f of Object.keys(LIBELLE_FAMILLE)) {
+  check(`famille « ${f} » pourvue`, MODELES_DEFAUT.some((m) => m.famille === f));
+}
+check("aucun ordre en double",
+  new Set(MODELES_DEFAUT.map((m) => m.ordre)).size === MODELES_DEFAUT.length);
+
+titre("Les trois contrats partagent le même en-tête d'identité");
+const contrats = ["ENGAGEMENT_ESSAI", "CONTRAT_CDD", "CONTRAT_CDI"].map(modele);
+check("les trois sont de la famille contrat", contrats.every((m) => m.famille === "contrat"));
+for (const m of contrats) {
+  check(`« ${m.libelle} » décrit l'employeur`, m.corps.includes("ci-après désigné l'employeur"));
+  check(`« ${m.libelle} » décrit l'employé(e)`, m.corps.includes("ci-après dénommé(e) l'employé(e)"));
+  check(`« ${m.libelle} » porte les deux signatures`, m.corps.includes("L'Employeur"));
+}
+// Le n° de registre du commerce n'est PAS figé : ses modèles en portent deux versions
+// contradictoires (RC/DOUALA/2008/B/2014 et RC/DLA/2008/B/2361) pour la même société.
+check("aucun contrat ne fige un n° de registre du commerce",
+  contrats.every((m) => !/RC\//.test(m.corps)),
+  contrats.filter((m) => /RC\//.test(m.corps)).map((m) => m.code));
+check("aucun contrat ne fige le NIU",
+  contrats.every((m) => !/M1108/.test(m.corps)));
+check("les trois lisent l'identité juridique depuis les paramètres",
+  contrats.every((m) =>
+    ["niu", "registreCommerce", "dirigeant"].every((n) =>
+      m.champs.find((c) => c.nom === n)?.source.de === "entreprise")));
+
+titre("Le CDD porte les articles que le CDI a perdus");
+const cdd = modele("CONTRAT_CDD"), cdi = modele("CONTRAT_CDI");
+check("le CDD a un article « Des congés »", cdd.corps.includes("Des congés"));
+check("le CDD a un article « De la protection sociale »", cdd.corps.includes("De la protection sociale"));
+// Transcription fidèle : l'omission du CDI est conservée telle quelle, et consignée.
+check("l'omission du CDI est conservée, non comblée en douce", !cdi.corps.includes("Des congés"));
+// Sa numérotation Word est corrigée : son CDI portait DEUX articles « 5 ».
+const numeros = [...cdi.corps.matchAll(/^Article (\d+) :/gm)].map((m) => +m[1]);
+check("la numérotation du CDI est corrigée et continue",
+  numeros.join() === "1,2,3,4,5,6", numeros);
+const numCdd = [...cdd.corps.matchAll(/^Article (\d+) :/gm)].map((m) => +m[1]);
+check("la numérotation du CDD va de 1 à 8", numCdd.join() === "1,2,3,4,5,6,7,8", numCdd);
+check("seul le CDD est à durée déterminée", cdd.corps.includes("durée déterminée"));
+check("le CDI est à durée indéterminée", cdi.corps.includes("durée indéterminée"));
+
+titre("L'autorisation de stage est une fiche à deux visas, pas une lettre");
+const autor = modele("STAGE_AUTORISATION");
+check("elle porte les deux accords", autor.corps.includes("Accord du Service des Ressources Humaines")
+  && autor.corps.includes("Accord de la Direction Générale"));
+check("elle n'a donc ni « Fait le » ni signataire unique",
+  !autor.champs.some((c) => c.nom === "date" || c.nom === "signataire"));
+check("tous ses champs sont saisis à la main — aucun employé n'existe encore",
+  autor.champs.every((c) => c.source.de === "saisie"));
+
+titre("Le certificat de fin de stage est signé par le Directeur Général");
+const certif = modele("STAGE_CERTIFICAT_FIN");
+check("son signataire est le dirigeant, pas le visa RH",
+  certif.champs.find((c) => c.nom === "signataire")?.source.cle === "dirigeant");
+check("le corps le nomme Directeur Général", certif.corps.includes("Directeur Général"));
+// Deux coquilles de son Word : « au 30 …… » et « Fait à douala » en minuscule.
+check("le « 30 » parasite de son modèle n'est pas repris", !/au 30\s/.test(certif.corps));
+check("Douala reprend sa majuscule", certif.corps.includes("Fait à Douala"));
+check("c'est le seul acte non signé par la RH",
+  MODELES_DEFAUT.filter((m) => m.champs.some((c) => c.nom === "signataire"
+    && c.source.de === "entreprise" && c.source.cle !== "responsableRH")).length === 1);
+
 titre("Mise en page");
 check("la marge haute dégage le bandeau à en-tête mesuré (125 pt ≈ 44 mm)",
   MARGE_HAUTE_ENTETE === 125);
@@ -115,7 +178,7 @@ check("la marge haute dégage le bandeau à en-tête mesuré (125 pt ≈ 44 mm)"
 titre("Sources de pré-remplissage");
 check("tous les champs déclarent une source",
   MODELES_DEFAUT.every((m) => m.champs.every((c) => !!c.source?.de)));
-check("le signataire vient des paramètres de l'entreprise",
+check("le signataire vient toujours des paramètres de l'entreprise, jamais de la saisie",
   MODELES_DEFAUT.filter((m) => m.champs.some((c) => c.nom === "signataire"))
     .every((m) => m.champs.find((c) => c.nom === "signataire")!.source.de === "entreprise"));
 check("la date du jour est automatique",
