@@ -128,6 +128,11 @@ formulées pour la RH et le comptable dans `app/docs/rh/QUESTIONS-A-TRANCHER.md`
 | **R4** | allocation de congé (1/16) + liaison planning → paie | à faire | **A1**, **A2** — la RH tranche |
 | **R5** | absences élargies : maternité, AT/MP, chômage technique, permissions, sans solde, mise à pied, formation syndicale | ✅ livré | — |
 | **R6** | retenue à la source sur les honoraires des médecins | à faire | **M1**, **M2** — le comptable tranche |
+| **R7** | droit à congé proratisé sur l'année, services gérables, impression du planning | ✅ livré | — |
+| **R8** | bulletin ou récapitulatif selon l'immatriculation du salarié aux impôts | ✅ livré | — |
+| **R9** | « Vue RH » du barème : le calcul expliqué en clair sur un exemple réel | ✅ livré | — |
+| **R10** | référentiel de fonctions, champ à saisie assistée, méthode d'envoi | 🟡 livré en partie | 4 restes consignés ; **A6** pour l'ancienneté |
+| **R11** | générateur d'actes RH : 13 modèles, identité juridique par société | 🟡 livré en partie | en-tête PDF ; **T3, T4, T6** à confirmer |
 
 **Pourquoi R4 a été sauté et R5 fait à sa place** : R4 dépend de deux inconnues numériques relevées
 dans le DIPE d'août 2026 (le facteur 0,9984 et la détermination de N), que seule la RH peut

@@ -367,16 +367,27 @@ actes          modeleCode, employeId?, reference, periode?, valeurs (record),
 - Les deux gabarits de référence trouvés dans ses fichiers sont conservés tels quels :
   `{n}/PP/DAF/DRH/{mm}-{aaaa}` et `{n}/PP/MC/DAF/NG/{mm}-{aaaa}`, séquence repartant chaque année.
 
-### Ce qui reste du lot R11
+### Les 13 modèles sont transcrits — complété le 05/11/2026
 
-- **Les contrats CDD et CDI** ne sont pas encore modélisés : leurs fichiers s'appellent
-  `.xlsx.docx` et l'extraction du CDI n'a rendu que 35 paragraphes. À relire au calme avant de les
-  ajouter — l'engagement à l'essai, qui a la même structure, sert déjà de patron.
-- **L'autorisation de stage** et le **certificat de fin de stage** : mêmes familles que ce qui
-  existe, à ajouter quand leurs formulations seront confirmées.
+Les quatre derniers (autorisation de stage, certificat de fin de stage, CDD, CDI) ont été ajoutés
+après coup : la relecture des deux contrats `.xlsx.docx` a rendu les fichiers entiers.
+
+Trois décisions en sont sorties :
+
+- **Le CDI a reçu les deux articles qu'il avait perdus** (congés, protection sociale) sur décision
+  du 05/11/2026. Les deux contrats les **partagent** désormais : plus de divergence possible.
+- **L'identité juridique est paramétrable par société**, pas figée dans le code — ses modèles
+  portaient deux numéros de registre du commerce contradictoires (A-VERIFIER **T1**).
+- L'**autorisation de stage** n'est pas une lettre mais une fiche à deux visas, et le **certificat
+  de fin de stage** est le seul acte signé par le Directeur Général.
+
+#### Ce qui reste du lot R11
+
 - **L'en-tête intégré au PDF** : la facture embarque son bandeau en image de fond. Si elle veut
   envoyer les actes par e-mail plutôt que les imprimer sur papier à en-tête, il suffira de fournir
-  l'image et de l'ajouter en fond — la marge est déjà réservée.
+  l'image et de l'ajouter en fond — la marge de 125 pt est déjà réservée.
+- Les questions **T3** (plafond de durée du CDD), **T4** et **T6** : des confirmations de libellé
+  et de circuit, qui ne bloquent aucune génération.
 
 ---
 
@@ -388,7 +399,7 @@ actes          modeleCode, employeId?, reference, periode?, valeurs (record),
 | **R8** ✅ | bulletin / récapitulatif, téléchargement conditionnel, DIPE filtré, filtre d'immatriculation | — *(livré)* |
 | **R9** ✅ | Vue RH du barème, tranches TDL et RAV portées par le barème daté | — *(livré)* |
 | **R10** 🟡 | référentiel de fonctions ✅ · champ à saisie assistée ✅ · méthode d'envoi pré-remplie ✅ · **reste** : sociétés dès la création, période de congés affichée, routage d'envoi ligne à ligne | A6 pour le point ancienneté |
-| **R11** ✅ | générateur d'actes : 9 modèles, pré-remplissage depuis le bulletin, références numérotées, PDF sans en-tête, archivage | — *(livré)* |
+| **R11** 🟡 | générateur d'actes : **13 modèles**, pré-remplissage depuis le bulletin, références numérotées, PDF sans en-tête, archivage, identité juridique par société | T3, T4, T6 — *des confirmations, pas des blocages* |
 | R4 | allocation de congé | **une seule question** : comment compter la fraction de mois |
 | R6 | retenue médecins | M1, M2 — le comptable |
 
