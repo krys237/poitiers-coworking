@@ -229,6 +229,17 @@ export function Dipe() {
         </div>
       ) : null}
 
+      {vue && vue.nonImmatricules > 0 ? (
+        <div className="flex items-center gap-3 rounded-2xl border border-filet bg-bande px-4 py-3">
+          <InfoIcon className="h-5 w-5 shrink-0 text-ocean-ceruleen" aria-hidden="true" />
+          <p className="text-sm">
+            <strong>{vue.nonImmatricules} salarié(s) écarté(s) de cette déclaration</strong> faute
+            d'immatriculation aux impôts. Ils reçoivent un récapitulatif de paie et n'entrent pas au
+            DIPE. L'immatriculation se renseigne sur leur fiche, dans l'écran Employés.
+          </p>
+        </div>
+      ) : null}
+
       {vue && vue.assiettesReconstituees > 0 ? (
         <div className="flex items-center gap-3 rounded-2xl border border-filet bg-bande px-4 py-3">
           <InfoIcon className="h-5 w-5 shrink-0 text-ocean-ceruleen" aria-hidden="true" />

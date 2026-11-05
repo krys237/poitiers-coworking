@@ -112,7 +112,8 @@ async function buildPdf(input: BulletinPdfInput): Promise<Uint8Array> {
   txt(entreprise.nom, M, y - 13, 13, bold, SCEAU);
   const coord = [entreprise.adresse ?? "", `NIU ${entreprise.niu || "-"} · N° CNPS ${entreprise.numeroCnps || "-"}`];
   coord.forEach((l, i) => txt(l, M, y - 25 - i * 10, 8, font, GRIS));
-  txt("BULLETIN DU MOIS", M, y - 13, 12, bold, INK, "r", IW);
+  // Titre repris du bulletin : « Bulletin de paie » ou « Récapitulatif de paie » (lot R8).
+  txt(((b as any).titreDocument ?? "Bulletin de paie").toUpperCase(), M, y - 13, 12, bold, INK, "r", IW);
   txt(`Période du ${b.periodeDu ?? ""} au ${b.periodeAu ?? ""}`, M, y - 25, 8.5, font, GRIS, "r", IW);
   txt(`Paiement le ${b.datePaiement ?? ""} par banque`, M, y - 36, 8.5, bold, INK, "r", IW);
   row(44);
@@ -211,7 +212,8 @@ async function buildPdf(input: BulletinPdfInput): Promise<Uint8Array> {
   txt("Pour faire valoir vos droits, conservez ce bulletin sans limitation de durée.", bx + 6, y - BH + 6, 7, font, GRIS);
   row(BH); row(7);
   const valideLe = b.valideLe ? new Date(b.valideLe).toLocaleDateString("fr-FR") : "";
-  const mention = b.valide ? `BULLETIN VALIDÉ le ${valideLe} - mois clôturé, document définitif` : "BULLETIN NON VALIDÉ - document provisoire, le mois est encore ouvert";
+  const nature = ((b as any).titreDocument ?? "Bulletin de paie").toUpperCase();
+  const mention = b.valide ? `${nature} VALIDE le ${valideLe} - mois cloture, document definitif` : `${nature} NON VALIDE - document provisoire, le mois est encore ouvert`;
   page.drawRectangle({ x: M, y: y - 16, width: IW, height: 16, color: b.valide ? SCEAU_CLAIR : CARMIN_CLAIR, borderColor: b.valide ? SCEAU : CARMIN, borderWidth: 0.5 });
   txt(mention, M, y - 11, 8.5, bold, b.valide ? SCEAU : CARMIN, "c", IW);
   row(16); row(7);
@@ -353,6 +355,8 @@ export const pdfMonBulletin = action({
   args: { periode: v.string(), societe: v.optional(v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"))) },
   handler: async (ctx, { periode, societe }): Promise<{ pdf: ArrayBuffer; nomFichier: string }> => {
     const r: any = await ctx.runQuery(internal.mesBulletins.pourPdf, { periode, societe });
+    // Refus SERVEUR : l'écran masque le bouton, mais c'est ici que la règle est opposable.
+    if (r.statut && !r.statut.telechargeable) throw new Error(r.statut.motifRefus);
     const octets = await buildPdf({ bulletin: r.bulletin, periode, entreprise: r.entreprise });
     return { pdf: octets.buffer.slice(octets.byteOffset, octets.byteOffset + octets.byteLength) as ArrayBuffer, nomFichier: nomFichier(r.entreprise?.nom ?? "PAIE", r.nom, periode) };
   },

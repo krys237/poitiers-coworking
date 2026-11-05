@@ -14,6 +14,7 @@ import { SOCIETES } from "./lib/societes";
 
 const SOCIETE = v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"));
 import { rubriquesPourPeriode } from "./rubriques";
+import { statutDocument } from "./lib/immatriculation";
 import type { Assiettes } from "./lib/rubriques";
 import type { LigneCotisation, LigneGain } from "./lib/paie";
 
@@ -81,7 +82,12 @@ export const etat = query({
 
     // On construit TOUTES les lignes, puis on filtre : les compteurs par société restent justes
     // même quand l'écran n'affiche qu'un déclarant.
-    r.bulletins.forEach((b, i) => {
+    // Un salarié non immatriculé n'entre PAS dans la déclaration (demande du 22/10/2026).
+    // Le nombre d'écartés est rendu : un filtre silencieux est pire qu'un filtre visible.
+    const retenus = r.bulletins.filter((b) => statutDocument(b.immatriculeImpots).dansDipe);
+    const ecartes = r.bulletins.length - retenus.length;
+
+    retenus.forEach((b, i) => {
       const { assiettes, reconstituees: repli } = assiettesOuRepli(b.details, b.brut);
       if (repli) reconstituees++;
       const src: SourceBulletin = {
@@ -153,6 +159,8 @@ export const etat = query({
       recapitulatif: recapitulatifDipe(retenues),
       // Nombre de lignes dont les assiettes ont été reconstituées depuis un ancien snapshot.
       assiettesReconstituees: reconstituees,
+      // Salariés exclus de la déclaration faute d'immatriculation.
+      nonImmatricules: ecartes,
       // Salariés déclarés par PLUSIEURS sociétés ce mois-là : à expliquer au contrôleur, c'est du
       // pluri-emploi régulier et non une double déclaration.
       pluriEmployes: new Set(

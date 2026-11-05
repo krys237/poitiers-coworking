@@ -223,7 +223,7 @@ Le plus rentable, et rien ne le bloque.
 6. **« Gestionnaire RH » → « Responsable RH »** : `rbac.ts:27`. **Seul le libellé change** ; la clé
    technique `gestionnaire_rh` reste, sous peine d'invalider les rôles déjà attribués en base.
 
-### Lot R8 — Immatriculation et documents remis au salarié *(§4 à confirmer)*
+### Lot R8 — Immatriculation et documents remis au salarié ✅ **LIVRÉ le 05/11/2026**
 
 1. Drapeau **`immatriculeImpots`** sur l'identité déclarante de chaque société
    (`parametresEntreprise.societes`), et/ou sur le rattachement selon l'arbitrage.
@@ -361,7 +361,7 @@ actes          modeleCode, employeId?, reference, periode?, valeurs (record),
 | Lot | Contenu | Bloqué par |
 |---|---|---|
 | **R7** | corrections du planning, services, impression, libellé du rôle | — **rien** |
-| **R8** | bulletin / récapitulatif, téléchargement conditionnel, DIPE filtré | — *(tranché : l'immatriculation est celle de l'employé ; le champ est livré en R7)* |
+| **R8** ✅ | bulletin / récapitulatif, téléchargement conditionnel, DIPE filtré, filtre d'immatriculation | — *(livré)* |
 | **R9** ✅ | Vue RH du barème, tranches TDL et RAV portées par le barème daté | — *(livré)* |
 | **R10** | référentiel de fonctions, sélecteur d'employé, sociétés à la création, méthode d'envoi | — rien *(sauf le point 6, qui attend A6)* |
 | **R11** | générateur d'actes | les quatre précisions du §6 |

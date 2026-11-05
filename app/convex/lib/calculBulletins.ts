@@ -12,6 +12,7 @@
 import { QueryCtx, MutationCtx } from "../_generated/server";
 import { Doc, Id } from "../_generated/dataModel";
 import { rubriquesPourPeriode } from "../rubriques";
+import { statutDocument } from "./immatriculation";
 import { CHAMP_SAISIE_VERS_RUBRIQUE } from "./rubriques";
 import { computeBulletin, SaisieMois, Bareme, LigneGain, LigneCotisation, Extras, DetailsBulletin } from "./paie";
 import {
@@ -49,6 +50,13 @@ export interface BulletinPeriode {
   /** Nombre de sociétés qui rémunèrent cet employé ce mois-là (1 = cas courant). */
   nbSocietes: number;
   salaireBase: number;    // salaire de base mensuel VERSÉ PAR CETTE SOCIÉTÉ
+  /**
+   * Immatriculation fiscale du salarié (lot R8) : décide du titre du document, du droit au PDF
+   * et de la présence au DIPE. Portée par la FICHE et non par le rattachement — l'arbitrage du
+   * 04/11/2026 dit que c'est l'immatriculation de l'employé, pas celle de la société.
+   */
+  immatriculeImpots?: boolean;
+  titreDocument: string;
   baremeId: Id<"baremes">;
   brut: number;
   totalRetenues: number;
@@ -126,6 +134,8 @@ function identite(e: Doc<"employes">, r: Rattachement, nbSocietes: number) {
     societe: r.societe,
     nbSocietes,
     salaireBase: r.salaireBase,
+    immatriculeImpots: e.immatriculeImpots,
+    titreDocument: statutDocument(e.immatriculeImpots).titre,
   };
 }
 

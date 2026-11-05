@@ -32,6 +32,10 @@ import { messageErreur, num } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageEnTete } from "@/components/app/en-tete";
 import { GrilleTuiles, Tuile } from "@/components/app/tuile";
+import {
+  LIBELLE_IMMATRICULATION, repartitionImmatriculation, statutDocument,
+  type EtatImmatriculation,
+} from "../../convex/lib/immatriculation";
 import { Montant } from "@/components/app/montant";
 import { CelluleNombre } from "@/components/app/champs";
 import { SqueletteTableau } from "@/components/app/chargement";
@@ -74,6 +78,9 @@ export function Employes() {
   const [societe, setSociete] = React.useState<Societe | "toutes">("toutes");
   const [etat, setEtat] = React.useState<"actifs" | "inactifs" | "tous">("actifs");
   const [recherche, setRecherche] = React.useState("");
+  // Filtre d'immatriculation (lot R8) : trois états, car « non renseigné » n'est pas
+  // « non immatriculé » — c'est justement ce que la RH doit pouvoir isoler pour compléter.
+  const [immat, setImmat] = React.useState<EtatImmatriculation | "tous">("tous");
   // Une seule fiche dépliée à la fois : le tableau reste lisible.
   const [deplie, setDeplie] = React.useState<string | null>(null);
   const peutFaire = usePeut("/employes", "faire");
@@ -102,7 +109,9 @@ export function Employes() {
       return r.length ? r.some((x) => x.societe === societe) : e.societe === societe;
     })
     .filter((e) => !q || sansAccents(`${e.nom} ${e.matricule} ${e.fonction ?? ""} ${e.cnps ?? ""}`).includes(q))
+    .filter((e) => immat === "tous" || statutDocument(e.immatriculeImpots).etat === immat)
     .sort((a, b) => a.nom.localeCompare(b.nom));
+  const repartition = repartitionImmatriculation(actifs);
   const sansDate = actifs.filter((e) => !e.dateDebut).length;
   const sansCnps = actifs.filter((e) => !e.cnps).length;
   const masseBase = actifs.reduce((s, e) => s + (e.salaireBase ?? e.salaireBrut ?? 0), 0);
@@ -163,7 +172,8 @@ export function Employes() {
         <Tuile libelle="Par société" valeur={employes ? <span className="font-mono text-lg tabular-nums">{parSociete("SESAME")} · {parSociete("SOFINA")} · {parSociete("SGC")}</span> : undefined} note="SESAME · SOFINA · SGC" />
         <Tuile libelle="Masse des salaires de base" valeur={employes ? <Montant valeur={masseBase} zero="0" /> : undefined} note="hors primes · salariés actifs" />
         <Tuile libelle="Pluri-emploi" valeur={employes && rattachements ? pluriEmployes : undefined} note="salariés payés par 2 ou 3 sociétés · un bulletin et un DIPE par société" />
-        <Tuile libelle="Fiches à compléter" valeur={employes ? sansDate + sansCnps : undefined} note="date d'entrée ou n° CNPS manquant" />
+        <Tuile libelle="Fiches à compléter" valeur={employes ? sansDate + sansCnps + repartition.non_renseigne : undefined} note="date d'entrée, n° CNPS ou immatriculation manquants" ton={employes && repartition.non_renseigne ? "attente" : "neutre"} />
+        <Tuile libelle="Immatriculés aux impôts" valeur={employes ? repartition.immatricule : undefined} note={employes ? `${repartition.non_immatricule} non immatriculé(s) · ${repartition.non_renseigne} à renseigner` : undefined} />
       </GrilleTuiles>
 
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-filet bg-surface px-3 py-2 shadow-xs print:hidden">
@@ -188,6 +198,19 @@ export function Employes() {
         <div className="relative w-56">
           <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-encre-pale" aria-hidden="true" />
           <Input type="search" value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Nom, matricule, fonction, CNPS…" aria-label="Rechercher un employé" className="h-8 pl-8" />
+        </div>
+        <div className="w-full min-[480px]:w-auto">
+          <Select value={immat} onValueChange={(v) => setImmat(v as EtatImmatriculation | "tous")}>
+            <SelectTrigger className="h-8 w-full min-[480px]:w-52" aria-label="Immatriculation aux impôts">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tous">Toute immatriculation</SelectItem>
+              {(["immatricule", "non_immatricule", "non_renseigne"] as EtatImmatriculation[]).map((k) => (
+                <SelectItem key={k} value={k}>{LIBELLE_IMMATRICULATION[k]} ({repartition[k]})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

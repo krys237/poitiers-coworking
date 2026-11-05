@@ -39,6 +39,7 @@ import type * as lib_congesOuvrables from "../lib/congesOuvrables.js";
 import type * as lib_courrier from "../lib/courrier.js";
 import type * as lib_dipe from "../lib/dipe.js";
 import type * as lib_fenetre from "../lib/fenetre.js";
+import type * as lib_immatriculation from "../lib/immatriculation.js";
 import type * as lib_journal from "../lib/journal.js";
 import type * as lib_journalFamilles from "../lib/journalFamilles.js";
 import type * as lib_joursFeriesCameroun from "../lib/joursFeriesCameroun.js";
@@ -107,6 +108,7 @@ declare const fullApi: ApiFromModules<{
   "lib/courrier": typeof lib_courrier;
   "lib/dipe": typeof lib_dipe;
   "lib/fenetre": typeof lib_fenetre;
+  "lib/immatriculation": typeof lib_immatriculation;
   "lib/journal": typeof lib_journal;
   "lib/journalFamilles": typeof lib_journalFamilles;
   "lib/joursFeriesCameroun": typeof lib_joursFeriesCameroun;

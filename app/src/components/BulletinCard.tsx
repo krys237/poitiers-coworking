@@ -55,7 +55,7 @@ export function BulletinCard({ b, entreprise, page }: { b: any; entreprise: any;
       <EnTeteDocument
         raisonSociale={entreprise?.nom ?? "ENTREPRISE"}
         coordonnees={<>{entreprise?.adresse}<br />NIU {entreprise?.niu || "—"} · N° CNPS {entreprise?.numeroCnps || "—"}</>}
-        nature={<>BULLETIN DU MOIS<span className="periode">Période du {b.periodeDu} au {b.periodeAu}</span><span className="paiement">Paiement le {b.datePaiement} par banque</span></>}
+        nature={<>{(b.titreDocument ?? "Bulletin de paie").toUpperCase()}<span className="periode">Période du {b.periodeDu} au {b.periodeAu}</span><span className="paiement">Paiement le {b.datePaiement} par banque</span></>}
       />
 
       <div className="doc-zone">
@@ -129,7 +129,11 @@ export function BulletinCard({ b, entreprise, page }: { b: any; entreprise: any;
           </CaseDocument>
         </CasesDocument>
         <p className="doc-mention" data-etat={b.valide ? "valide" : "provisoire"}>
-          {b.valide ? `BULLETIN VALIDÉ le ${fmtDate(b.valideLe)} — mois clôturé, document définitif` : "BULLETIN NON VALIDÉ — document provisoire, le mois est encore ouvert"}
+          {/* « Bulletin » ou « Récapitulatif » selon l'immatriculation du salarié (lot R8) :
+              un récapitulatif n'est pas un bulletin de paie et ne doit pas s'en réclamer. */}
+          {b.valide
+            ? `${(b.titreDocument ?? "Bulletin de paie").toUpperCase()} VALIDÉ le ${fmtDate(b.valideLe)} — mois clôturé, document définitif`
+            : `${(b.titreDocument ?? "Bulletin de paie").toUpperCase()} NON VALIDÉ — document provisoire, le mois est encore ouvert`}
         </p>
       </div>
 
