@@ -19,6 +19,7 @@ import { api } from "../../../convex/_generated/api";
 import { LIBELLE_OBSERVATION, OBSERVATIONS } from "../../../convex/lib/planningAnnuel";
 import { cn } from "@/lib/utils";
 import { GrilleTuiles, Tuile } from "@/components/app/tuile";
+import { Montant } from "@/components/app/montant";
 import { BoutonAction } from "@/components/app/bouton-action";
 import { Button } from "@/components/ui/button";
 import { Flag } from "@/components/ui/flag";
@@ -440,6 +441,9 @@ export function FriseAnnuelle() {
               <TableHead className="text-right">Principal</TableHead>
               <TableHead className="text-right">Supplément.</TableHead>
               <TableHead className="text-right">Total</TableHead>
+              {/* Lot R4 : l'allocation au 1/16. Le montant affiché est une ESTIMATION —
+                  l'ancienneté, qui entre dans l'assiette, vit dans la saisie mensuelle. */}
+              <TableHead className="text-right">Allocation</TableHead>
               <TableHead>Rappel {annee - 1}</TableHead>
               <TableHead>Départ</TableHead>
               <TableHead>Retour</TableHead>
@@ -451,7 +455,7 @@ export function FriseAnnuelle() {
           </TableHeader>
           <TableBody>
             {!lignes.length ? (
-              <TableVide colonnes={12}>Aucun employé.</TableVide>
+              <TableVide colonnes={13}>Aucun employé.</TableVide>
             ) : (
               lignes.map((l) => {
                 const ev = l.evenements[0];
@@ -477,6 +481,21 @@ export function FriseAnnuelle() {
                       ) : null}
                     </TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">{l.totalConge}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {l.allocation ? (
+                        <span
+                          className="cursor-help border-b border-dotted border-encre-pale"
+                          title={l.allocation.detail.join("\n")}
+                        >
+                          <Montant valeur={l.allocation.montant} />
+                          {l.allocation.plafonne ? (
+                            <span className="ml-1 text-ocre" title={`Période écrêtée de ${l.allocation.nBrut.toFixed(1)} à ${l.allocation.n} mois`}>✱</span>
+                          ) : null}
+                        </span>
+                      ) : (
+                        <span className="text-encre-pale">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-xs text-encre-pale">
                       {l.rappelAnneePrecedente
                         ? `${fmtCourt(l.rappelAnneePrecedente.debut)} → ${fmtCourt(l.rappelAnneePrecedente.fin)}`

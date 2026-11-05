@@ -261,6 +261,12 @@ export default defineSchema({
     atmpPlafonne: v.optional(v.boolean()),              // C3 : la loi ne plafonne PAS l'AT/MP
     cfcPatronalEtFneSurBrut: v.optional(v.boolean()),   // C4 : base = salaire brut
     seuilExoneration: v.optional(v.number()),           // C6 : 62 000, retenues SALARIALES seules
+    // Allocation de congé (lot R4) — arbitrages du 05/11/2026, portés par le barème daté.
+    allocationPlafondMois: v.optional(v.number()),                 // 16 mois → 24 j de principal
+    allocationMoisAvantPremierConge: v.optional(v.number()),       // 24 mois avant le 1er congé
+    allocationConventionFraction: v.optional(v.union(
+      v.literal("jours_du_mois"), v.literal("trente"), v.literal("trente_virgule_44"),
+    )),
     groupeRisqueAtmp: v.optional(v.union(v.literal("A"), v.literal("B"), v.literal("C"))), // C8
     source: v.string(),               // origine du barème
     controleLe: v.optional(v.string()),

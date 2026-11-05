@@ -334,11 +334,46 @@ check(
 titre("Droit à congé annuel (art. 89 et 90)");
 const base = droitConge({ moisDeService: 12, dateDepart: "2026-01-05" });
 check("12 mois × 1,5 j = 18 jours — le « congé principal » de la RH", base.total === 18, base);
-check("droit à la jouissance ouvert à 12 mois", base.droitOuvert === true);
-check(
-  "droit non ouvert à 11 mois (art. 92)",
-  droitConge({ moisDeService: 11, dateDepart: "2026-01-05" }).droitOuvert === false,
-);
+// Arbitrage du 05/11/2026 : le premier congé s'ouvre après 24 mois, et non 12.
+check("à 12 mois, la jouissance n'est PLUS ouverte — le seuil est passé à 24",
+  base.droitOuvert === false, base.moisPourJouissance);
+check("droit non ouvert à 11 mois non plus",
+  droitConge({ moisDeService: 11, dateDepart: "2026-01-05" }).droitOuvert === false);
+check("ouvert à 24 mois",
+  droitConge({ moisDeService: 24, dateDepart: "2026-01-05" }).droitOuvert === true);
+
+titre("La jouissance se juge sur l'ANCIENNETÉ TOTALE, pas sur les mois de l'année");
+// Le piège : sur le planning annuel, `moisDeService` est borné à 12 par construction. Comparer
+// ces 12 mois à un seuil de 24 rendrait le droit fermé pour TOUT LE MONDE, y compris un salarié
+// présent depuis dix ans. C'est le défaut que ce découplage évite.
+const ancienDixAns = droitConge({
+  moisDeService: moisDeServiceSurAnnee("2016-03-01", 2026),
+  dateDepart: "2026-11-02",
+  dateEmbauche: "2016-03-01",
+});
+check("présent depuis dix ans, 12 mois de service sur l'année : le droit EST ouvert",
+  ancienDixAns.droitOuvert === true, ancienDixAns.moisPourJouissance);
+check("et son principal reste à 18 j — les mois de l'année font le droit, pas l'ancienneté",
+  ancienDixAns.principal === 18, ancienDixAns.principal);
+const embaucheRecente = droitConge({
+  moisDeService: moisDeServiceSurAnnee("2025-06-01", 2026),
+  dateDepart: "2026-11-02",
+  dateEmbauche: "2025-06-01",
+});
+check("embauché il y a 17 mois : 12 mois sur l'année, mais le droit n'est PAS ouvert",
+  embaucheRecente.droitOuvert === false, embaucheRecente.moisPourJouissance);
+check("le détail dit combien de mois manquent",
+  embaucheRecente.detail.some((l) => l.includes("non encore ouvert")), embaucheRecente.detail);
+check("`moisDepuisEmbauche` peut aussi être fourni directement",
+  droitConge({ moisDeService: 12, dateDepart: "2026-01-05", moisDepuisEmbauche: 30 }).droitOuvert === true);
+
+titre("Le plafond de 16 mois sur le principal (arbitrage R-3b)");
+check("16 mois donnent 24 jours de principal",
+  droitConge({ moisDeService: 16, dateDepart: "2026-01-05" }).principal === 24);
+check("au-delà, la période est écrêtée et le principal plafonne à 24",
+  droitConge({ moisDeService: 70, dateDepart: "2026-01-05" }).principal === 24);
+check("l'écrêtage est dit dans le détail, pas silencieux",
+  droitConge({ moisDeService: 70, dateDepart: "2026-01-05" }).detail.some((l) => l.includes("écrêtée")));
 
 // Ancienneté : 2 jours par tranche entière de 5 ans.
 const anc = (embauche: string) =>

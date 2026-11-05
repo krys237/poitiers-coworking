@@ -13,6 +13,11 @@
 // calibration sur le planning réel de la RH a montré que l'ensemble des fériés effectivement
 // appliqués est un paramètre d'entreprise (voir `docs/rh/CALIBRATION-PLANNING.md`).
 
+// `.ts` explicite : ce module est exécuté DIRECTEMENT par les tests (node --experimental-strip-types),
+// qui n'ont pas de résolveur d'extension. Même convention que `absences.ts` → `absencesLegales.ts`.
+// L'import est à sens unique : `allocationConge` ne dépend de rien d'ici.
+import { moisEntre } from "./allocationConge.ts";
+
 /** Jour férié. `chome: false` = férié travaillé dans l'entreprise, donc décompté normalement. */
 export interface JourFerie {
   date: string; // "YYYY-MM-DD"
@@ -167,6 +172,8 @@ export interface ReglesDroitConge {
   seuilCongePrincipalReduit: number;
   /** Ancienneté minimale ouvrant le droit à la JOUISSANCE du congé, en mois (art. 92). */
   moisAvantJouissance: number;
+  /** Plafond de la période de référence, en mois (16 → 24 j de principal). */
+  plafondMois: number;
 }
 
 export const REGLES_DROIT_DEFAUT: ReglesDroitConge = {
@@ -178,7 +185,12 @@ export const REGLES_DROIT_DEFAUT: ReglesDroitConge = {
   joursParEnfant: 2,
   ageEnfantMax: 6,
   seuilCongePrincipalReduit: 6,
-  moisAvantJouissance: 12,
+  // Arbitrage du 05/11/2026 (A-VERIFIER R-3c) : le premier congé s'ouvre après 24 mois, et non
+  // 12. ⚠️ Les trois contrats de travail promettent encore « 12 mois consécutifs » — voir R-6a.
+  moisAvantJouissance: 24,
+  // Plafond de la période de référence (R-3b) : 16 mois → 24 jours de principal. Garde-fou
+  // général, qui ne joue pas sur le planning ANNUEL où les mois sont déjà bornés à 12.
+  plafondMois: 16,
 };
 
 export interface Enfant {
@@ -195,11 +207,19 @@ export interface DroitCongeArgs {
   /** La majoration pour enfants est réservée aux mères salariées (art. 90). */
   sexe?: "F" | "M";
   enfants?: Enfant[];
+  /**
+   * Mois de service depuis l'embauche. Sert au SEUL seuil de jouissance, qui se juge sur
+   * l'ancienneté totale et non sur les mois de l'année de référence. Déduit de `dateEmbauche`
+   * quand il n'est pas fourni.
+   */
+  moisDepuisEmbauche?: number;
   regles?: Partial<ReglesDroitConge>;
 }
 
 export interface DroitConge {
   principal: number;
+  /** Mois retenus pour juger la jouissance — ancienneté totale, pas les mois de l'année. */
+  moisPourJouissance: number;
   majAnciennete: number;
   majEnfants: number;
   total: number;
@@ -258,11 +278,13 @@ export function droitConge(args: DroitCongeArgs): DroitConge {
   const jeune =
     args.dateNaissance !== undefined && ageA(args.dateNaissance, args.dateDepart) < r.ageJeune;
   const taux = jeune ? r.joursParMoisJeune : r.joursParMois;
-  const mois = Math.max(0, args.moisDeService);
+  const moisBruts = Math.max(0, args.moisDeService);
+  const mois = Math.min(moisBruts, r.plafondMois);
   const principal = taux * mois;
   detail.push(
     `Congé principal : ${taux} j × ${mois} mois de service = ${principal} j` +
-      (jeune ? ` (taux majoré, travailleur de moins de ${r.ageJeune} ans)` : ""),
+      (jeune ? ` (taux majoré, travailleur de moins de ${r.ageJeune} ans)` : "") +
+      (mois < moisBruts ? ` — période écrêtée de ${moisBruts} à ${r.plafondMois} mois` : ""),
   );
 
   let anneesAnciennete = 0;
@@ -297,10 +319,18 @@ export function droitConge(args: DroitCongeArgs): DroitConge {
   const total = arrondirSuperieur(brut);
   if (total !== brut) detail.push(`Arrondi au nombre entier supérieur : ${brut} → ${total} j`);
 
-  const droitOuvert = mois >= r.moisAvantJouissance;
+  // ⚠️ La jouissance se juge sur l'ancienneté TOTALE, et non sur les mois de service de l'année.
+  // Sur le planning annuel, `moisDeService` est borné à 12 par construction (`moisDeServiceSurAnnee`)
+  // : comparer ces 12 mois au seuil de 24 le rendrait faux pour TOUT LE MONDE, y compris un
+  // salarié présent depuis dix ans. On prend donc les mois depuis l'embauche quand on les
+  // connaît, et on retombe sur `moisDeService` sinon — faute de mieux.
+  const moisDepuisEmbauche = args.moisDepuisEmbauche
+    ?? (args.dateEmbauche ? moisEntre(args.dateEmbauche, args.dateDepart) : null);
+  const moisPourJouissance = moisDepuisEmbauche ?? moisBruts;
+  const droitOuvert = moisPourJouissance >= r.moisAvantJouissance;
   if (!droitOuvert)
     detail.push(
-      `⚠️ Droit à la jouissance non encore ouvert : ${mois} mois de service sur ${r.moisAvantJouissance} requis (art. 92)`,
+      `⚠️ Droit à la jouissance non encore ouvert : ${moisPourJouissance} mois de service sur ${r.moisAvantJouissance} requis (décision du 05/11/2026)`,
     );
 
   return {
@@ -311,6 +341,7 @@ export function droitConge(args: DroitCongeArgs): DroitConge {
     anneesAnciennete,
     enfantsRetenus,
     droitOuvert,
+    moisPourJouissance,
     detail,
   };
 }

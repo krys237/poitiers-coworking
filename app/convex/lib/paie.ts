@@ -74,6 +74,16 @@ export interface Bareme {
    * dès qu'il y a un salaire ».
    */
   seuilExoneration?: number;
+  /**
+   * Règles de l'allocation de congé (lot R4), portées par le barème DATÉ pour que les arbitrages
+   * du 05/11/2026 restent réversibles sans intervention technique — et pour qu'un mois rejoué
+   * avec son barème d'époque redonne exactement les mêmes chiffres.
+   *
+   * `conventionFraction` est le seul point que personne n'a tranché : voir A-VERIFIER R-5.
+   */
+  allocationPlafondMois?: number;
+  allocationMoisAvantPremierConge?: number;
+  allocationConventionFraction?: "jours_du_mois" | "trente" | "trente_virgule_44";
   /** C8 — groupe de risque AT/MP de l'établissement ; prime sur `tauxAtmp` s'il est renseigné. */
   groupeRisqueAtmp?: "A" | "B" | "C";
   /**
@@ -125,6 +135,17 @@ export interface Extras {
   rubriques?: Record<string, number>;
   /** C9 — exonération « jeunes de moins de 35 ans » (LF 2026) : charges fiscales et patronales. */
   exonereJeune?: boolean;
+  /**
+   * Allocation de congé calculée au 1/16 (lot R4), qui REMPLACE l'indemnité proratisée.
+   *
+   * Les deux ne mesurent pas la même chose. `journalier × congesPris` proratise le salaire du
+   * mois ; l'allocation légale vaut `N × (salaire de base + ancienneté) ÷ 16`, où N est la
+   * période de référence — elle ne dépend donc pas du nombre de jours pris ce mois-ci.
+   *
+   * Absent → on garde la proratisation, ce qui laisse intacts les mois calculés avant R4.
+   * Voir `lib/allocationConge.ts` et A-VERIFIER R-5.
+   */
+  allocationConge?: number;
 }
 
 export interface LigneGain { code: string; libelle: string; base: number; gain: number; }
@@ -133,6 +154,8 @@ export interface LigneCotisation { code: string; libelle: string; base: number; 
 export interface DetailsBulletin {
   salaireJournalier: number; salaireBase: number; joursTravailles: number;
   congesAcquis: number; congesPris: number; congesRestants: number; indemniteConges: number;
+  /** Vrai si `indemniteConges` porte l'allocation légale au 1/16, et non la proratisation. */
+  allocationLegale?: boolean;
   primes: number; heuresSup: number; anciennete: number;
   /** OPTIONNEL : les snapshots des mois clôturés avant le 21/10/2026 ne le portent pas. */
   ancienneteSeparee?: number;
@@ -238,7 +261,10 @@ export function computeBulletin(salaireBaseRef: number, s: SaisieMois, b: Bareme
   // 1. Salaire journalier, salaire de base, indemnité de congés.
   const journalier = salaireBaseRef / joursBase;
   const salaireBase = Math.round(journalier * s.joursTravailles);
-  const indemniteConges = Math.round(journalier * (s.congesPris || 0));
+  // L'allocation légale prime sur la proratisation quand elle est fournie — voir `Extras`.
+  const indemniteConges = extras.allocationConge !== undefined
+    ? Math.round(extras.allocationConge)
+    : Math.round(journalier * (s.congesPris || 0));
   const congesRestants = s.congesRestants ?? Math.max(0, (s.congesAcquis || 0) - (s.congesPris || 0));
 
   // 2. Gains — liste fixe (toujours présente, même à zéro) + lignes libres du registre.
@@ -377,6 +403,7 @@ export function computeBulletin(salaireBaseRef: number, s: SaisieMois, b: Bareme
     details: {
       salaireJournalier: Math.round(journalier), salaireBase, joursTravailles: s.joursTravailles,
       congesAcquis: s.congesAcquis || 0, congesPris: s.congesPris || 0, congesRestants, indemniteConges,
+      allocationLegale: extras.allocationConge !== undefined,
       primes, heuresSup: s.heuresSup, anciennete: s.anciennete, ancienneteSeparee,
       total1, total2, brutTaxable, baseCnps, mutuelle, acompteImpotsCnps, chargesSalariales, chargesPatronales,
       irpp, cac, tdl, rav, cnpsSalarie, assiettes, exonereSalarial,
@@ -413,4 +440,7 @@ export const BAREME_DEFAUT: Bareme = {
   atmpPlafonne: false,             // C3 : la loi ne plafonne pas l'assiette AT/MP
   cfcPatronalEtFneSurBrut: true,   // C4
   seuilExoneration: 62000,         // C6, tranché le 20/10/2026
+  allocationPlafondMois: 16,              // R-3b, tranché le 05/11/2026 (16 et non 15)
+  allocationMoisAvantPremierConge: 24,    // R-3c, tranché le 05/11/2026
+  allocationConventionFraction: "jours_du_mois", // R-5 : retenu par défaut, à confirmer
 };

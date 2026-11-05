@@ -15,8 +15,10 @@
 > **R-2b** (le plancher de 62 000 est inclusif). **R-2c est abandonné** : les assiettes des
 > indemnités restent celles de son fichier.
 >
-> **Reste à construire, sans attendre personne :** R4, R6, les cinq demandes **N1 → N5**, et les
-> restes de R10 et R11.
+>
+> **Reste à construire, sans attendre personne :** R6, les cinq demandes **N1 → N5**, et les restes
+> de R10 et R11. Les deux conséquences **R-6a** (les contrats promettent 12 mois, la règle en
+> applique 24) et **R-6b** (la 1re ligne de D1 se corrige au 07/04) attendent une relecture.
 
 ## R. Réponses de la RH et de la Direction — séance du 05/11/2026
 
@@ -699,7 +701,7 @@ non par voie électronique, qui demanderait une autre conception).
 | **R2 bis** | multi-société : un bulletin par société, un DIPE par déclarant | — *(B2 tranché)* |
 | **R2** ✅ | table `rubriquesPaie` datée + les quatre assiettes + corrections C1→C10 | — *(livré ; reste à renseigner B5, qui n'est plus bloquant)* |
 | **R3** ✅ | écran DIPE + export CSV + récapitulatif par destinataire + rapport d'écart typé | — *(livré)* |
-| **R4** | allocation de congé (1/16) + liaison planning → paie | — *(plus rien : arbitré en **R-5**)* |
+| **R4** ✅ | allocation de congé (1/16) + liaison planning → paie en jours ouvrables | — *(livré le 05/11/2026)* |
 | **R5** ✅ | absences élargies (maternité, AT/MP, chômage technique, permissions, sans solde, mise à pied, formation syndicale) | — *(livré)* |
 | **R6** | retenue à la source médecins | — *(plus rien : 5,5 % et 11 %, les 30 % en règle figée)* |
 | **R7** ✅ | droit à congé proratisé sur l'année (correction du décompte depuis l'embauche) | — *(livré)* |

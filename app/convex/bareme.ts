@@ -39,6 +39,12 @@ const valeursV = v.object({
   cfcPatronalEtFneSurBrut: v.optional(v.boolean()), seuilExoneration: v.optional(v.number()),
   groupeRisqueAtmp: v.optional(v.union(v.literal("A"), v.literal("B"), v.literal("C"))),
   tdlBareme: v.optional(v.array(v.object({ jusqua: v.union(v.number(), v.null()), montant: v.number() }))), ravBareme: v.optional(v.array(v.object({ jusqua: v.union(v.number(), v.null()), montant: v.number() }))),
+  // Allocation de congé (lot R4) : absentes = les valeurs arbitrées du 05/11/2026.
+  allocationPlafondMois: v.optional(v.number()),
+  allocationMoisAvantPremierConge: v.optional(v.number()),
+  allocationConventionFraction: v.optional(v.union(
+    v.literal("jours_du_mois"), v.literal("trente"), v.literal("trente_virgule_44"),
+  )),
 });
 
 // Nouvelle version datée (DG). Sans `valeurs` : BAREME_DEFAUT (amorçage).
@@ -65,6 +71,9 @@ export const upsert = mutation({
       cfcPatronalEtFneSurBrut: b.cfcPatronalEtFneSurBrut, seuilExoneration: b.seuilExoneration,
       groupeRisqueAtmp: b.groupeRisqueAtmp,
       tdlBareme: b.tdlBareme, ravBareme: b.ravBareme,
+      allocationPlafondMois: b.allocationPlafondMois,
+      allocationMoisAvantPremierConge: b.allocationMoisAvantPremierConge,
+      allocationConventionFraction: b.allocationConventionFraction,
       source, controleLe: new Date().toISOString(), statut: "actif",
     });
     await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "bareme_version", cible: effectiveFrom, detail: source });

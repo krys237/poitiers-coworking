@@ -20,6 +20,8 @@ import {
   type Rattachement, type Societe,
 } from "./societes";
 import { resumeMois, CONGES_PAR_MOIS_DEFAUT } from "./absences";
+import { indexFeries } from "./congesOuvrables";
+import { allocationConge, congePayeDuMois } from "./allocationConge";
 import { bornesPeriode } from "./periode";
 
 type Ctx = QueryCtx | MutationCtx;
@@ -192,6 +194,20 @@ export async function bulletinsPourPeriode(ctx: Ctx, periode: string): Promise<{
   const bareme = { ...baremeFromDoc(baremeDoc), rubriques: await rubriquesPourPeriode(ctx, periode) };
   const congesParMois = params?.congesParMois ?? CONGES_PAR_MOIS_DEFAUT;
 
+  // Bascule du lot R4 : les congés payés se comptent désormais en jours OUVRABLES, ce qui exige
+  // le calendrier des fériés de l'année de la période. S'il n'est pas encore initialisé, on
+  // retombe sur le décompte CALENDAIRE plutôt que de refuser de produire un bulletin — un
+  // calendrier manquant est un défaut de paramétrage, pas une raison de bloquer la paie. L'écran
+  // Planning annuel le réclame par un bandeau.
+  const anneePeriode = +periode.slice(0, 4);
+  const feriesLignes = await ctx.db
+    .query("joursFeries")
+    .withIndex("by_annee", (q) => q.eq("annee", anneePeriode))
+    .collect();
+  const feries = feriesLignes.length
+    ? indexFeries(feriesLignes.map((f) => ({ date: f.date, chome: f.chome })))
+    : undefined;
+
   const employes = (await ctx.db.query("employes").collect()).filter((e) => e.actif).sort((a, b) => a.nom.localeCompare(b.nom));
   const bulletins: BulletinPeriode[] = [];
   for (const e of employes) {
@@ -202,7 +218,7 @@ export async function bulletinsPourPeriode(ctx: Ctx, periode: string): Promise<{
     // même résumé mensuel sert aux deux bulletins. Ce que chaque société saisit à part, c'est ses
     // propres montants (salaire de base, primes, acompte…).
     const evs = await ctx.db.query("absences").withIndex("by_employe", (q) => q.eq("employeId", e._id)).collect();
-    const r = resumeMois({ employe: e, evenements: evs, periode, congesParMois });
+    const r = resumeMois({ employe: e, evenements: evs, periode, congesParMois, feries });
     const saisies = await ctx.db.query("saisiesMensuelles")
       .withIndex("by_employe_periode", (q) => q.eq("employeId", e._id).eq("periode", periode)).collect();
 
@@ -223,7 +239,32 @@ export async function bulletinsPourPeriode(ctx: Ctx, periode: string): Promise<{
         const montant = (saisie as Record<string, unknown> | null | undefined)?.[champ];
         if (typeof montant === "number" && montant) rubriquesSaisies[code] = montant;
       }
-      const extras = { ...(await extrasPour(ctx, e._id, periode, rat.societe, principale)), rubriques: rubriquesSaisies };
+      // L'allocation de congé au 1/16 (lot R4), rattachée au mois du DÉPART. Elle remplace la
+      // proratisation `journalier × joursPris`, qui ne mesurait pas la même chose.
+      //
+      // L'assiette est `salaire de base + ancienneté` : c'est l'assiette `allocConge` du
+      // catalogue, confirmée par la RH le 05/11/2026 (A-VERIFIER A3) contre la lecture plus large
+      // de l'art. 73. Elle est reconstituée ici plutôt que lue sur le bulletin, le bulletin
+      // dépendant lui-même de l'allocation.
+      const conge = congePayeDuMois(evs, periode);
+      const alloc = conge
+        ? allocationConge({
+            assiette: rat.salaireBase + (saisie?.anciennete ?? 0),
+            dateDepart: conge.depart,
+            dateRetourPrecedent: conge.retourPrecedent,
+            dateEmbauche: e.dateDebut,
+            regles: {
+              ...(bareme.allocationPlafondMois !== undefined ? { plafondMois: bareme.allocationPlafondMois } : {}),
+              ...(bareme.allocationMoisAvantPremierConge !== undefined ? { moisAvantPremierConge: bareme.allocationMoisAvantPremierConge } : {}),
+              ...(bareme.allocationConventionFraction !== undefined ? { conventionFraction: bareme.allocationConventionFraction } : {}),
+            },
+          })
+        : null;
+      const extras = {
+        ...(await extrasPour(ctx, e._id, periode, rat.societe, principale)),
+        rubriques: rubriquesSaisies,
+        ...(alloc ? { allocationConge: alloc.montant } : {}),
+      };
       // Chaque couple appelle le moteur SÉPARÉMENT : plafond CNPS et tranches d'IRPP par employeur.
       const calc = computeBulletin(rat.salaireBase, s, bareme, extras);
       bulletins.push({

@@ -125,7 +125,7 @@ formulées pour la RH et le comptable dans `app/docs/rh/QUESTIONS-A-TRANCHER.md`
 | **R2** | table `rubriquesPaie` datée + les quatre assiettes + corrections C1 → C10 | ✅ livré | — |
 | **R2 bis** | **multi-société : table `rattachements`, un bulletin par société, un DIPE par déclarant** | ✅ livré | — |
 | **R3** | écran DIPE + export CSV + récapitulatif par destinataire + rapport d'écart typé | ✅ livré | — |
-| **R4** | allocation de congé (1/16) + liaison planning → paie | à faire | **A1**, **A2** — la RH tranche |
+| **R4** | allocation de congé (1/16) + liaison planning → paie | ✅ livré | — *(arbitré le 05/11/2026)* |
 | **R5** | absences élargies : maternité, AT/MP, chômage technique, permissions, sans solde, mise à pied, formation syndicale | ✅ livré | — |
 | **R6** | retenue à la source sur les honoraires des médecins | à faire | **M1**, **M2** — le comptable tranche |
 | **R7** | droit à congé proratisé sur l'année, services gérables, impression du planning | ✅ livré | — |
@@ -154,6 +154,7 @@ retombe sur l'ancien comportement quand le champ est absent. Un push peut donc s
 | R9 | — | `baremes` : tdlBareme, ravBareme |
 | R10 | `fonctions` | `employes` : methodeEnvoi |
 | R11 | `modelesActes`, `actes` | `parametresEntreprise` : **dirigeant**, **registreCommerce** · `parametresEntreprise.societes[]` : **dirigeant**, **registreCommerce** |
+| R4 | — | `baremes` : **allocationPlafondMois**, **allocationMoisAvantPremierConge**, **allocationConventionFraction** |
 
 `dirigeant` et `registreCommerce` ne sont pas cosmétiques : les trois contrats de travail les
 lisent au lieu de figer une identité. Les modèles Word de la RH portent **deux numéros de registre
