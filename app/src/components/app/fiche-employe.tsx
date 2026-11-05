@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Champ, ChampNombre } from "@/components/app/champs";
+import { ChampAutocomplete } from "@/components/app/champ-autocomplete";
 import { ChampTelephone } from "@/components/app/champ-telephone";
 import { erreurTelephone } from "../../../convex/lib/telephone";
 import { BoutonConfirmation } from "@/components/app/bouton-action";
@@ -30,22 +31,25 @@ export type EmployeFiche = {
   matricule: string; nom: string; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string;
   societe: Societe; salaireBase?: number; salaireBrut?: number; dateDebut?: string; congesInitial?: number; actif?: boolean;
   serviceId?: string; immatriculeImpots?: boolean; dateEntreeCnps?: string;
+  methodeEnvoi?: "auto" | "email" | "whatsapp";
 };
 // `salaireBrut` est l'ancien nom, encore présent dans les fiches non migrées : le formulaire
 // ne l'édite jamais, il ne travaille que sur `salaireBase`.
 type Champs = Required<Omit<EmployeFiche, "employeId" | "actif" | "salaireBrut">>;
 
 export type CreerEmploye = (a: { matricule: string; nom: string; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string; societe: Societe; salaireBase: number; dateDebut?: string; congesInitial?: number;
-  serviceId?: string; immatriculeImpots?: boolean; dateEntreeCnps?: string }) => Promise<unknown>;
+  serviceId?: string; immatriculeImpots?: boolean; dateEntreeCnps?: string;
+  methodeEnvoi?: "auto" | "email" | "whatsapp" }) => Promise<unknown>;
 export type ModifierEmploye = (a: { employeId: any; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string; societe?: Societe; salaireBase?: number; dateDebut?: string; congesInitial?: number; actif?: boolean;
-  serviceId?: string; immatriculeImpots?: boolean; dateEntreeCnps?: string }) => Promise<unknown>;
+  serviceId?: string; immatriculeImpots?: boolean; dateEntreeCnps?: string;
+  methodeEnvoi?: "auto" | "email" | "whatsapp" }) => Promise<unknown>;
 
 const depuis = (e?: EmployeFiche): Champs => ({
   matricule: e?.matricule ?? "", nom: e?.nom ?? "", fonction: e?.fonction ?? "", adresse: e?.adresse ?? "", cnps: e?.cnps ?? "",
   niu: e?.niu ?? "", email: e?.email ?? "", whatsapp: e?.whatsapp ?? "", societe: e?.societe ?? "SGC", salaireBase: e?.salaireBase ?? e?.salaireBrut ?? 0,
   dateDebut: e?.dateDebut ?? "", congesInitial: e?.congesInitial ?? 0,
   serviceId: e?.serviceId ?? "", immatriculeImpots: e?.immatriculeImpots ?? false,
-  dateEntreeCnps: e?.dateEntreeCnps ?? "",
+  dateEntreeCnps: e?.dateEntreeCnps ?? "", methodeEnvoi: e?.methodeEnvoi ?? "auto",
 });
 
 export function FicheEmploye({
@@ -62,6 +66,9 @@ export function FicheEmploye({
   // Les services alimentent le sélecteur : sans service, la frise annuelle affiche un
   // code couleur neutre, ce que la RH avait signalé le 03/11/2026.
   const services = useQuery(api.services.liste, {});
+  // Référentiel des fonctions : « les fonctions sont vides » venait de l'absence de
+  // toute proposition à la saisie (constat du 03/11/2026).
+  const fonctions = useQuery(api.fonctions.liste, {});
   const [open, setOpen] = React.useState(false);
   const [f, setF] = React.useState<Champs>(() => depuis(employe));
   const [enCours, setEnCours] = React.useState(false);
@@ -82,7 +89,7 @@ export function FicheEmploye({
       fonction: f.fonction || undefined, adresse: f.adresse || undefined, cnps: f.cnps || undefined, niu: f.niu || undefined,
       email: f.email || undefined, societe: f.societe, salaireBase: Math.round(f.salaireBase), dateDebut: f.dateDebut || undefined,
       serviceId: f.serviceId || undefined, immatriculeImpots: f.immatriculeImpots,
-      dateEntreeCnps: f.dateEntreeCnps || undefined,
+      dateEntreeCnps: f.dateEntreeCnps || undefined, methodeEnvoi: f.methodeEnvoi,
       congesInitial: f.congesInitial || undefined,
     };
     // WhatsApp : transmis seulement s'il a changé (les écrans qui ne le chargent pas ne l'effacent pas).
@@ -129,7 +136,24 @@ export function FicheEmploye({
                 <div className="min-[480px]:col-span-2">{texte("nom", "Noms et prénoms", "TARGNE Jean Beau", true)}</div>
               </>
             ) : null}
-            {texte("fonction", "Fonction", "Agent commercial")}
+            <Champ libelle="Fonction" aide="Proposée depuis le référentiel ; une saisie libre reste acceptée et sera conservée">
+              {() => (
+                <ChampAutocomplete
+                  valeur={f.fonction}
+                  ariaLabel="Fonction"
+                  placeholder="Infirmier(ère), Aide-soignant(e)…"
+                  options={(fonctions ?? []).map((x: { libelle: string; categorie?: string; echelon?: string }) => ({
+                    valeur: x.libelle,
+                    libelle: x.libelle,
+                    note: [x.categorie && `cat. ${x.categorie}`, x.echelon && `éch. ${x.echelon}`]
+                      .filter(Boolean).join(" · ") || undefined,
+                  }))}
+                  // La catégorie et l'échelon du référentiel sont affichés en note mais pas
+                  // repris : ce formulaire ne les édite pas, ils vivent sur le bulletin.
+                  onChange={(v) => setF({ ...f, fonction: v })}
+                />
+              )}
+            </Champ>
             <Champ libelle="Société" requis>
               {(a) => (
                 <Select value={f.societe} onValueChange={(v) => setF({ ...f, societe: v as Societe })}>
@@ -142,6 +166,18 @@ export function FicheEmploye({
             {texte("cnps", "N° CNPS", "351-1213677-6")}
             {texte("niu", "NIU", "M072517858332C")}
             {texte("email", "E-mail (courrier de paie)", "prenom.nom@…", false, "email")}
+            <Champ libelle="Méthode d'envoi du courrier" aide="« Automatique » choisit selon ce qui est renseigné ; forcer une voie reste possible">
+              {(a) => (
+                <Select value={f.methodeEnvoi} onValueChange={(v) => setF({ ...f, methodeEnvoi: v as "auto" | "email" | "whatsapp" })}>
+                  <SelectTrigger id={a.id} className="w-full" aria-label="Méthode d'envoi"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Automatique</SelectItem>
+                    <SelectItem value="email">E-mail</SelectItem>
+                    <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </Champ>
             <Champ libelle="WhatsApp (courrier de paie)" aide="Indicatif pré-rempli : saisir seulement le numéro" erreur={f.whatsapp && f.whatsapp !== (employe?.whatsapp ?? "") ? erreurTelephone(f.whatsapp) ?? undefined : undefined}>
               {(a) => <ChampTelephone id={a.id} aria-describedby={a["aria-describedby"]} aria-invalid={a["aria-invalid"]} valeur={f.whatsapp} onChange={(v) => setF({ ...f, whatsapp: v })} />}
             </Champ>

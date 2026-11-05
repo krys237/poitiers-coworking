@@ -32,6 +32,7 @@ import { messageErreur, num } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageEnTete } from "@/components/app/en-tete";
 import { GrilleTuiles, Tuile } from "@/components/app/tuile";
+import { GestionFonctions } from "@/components/app/gestion-fonctions";
 import {
   LIBELLE_IMMATRICULATION, repartitionImmatriculation, statutDocument,
   type EtatImmatriculation,
@@ -158,6 +159,7 @@ export function Employes() {
         actions={
           <>
             <input ref={fichierRef} type="file" accept=".csv,text/csv" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void onImport(f); e.target.value = ""; }} />
+            <GestionFonctions />
             <Button variant="outline" size="sm" onClick={() => fichierRef.current?.click()} title="Colonnes : matricule ; nom ; fonction ; societe ; salaire_base ; date_debut ; cnps ; email — mise à jour par matricule">
               <UploadIcon /> Importer CSV / Excel
             </Button>

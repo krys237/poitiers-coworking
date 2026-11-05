@@ -69,6 +69,27 @@ export function Courrier() {
   const [envoiEnCours, setEnvoiEnCours] = React.useState(false);
   // Canal d'envoi : e-mail (Resend), WhatsApp (UltraMsg) ou les deux — chacun réel ou simulé (courrier.mode).
   const [canal, setCanal] = React.useState<"email" | "whatsapp" | "les_deux">("email");
+  // Pré-remplissage de la méthode d'envoi (lot R10, demande du 22/10/2026). La fiche employé
+  // porte une préférence (`auto` | `email` | `whatsapp`) : si TOUTES les lignes du mois forcent
+  // la même voie, on la pré-sélectionne. Le sélecteur reste modifiable — c'était la condition.
+  //
+  // ⚠️ Le routage reste GLOBAL à l'envoi : `courrier.envoyer` reçoit un seul jeu de canaux pour
+  // toute la sélection. Un routage ligne à ligne (chacun par sa voie en un seul envoi) demande
+  // d'étendre la mutation ; consigné plutôt que fait à moitié.
+  const prefsForcees = React.useMemo(() => {
+    const p = new Set(
+      (apercu?.lignes ?? [])
+        .map((l: any) => l.bulletin?.methodeEnvoi ?? "auto")
+        .filter((x: string) => x !== "auto"),
+    );
+    return [...p] as ("email" | "whatsapp")[];
+  }, [apercu?.lignes]);
+  const [canalTouche, setCanalTouche] = React.useState(false);
+  React.useEffect(() => {
+    if (canalTouche || prefsForcees.length !== 1) return;
+    setCanal(prefsForcees[0]);
+  }, [prefsForcees, canalTouche]);
+  const setCanalEtMarquer = (v: typeof canal) => { setCanalTouche(true); setCanal(v); };
   const canaux = canal === "les_deux" ? (["email", "whatsapp"] as const) : ([canal] as const);
   const parEmail = canal !== "whatsapp", parWhatsapp = canal !== "email";
   const reelCanal = (parEmail ? !!mode?.reel : true) && (parWhatsapp ? !!mode?.whatsapp.reel : true);
@@ -131,7 +152,7 @@ export function Courrier() {
         }
         actions={
           <>
-            <Select value={canal} onValueChange={(v) => setCanal(v as typeof canal)}>
+            <Select value={canal} onValueChange={(v) => setCanalEtMarquer(v as typeof canal)}>
               <SelectTrigger size="sm" className="w-40" aria-label="Canal d'envoi"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="email">Par e-mail</SelectItem>

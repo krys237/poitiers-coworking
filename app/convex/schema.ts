@@ -111,6 +111,21 @@ export default defineSchema({
     actif: v.boolean(),
   }).index("by_nom", ["nom"]),
 
+  // Référentiel des FONCTIONS (lot R10). `employes.fonction` était un champ texte libre, d'où
+  // les fonctions vides que la RH a signalées le 03/11/2026. La table lui permet de les créer
+  // depuis la plateforme, et de les proposer à la saisie.
+  //
+  // Le champ texte de la fiche N'EST PAS remplacé par une référence : il reste libre et reçoit
+  // le libellé choisi. C'est volontaire — une fonction renommée ou supprimée ne doit pas effacer
+  // la fonction inscrite sur une fiche, ni sur un contrat déjà signé.
+  fonctions: defineTable({
+    libelle: v.string(),
+    // Catégorie et échelon par défaut, repris à la sélection : la grille salariale les lie.
+    categorie: v.optional(v.string()),
+    echelon: v.optional(v.string()),
+    actif: v.boolean(),
+  }).index("by_libelle", ["libelle"]),
+
   // ---- Paie (Phase 1) ----
   employes: defineTable({
     matricule: v.string(),
@@ -156,6 +171,9 @@ export default defineSchema({
     // Date d'entrée à la CNPS, distincte de la date d'embauche — les deux diffèrent souvent et
     // l'attestation de présence effective réclame le matricule CNPS.
     dateEntreeCnps: v.optional(v.string()),   // "YYYY-MM-DD"
+    // Méthode d'envoi du courrier de paie (lot R10). `auto` = comportement actuel, qui choisit
+    // selon ce qui est renseigné ; `email` ou `whatsapp` forcent la voie. Absent = `auto`.
+    methodeEnvoi: v.optional(v.union(v.literal("auto"), v.literal("email"), v.literal("whatsapp"))),
     // Groupe de risque CNPS accidents du travail : A 1,75 % / B 2,50 % / C 5 % (voir A-VERIFIER B5).
     groupeRisqueAt: v.optional(v.union(v.literal("A"), v.literal("B"), v.literal("C"))),
   })

@@ -259,7 +259,7 @@ Chaque règle affiche sa **base légale** — le référentiel est déjà rédig
 `REFERENTIEL-LEGAL-CAMEROUN.md`, il suffit de l'y brancher. C'est ce qui rend le calcul vérifiable
 par elle, sans nous.
 
-### Lot R10 — Saisie et référentiels
+### Lot R10 — Saisie et référentiels ✅ **LIVRÉ EN PARTIE le 05/11/2026**
 
 1. **Référentiel de fonctions.** Aujourd'hui `employes.fonction` est un champ texte libre, d'où
    les fonctions vides. Nouvelle table `fonctions` (libellé, catégorie, échelon par défaut, actif),
@@ -278,6 +278,20 @@ par elle, sans nous.
    où un nombre de jours apparaît.
 6. **Prime d'ancienneté et nouvelle ancienneté qui s'incrémentent ensemble** — dépend de la
    réponse au point A6 (ce que représente la seconde ancienneté). À garder pour la fin.
+
+#### Ce qui reste du lot R10
+
+1. **Les rattachements dès la création d'un employé.** Le composant `rattachements-employe.tsx`
+   existe et fonctionne sur une fiche enregistrée ; l'intégrer au formulaire de **création**
+   suppose de créer la fiche puis ses rattachements en une seule transaction, ou d'accepter une
+   création en deux temps. À cadrer.
+2. **« Ajouter la période de congés au nombre de jours pris »** : afficher « du … au … » partout
+   où un nombre de jours apparaît (bulletin, récapitulatif, planning).
+3. **Le routage d'envoi ligne à ligne.** `courrier.envoyer` reçoit **un seul** jeu de canaux pour
+   toute la sélection : chacun par sa propre voie en un seul envoi demande d'étendre la mutation
+   pour accepter un canal par ligne. Le pré-remplissage livré couvre le cas où tout le mois part
+   par la même voie, ce qui est la situation courante.
+4. **Prime d'ancienneté et nouvelle ancienneté qui s'incrémentent ensemble** — attend A6.
 
 ### Lot R11 — Générateur d'actes RH
 
@@ -363,7 +377,7 @@ actes          modeleCode, employeId?, reference, periode?, valeurs (record),
 | **R7** | corrections du planning, services, impression, libellé du rôle | — **rien** |
 | **R8** ✅ | bulletin / récapitulatif, téléchargement conditionnel, DIPE filtré, filtre d'immatriculation | — *(livré)* |
 | **R9** ✅ | Vue RH du barème, tranches TDL et RAV portées par le barème daté | — *(livré)* |
-| **R10** | référentiel de fonctions, sélecteur d'employé, sociétés à la création, méthode d'envoi | — rien *(sauf le point 6, qui attend A6)* |
+| **R10** 🟡 | référentiel de fonctions ✅ · champ à saisie assistée ✅ · méthode d'envoi pré-remplie ✅ · **reste** : sociétés dès la création, période de congés affichée, routage d'envoi ligne à ligne | A6 pour le point ancienneté |
 | **R11** | générateur d'actes | les quatre précisions du §6 |
 | R4 | allocation de congé | **une seule question** : comment compter la fraction de mois |
 | R6 | retenue médecins | M1, M2 — le comptable |
