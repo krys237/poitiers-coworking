@@ -127,7 +127,7 @@ formulées pour la RH et le comptable dans `app/docs/rh/QUESTIONS-A-TRANCHER.md`
 | **R3** | écran DIPE + export CSV + récapitulatif par destinataire + rapport d'écart typé | ✅ livré | — |
 | **R4** | allocation de congé (1/16) + liaison planning → paie | ✅ livré | — *(arbitré le 05/11/2026)* |
 | **R5** | absences élargies : maternité, AT/MP, chômage technique, permissions, sans solde, mise à pied, formation syndicale | ✅ livré | — |
-| **R6** | retenue à la source sur les honoraires des médecins | à faire | **M1**, **M2** — le comptable tranche |
+| **R6** | retenue à la source sur les honoraires des médecins | ✅ livré | — *(arbitré le 05/11/2026)* |
 | **R7** | droit à congé proratisé sur l'année, services gérables, impression du planning | ✅ livré | — |
 | **R8** | bulletin ou récapitulatif selon l'immatriculation du salarié aux impôts | ✅ livré | — |
 | **R9** | « Vue RH » du barème : le calcul expliqué en clair sur un exemple réel | ✅ livré | — |
@@ -155,6 +155,7 @@ retombe sur l'ancien comportement quand le champ est absent. Un push peut donc s
 | R10 | `fonctions` | `employes` : methodeEnvoi |
 | R11 | `modelesActes`, `actes` | `parametresEntreprise` : **dirigeant**, **registreCommerce** · `parametresEntreprise.societes[]` : **dirigeant**, **registreCommerce** |
 | R4 | — | `baremes` : **allocationPlafondMois**, **allocationMoisAvantPremierConge**, **allocationConventionFraction** |
+| R6 | `retenuesMedecins` | — |
 
 `dirigeant` et `registreCommerce` ne sont pas cosmétiques : les trois contrats de travail les
 lisent au lieu de figer une identité. Les modèles Word de la RH portent **deux numéros de registre

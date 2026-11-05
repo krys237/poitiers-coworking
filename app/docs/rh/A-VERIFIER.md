@@ -16,9 +16,9 @@
 > indemnités restent celles de son fichier.
 >
 >
-> **Reste à construire, sans attendre personne :** R6, les cinq demandes **N1 → N5**, et les restes
-> de R10 et R11. Les deux conséquences **R-6a** (les contrats promettent 12 mois, la règle en
-> applique 24) et **R-6b** (la 1re ligne de D1 se corrige au 07/04) attendent une relecture.
+> **Reste à construire, sans attendre personne :** les cinq demandes **N1 → N5**, et les restes de
+> R10 et R11. **R-6a est tranché** (les deux textes divergent volontairement) ; **R-6b** (la
+> 1re ligne de D1 se corrige au 07/04) est à appliquer lors de la reprise du planning.
 
 ## R. Réponses de la RH et de la Direction — séance du 05/11/2026
 
@@ -260,12 +260,12 @@ Le choix est porté par un **paramètre du barème daté**, à trois valeurs —
 `trente`, `trente_virgule_44` — pour qu'un changement d'avis ne demande ni intervention technique
 ni recalcul des mois déjà clos. **À confirmer** quand l'occasion se présentera ; rien n'attend.
 
-### R-6 🟠 Deux conséquences à traiter, nées des arbitrages
+### R-6 🟡 Deux conséquences nées des arbitrages — une tranchée, une à appliquer
 
 Ces deux points ne sont pas des questions : ce sont des travaux que les arbitrages rendent
 nécessaires.
 
-#### R-6a — les trois contrats promettent 12 mois, la règle en applique 24
+#### R-6a 🟢 Les trois contrats promettent 12 mois, la règle en applique 24 — **laissé tel quel le 05/11/2026**
 
 L'article des congés, transcrit mot pour mot de ses modèles Word et partagé par le CDD, le CDI et
 l'engagement à l'essai, dit :
@@ -276,10 +276,17 @@ l'engagement à l'essai, dit :
 L'arbitrage **R-3c** fixe le premier congé à **24 mois**. Un contrat délivré aujourd'hui
 contredirait donc la règle appliquée en paie — et c'est le contrat qui engage la clinique.
 
-**À faire :** corriger `ART_CONGES` dans `lib/actes.ts`. Comme l'article est **partagé** par les
-trois contrats, une seule correction les met tous d'accord. **À confirmer avant de toucher au
-texte :** le Code du travail ouvre le droit au terme de 12 mois (art. 89) ; porter 24 mois dans un
-contrat mérite une relecture juridique.
+**Décision de la Direction, après avoir été informée de l'écart : on ne change rien.**
+« *Il n'y a pas de souci à ce niveau, laisse tel quel. Ne modifie ni le contrat ni la règle.* »
+
+Les deux textes coexistent donc volontairement : le **contrat** continue d'annoncer 12 mois
+consécutifs — ce qui est la lettre de l'art. 89 — et la **règle de paie** ouvre le premier congé à
+24 mois. `ART_CONGES` dans `lib/actes.ts` et `REGLES_DROIT_DEFAUT.moisAvantJouissance` restent
+inchangés.
+
+⚠️ Ce point est consigné ici **pour qu'il ne soit pas « corrigé » par inadvertance** : un futur
+lecteur qui remarquerait la divergence pourrait croire à un oubli et aligner l'un sur l'autre. Ce
+n'en est pas un, c'est un arbitrage.
 
 #### R-6b — la première ligne de D1 se corrige au 07/04, non au 06/04
 
@@ -703,7 +710,7 @@ non par voie électronique, qui demanderait une autre conception).
 | **R3** ✅ | écran DIPE + export CSV + récapitulatif par destinataire + rapport d'écart typé | — *(livré)* |
 | **R4** ✅ | allocation de congé (1/16) + liaison planning → paie en jours ouvrables | — *(livré le 05/11/2026)* |
 | **R5** ✅ | absences élargies (maternité, AT/MP, chômage technique, permissions, sans solde, mise à pied, formation syndicale) | — *(livré)* |
-| **R6** | retenue à la source médecins | — *(plus rien : 5,5 % et 11 %, les 30 % en règle figée)* |
+| **R6** ✅ | retenue à la source médecins : 5,5 % et 11 %, les 30 % en règle figée | — *(livré le 05/11/2026)* |
 | **R7** ✅ | droit à congé proratisé sur l'année (correction du décompte depuis l'embauche) | — *(livré)* |
 | **R8** ✅ | immatriculation de l'employé aux impôts : bulletin ou récapitulatif | — *(livré)* |
 | **R9** ✅ | vue RH du barème : le calcul expliqué en clair, sur un exemple réel | — *(livré ; A8 reste ouvert, 4 FCFA)* |

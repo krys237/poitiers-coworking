@@ -96,6 +96,7 @@ export const MODULES: Module[] = [
   { cle: "/caisse", libelle: "Caisse du mois", categorie: "Exploitation", voir: "Consulter les intervalles et le chiffre d'affaires", faire: "Saisir, importer, supprimer un intervalle", niveauVoir: 3, niveauFaire: 3 },
   { cle: "/caisse/deverrouillage", libelle: "Caisse : modifier après le délai", categorie: "Exploitation", voir: null, faire: "Corriger ou supprimer un intervalle verrouillé (délai réglé dans Paramètres)", niveauVoir: 7, niveauFaire: 7 },
   { cle: "/primes-medecins", libelle: "Primes médecins", categorie: "Exploitation", voir: "Consulter les primes par catégorie", faire: "Saisir, importer, supprimer une prime", niveauVoir: 3, niveauFaire: 3 },
+  { cle: "/retenues-medecins", libelle: "Retenue médecins (impôts)", categorie: "Paie", voir: "Consulter et exporter la déclaration mensuelle", faire: "Saisir et supprimer une ligne", niveauVoir: 3, niveauFaire: 4 },
   { cle: "/primes-medecins/deverrouillage", libelle: "Primes médecins : modifier après le délai", categorie: "Exploitation", voir: null, faire: "Corriger ou supprimer une prime verrouillée (délai réglé dans Paramètres)", niveauVoir: 7, niveauFaire: 7 },
   { cle: "/mes-bulletins", libelle: "Mes bulletins", categorie: "Paie", voir: "Consulter et télécharger ses propres bulletins (mois clôturés)", faire: null, niveauVoir: 1, niveauFaire: 1 },
   { cle: "/paie/saisie", libelle: "Récapitulatif salaires", categorie: "Paie", voir: "Consulter", faire: "Saisir le mois", niveauVoir: 4, niveauFaire: 4 },

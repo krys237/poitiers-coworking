@@ -636,6 +636,28 @@ export default defineSchema({
   }).index("by_periode", ["periode"]),
 
   // ---- Contrôle (Phase 4) ----
+  // Retenue à la source sur les honoraires des médecins (lot R6).
+  //
+  // Distincte de `primesMedecins`, qui suit les RÉTROCESSIONS versées aux médecins : ici il s'agit
+  // de l'impôt prélevé sur leurs honoraires. Même population, autre nature, autres chiffres.
+  //
+  // `base`, `taux` et `retenue` sont FIGÉS à l'enregistrement, et non recalculés à la lecture :
+  // une déclaration déposée doit se relire à l'identique, même si la règle change ensuite. Même
+  // principe que `actes.corpsRendu`.
+  retenuesMedecins: defineTable({
+    periode: v.string(),              // "YYYY-MM"
+    medecin: v.string(),
+    tauxBase: v.number(),             // 5 ou 10, décidé par la RH — porté par la LIGNE
+    caAssurance: v.number(),          // retenu en entier
+    caEspeces: v.number(),            // retenu à 30 % (règle figée, M2)
+    base: v.number(),
+    taux: v.number(),                 // taux appliqué, centimes additionnels inclus (M1)
+    retenue: v.number(),
+    notes: v.optional(v.string()),
+  })
+    .index("by_periode", ["periode"])
+    .index("by_medecin", ["medecin"]),
+
   primesMedecins: defineTable({
     contexte: v.union(v.literal("stats"), v.literal("audit")),
     categorie: v.string(),

@@ -4,6 +4,7 @@ import { PortailAuth, Guard, PageConnexion } from "./auth/Guard";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
 import { Actes } from "./pages/Actes";
+import { RetenuesMedecins } from "./pages/RetenuesMedecins";
 import { Employes } from "./pages/Employes";
 import { SaisieMensuelle } from "./pages/SaisieMensuelle";
 import { Bulletins } from "./pages/Bulletins";
@@ -41,6 +42,7 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 const ROUTES: { path: string; perm: string; element: JSX.Element }[] = [
   { path: "/", perm: "/", element: <Dashboard /> },
   { path: "/actes", perm: "/actes", element: <Actes /> },
+  { path: "/retenues-medecins", perm: "/retenues-medecins", element: <RetenuesMedecins /> },
   { path: "/employes", perm: "/employes", element: <Employes /> },
   { path: "/paie/saisie", perm: "/paie/saisie", element: <SaisieMensuelle /> },
   { path: "/paie/bulletins", perm: "/paie/bulletins", element: <Bulletins /> },
