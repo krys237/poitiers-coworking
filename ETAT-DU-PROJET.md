@@ -148,14 +148,26 @@ retombe sur l'ancien comportement quand le champ est absent. Un push peut donc s
 | R7 | — | `employes` : **salaireBase**, immatriculeImpots, dateEntreeCnps |
 | R9 | — | `baremes` : tdlBareme, ravBareme |
 | R10 | `fonctions` | `employes` : methodeEnvoi |
-| R11 | `modelesActes`, `actes` | `parametresEntreprise` : **dirigeant**, **registreCommerce** |
+| R11 | `modelesActes`, `actes` | `parametresEntreprise` : **dirigeant**, **registreCommerce** · `parametresEntreprise.societes[]` : **dirigeant**, **registreCommerce** |
 
-`parametresEntreprise.dirigeant` et `.registreCommerce` ne sont pas cosmétiques : les trois
-contrats de travail les lisent au lieu de figer une identité. Les modèles Word de la RH portent
-**deux numéros de registre du commerce contradictoires** pour la même société (voir A-VERIFIER
-**T1**) ; tant que le champ est vide, les contrats impriment des pointillés plutôt qu'un numéro
-peut-être faux. Rien à migrer — mais à renseigner dans *Paramètres → Entreprise & documents* avant
-le premier contrat délivré.
+`dirigeant` et `registreCommerce` ne sont pas cosmétiques : les trois contrats de travail les
+lisent au lieu de figer une identité. Les modèles Word de la RH portent **deux numéros de registre
+du commerce contradictoires** pour la même société (voir A-VERIFIER **T1**) ; tant que le champ est
+vide, les contrats impriment des pointillés plutôt qu'un numéro peut-être faux. Rien à migrer —
+mais à renseigner dans *Paramètres → Entreprise & documents* avant le premier contrat délivré.
+
+⚠️ **`parametresEntreprise.societes` était du schéma mort.** Le bloc existait depuis R2 bis et
+`dipe.declarantPourSociete` le **lisait déjà**, mais aucune mutation ne l'écrivait et aucun écran ne
+l'éditait : il restait vide, et chaque DIPE retombait donc sur l'identité de l'entreprise au lieu de
+celle de la société déclarante. La mutation `parametres.enregistrerSocietes` et le bloc « Identité
+par société » de l'écran Paramètres comblent ce trou. Conséquence à surveiller au déploiement : dès
+que la RH renseignera une identité propre, **les en-têtes de DIPE changeront** — c'est le
+comportement attendu, mais il ne l'était plus depuis R2 bis.
+
+⚠️ **Quatre suites de tests échappent au CI.** `.gitlab-ci.yml` vit sur `dev` et sa liste s'arrête
+aux suites qui existaient lors du passage à 17 : il ignore `test:vuerh`, `test:immat`, `test:actes`
+et `test:identite`, soit **209 vérifications** non gardées. À ajouter au pipeline lors du report de
+`rh` → `dev` ; je n'ai pas touché à `.gitlab-ci.yml`, qui n'est pas sur cette branche.
 
 **Deux migrations à lancer APRÈS le push, dans cet ordre :**
 

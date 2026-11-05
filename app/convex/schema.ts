@@ -99,6 +99,11 @@ export default defineSchema({
       adresse: v.optional(v.string()),
       niu: v.optional(v.string()),
       numeroCnps: v.optional(v.string()),
+      // Identité juridique des contrats de travail (lot R11). Chaque société a son propre
+      // dirigeant et son propre numéro d'immatriculation : un contrat signé par SOFINA ne peut
+      // pas porter le RC de SESAME. Vide = on reprend celui de l'entreprise.
+      dirigeant: v.optional(v.string()),
+      registreCommerce: v.optional(v.string()),
     }))),
   }),
 

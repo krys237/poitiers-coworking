@@ -12,10 +12,14 @@ import { v } from "convex/values";
 import { requireDroit } from "./lib/authz";
 import { bulletinsPourPeriode } from "./lib/calculBulletins";
 import { salaireDeBase } from "./lib/paie";
+import { identitePourSociete, societePrincipale } from "./lib/societes";
 import {
   MODELES_DEFAUT, champsManquants, construireReference, prochaineSequence,
   rendreActe, validerModele, type ChampActe, type ModeleActe,
 } from "./lib/actes";
+
+// Même convention que les autres modules Convex du projet.
+const SOCIETE = v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"));
 
 const aujourdHui = () => new Date().toISOString().slice(0, 10);
 const fmtDate = (iso?: string) =>
@@ -79,12 +83,33 @@ async function modeleDe(ctx: any, code: string): Promise<ModeleActe> {
  * bulletin de la période et la RH n'a plus qu'à préciser la situation.
  */
 export const preparer = query({
-  args: { code: v.string(), employeId: v.optional(v.id("employes")), periode: v.optional(v.string()) },
-  handler: async (ctx, { code, employeId, periode }) => {
+  args: {
+    code: v.string(), employeId: v.optional(v.id("employes")), periode: v.optional(v.string()),
+    // Société émettrice. Pour un contrat d'embauche la fiche n'a pas encore de rattachement :
+    // la RH la choisit. Sinon c'est la société principale de l'employé.
+    societe: v.optional(SOCIETE),
+  },
+  handler: async (ctx, { code, employeId, periode, societe }) => {
     await requireDroit(ctx, "/employes");
     const modele = await modeleDe(ctx, code);
     const parametres = await ctx.db.query("parametresEntreprise").first();
     const employe = employeId ? await ctx.db.get(employeId) : null;
+
+    // L'identité juridique vient de la SOCIÉTÉ ÉMETTRICE, pas de l'entreprise en bloc : SESAME,
+    // SOFINA et SGC sont des personnes morales distinctes, et un contrat signé par l'une ne peut
+    // pas porter le numéro de registre du commerce d'une autre. Chaque champ non renseigné sur la
+    // société reprend celui de l'entreprise, et le repli est signalé.
+    let emettrice = societe as string | undefined;
+    if (!emettrice && employe) {
+      const lignes = await ctx.db.query("rattachements")
+        .withIndex("by_employe", (q) => q.eq("employeId", employe._id)).collect();
+      emettrice = societePrincipale(employe as any, lignes as any);
+    }
+    const identite = identitePourSociete(emettrice ?? "", parametres?.societes, {
+      nom: parametres?.nom, adresse: parametres?.adresse, niu: parametres?.niu,
+      numeroCnps: parametres?.numeroCnps, dirigeant: parametres?.dirigeant,
+      registreCommerce: parametres?.registreCommerce,
+    });
 
     // Le bulletin n'est chargé que si un champ en dépend : inutile de calculer tout un mois
     // pour une attestation de reprise de service.
@@ -127,7 +152,11 @@ export const preparer = query({
       const s: any = c.source;
       let brut: unknown;
       if (s.de === "aujourdhui") brut = aujourdHui();
-      else if (s.de === "entreprise") brut = (parametres as any)?.[s.cle];
+      else if (s.de === "entreprise") {
+        // `responsableRH` est un visa interne, commun aux trois sociétés ; les autres clés
+        // (niu, registreCommerce, dirigeant, adresse) sont propres à la société émettrice.
+        brut = s.cle in identite ? (identite as any)[s.cle] : (parametres as any)?.[s.cle];
+      }
       else if (s.de === "employe") {
         brut = s.cle === "salaireBase" && employe ? salaireDeBase(employe) : (employe as any)?.[s.cle];
       } else if (s.de === "bulletin") brut = duBulletin[s.cle];
@@ -138,10 +167,23 @@ export const preparer = query({
         : String(brut);
     }
 
+    // Un contrat sans numéro de registre du commerce sort avec des pointillés à la place de
+    // l'identification légale de l'employeur. Ça se dit AVANT la délivrance, pas après.
+    const identiteIncomplete = modele.champs.some(
+      (c: ChampActe) => c.source.de === "entreprise" && identite.manquants.includes((c.source as any).cle),
+    );
+
     return {
       modele,
       valeurs,
       avertissement,
+      identite: {
+        societe: identite.societe || null,
+        raisonSociale: identite.raisonSociale,
+        herites: identite.heritesDeLEntreprise,
+        manquants: identite.manquants,
+        incomplete: identiteIncomplete,
+      },
       aSaisir: (modele.champs as ChampActe[]).filter((c) => !valeurs[c.nom]).map((c) => c.nom),
       apercu: rendreActe(modele.corps, valeurs),
     };

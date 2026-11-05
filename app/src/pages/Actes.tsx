@@ -18,6 +18,8 @@ import { api } from "../../convex/_generated/api";
 import {
   LIBELLE_FAMILLE, rendreActe, type FamilleActe,
 } from "../../convex/lib/actes";
+import { Link } from "react-router-dom";
+import { SOCIETES } from "../../convex/lib/societes";
 import { periodeCourante } from "@/lib/format";
 import { PageEnTete } from "@/components/app/en-tete";
 import { BoutonAction } from "@/components/app/bouton-action";
@@ -40,6 +42,9 @@ export function Actes() {
   const [code, setCode] = React.useState<string>("");
   const [employeId, setEmployeId] = React.useState<string>("");
   const [periode, setPeriode] = React.useState(periodeCourante());
+  // Société émettrice. Vide = la société principale de l'employé ; à choisir pour un contrat
+  // d'embauche, où la fiche n'a pas encore de rattachement.
+  const [societe, setSociete] = React.useState<string>("");
   // Valeurs modifiées à la main : elles PRIMENT sur le pré-remplissage, sinon chaque
   // rechargement de la préparation écraserait la saisie en cours.
   const [saisies, setSaisies] = React.useState<Record<string, string>>({});
@@ -48,7 +53,7 @@ export function Actes() {
   const employes = useQuery(api.employes.liste, {});
   const prepa = useQuery(
     api.actes.preparer,
-    code ? { code, employeId: (employeId || undefined) as any, periode } : "skip",
+    code ? { code, employeId: (employeId || undefined) as any, periode, societe: (societe || undefined) as any } : "skip",
   );
   const generer = useMutation(api.actes.generer);
   const initModeles = useMutation(api.actes.initialiserModeles);
@@ -157,6 +162,27 @@ export function Actes() {
                     />
                   </label>
 
+                  {/* L'identité juridique n'apparaît que sur les contrats : inutile de demander
+                      la société pour une attestation de reprise de service. */}
+                  {modele.champs.some((c) => c.source.de === "entreprise" && c.source.cle !== "responsableRH") ? (
+                    <label className="mt-3 grid gap-1 text-xs">
+                      Société émettrice
+                      <select
+                        className="h-9 rounded-md border border-filet bg-surface px-2 text-sm"
+                        value={societe}
+                        onChange={(ev) => setSociete(ev.target.value)}
+                      >
+                        <option value="">{employeId ? "Société principale du salarié" : "Entreprise (par défaut)"}</option>
+                        {SOCIETES.map((x) => <option key={x} value={x}>{x}</option>)}
+                      </select>
+                      <span className="text-[11px] text-encre-pale">
+                        {prepa?.identite?.societe
+                          ? <>Le contrat portera l'identité de <strong>{prepa.identite.raisonSociale}</strong>{prepa.identite.herites.length ? ` — ${prepa.identite.herites.length} champ(s) repris de l'entreprise` : ""}.</>
+                          : "Chaque société signe ses propres contrats : le dirigeant et le n° de registre du commerce sont les siens."}
+                      </span>
+                    </label>
+                  ) : null}
+
                   {modele.champs.some((c) => c.source.de === "bulletin") ? (
                     <div className="mt-3 grid gap-1 text-xs">
                       Période du bulletin
@@ -169,6 +195,19 @@ export function Actes() {
                 </>
               ) : null}
             </div>
+
+            {/* Un contrat sans n° de registre du commerce sort avec des pointillés à la place de
+                l'identification légale de l'employeur. Ça se dit AVANT la délivrance. */}
+            {prepa?.identite?.incomplete ? (
+              <div className="flex gap-2 rounded-xl border border-dashed border-carmin bg-carmin/5 px-3 py-2">
+                <TriangleAlertIcon className="h-4 w-4 shrink-0 text-carmin" aria-hidden="true" />
+                <p className="text-xs">
+                  L'identité juridique de {prepa.identite.raisonSociale} est incomplète : l'acte
+                  sortira avec des pointillés à la place de son identification légale. À renseigner
+                  dans <Link to="/parametres" className="underline underline-offset-2">Paramètres → Entreprise &amp; documents</Link>.
+                </p>
+              </div>
+            ) : null}
 
             {prepa?.avertissement ? (
               <div className="flex gap-2 rounded-xl border border-dashed border-ocre bg-ocre-clair/40 px-3 py-2">

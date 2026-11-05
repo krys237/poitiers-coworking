@@ -23,6 +23,7 @@ import { api } from "../../convex/_generated/api";
 import { DESCRIPTION, LIBELLE, MODULES, NIVEAU, ROLES_ORDONNES, droitsEffectifs, estVerrouille, normaliser, type Action, type Cellule, type Exception, type Module, type Role, type SurchargeRole } from "../../convex/rbac";
 import { REGLAGES_DEFAUT, reglagesDe, validerReglages, type Reglages } from "../../convex/lib/reglages";
 import { MODELE_DEFAUT } from "../../convex/lib/courrier";
+import { SOCIETES } from "../../convex/lib/societes";
 import { messageErreur, num } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageEnTete } from "@/components/app/en-tete";
@@ -56,6 +57,39 @@ type Onglet = typeof ONGLETS[number];
 
 const memes = (a: object, b: object) => JSON.stringify(a) === JSON.stringify(b);
 
+// --- Identités par société --------------------------------------------------------
+//
+// SESAME, SOFINA et SGC sont des personnes morales distinctes. Le DIPE lisait déjà ce bloc
+// (`dipe.declarantPourSociete`) mais rien ne l'écrivait : il restait vide et toutes les
+// déclarations retombaient sur l'identité de l'entreprise. Les contrats de travail ont le même
+// besoin — un contrat signé par SOFINA ne peut pas porter le n° de registre du commerce de SESAME.
+//
+// Un champ laissé VIDE n'est pas une valeur vide : il reprend celui de l'entreprise. Le
+// « placeholder » de chaque case montre donc ce qui s'appliquera à défaut.
+const CHAMPS_SOCIETE = [
+  ["raisonSociale", "Raison sociale", "nom"],
+  ["adresse", "Adresse", "adresse"],
+  ["niu", "NIU", "niu"],
+  ["numeroCnps", "N° CNPS", "numeroCnps"],
+  ["dirigeant", "Dirigeant", "dirigeant"],
+  ["registreCommerce", "N° registre du commerce", "registreCommerce"],
+] as const;
+type CleSociete = typeof CHAMPS_SOCIETE[number][0];
+type IdentiteSociete = { societe: string } & Record<CleSociete, string>;
+
+const identitesDe = (lignes: readonly any[] | undefined): IdentiteSociete[] =>
+  SOCIETES.map((societe) => {
+    const l = (lignes ?? []).find((x) => x.societe === societe);
+    return {
+      societe,
+      ...(Object.fromEntries(CHAMPS_SOCIETE.map(([c]) => [c, l?.[c] ?? ""])) as Record<CleSociete, string>),
+    };
+  });
+
+/** Une ligne sans aucune valeur n'est pas envoyée : elle équivaut à l'absence de ligne. */
+const identitesRenseignees = (l: IdentiteSociete[]) =>
+  l.filter((x) => CHAMPS_SOCIETE.some(([c]) => x[c].trim()));
+
 // --- Page -------------------------------------------------------------------------
 
 export function Parametres() {
@@ -66,6 +100,7 @@ export function Parametres() {
   const enregistrer = useMutation(api.parametres.enregistrer);
   const enregistrerReglages = useMutation(api.parametres.enregistrerReglages);
   const enregistrerDroits = useMutation(api.parametres.enregistrerDroitsRoles);
+  const enregistrerSocietes = useMutation(api.parametres.enregistrerSocietes);
   const [params, setParams] = useSearchParams();
   const ongletUrl = params.get("onglet") as Onglet | null;
   const onglet: Onglet = ongletUrl && ONGLETS.includes(ongletUrl) ? ongletUrl : "entreprise";
@@ -76,15 +111,18 @@ export function Parametres() {
   const [e, setE] = React.useState<Entreprise | null>(null);
   const [r, setR] = React.useState<Reglages | null>(null);
   const [dR, setDR] = React.useState<Matrice | null>(null);
-  React.useEffect(() => { if (p !== undefined && e === null) { setE(entrepriseDe(p)); setR(reglagesDe(p?.reglages)); setDR(matriceDe(p?.droitsRoles)); } }, [p, e]);
+  const [soc, setSoc] = React.useState<IdentiteSociete[] | null>(null);
+  React.useEffect(() => { if (p !== undefined && e === null) { setE(entrepriseDe(p)); setR(reglagesDe(p?.reglages)); setDR(matriceDe(p?.droitsRoles)); setSoc(identitesDe(p?.societes)); } }, [p, e]);
   const baseE = entrepriseDe(p);
   const baseR = reglagesDe(p?.reglages);
   const baseD = React.useMemo(() => matriceDe(p?.droitsRoles), [p?.droitsRoles]);
+  const baseSoc = React.useMemo(() => identitesDe(p?.societes), [p?.societes]);
   const dirtyE = !!e && !memes(e, baseE);
   const dirtyR = !!r && !memes(r, baseR);
   const modifsD = dR ? Object.keys(baseD).filter((k) => !memeCellule(dR[k], baseD[k])).length : 0;
+  const modifsSoc = soc ? soc.flatMap((x, i) => CHAMPS_SOCIETE.filter(([c]) => x[c] !== baseSoc[i][c])).length : 0;
   const nbModifs = (e ? (Object.keys(e) as (keyof Entreprise)[]).filter((k) => e[k] !== baseE[k]).length : 0)
-    + (r ? (Object.keys(r) as (keyof Reglages)[]).filter((k) => r[k] !== baseR[k]).length : 0) + modifsD;
+    + (r ? (Object.keys(r) as (keyof Reglages)[]).filter((k) => r[k] !== baseR[k]).length : 0) + modifsD + modifsSoc;
   const erreursR = r ? validerReglages(r) : [];
   const erreursE = e ? [
     ...(!e.nom.trim() ? ["Le nom de l'entreprise est obligatoire."] : []),
@@ -109,12 +147,13 @@ export function Parametres() {
         jourPaiement: e.jourPaiement,
       });
       if (dirtyR) await enregistrerReglages({ reglages: r });
+      if (soc && modifsSoc) await enregistrerSocietes({ societes: identitesRenseignees(soc) as any });
       if (dR && modifsD) await enregistrerDroits({ droits: Object.entries(dR).map(([k, c]) => { const [role, module] = k.split("|"); return { role, module, voir: c.voir, faire: c.faire }; }) });
       toast.success("Paramètres enregistrés", { description: `${nbModifs} modification(s) appliquée(s) — journalisées.` });
     } catch (err) { toast.error("Enregistrement refusé", { description: messageErreur(err) }); }
     finally { setEnCours(false); }
   };
-  const annuler = () => { setE(baseE); setR(baseR); setDR(baseD); };
+  const annuler = () => { setE(baseE); setR(baseR); setDR(baseD); setSoc(baseSoc); };
 
   const majE = <K extends keyof Entreprise>(k: K, v: Entreprise[K]) => setE((x) => (x ? { ...x, [k]: v } : x));
   const majR = <K extends keyof Reglages>(k: K, v: Reglages[K]) => setR((x) => (x ? { ...x, [k]: v } : x));
@@ -189,6 +228,49 @@ export function Parametres() {
                   <Champ libelle="N° registre du commerce" aide="En-tête des contrats de travail" className={modif(modifieE("registreCommerce"))}>{(a) => <Input {...a} value={e.registreCommerce} onChange={(x) => majE("registreCommerce", x.target.value)} placeholder="RC/…" className="font-mono" />}</Champ>
                 </Grille>
               </Bloc>
+              {/* Une personne morale par société : chacune signe ses propres contrats et dépose
+                  son propre DIPE. Vide = on reprend l'entreprise, ce que le placeholder montre. */}
+              <Bloc titre="Identité par société" description="SESAME, SOFINA et SGC signent leurs propres contrats et déposent leur propre DIPE. Une case laissée vide reprend l'entreprise." className="lg:col-start-1">
+                <div className="space-y-3">
+                  {soc?.map((x, i) => {
+                    const renseignes = CHAMPS_SOCIETE.filter(([c]) => x[c].trim()).length;
+                    return (
+                      <div key={x.societe} className="rounded-lg border border-filet bg-papier/60 p-3">
+                        <div className="mb-2 flex items-center gap-2">
+                          <span className="rounded-full border border-filet bg-surface px-2 py-0.5 text-2xs font-semibold tracking-wide">{x.societe}</span>
+                          <span className="text-2xs text-encre-pale">
+                            {renseignes === 0
+                              ? "tout repris de l'entreprise"
+                              : renseignes === CHAMPS_SOCIETE.length
+                                ? "identité propre complète"
+                                : `${CHAMPS_SOCIETE.length - renseignes} champ(s) repris de l'entreprise`}
+                          </span>
+                        </div>
+                        <Grille>
+                          {CHAMPS_SOCIETE.map(([cle, libelle, repli]) => (
+                            <Champ
+                              key={cle}
+                              libelle={libelle}
+                              className={cn(cle === "adresse" && "sm:col-span-2", modif(x[cle] !== baseSoc[i][cle]))}
+                            >
+                              {(a) => (
+                                <Input
+                                  {...a}
+                                  value={x[cle]}
+                                  onChange={(ev) => setSoc((l) => l?.map((y, j) => (j === i ? { ...y, [cle]: ev.target.value } : y)) ?? l)}
+                                  placeholder={(e as any)[repli] || "— à renseigner sur l'entreprise"}
+                                  className={cn((cle === "niu" || cle === "numeroCnps" || cle === "registreCommerce") && "font-mono")}
+                                />
+                              )}
+                            </Champ>
+                          ))}
+                        </Grille>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Bloc>
+
               <Bloc titre="Aperçu de l'en-tête" description="Tel qu'il apparaît sur un document imprimé." className="lg:row-span-2">
                 <div className="rounded-lg bg-papier p-3"><div className="rounded border border-filet bg-white p-4 text-encre shadow-sm">
                   <div className="flex items-start gap-3 border-b-2 pb-3" style={{ borderColor: e.couleurEntete }}>

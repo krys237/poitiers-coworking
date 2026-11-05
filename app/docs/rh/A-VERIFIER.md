@@ -266,7 +266,7 @@ Points relevés **en transcrivant ses 13 modèles Word**. Aucun ne bloque la gé
 sortent déjà. Mais chacun porte sur le texte d'un document qui engage la Polyclinique, donc aucun
 n'a été tranché tout seul.
 
-### T1 🔴 Deux numéros de registre du commerce pour la même société
+### T1 🟠 Deux numéros de registre du commerce pour la même société
 
 Ses trois contrats portent le **même NIU** — `M110800026452Z` — mais **deux numéros de registre du
 commerce différents** :
@@ -281,14 +281,26 @@ Une société n'a qu'un numéro d'immatriculation : **l'un des deux est faux**, 
 aujourd'hui sur des contrats signés. Ce n'est pas qu'une coquille de forme — c'est l'identification
 légale de l'employeur dans l'acte.
 
-**Traitement retenu :** aucun des deux n'est écrit en dur. Les trois contrats lisent
-`parametresEntreprise.registreCommerce` (et `.dirigeant`, `.niu`), saisis dans *Paramètres →
-Entreprise & documents*. La valeur arbitrée se renseigne **une fois**, et corrige les trois
-modèles. Tant qu'elle est vide, les contrats impriment des pointillés — visible, donc jamais faux
-en silence.
+**Traitement retenu (05/11/2026) : paramétrable par société, et non figé.**
 
-**À faire :** confirmer le bon numéro auprès du greffe ou sur le dernier extrait RCCM, puis le
-saisir dans les paramètres.
+Aucun des deux numéros n'est écrit dans le code. L'identité juridique se saisit dans *Paramètres →
+Entreprise & documents*, à deux niveaux :
+
+- un bloc **entreprise** (dirigeant, n° RC), qui sert de valeur par défaut ;
+- un bloc **par société** — SESAME, SOFINA, SGC — où chacune porte sa raison sociale, son adresse,
+  son NIU, son N° CNPS, son dirigeant et son n° RC.
+
+Un contrat prend l'identité de la **société émettrice** (la société principale du salarié, ou celle
+choisie à l'écran pour une embauche), champ par champ, avec repli sur l'entreprise pour ce qui n'est
+pas renseigné — et le repli est **signalé**, jamais silencieux. Tant qu'un champ manque partout,
+l'acte sort avec des pointillés et l'écran l'annonce **avant** la délivrance.
+
+Ce bloc par société n'était pas seulement absent pour les contrats : `parametresEntreprise.societes`
+existait en schéma depuis R2 bis et **le DIPE le lisait déjà**, mais aucune mutation ne l'écrivait.
+Toutes les déclarations retombaient donc sur l'identité de l'entreprise. C'est corrigé du même coup.
+
+**Reste à faire :** confirmer le bon numéro auprès du greffe ou sur le dernier extrait RCCM, puis le
+saisir — une fois par société concernée. Le code n'attend plus rien.
 
 ### T2 🟢 Le CDI a perdu deux articles que le CDD porte — **tranché le 05/11/2026**
 
@@ -376,6 +388,7 @@ non par voie électronique, qui demanderait une autre conception).
 | E10 🟢 | Retenue médecins | Hors moteur de paie → module Primes médecins, lot **R6**. Taux 5 % ou 10 % **par médecin**, base = 100 % du CA assurance + 30 % du CA espèces. *(restent M1 et M2)* | 20/10/2026 |
 | E11 🟢 | Modèle de planning | Pas d'autre document à venir : le classeur `MODELE PLANNING CONGE ANNUEL.xlsx` est la seule source. | 20/10/2026 |
 | E12 🟢 | Données nominatives | Le dossier `modele/` n'est **jamais** versionné (noms, salaires et situations de famille de 78 personnes). | 20/10/2026 |
+| E14 🟢 | Identité juridique des contrats | **Paramétrable par société**, pas figée dans le code : chaque société porte son dirigeant et son n° de registre du commerce, avec repli signalé sur l'entreprise. Débloque aussi l'identité déclarante du DIPE, en schéma mort depuis R2 bis. Voir **T1**. | 05/11/2026 |
 | E13 🟢 | Articles manquants du CDI | Les articles **« Des congés »** et **« De la protection sociale »** sont **ajoutés** au CDI, qui s'aligne sur le CDD (huit articles). Les deux modèles les **partagent** : plus de divergence possible. Voir **T2**. | 05/11/2026 |
 
 ---
@@ -396,4 +409,4 @@ non par voie électronique, qui demanderait une autre conception).
 | **R8** ✅ | immatriculation de l'employé aux impôts : bulletin ou récapitulatif | — *(livré)* |
 | **R9** ✅ | vue RH du barème : le calcul expliqué en clair, sur un exemple réel | — *(livré ; A8 reste ouvert, 4 FCFA)* |
 | **R10** 🟡 | 32 demandes de novembre : autocomplétion, fonctions, rattachements, dépôt répété | rattachements à la création, « du … au … », routage par ligne, incrément d'ancienneté (**A6**) |
-| **R11** 🟡 | générateur d'actes RH : 13 modèles, pré-remplissage depuis le bulletin, référence numérotée, archivage | **T1** (n° RC), T3 (plafond du CDD), T4, T6 — *(T2 tranché)* |
+| **R11** 🟡 | générateur d'actes RH : 13 modèles, pré-remplissage depuis le bulletin, référence numérotée, archivage, identité juridique par société | T3 (plafond du CDD), T4, T6 — *(T1 et T2 tranchés ; T1 ne demande plus que la saisie du bon n° RC)* |
