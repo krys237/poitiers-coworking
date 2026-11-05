@@ -33,6 +33,7 @@ import {
   LogOut,
   PanelLeftOpen,
   FileSpreadsheet,
+  FileSignature,
 } from "lucide-react";
 import { useMe } from "../auth/useMe";
 import "../auth/auth.css";
@@ -78,6 +79,7 @@ const NAV: { grp: string; items: NavItem[] }[] = [
   {
     grp: "Paie",
     items: [
+      { to: "/actes", label: "Actes RH", perm: "/actes", icon: FileSignature },
       { to: "/employes", label: "Employés", perm: "/employes", icon: Users },
       // `perm` reprend exactement la clé de la route correspondante dans App.tsx :
       // le menu et le garde d'accès lisent ainsi le même droit (`me.droits`, rbac.MODULES).

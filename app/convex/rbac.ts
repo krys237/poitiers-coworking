@@ -89,6 +89,7 @@ export const MODULES: Module[] = [
   { cle: "/interventions/toutes", libelle: "Interventions : toutes les demandes", categorie: "Exploitation", voir: "Voir et suivre les demandes de tout le monde", faire: null, niveauVoir: 2, niveauFaire: 2 },
   { cle: "/documents", libelle: "Documents", categorie: "Exploitation", voir: "Consulter (selon le niveau de chaque document)", faire: "Déposer, supprimer ses dépôts", niveauVoir: 1, niveauFaire: 1 },
   { cle: "/documents/confidentiels", libelle: "Documents confidentiels", categorie: "Exploitation", voir: "Lire les documents confidentiels", faire: "Déposer un document confidentiel", niveauVoir: 5, niveauFaire: 5 },
+  { cle: "/actes", libelle: "Actes RH", categorie: "Exploitation", voir: "Consulter les actes délivrés", faire: "Délivrer et annuler un acte", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/employes", libelle: "Employés", categorie: "Exploitation", voir: "Consulter les fiches", faire: "Créer, modifier, importer", niveauVoir: 3, niveauFaire: 4 },
   { cle: "/commandes", libelle: "Commandes", categorie: "Exploitation", voir: "Consulter", faire: "Créer, modifier, commenter, livrer", niveauVoir: 3, niveauFaire: 3 },
   { cle: "/commandes/validation", libelle: "Validation des commandes", categorie: "Exploitation", voir: null, faire: "Valider ou rejeter une commande", niveauVoir: 5, niveauFaire: 5 },

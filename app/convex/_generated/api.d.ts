@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as actes from "../actes.js";
+import type * as actesPdf from "../actesPdf.js";
 import type * as archives from "../archives.js";
 import type * as audit from "../audit.js";
 import type * as auth from "../auth.js";
@@ -31,6 +33,7 @@ import type * as interventions from "../interventions.js";
 import type * as journal from "../journal.js";
 import type * as joursFeries from "../joursFeries.js";
 import type * as lib_absences from "../lib/absences.js";
+import type * as lib_actes from "../lib/actes.js";
 import type * as lib_apiSecurite from "../lib/apiSecurite.js";
 import type * as lib_audit from "../lib/audit.js";
 import type * as lib_authz from "../lib/authz.js";
@@ -78,6 +81,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  actes: typeof actes;
+  actesPdf: typeof actesPdf;
   archives: typeof archives;
   audit: typeof audit;
   auth: typeof auth;
@@ -101,6 +106,7 @@ declare const fullApi: ApiFromModules<{
   journal: typeof journal;
   joursFeries: typeof joursFeries;
   "lib/absences": typeof lib_absences;
+  "lib/actes": typeof lib_actes;
   "lib/apiSecurite": typeof lib_apiSecurite;
   "lib/audit": typeof lib_audit;
   "lib/authz": typeof lib_authz;

@@ -3,6 +3,7 @@ import { PageIntrouvable } from "./pages/Introuvable";
 import { PortailAuth, Guard, PageConnexion } from "./auth/Guard";
 import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
+import { Actes } from "./pages/Actes";
 import { Employes } from "./pages/Employes";
 import { SaisieMensuelle } from "./pages/SaisieMensuelle";
 import { Bulletins } from "./pages/Bulletins";
@@ -39,6 +40,7 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 // par défaut). Une route sans module est refusée à tout le monde, Directeur Général compris.
 const ROUTES: { path: string; perm: string; element: JSX.Element }[] = [
   { path: "/", perm: "/", element: <Dashboard /> },
+  { path: "/actes", perm: "/actes", element: <Actes /> },
   { path: "/employes", perm: "/employes", element: <Employes /> },
   { path: "/paie/saisie", perm: "/paie/saisie", element: <SaisieMensuelle /> },
   { path: "/paie/bulletins", perm: "/paie/bulletins", element: <Bulletins /> },

@@ -663,6 +663,50 @@ export default defineSchema({
     .index("by_date", ["date"])
     .index("by_annee", ["annee"]),
 
+  // Modèles d'actes RH (lot R11) — les 13 formulaires Word de la responsable RH, devenus des
+  // DONNÉES pour qu'elle puisse corriger une formulation sans nous. Datés comme le barème.
+  // Voir lib/actes.ts : le corps porte des jetons {{champ}} et chaque champ dit ce qui le remplit.
+  modelesActes: defineTable({
+    code: v.string(),
+    libelle: v.string(),
+    famille: v.union(v.literal("attestation"), v.literal("notification"), v.literal("stage"), v.literal("contrat")),
+    corps: v.string(),
+    champs: v.array(v.object({
+      nom: v.string(),
+      libelle: v.string(),
+      type: v.union(v.literal("texte"), v.literal("date"), v.literal("nombre"), v.literal("montant"), v.literal("zone")),
+      obligatoire: v.boolean(),
+      // D'où vient la valeur proposée : fiche employé, bulletin de la période, paramètres,
+      // date du jour, ou saisie libre.
+      source: v.object({ de: v.string(), cle: v.optional(v.string()) }),
+      aide: v.optional(v.string()),
+    })),
+    formatReference: v.optional(v.string()),
+    ordre: v.number(),
+    actif: v.boolean(),
+  }).index("by_code", ["code"]),
+
+  // Actes DÉLIVRÉS. Archivés systématiquement : un acte remis au salarié doit pouvoir être
+  // retrouvé à l'identique, et c'est une pièce opposable à l'inspection du travail.
+  actes: defineTable({
+    modeleCode: v.string(),
+    employeId: v.optional(v.id("employes")),
+    nomBeneficiaire: v.string(),      // figé : un acte ne change pas si la fiche change ensuite
+    reference: v.optional(v.string()),
+    periode: v.optional(v.string()),  // période du bulletin ayant servi au pré-remplissage
+    valeurs: v.record(v.string(), v.string()),
+    corpsRendu: v.string(),           // le texte EXACT délivré, figé
+    genereLe: v.string(),
+    genereParId: v.optional(v.id("users")),
+    genereParNom: v.optional(v.string()),
+    pdfId: v.optional(v.id("_storage")),
+    annuleLe: v.optional(v.string()),
+    annuleMotif: v.optional(v.string()),
+  })
+    .index("by_employe", ["employeId"])
+    .index("by_modele", ["modeleCode"])
+    .index("by_date", ["genereLe"]),
+
   // Journal d'activité : rôles/activations, clôtures, appels API, contrôles du barème (lib/journal.ts).
   journalActivite: defineTable({
     date: v.string(),                 // ISO

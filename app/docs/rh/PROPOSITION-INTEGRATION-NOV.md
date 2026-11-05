@@ -293,7 +293,7 @@ par elle, sans nous.
    par la même voie, ce qui est la situation courante.
 4. **Prime d'ancienneté et nouvelle ancienneté qui s'incrémentent ensemble** — attend A6.
 
-### Lot R11 — Générateur d'actes RH
+### Lot R11 — Générateur d'actes RH ✅ **LIVRÉ le 05/11/2026**
 
 C'est le plus gros morceau, et le plus autonome. Détaillé au §6.
 
@@ -357,16 +357,26 @@ actes          modeleCode, employeId?, reference, periode?, valeurs (record),
   longs, les points de suspension et les espaces fines insécables. Les modèles en sont pleins —
   « l'employé(e) », « Fait à … le … ». Sans ce nettoyage, la génération échoue.
 
-### Ce qu'il me faut pour ce lot
+### Les réponses obtenues le 05/11/2026
 
-- **Les en-têtes de référence exacts** par type d'acte. J'en vois trois variantes dans les modèles
-  (`PP/DAF/DRH`, `PP/MC/DAF/NG`) : laquelle pour lequel, et la séquence repart-elle chaque année ?
-- **Qui signe quoi.** Les modèles alternent « Directeur de la Polyclinique », « Directeur Général »
-  et « Nous soussignés, POLYCLINIQUE DE POITIERS ». À fixer par type d'acte.
-- **Les deux fichiers en double** (`ATTESTATION DE SALAIRE` et `- Copie`, idem pour la cessation) :
-  le modèle à retenir est celui à trous, pas celui déjà rempli — à confirmer.
-- **Les contrats CDD et CDI** : leurs fichiers s'appellent `.xlsx.docx`, et le CDI n'a rendu que
-  35 paragraphes à l'extraction. Je les relirai en détail au moment de coder ce lot.
+- **Les fichiers en double sont une erreur** : un seul modèle par acte, celui à trous.
+- **Signataire : la RH**, repris de `parametresEntreprise.responsableRH`.
+- **Les en-têtes** : le propriétaire a fourni une facture réelle de la Polyclinique. Le bandeau a
+  été mesuré — il occupe **125 pt (44 mm)** en haut d'une page A4, et il n'y a pas de pied de page
+  distinct (le filigrane descend jusqu'en bas). C'est la marge haute par défaut du générateur.
+- Les deux gabarits de référence trouvés dans ses fichiers sont conservés tels quels :
+  `{n}/PP/DAF/DRH/{mm}-{aaaa}` et `{n}/PP/MC/DAF/NG/{mm}-{aaaa}`, séquence repartant chaque année.
+
+### Ce qui reste du lot R11
+
+- **Les contrats CDD et CDI** ne sont pas encore modélisés : leurs fichiers s'appellent
+  `.xlsx.docx` et l'extraction du CDI n'a rendu que 35 paragraphes. À relire au calme avant de les
+  ajouter — l'engagement à l'essai, qui a la même structure, sert déjà de patron.
+- **L'autorisation de stage** et le **certificat de fin de stage** : mêmes familles que ce qui
+  existe, à ajouter quand leurs formulations seront confirmées.
+- **L'en-tête intégré au PDF** : la facture embarque son bandeau en image de fond. Si elle veut
+  envoyer les actes par e-mail plutôt que les imprimer sur papier à en-tête, il suffira de fournir
+  l'image et de l'ajouter en fond — la marge est déjà réservée.
 
 ---
 
@@ -378,7 +388,7 @@ actes          modeleCode, employeId?, reference, periode?, valeurs (record),
 | **R8** ✅ | bulletin / récapitulatif, téléchargement conditionnel, DIPE filtré, filtre d'immatriculation | — *(livré)* |
 | **R9** ✅ | Vue RH du barème, tranches TDL et RAV portées par le barème daté | — *(livré)* |
 | **R10** 🟡 | référentiel de fonctions ✅ · champ à saisie assistée ✅ · méthode d'envoi pré-remplie ✅ · **reste** : sociétés dès la création, période de congés affichée, routage d'envoi ligne à ligne | A6 pour le point ancienneté |
-| **R11** | générateur d'actes | les quatre précisions du §6 |
+| **R11** ✅ | générateur d'actes : 9 modèles, pré-remplissage depuis le bulletin, références numérotées, PDF sans en-tête, archivage | — *(livré)* |
 | R4 | allocation de congé | **une seule question** : comment compter la fraction de mois |
 | R6 | retenue médecins | M1, M2 — le comptable |
 
