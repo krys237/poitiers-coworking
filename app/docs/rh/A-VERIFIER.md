@@ -8,13 +8,15 @@
 > Dernière mise à jour : **05/11/2026**, après la séance de questions avec la responsable RH.
 > Les réponses recueillies sont consignées en tête, section **R**.
 >
-> **Reste bloquant après la séance — tout sur le lot R4 :**
-> **R-3a** (l'arrondi n'explique pas l'écart de l'allocation), **R-3b** (plafond 15 ou 16 mois),
-> **R-3c** (premier congé à 12 ou 24 mois), **R-3d** (le Vendredi Saint se décompte-t-il).
+> **Plus aucun point ne bloque.** Les quatre dernières questions de la séance ont été arbitrées
+> par la Direction le 05/11/2026 — voir **R-5**. Le lot **R4** est ouvert, le lot **R6** aussi.
 >
-> **Débloqués par la séance :** D1, M1, M2, A3, A5, A6, B5 → B11, T1, T3, T4, T6, X1, X2.
-> **Défauts de code révélés :** R-2a (double comptage de l'ancienneté), R-2b (le plancher de
-> 62 000 taxe à 62 000 pile), R-2c (les primes deviennent taxables).
+> **Correctifs appliqués :** **R-2a** (l'augmentation d'ancienneté ne compte plus deux fois),
+> **R-2b** (le plancher de 62 000 est inclusif). **R-2c est abandonné** : les assiettes des
+> indemnités restent celles de son fichier.
+>
+> **Reste à construire, sans attendre personne :** R4, R6, les cinq demandes **N1 → N5**, et les
+> restes de R10 et R11.
 
 ## R. Réponses de la RH et de la Direction — séance du 05/11/2026
 
@@ -40,11 +42,11 @@
 | **X1** | « Clôturer et générer bulletin du mois » : **RAS, consigne supprimée** | retirer la demande du registre |
 | **B11** | Exonération « jeunes de moins de 35 ans » : **à vérifier plus tard**, mise de côté | aucune |
 
-### R-2 🔴 Trois défauts de code révélés par les réponses
+### R-2 🟢 Trois défauts de code révélés par les réponses — deux corrigés, un abandonné
 
 Ces trois points n'étaient pas des questions : ce sont des écarts que les réponses mettent au jour.
 
-#### R-2a — `ancienneteSeparee` compte DEUX FOIS l'augmentation
+#### R-2a 🟢 `ancienneteSeparee` comptait DEUX FOIS l'augmentation — **corrigé le 05/11/2026**
 
 **Sa réponse (A6), verbatim :** « *Il n'y a qu'une prime d'ancienneté. […] Il y a une prime
 d'ancienneté de base (disons 2 000 F), la nouvelle année son montant peut être de 3 000 F, cela
@@ -65,12 +67,32 @@ r("66117", "Ancienneté (colonne distincte)", 35, true, true, true, true, false)
 Sur son exemple, le brut compterait **3 000 + 1 000 = 4 000** au lieu de 3 000. L'incrément est
 compté deux fois, et il se propage au taxable, au cotisable et à l'allocation.
 
-**À faire :** rendre 66117 **purement indicative** — hors brut, hors taxable, hors cotisable, hors
-allocation. Et renommer le libellé : « Ancienneté (colonne distincte) » laissait croire à une
-seconde prime, ce qui est précisément l'erreur d'interprétation que nous avions faite.
-A6 est donc **tranché**, et il débloque le dernier point de R10.
+**Corrigé.** La rubrique 66117 porte désormais un drapeau explicite `indicatif: true` et sort des
+quatre assiettes ; elle est aussi retirée du `total1` de `computeBulletin`, qui était une somme
+écrite à la main et ne passait pas par le catalogue. Elle **reste visible** sur le bulletin et dans
+le détail des assiettes — c'est bien son rôle.
 
-#### R-2b — le plancher de 62 000 taxe un salaire qui ne doit pas l'être
+Le drapeau est explicite plutôt que quatre `false` silencieux : sans lui, une rubrique hors de
+toutes les assiettes ressemble à un oubli, et le prochain lecteur la « corrige » en la remettant
+dans le brut — recréant exactement le double comptage.
+
+Deux libellés corrigés, parce qu'ils portaient l'erreur d'interprétation :
+
+| Où | Avant | Après |
+|---|---|---|
+| catalogue + bulletin | « Ancienneté (colonne distincte) » | « Augmentation d'ancienneté (indicatif) » |
+| écran de saisie (`recap/commun.tsx`) | `anciennete` = « Ancienneté (primes fixes) » · `ancienneteSeparee` = « **Ancienneté** » | `anciennete` = « Ancienneté (montant total) » · `ancienneteSeparee` = « Dont augmentation (indicatif) » |
+
+⚠️ Ce second changement n'est pas cosmétique. Avant la correction, les deux cases étaient sommées :
+une saisie dans la mauvaise case restait dans le brut. Désormais, **saisir le montant global dans
+la case indicative le ferait disparaître du brut**. Le libellé devait donc lever tout doute.
+
+Le test décisif ajouté : renseigner la case indicative ou non **ne change pas un seul chiffre** du
+bulletin — ni brut, ni net, ni IRPP, ni CNPS, ni charges patronales.
+
+A6 est tranché, et le dernier point de R10 est débloqué.
+
+#### R-2b 🟢 Le plancher de 62 000 taxait un salaire qui ne doit pas l'être — **corrigé le 05/11/2026**
 
 **Sa réponse (B8) :** « *on reste sur ce qui est et ça commence à 62 001 F. **62 000 n'est pas
 taxable**.* »
@@ -83,10 +105,11 @@ const exonereSalarial = brutTaxable < seuil;   // seuil = 62 000
 
 À **exactement 62 000**, `62000 < 62000` est faux : le salarié est **taxé**. Il faut `<=`.
 
-**À faire :** passer la comparaison à `brutTaxable <= seuil`, et ajouter un test sur la borne
-exacte — c'est le genre d'écart d'un franc qui ne se voit jamais et se découvre en contrôle.
+**Corrigé.** La comparaison est passée à `brutTaxable <= seuil`, et la borne est testée **des deux
+côtés** : à 62 000 pile le salarié est exonéré et ses retenues fiscales sont nulles ; à 62 001 il
+est taxé et la TDL de 250 est due. C'est le seul endroit où un `<` au lieu d'un `<=` se voit.
 
-#### R-2c — les primes « hors assiette » deviennent toutes taxables
+#### R-2c ⬜ Les primes « hors assiette » — **abandonné le 05/11/2026**
 
 **Sa réponse (B3 · B4) :** « *toutes ces indemnités sont taxables.* »
 
@@ -100,18 +123,24 @@ Cela renverse ce que faisait son propre fichier, et donc ce que nous avions repr
 C'est le changement d'assiette le plus large de la séance. Il augmente le taxable, donc l'IRPP, le
 CAC, le CFC salarial, la TDL et la RAV de tous les salariés qui perçoivent ces primes.
 
-**À faire :** basculer `dansBrutIntermediaire` à `true` sur les rubriques concernées, dans une
-**nouvelle version datée** du barème — pas en modifiant la version en cours, sinon les paies déjà
-calculées changeraient rétroactivement. **À confirmer :** la date d'effet. Et le point reste à
-trancher pour le **cotisable** : « taxable » ne dit pas « cotisable », et les deux assiettes sont
-distinctes.
+**Décision du 05/11/2026 : on ne change rien.** « *Reste sur ce qui est dans le fichier concernant
+cet aspect-ci.* » Les assiettes du logement et des primes de panier, salissure, lait, outillage,
+représentation et usage de véhicule restent **exactement** celles de son classeur.
 
-### R-3 🔴 Trois réponses qui ne concordent pas avec les données
+La clé est une précision de la Direction : « **taxable, ce n'est pas imposable** ». Son
+« toutes ces indemnités sont taxables » ne voulait pas dire « à mettre dans l'assiette de l'IRPP ».
+Ces éléments entrent dans le **brut** — ils sont bien de la rémunération — mais dans aucune assiette
+de retenue, ce qui est précisément le comportement déjà codé.
+
+Le changement d'assiette le plus large de la séance **n'a donc pas lieu**, et aucune nouvelle
+version de barème n'est nécessaire.
+
+### R-3 🟢 Quatre réponses qui ne concordaient pas avec les données — **toutes arbitrées** (voir R-5)
 
 Rien ici n'est un reproche : ce sont des endroits où la réponse et le classeur se contredisent, et
 où coder l'une ou l'autre donne des montants différents.
 
-#### R-3a — l'arrondi n'explique pas l'écart de l'allocation (A1 · A2)
+#### R-3a 🟢 L'arrondi n'explique pas l'écart de l'allocation (A1 · A2)
 
 **Sa réponse :** « *C'est un arrondi au franc inférieur pour les nombres < 5 et supérieur pour les
 nombres > 5.* » — soit l'arrondi au franc le plus proche, la règle habituelle.
@@ -128,11 +157,11 @@ L'arrondi explique bien une chose : pourquoi les trois rapports ne sont pas iden
 huitième décimale (0,9983638 / 0,9983666 / 0,9983593). Mais le facteur lui-même — 0,1636 % — vient
 d'ailleurs.
 
-**Ce qui reste à obtenir : les deux dates d'UNE seule ligne.** Pour la ligne 8 : la date de retour
-du congé précédent, et la date de départ retenue. Nous en déduirons la règle et la vérifierons sur
-les trois autres lignes. **Bloque toujours R4.**
+**Arbitré le 05/11/2026 : on n'attend plus ces dates.** Le calcul suit la règle énoncée, et l'écart
+de 0,1636 % avec son DIPE d'août reste inexpliqué — c'est une conséquence acceptée, pas un défaut.
+Voir **R-5**. **R4 n'est plus bloqué.**
 
-#### R-3b — le plafond est-il de 15 ou de 16 mois ? (R4)
+#### R-3b 🟢 Le plafond est-il de 15 ou de 16 mois ? → **16** (R4)
 
 **Sa réponse :** « *Le congé principal vaut 1,5 j/mois sans dépasser 15 mois, c'est-à-dire qu'au
 bout du 15e mois le système n'additionne plus, donc ça limite à 22,5 j, donc 23 jours.* »
@@ -155,7 +184,7 @@ Deux faits s'y opposent :
 **À trancher :** 15 ou 16 mois. L'écart est d'un jour et demi de congé, et de 9 477 FCFA
 d'allocation sur la ligne 8.
 
-#### R-3c — le premier congé s'ouvre à 12 ou à 24 mois ? (R4)
+#### R-3c 🟢 Le premier congé s'ouvre à 12 ou à 24 mois ? → **24** (R4)
 
 **Sa réponse, verbatim :** « *un employé n'a droit aux congés qu'après **2 ans**. C'est à partir de
 ce délai que la formule commence à s'appliquer. donc le congé commence à être calculé après sa
@@ -176,7 +205,7 @@ l'art. 89 du Code du travail dit la même chose.
 **À trancher :** si le premier congé s'ouvre réellement à 24 mois, les trois contrats de travail
 doivent être corrigés, car ils promettent 12.
 
-#### R-3d — le Vendredi Saint : sa réponse contredit sa propre correction (E1 bis · D1)
+#### R-3d 🟢 Le Vendredi Saint → **il est férié et ne se décompte pas** (E1 bis · D1)
 
 **Sa réponse :** « *les fêtes pascales, Vendredi Saint, jeudi de l'Ascension, l'Aïd et le mouton
 sont considérés comme des jours fériés. Sur le plan légal ces journées le sont également.* »
@@ -193,13 +222,83 @@ Or elle a validé notre correction au **06/04/2026** — qui n'est juste que si 
 **À trancher :** un jour, sur une ligne — mais la règle s'applique à tous les congés qui enjambent
 Pâques ou l'Ascension, chaque année.
 
+### R-5 🟢 Arbitrages de la Direction — 05/11/2026, après confrontation aux données
+
+Les quatre points de **R-3** ont été tranchés par la Direction, en connaissance des contradictions
+relevées. Consigne explicite : « *pour les 2 dates, il ne faut pas s'y fier désormais, utilise les
+valeurs que je t'ai données pour trancher* ».
+
+| Point | Arbitrage | Conséquence assumée |
+|---|---|---|
+| **R-3a** | On **n'attend plus** les deux dates du DIPE d'août. Le calcul suit la règle énoncée : arrondi au franc le plus proche, et le modèle ci-dessous | Nos montants **différeront de son DIPE d'août de 248, 349 et 263 FCFA** sur les lignes 8, 17 et 18. Ce n'est pas un défaut : c'est la conséquence de la décision. Le facteur de 0,1636 % restera inexpliqué, et c'est accepté |
+| **R-3b** | Le plafond est de **16 mois**, pas 15 | Confirme les données : la ligne 16 a un rapport de 1,0000 (N = 16,00 pile), et son planning porte des lignes à 24 jours (1,5 × 16), aucune à 23 |
+| **R-3c** | Le premier congé s'ouvre **après 24 mois** | ⚠️ Les **trois contrats de travail** promettent « 12 mois consécutifs » : leur article des congés devra être corrigé, sinon les actes délivrés contrediront la règle appliquée. Voir **R-6** |
+| **R-3d** | Les fêtes pascales, le Vendredi Saint, l'Ascension, l'Aïd et le mouton **sont des jours fériés** et ne se décomptent pas | ⚠️ La première ligne de **D1** se corrige donc au **07/04/2026**, et non au 06/04 validé en séance — l'écart d'un jour venait précisément du Vendredi Saint. Voir **R-6** |
+
+#### Le modèle de calcul retenu
+
+```
+droit en jours     = 1,5 × min(N ; 16)              →  plafonné à 24 jours
+allocation         = arrondi( N × (salaire de base + ancienneté) ÷ 16 )
+premier congé      = à l'issue de 24 mois de service
+```
+
+où **N** est le nombre de mois et fractions de mois de la période de référence, qui court du retour
+du congé précédent à la veille du nouveau départ (décret n°75/28).
+
+#### La fraction de mois : convention retenue par défaut, et réversible
+
+Aucune réponse n'a fixé la façon de convertir des jours en fraction de mois. Quatre conventions
+donnent quatre montants (voir **R-3a**), et il faut bien en choisir une pour écrire le code.
+
+**Retenu : mois entiers + (jours restants ÷ nombre de jours du mois entamé).** C'est la lecture
+littérale de « fractions de mois » du décret, et la seule qui n'introduit aucun diviseur arbitraire.
+
+Le choix est porté par un **paramètre du barème daté**, à trois valeurs — `jours_du_mois` (défaut),
+`trente`, `trente_virgule_44` — pour qu'un changement d'avis ne demande ni intervention technique
+ni recalcul des mois déjà clos. **À confirmer** quand l'occasion se présentera ; rien n'attend.
+
+### R-6 🟠 Deux conséquences à traiter, nées des arbitrages
+
+Ces deux points ne sont pas des questions : ce sont des travaux que les arbitrages rendent
+nécessaires.
+
+#### R-6a — les trois contrats promettent 12 mois, la règle en applique 24
+
+L'article des congés, transcrit mot pour mot de ses modèles Word et partagé par le CDD, le CDI et
+l'engagement à l'essai, dit :
+
+> *L'employé(e) a droit à un congé de 1,5 jour ouvrable par mois de service effectif. Il/elle ne
+> pourra bénéficier du congé qu'au terme de **12 mois** consécutifs de service effectif.*
+
+L'arbitrage **R-3c** fixe le premier congé à **24 mois**. Un contrat délivré aujourd'hui
+contredirait donc la règle appliquée en paie — et c'est le contrat qui engage la clinique.
+
+**À faire :** corriger `ART_CONGES` dans `lib/actes.ts`. Comme l'article est **partagé** par les
+trois contrats, une seule correction les met tous d'accord. **À confirmer avant de toucher au
+texte :** le Code du travail ouvre le droit au terme de 12 mois (art. 89) ; porter 24 mois dans un
+contrat mérite une relecture juridique.
+
+#### R-6b — la première ligne de D1 se corrige au 07/04, non au 06/04
+
+| | Retour calculé | |
+|---|---|---|
+| fériés fixes seuls | 06/04/2026 | la valeur validée en séance |
+| **fériés fixes + fêtes pascales** | **07/04/2026** | **la valeur conforme à l'arbitrage R-3d** |
+
+Les quatre autres corrections de **D1** ne sont pas touchées : aucune fête pascale ne tombe dans
+leur période. **À faire :** retenir le 07/04/2026 à l'import, et le signaler lors de la reprise du
+planning.
+
+---
+
 ### R-4 🟡 Cinq fonctionnalités nouvelles demandées pendant la séance
 
 Aucune n'était au programme. Elles sont consignées ici et non chiffrées.
 
 | # | Demande | Ce qu'elle implique |
 |---|---|---|
-| **N1** | **Fériés décrétés en cours d'année.** « *les jours fériés décrétés au cours de l'année pour une raison ou une autre augmentent ou décalent la date initialement prévue […] il faut donc que la RH puisse ajouter des fériés justifiés en cas de besoin* » | La table `joursFeries` existe déjà et est datée. Il manque l'écran d'ajout, le motif obligatoire, et le **recalcul des retours de congé déjà posés** — c'est ce dernier point qui est délicat : un congé en cours doit-il se décaler automatiquement&nbsp;? Résout **D2** |
+| **N1** | **Fériés décrétés en cours d'année.** « *les jours fériés décrétés au cours de l'année pour une raison ou une autre augmentent ou décalent la date initialement prévue […] il faut donc que la RH puisse ajouter des fériés justifiés en cas de besoin* » | La table `joursFeries` existe déjà et est datée. Il manque l'écran d'ajout et le motif obligatoire. **Tranché le 05/11/2026 : un congé déjà posé se décale AUTOMATIQUEMENT.** Le recalcul doit donc remonter sur les congés en cours et à venir, et laisser une trace de ce qu'il a déplacé — un retour qui bouge sans explication serait pire que pas de recalcul. Résout **D2** |
 | **N2** | **Alertes d'échéance de CDD.** Durée max **6 mois renouvelable une fois**. Rappels configurables, par défaut : 1 rappel à 1 mois, 1 par semaine le dernier mois, 1 par jour la dernière semaine | Tâches planifiées + préférences de rappel. Complète **T3** |
 | **N3** | **Signature électronique.** « *nous aimerions que la signature se fasse via la plateforme […] permettre aux utilisateurs d'enregistrer cela sur la plateforme et de pouvoir l'apposer au besoin* » | Chaque utilisateur enregistre sa signature (image), qui s'apposerait sur les actes. Touche la valeur probante des documents : à cadrer avant de coder. Répond à **T6** |
 | **N4** | **Le certificat de fin de stage doit pouvoir être signé par la RH** (T4 : les deux documents sont utilisés) | Le signataire est aujourd'hui tiré du dirigeant. À rendre choisissable entre dirigeant et responsable RH |
@@ -600,9 +699,9 @@ non par voie électronique, qui demanderait une autre conception).
 | **R2 bis** | multi-société : un bulletin par société, un DIPE par déclarant | — *(B2 tranché)* |
 | **R2** ✅ | table `rubriquesPaie` datée + les quatre assiettes + corrections C1→C10 | — *(livré ; reste à renseigner B5, qui n'est plus bloquant)* |
 | **R3** ✅ | écran DIPE + export CSV + récapitulatif par destinataire + rapport d'écart typé | — *(livré)* |
-| **R4** | allocation de congé (1/16) + liaison planning → paie | **A1**, **A2**, A3 |
+| **R4** | allocation de congé (1/16) + liaison planning → paie | — *(plus rien : arbitré en **R-5**)* |
 | **R5** ✅ | absences élargies (maternité, AT/MP, chômage technique, permissions, sans solde, mise à pied, formation syndicale) | — *(livré)* |
-| **R6** | retenue à la source médecins | **M1**, **M2** |
+| **R6** | retenue à la source médecins | — *(plus rien : 5,5 % et 11 %, les 30 % en règle figée)* |
 | **R7** ✅ | droit à congé proratisé sur l'année (correction du décompte depuis l'embauche) | — *(livré)* |
 | **R8** ✅ | immatriculation de l'employé aux impôts : bulletin ou récapitulatif | — *(livré)* |
 | **R9** ✅ | vue RH du barème : le calcul expliqué en clair, sur un exemple réel | — *(livré ; A8 reste ouvert, 4 FCFA)* |

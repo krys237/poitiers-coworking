@@ -78,8 +78,9 @@ titre("Les quatre assiettes expliquées depuis le catalogue réel");
 const A = assiettesExpliquees(RUBRIQUES_DEFAUT);
 check("quatre assiettes", A.length === 4);
 check("chacune dit à quoi elle sert", A.every((x) => x.sertA.length > 10));
-check("le brut contient TOUTES les rubriques de gain",
-  A[0].rubriques.length === RUBRIQUES_DEFAUT.filter((r) => r.sens === "gain").length);
+check("le brut contient toutes les rubriques de gain, hormis les indicatives",
+  A[0].rubriques.length === RUBRIQUES_DEFAUT.filter((r) => r.sens === "gain" && !r.indicatif).length,
+  { brut: A[0].rubriques.length, gains: RUBRIQUES_DEFAUT.filter((r) => r.sens === "gain").length });
 check("le transport est dans le brut intermédiaire",
   A[1].rubriques.some((x) => x.includes("transport")));
 check("le logement en est exclu", !A[1].rubriques.some((x) => x.includes("logement")));

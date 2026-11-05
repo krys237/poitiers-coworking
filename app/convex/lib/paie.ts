@@ -247,14 +247,22 @@ export function computeBulletin(salaireBaseRef: number, s: SaisieMois, b: Bareme
   const autresRubriques = extras.rubriques ?? {};
   const primes = s.primesVariables + s.transport + s.primeAssiduite + s.indemniteLogement + primesLibres
     + Object.values(autresRubriques).reduce((t, m) => t + Math.round(m || 0), 0);
+  // ⚠️ `ancienneteSeparee` est l'AUGMENTATION de l'ancienneté de l'année, affichée pour mémoire :
+  // elle n'entre PAS dans le Total 1. Le montant qui compte est le global, porté par `anciennete`
+  // (rubrique 66116). Décision du 05/11/2026 — voir A-VERIFIER R-2a et le commentaire de la
+  // rubrique 66117 dans `lib/rubriques.ts`.
+  //
+  // L'ajouter ici comptait l'augmentation DEUX FOIS : une fois dans le global, une fois à part.
+  // La ligne reste présente dans `lignesGain` — elle doit se voir sur le bulletin — mais à
+  // montant non sommé.
   const ancienneteSeparee = s.ancienneteSeparee ?? 0;
-  const total1 = salaireBase + primes + indemniteConges + s.heuresSup + s.anciennete + ancienneteSeparee;
+  const total1 = salaireBase + primes + indemniteConges + s.heuresSup + s.anciennete;
 
   const lignesGain: LigneGain[] = [
     { code: "66111", libelle: "Salaire du mois", base: salaireBase, gain: salaireBase },
     { code: "66112", libelle: "Forfait heures supplémentaires", base: 0, gain: s.heuresSup },
     { code: "66116", libelle: "Ancienneté", base: 0, gain: s.anciennete },
-    { code: "66117", libelle: "Ancienneté (colonne distincte)", base: 0, gain: ancienneteSeparee },
+    { code: "66117", libelle: "Augmentation d'ancienneté (indicatif)", base: 0, gain: ancienneteSeparee },
     { code: "6613", libelle: "Congés payés", base: 0, gain: indemniteConges },
     { code: "66121", libelle: "Prime de transport", base: s.transport, gain: s.transport },
     { code: "66122", libelle: "Prime d'assiduité", base: s.primeAssiduite, gain: s.primeAssiduite },
@@ -298,7 +306,13 @@ export function computeBulletin(salaireBaseRef: number, s: SaisieMois, b: Bareme
   const baseCnps = assiettes.cotisablePlafonne;
 
   // 4. Retenues SALARIALES — soumises au plancher d'exonération (62 000) et à l'exonération jeunes.
-  const exonereSalarial = brutTaxable < seuil || extras.exonereJeune === true;
+  //
+  // ⚠️ La comparaison est `<=` et non `<`. Décision du 05/11/2026 (A-VERIFIER R-2b), sur la
+  // précision de la RH : « ça commence à 62 001 F, 62 000 n'est pas taxable ». Le plancher est
+  // donc inclusif : un salarié dont le taxable vaut EXACTEMENT 62 000 est exonéré.
+  // Avec `<`, il était taxé — un écart d'un franc d'assiette, invisible à l'œil, qui se découvre
+  // en contrôle.
+  const exonereSalarial = brutTaxable <= seuil || extras.exonereJeune === true;
   const siDu = (montant: number) => (exonereSalarial ? 0 : montant);
 
   const cnpsSalarie = pct(baseCnps, b.tauxPvidSal); // la CNPS n'est PAS une retenue fiscale : pas de plancher

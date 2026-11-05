@@ -115,8 +115,17 @@ check("IRPP, CAC, TDL, RAV et CFC salarial à zéro", petit.details.irpp === 0 &
 check("la CNPS salariale reste due (ce n'est pas une retenue fiscale)", petit.details.cnpsSalarie === Math.round(55000 * 0.042), petit.details.cnpsSalarie);
 check("« l'employeur a toujours un montant à payer » : charges patronales > 0", petit.chargesPatronales > 0, petit.chargesPatronales);
 check("prestations familiales dues malgré l'exonération", pat(petit, "66411") === Math.round(55000 * 0.07));
-const juste = computeBulletin(62000, vide, BAREME_DEFAUT);
-check("à 62 000 pile, le salarié n'est plus exonéré", juste.details.exonereSalarial === false && juste.details.tdl === 250, juste.details);
+// Le plancher est INCLUSIF : « ça commence à 62 001 F, 62 000 n'est pas taxable »
+// (RH, 05/11/2026 — A-VERIFIER R-2b). La borne exacte est testée des deux côtés : c'est
+// le seul endroit où un `<` au lieu d'un `<=` se voit.
+const pile = computeBulletin(62000, vide, BAREME_DEFAUT);
+check("à 62 000 PILE, le salarié est exonéré", pile.details.exonereSalarial === true, pile.details);
+check("et ses retenues fiscales sont donc nulles",
+  pile.details.irpp === 0 && pile.details.cac === 0 && pile.details.tdl === 0 && pile.details.rav === 0,
+  pile.details);
+const unFrancDePlus = computeBulletin(62001, vide, BAREME_DEFAUT);
+check("à 62 001, il est taxé", unFrancDePlus.details.exonereSalarial === false, unFrancDePlus.details);
+check("et la TDL est due", unFrancDePlus.details.tdl === 250, unFrancDePlus.details.tdl);
 
 titre("C7 — avantages en nature évalués au forfait");
 // Logement 200 000 déclaré, forfait 15 % de 1 000 000 = 150 000 → on retient le forfait.
@@ -145,25 +154,46 @@ check("CFC patronal et FNE tombent à zéro", pat(jeune, "64132") === 0 && pat(j
 check("mais les cotisations SOCIALES CNPS restent dues", jeune.details.cnpsSalarie > 0 && pat(jeune, "66411") > 0 && pat(jeune, "66412") > 0 && pat(jeune, "66413") > 0);
 
 // ===========================================================================
-titre("Les DEUX anciennetés (distinction demandée le 21/10/2026)");
+titre("L'augmentation d'ancienneté est INDICATIVE, et ne compte nulle part");
+// Explication de la RH, 05/11/2026 (A-VERIFIER R-2a) : la seconde colonne porte
+// l'AUGMENTATION de l'année (ici 20 000), affichée pour mémoire ; le montant qui compte est
+// le global, porté par 66116. Avant la correction, 66117 entrait dans le brut, le taxable, le
+// cotisable ET l'allocation : l'augmentation était comptée deux fois.
 const deuxAnc = computeBulletin(100000, { ...vide, anciennete: 30000, ancienneteSeparee: 20000 }, BAREME_DEFAUT);
-check("chaque ancienneté est comptée UNE fois dans le Total 1",
-  deuxAnc.brut === 100000 + 30000 + 20000, deuxAnc.brut);
-check("les deux figurent dans les lignes de gain, sous des codes distincts",
-  deuxAnc.lignesGain.find((l) => l.code === "66116")?.gain === 30000 &&
-    deuxAnc.lignesGain.find((l) => l.code === "66117")?.gain === 20000);
+check("le brut ne compte que le global, pas l'augmentation",
+  deuxAnc.brut === 100000 + 30000, deuxAnc.brut);
+check("elle n'est NI taxable NI cotisable",
+  deuxAnc.details.assiettes!.taxable === 130000 && deuxAnc.details.assiettes!.cotisable === 130000,
+  deuxAnc.details.assiettes);
+// Le test décisif : le montant indicatif ne doit changer AUCUN chiffre du bulletin.
+const sansIndic = computeBulletin(100000, { ...vide, anciennete: 30000 }, BAREME_DEFAUT);
+check("la renseigner ou non ne change pas un seul chiffre",
+  deuxAnc.brut === sansIndic.brut && deuxAnc.net === sansIndic.net
+    && deuxAnc.details.irpp === sansIndic.details.irpp
+    && deuxAnc.details.cnpsSalarie === sansIndic.details.cnpsSalarie
+    && deuxAnc.chargesPatronales === sansIndic.chargesPatronales,
+  { avec: deuxAnc.net, sans: sansIndic.net });
+check("mais elle reste VISIBLE sur le bulletin, sous son propre code",
+  deuxAnc.lignesGain.find((l) => l.code === "66117")?.gain === 20000);
+check("et dans les détails", deuxAnc.details.ancienneteSeparee === 20000);
+check("la prime d'ancienneté, elle, garde sa place dans le brut",
+  deuxAnc.lignesGain.find((l) => l.code === "66116")?.gain === 30000);
 check("aucune des deux n'entre dans l'agrégat « primes » (elles ont leurs propres colonnes)",
   deuxAnc.details.primes === 0, deuxAnc.details.primes);
-check("les deux sont taxables et cotisables",
-  deuxAnc.details.assiettes!.taxable === 150000 && deuxAnc.details.assiettes!.cotisable === 150000,
-  deuxAnc.details.assiettes);
-check("l'ancienneté distincte est exposée dans les détails", deuxAnc.details.ancienneteSeparee === 20000);
-check("son absence vaut zéro, sans casser le total",
-  computeBulletin(100000, { ...vide, anciennete: 30000 }, BAREME_DEFAUT).brut === 130000);
 
 titre("Catalogue de rubriques");
 check("18 rubriques nommées + la ligne libre", RUBRIQUES_DEFAUT.length === 19, RUBRIQUES_DEFAUT.length);
-check("toutes les rubriques sont dans le brut", RUBRIQUES_DEFAUT.every((r) => r.dansBrut));
+check("toutes les rubriques sont dans le brut, sauf celles déclarées indicatives",
+  RUBRIQUES_DEFAUT.every((r) => r.dansBrut || r.indicatif === true),
+  RUBRIQUES_DEFAUT.filter((r) => !r.dansBrut && !r.indicatif).map((r) => r.code));
+// Le drapeau doit rester une exception assumée, et non un moyen commode de sortir une
+// rubrique des assiettes sans le dire.
+check("une seule rubrique est indicative : l'augmentation d'ancienneté",
+  RUBRIQUES_DEFAUT.filter((r) => r.indicatif).map((r) => r.code).join() === "66117",
+  RUBRIQUES_DEFAUT.filter((r) => r.indicatif).map((r) => r.code));
+check("une rubrique indicative n'est dans AUCUNE assiette",
+  RUBRIQUES_DEFAUT.filter((r) => r.indicatif).every(
+    (r) => !r.dansBrut && !r.dansBrutIntermediaire && !r.dansCotisable && !r.dansAllocConge));
 check("le transport est taxable mais non cotisable", rub("66121").dansBrutIntermediaire && !rub("66121").dansCotisable);
 check("le logement est cotisable mais hors du brut intermédiaire", rub("6631").dansCotisable && !rub("6631").dansBrutIntermediaire);
 check("le logement porte le forfait de 15 %", rub("6631").avantageNature?.tauxForfait === 15);

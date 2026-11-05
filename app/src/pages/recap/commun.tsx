@@ -57,7 +57,11 @@ export const DEFAUT: Record<Champ, number> = {
 export const LIBELLE: Record<Champ, string> = {
   joursTravailles: "Jours travaillés", primesVariables: "Primes fixes", transport: "Prime transport",
   primeAssiduite: "Prime assiduité", indemniteLogement: "Indemnité logement", heuresSup: "Heures supplémentaires",
-  anciennete: "Ancienneté (primes fixes)", ancienneteSeparee: "Ancienneté", sanctions: "Sanctions", absences: "Absences", dettesSoins: "Dettes de soins",
+  // ⚠️ Les deux libellés étaient inversés dans leur effet : `ancienneteSeparee` s'appelait
+  // « Ancienneté » tout court, alors que c'est l'AUGMENTATION de l'année — indicative, comptée
+  // nulle part depuis le 05/11/2026 (A-VERIFIER R-2a). Saisir le montant global dans cette case
+  // le ferait maintenant disparaître du brut : le libellé doit lever tout doute.
+  anciennete: "Ancienneté (montant total)", ancienneteSeparee: "Dont augmentation (indicatif)", sanctions: "Sanctions", absences: "Absences", dettesSoins: "Dettes de soins",
   acompte: "Acompte", mutuellePct: "Mutuelle",
   primeSalissure: "Prime salissure", primePanier: "Prime panier", primeLait: "Prime lait", indemniteRepresentation: "Ind. représentation", indemniteVehicule: "Ind. véhicule / moto", primeCaisse: "Prime caisse", primeRendement: "Prime rendement", indemniteOutillage: "Ind. outillage", gratification: "Gratification",
 };
