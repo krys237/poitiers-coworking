@@ -17,9 +17,10 @@
 >
 >
 >
-> **Reste à construire, sans attendre personne :** **N2** (alertes d'échéance CDD), **N3**
-> (signature électronique) et **N5** (module de tickets), plus l'en-tête PDF de R11. **N1 et N4
-> sont livrés le 06/11/2026** ; R10 est complet. **R-6a est tranché** (les deux textes divergent volontairement) ; **R-6b** (la
+>
+> **Reste à construire :** **N2** (alertes d'échéance CDD) et **N3** (signature électronique —
+> à cadrer avant de coder, voir **N3-a**). **N1, N4 et N5 sont livrés le 06/11/2026** ; R10 et R11
+> sont complets. Une question nouvelle : **N5-a**, la notification par courriel. **R-6a est tranché** (les deux textes divergent volontairement) ; **R-6b** (la
 > 1re ligne de D1 se corrige au 07/04) est à appliquer lors de la reprise du planning.
 
 ## R. Réponses de la RH et de la Direction — séance du 05/11/2026
@@ -336,7 +337,7 @@ Aucune n'était au programme. Elles sont consignées ici et non chiffrées.
 | **N2** | **Alertes d'échéance de CDD.** Durée max **6 mois renouvelable une fois**. Rappels configurables, par défaut : 1 rappel à 1 mois, 1 par semaine le dernier mois, 1 par jour la dernière semaine | Tâches planifiées + préférences de rappel. Complète **T3** |
 | **N3** | **Signature électronique.** « *nous aimerions que la signature se fasse via la plateforme […] permettre aux utilisateurs d'enregistrer cela sur la plateforme et de pouvoir l'apposer au besoin* » | Chaque utilisateur enregistre sa signature (image), qui s'apposerait sur les actes. Touche la valeur probante des documents : à cadrer avant de coder. Répond à **T6** |
 | **N4** ✅ | **Le certificat de fin de stage doit pouvoir être signé par la RH** | ✅ Livré le 06/11/2026. Signataire au choix, et la QUALITÉ inscrite sur l'acte suit : un acte signé par la RH ne peut pas annoncer « Directeur Général » |
-| **N5** | **Module de tickets.** Un membre ouvre un ticket décrivant un dysfonctionnement ou un besoin, avec **images ou captures**. Il part à **deux destinataires** : le Directeur (qui valide la pertinence) et le développeur | Nouveau module : table, écran, pièces jointes, deux destinataires, états. Répond à **X2** |
+| **N5** ✅ | **Module de tickets.** Un membre ouvre un ticket décrivant un dysfonctionnement ou un besoin, avec **images ou captures**. Il part à **deux destinataires** : le Directeur (qui valide la pertinence) et le développeur | Nouveau module : table, écran, pièces jointes, deux destinataires, états. Répond à **X2** |
 
 ---
 
@@ -588,6 +589,44 @@ accepté). `salaireBrut` est conservé en lecture seule le temps de la migration
 
 ⚠️ **Ne pas confondre** avec le `salaireBrut` de `lib/dipe.ts`, qui désigne l'assiette V (le vrai
 salaire brut, primes incluses) et garde son nom à juste titre.
+
+---
+
+## N. Questions nées des demandes de la séance du 05/11/2026
+
+### N5-a 🟠 Faut-il qu'un courriel PARTE à l'ouverture d'un ticket&nbsp;?
+
+Sa demande dit « cela sera **envoyé** à 2 personnes ». Le module le traduit par un
+**acheminement** : le ticket apparaît immédiatement dans l'écran du Directeur et dans celui du
+développeur, avec une pastille au menu comptant ce qui attend une décision de leur part. Personne
+n'a besoin de chercher.
+
+Mais **aucun courriel ne quitte l'application**, et deux choses manquent pour qu'il en parte :
+
+1. **l'adresse du développeur** — elle n'existe nulle part dans les paramètres ;
+2. **l'expéditeur** — `parametresEntreprise.emailExpediteur` sert aux bulletins de paie. S'en
+   servir pour des tickets mêlerait deux usages sur la même réputation d'envoi, et un ticket en
+   erreur de livraison ferait douter des bulletins.
+
+**À trancher :** la pastille suffit-elle, ou faut-il un courriel&nbsp;? Si oui, avec quelle adresse
+d'expédition et quelle adresse pour le développeur. Ne bloque rien : le module fonctionne.
+
+### N3-a 🔴 La signature électronique engage la clinique — à cadrer avant de coder
+
+Sa demande (N3) : « permettre aux utilisateurs d'enregistrer [leur signature] sur la plateforme et
+de pouvoir l'apposer au besoin ». Techniquement simple — une image, apposée sur le PDF. Mais une
+image de signature stockée et appliquée automatiquement **n'a pas la portée d'une signature
+manuscrite**, et elle est reproductible par quiconque accède au fichier.
+
+Trois questions avant la première ligne de code :
+
+- **qui peut apposer la signature de qui&nbsp;?** Si la RH peut apposer celle du Directeur Général,
+  l'acte n'est plus signé par lui ;
+- **que vaut l'acte en cas de contestation&nbsp;?** Un certificat de travail contesté devant
+  l'inspection du travail doit pouvoir être rattaché à un acte de signature, pas à un collage ;
+- **l'acte doit-il porter une mention** du type « signé électroniquement le … par … »&nbsp;?
+
+**Qui tranche :** la Direction, après avis juridique. **Bloque :** N3, volontairement.
 
 ---
 

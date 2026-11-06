@@ -97,6 +97,11 @@ export const MODULES: Module[] = [
   { cle: "/caisse/deverrouillage", libelle: "Caisse : modifier après le délai", categorie: "Exploitation", voir: null, faire: "Corriger ou supprimer un intervalle verrouillé (délai réglé dans Paramètres)", niveauVoir: 7, niveauFaire: 7 },
   { cle: "/primes-medecins", libelle: "Primes médecins", categorie: "Exploitation", voir: "Consulter les primes par catégorie", faire: "Saisir, importer, supprimer une prime", niveauVoir: 3, niveauFaire: 3 },
   { cle: "/retenues-medecins", libelle: "Retenue médecins (impôts)", categorie: "Paie", voir: "Consulter et exporter la déclaration mensuelle", faire: "Saisir et supprimer une ligne", niveauVoir: 3, niveauFaire: 4 },
+  // Tickets (demande N5). Ouvrir un ticket est ouvert à TOUS — c'est le point du module : qui
+  // constate un dysfonctionnement doit pouvoir le dire sans demander la permission.
+  { cle: "/tickets", libelle: "Tickets", categorie: "Exploitation", voir: "Suivre ses propres tickets", faire: "Ouvrir un ticket, avec captures d'écran", niveauVoir: 1, niveauFaire: 1 },
+  { cle: "/tickets/arbitrage", libelle: "Tickets : juger la pertinence", categorie: "Exploitation", voir: "Voir tous les tickets", faire: "Juger un ticket pertinent ou non (refus motivé)", niveauVoir: 7, niveauFaire: 7 },
+  { cle: "/tickets/traitement", libelle: "Tickets : traitement technique", categorie: "Exploitation", voir: "Voir tous les tickets", faire: "Faire avancer l'état (en cours, résolu, abandonné)", niveauVoir: 8, niveauFaire: 8 },
   { cle: "/primes-medecins/deverrouillage", libelle: "Primes médecins : modifier après le délai", categorie: "Exploitation", voir: null, faire: "Corriger ou supprimer une prime verrouillée (délai réglé dans Paramètres)", niveauVoir: 7, niveauFaire: 7 },
   { cle: "/mes-bulletins", libelle: "Mes bulletins", categorie: "Paie", voir: "Consulter et télécharger ses propres bulletins (mois clôturés)", faire: null, niveauVoir: 1, niveauFaire: 1 },
   { cle: "/paie/saisie", libelle: "Récapitulatif salaires", categorie: "Paie", voir: "Consulter", faire: "Saisir le mois", niveauVoir: 4, niveauFaire: 4 },

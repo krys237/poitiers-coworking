@@ -308,10 +308,21 @@ export function Actes() {
                   <span className="flex-1" />
                   <BoutonPdf
                     variant="outline"
-                    titre="Aperçu PDF"
+                    titre="Aperçu PDF — à vérifier avant d'imprimer"
                     generer={() => pdfApercu({ corps: apercu, titre: modele.libelle })}
                   >
                     Aperçu PDF
+                  </BoutonPdf>
+                  {/* Impression DIRECTE : les actes sortent sur des pro forma dont l'en-tête est
+                      déjà imprimé, et la marge haute de 125 pt le dégage. Passer par un
+                      téléchargement obligerait à retrouver le fichier pour l'imprimer. */}
+                  <BoutonPdf
+                    mode="imprimer"
+                    variant="outline"
+                    titre="Imprimer sur le papier à en-tête"
+                    generer={() => pdfApercu({ corps: apercu, titre: modele.libelle })}
+                  >
+                    Imprimer
                   </BoutonPdf>
                   <BoutonAction
                     disabled={manquants.length > 0}
@@ -390,6 +401,9 @@ function Historique() {
                 <TableCell className="text-xs text-encre-pale">{a.genereParNom ?? "—"}</TableCell>
                 <TableCell>
                   <div className="flex items-center justify-end gap-1">
+                    <BoutonPdf mode="imprimer" variant="outline" titre="Réimprimer sur le papier à en-tête" generer={() => pdf({ id: a._id })}>
+                      Imprimer
+                    </BoutonPdf>
                     <BoutonPdf variant="outline" titre="Télécharger" generer={() => pdf({ id: a._id })}>
                       PDF
                     </BoutonPdf>

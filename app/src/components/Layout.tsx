@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import { Role } from "../../convex/rbac";
 import { Header } from "./Header";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -14,6 +16,7 @@ import {
   ShoppingBag,
   Wrench,
   TrendingUp,
+  LifeBuoy,
   Percent,
   Stethoscope,
   Users,
@@ -75,6 +78,7 @@ const NAV: { grp: string; items: NavItem[] }[] = [
       { to: "/interventions", label: "Interventions", perm: "/interventions", icon: Wrench },
       { to: "/caisse", label: "Caisse du mois", perm: "/caisse", icon: TrendingUp },
       { to: "/primes-medecins", label: "Primes médecins", perm: "/primes-medecins", icon: Stethoscope },
+      { to: "/tickets", label: "Tickets", perm: "/tickets", icon: LifeBuoy },
     ],
   },
   {
@@ -119,6 +123,9 @@ function SidebarContent({
   onItemClick?: () => void;
   signOut: () => Promise<unknown>;
 }) {
+  // Ce qui attend une décision de MA part sur les tickets (N5). La requête rend 0 pour qui
+  // n'arbitre ni ne traite : la pastille ne s'affiche donc que chez les deux destinataires.
+  const ticketsEnAttente = useQuery(api.tickets.enAttente, {}) ?? 0;
   return (
     <div className="relative flex h-full flex-col justify-between bg-gradient-to-b from-blue-600 via-[#0077b6] to-[#0077b6] text-slate-800 overflow-hidden border-r border-blue-700/30">
       {/* 
@@ -196,6 +203,20 @@ function SidebarContent({
                               <span className={cn("truncate", isActive ? "!text-white font-semibold" : "")}>
                                 {item.label}
                               </span>
+                              {/* « Envoyé à deux personnes » (N5) se traduit par un ACHEMINEMENT :
+                                  le ticket apparaît chez le Directeur et chez le développeur, et
+                                  la pastille dit ce qui attend une action de LEUR part. */}
+                              {item.to === "/tickets" && ticketsEnAttente ? (
+                                <span
+                                  className={cn(
+                                    "ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums",
+                                    isActive ? "bg-white/25 text-white" : "bg-carmin text-white",
+                                  )}
+                                  title={`${ticketsEnAttente} ticket(s) en attente de votre décision`}
+                                >
+                                  {ticketsEnAttente}
+                                </span>
+                              ) : null}
                             </>
                           )}
                         </NavLink>
@@ -263,6 +284,7 @@ function RailLateral({
   onDeplier: () => void;
 }) {
   const items = NAV.flatMap((g) => g.items).filter((i) => !!me?.droits?.[i.perm]?.voir);
+  const ticketsEnAttente = useQuery(api.tickets.enAttente, {}) ?? 0;
   return (
     <div className="relative flex h-full flex-col justify-between overflow-hidden border-r border-blue-700/30 bg-gradient-to-b from-blue-600 via-[#0077b6] to-[#0077b6]">
       <div
@@ -292,7 +314,17 @@ function RailLateral({
                   )
                 }
               >
-                <Icon className="h-[18px] w-[18px]" />
+                <span className="relative">
+                  <Icon className="h-[18px] w-[18px]" />
+                  {/* La barre repliée n'affiche que des icônes : une puce suffit à dire
+                      « quelque chose attend », le compte se lit en dépliant. */}
+                  {item.to === "/tickets" && ticketsEnAttente ? (
+                    <span
+                      className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-carmin ring-1 ring-white"
+                      title={`${ticketsEnAttente} ticket(s) en attente de votre décision`}
+                    />
+                  ) : null}
+                </span>
               </NavLink>
             );
           })}

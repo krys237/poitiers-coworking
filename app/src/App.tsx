@@ -5,6 +5,7 @@ import { Layout } from "./components/Layout";
 import { Dashboard } from "./pages/Dashboard";
 import { Actes } from "./pages/Actes";
 import { RetenuesMedecins } from "./pages/RetenuesMedecins";
+import { Tickets } from "./pages/Tickets";
 import { Employes } from "./pages/Employes";
 import { SaisieMensuelle } from "./pages/SaisieMensuelle";
 import { Bulletins } from "./pages/Bulletins";
@@ -43,6 +44,7 @@ const ROUTES: { path: string; perm: string; element: JSX.Element }[] = [
   { path: "/", perm: "/", element: <Dashboard /> },
   { path: "/actes", perm: "/actes", element: <Actes /> },
   { path: "/retenues-medecins", perm: "/retenues-medecins", element: <RetenuesMedecins /> },
+  { path: "/tickets", perm: "/tickets", element: <Tickets /> },
   { path: "/employes", perm: "/employes", element: <Employes /> },
   { path: "/paie/saisie", perm: "/paie/saisie", element: <SaisieMensuelle /> },
   { path: "/paie/bulletins", perm: "/paie/bulletins", element: <Bulletins /> },

@@ -132,7 +132,7 @@ formulées pour la RH et le comptable dans `app/docs/rh/QUESTIONS-A-TRANCHER.md`
 | **R8** | bulletin ou récapitulatif selon l'immatriculation du salarié aux impôts | ✅ livré | — |
 | **R9** | « Vue RH » du barème : le calcul expliqué en clair sur un exemple réel | ✅ livré | — |
 | **R10** | fonctions, saisie assistée, méthode d'envoi, sociétés dès la création, période de congés, routage ligne à ligne | ✅ livré | — *(complété le 06/11/2026)* |
-| **R11** | générateur d'actes RH : 13 modèles, identité juridique par société | 🟡 livré en partie | en-tête PDF ; **T3, T4, T6** à confirmer |
+| **R11** | générateur d'actes RH : 13 modèles, identité juridique par société, impression directe | ✅ livré | — *(en-tête PDF abandonné le 06/11 : pro forma pré-imprimés)* |
 
 **Pourquoi R4 a été sauté et R5 fait à sa place** : R4 dépend de deux inconnues numériques relevées
 dans le DIPE d'août 2026 (le facteur 0,9984 et la détermination de N), que seule la RH peut
@@ -157,6 +157,7 @@ retombe sur l'ancien comportement quand le champ est absent. Un push peut donc s
 | R4 | — | `baremes` : **allocationPlafondMois**, **allocationMoisAvantPremierConge**, **allocationConventionFraction** |
 | R6 | `retenuesMedecins` | — |
 | N1 | — | `joursFeries` : origine **decrete**, **motif** |
+| N5 | `tickets` | — |
 
 `dirigeant` et `registreCommerce` ne sont pas cosmétiques : les trois contrats de travail les
 lisent au lieu de figer une identité. Les modèles Word de la RH portent **deux numéros de registre

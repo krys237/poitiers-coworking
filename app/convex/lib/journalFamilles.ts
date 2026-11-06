@@ -28,6 +28,11 @@ export const ACTIONS_LIBELLES = [
   ["retenue_medecin_creation", "Retenue médecin déclarée"],
   ["retenue_medecin_modification", "Retenue médecin modifiée"],
   ["retenue_medecin_suppression", "Retenue médecin retirée"],
+  // Tickets (N5). Journalisés comme le reste : un besoin refusé doit laisser une trace de qui a
+  // refusé et pourquoi.
+  ["ticket_ouverture", "Ticket ouvert"],
+  ["ticket_arbitrage", "Ticket arbitré"],
+  ["ticket_traitement", "Ticket traité"],
 ] as const;
 export type ActionJournal = typeof ACTIONS_LIBELLES[number][0];
 
@@ -50,4 +55,5 @@ export const FAMILLE_ACTION: Record<ActionJournal, FamilleJournal> = {
   caisse_modification_tardive: "finances", feries_modification: "paie",
   retenue_medecin_creation: "paie", retenue_medecin_modification: "paie",
   retenue_medecin_suppression: "paie",
+  ticket_ouverture: "acces", ticket_arbitrage: "acces", ticket_traitement: "acces",
 };

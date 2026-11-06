@@ -387,9 +387,16 @@ Trois décisions en sont sorties :
 
 #### Ce qui reste du lot R11
 
-- **L'en-tête intégré au PDF** : la facture embarque son bandeau en image de fond. Si elle veut
-  envoyer les actes par e-mail plutôt que les imprimer sur papier à en-tête, il suffira de fournir
-  l'image et de l'ajouter en fond — la marge de 125 pt est déjà réservée.
+- ~~L'en-tête intégré au PDF~~ — **abandonné le 06/11/2026, sur décision** : « nous n'allons pas
+  gérer les en-têtes de PDF, la structure utilise des pro forma avec en-tête déjà imprimé. Elle a
+  juste besoin de sélectionner l'acte ou la certif, de remplir les infos, prévisualiser et lancer
+  l'impression. »
+
+  Le parcours est donc celui-là, et un bouton **Imprimer** a été ajouté : il envoie le PDF droit à
+  l'imprimante, sans téléchargement à retrouver. La marge haute de 125 pt dégage le bandeau
+  pré-imprimé — c'était déjà le bon choix, il est maintenant le seul nécessaire.
+
+  **Le lot R11 est donc complet.**
 - Les questions **T3** (plafond de durée du CDD), **T4** et **T6** : des confirmations de libellé
   et de circuit, qui ne bloquent aucune génération.
 

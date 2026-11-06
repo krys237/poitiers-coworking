@@ -11,6 +11,10 @@
 import type * as actes from "../actes.js";
 import type * as actesPdf from "../actesPdf.js";
 import type * as retenueMedecins from "../retenueMedecins.js";
+import type * as tickets from "../tickets.js";
+import type * as lib_tickets from "../lib/tickets.js";
+import type * as lib_recalculFeries from "../lib/recalculFeries.js";
+import type * as lib_anciennete from "../lib/anciennete.js";
 import type * as lib_retenueMedecins from "../lib/retenueMedecins.js";
 import type * as lib_allocationConge from "../lib/allocationConge.js";
 import type * as archives from "../archives.js";
@@ -87,6 +91,10 @@ declare const fullApi: ApiFromModules<{
   actes: typeof actes;
   actesPdf: typeof actesPdf;
   retenueMedecins: typeof retenueMedecins;
+  tickets: typeof tickets;
+  "lib/tickets": typeof lib_tickets;
+  "lib/recalculFeries": typeof lib_recalculFeries;
+  "lib/anciennete": typeof lib_anciennete;
   "lib/retenueMedecins": typeof lib_retenueMedecins;
   "lib/allocationConge": typeof lib_allocationConge;
   archives: typeof archives;

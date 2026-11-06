@@ -644,6 +644,45 @@ export default defineSchema({
   // `base`, `taux` et `retenue` sont FIGÉS à l'enregistrement, et non recalculés à la lecture :
   // une déclaration déposée doit se relire à l'identique, même si la règle change ensuite. Même
   // principe que `actes.corpsRendu`.
+  // Tickets : dysfonctionnements et besoins remontés par les membres (demande N5).
+  //
+  // DEUX PISTES INDÉPENDANTES, et non un statut unique : le Directeur juge la PERTINENCE
+  // (`avis`), le développeur juge la RÉALISATION (`etat`). Un ticket peut être pertinent et pas
+  // encore traité, ou traité sans arbitrage — un plantage n'attend pas un avis. Un statut unique
+  // ferait perdre l'une des deux informations, et « fermé » ne dirait plus si c'est fait ou refusé.
+  tickets: defineTable({
+    auteurId: v.id("users"),
+    auteurNom: v.string(),
+    titre: v.string(),
+    description: v.string(),
+    nature: v.union(v.literal("dysfonctionnement"), v.literal("besoin"), v.literal("question")),
+    /** Écran concerné, quand l'auteur le précise : première information utile au développeur. */
+    ecran: v.optional(v.string()),
+    cree: v.string(),                 // ISO
+    pieces: v.optional(v.array(v.object({
+      fichierId: v.id("_storage"),
+      nomFichier: v.string(),
+      typeMime: v.string(),
+      taille: v.number(),
+    }))),
+
+    // --- Piste Direction : la pertinence ---
+    avis: v.union(v.literal("en_attente"), v.literal("pertinent"), v.literal("non_pertinent")),
+    avisPar: v.optional(v.string()),
+    avisLe: v.optional(v.string()),
+    /** Obligatoire pour un refus : l'auteur doit savoir pourquoi. */
+    avisMotif: v.optional(v.string()),
+
+    // --- Piste développeur : la réalisation ---
+    etat: v.union(v.literal("nouveau"), v.literal("en_cours"), v.literal("resolu"), v.literal("abandonne")),
+    etatPar: v.optional(v.string()),
+    etatLe: v.optional(v.string()),
+    etatNote: v.optional(v.string()),
+  })
+    .index("by_auteur", ["auteurId"])
+    .index("by_avis", ["avis"])
+    .index("by_etat", ["etat"]),
+
   retenuesMedecins: defineTable({
     periode: v.string(),              // "YYYY-MM"
     medecin: v.string(),
