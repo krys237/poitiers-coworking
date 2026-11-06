@@ -70,6 +70,40 @@ export const saisiesDuMois = query({
   },
 });
 
+/**
+ * L'ancienneté du mois PRÉCÉDENT, par couple (employé, société) — lot R10, point A6.
+ *
+ * Sert à proposer l'augmentation de l'année dans la case indicative, pour que la RH n'ait pas à
+ * faire la soustraction à la main. Requête séparée de `saisiesDuMois` à dessein : l'écran de
+ * saisie fonctionne sans elle, et un mois précédent absent ne doit pas empêcher de saisir.
+ */
+export const anciennetePrecedente = query({
+  args: { periode: v.string() },
+  handler: async (ctx, { periode }) => {
+    await requireDroit(ctx, "/paie/saisie");
+    const an = +periode.slice(0, 4);
+    const mo = +periode.slice(5, 7);
+    const precedente = mo === 1
+      ? `${an - 1}-12`
+      : `${an}-${String(mo - 1).padStart(2, "0")}`;
+    const rows = await ctx.db
+      .query("saisiesMensuelles")
+      .withIndex("by_periode", (q) => q.eq("periode", precedente))
+      .collect();
+    const out: Record<string, number> = {};
+    for (const r of rows) {
+      const cle = r.societe
+        ? cleCouple(String(r.employeId), r.societe)
+        : String(r.employeId);
+      out[cle] = r.anciennete ?? 0;
+      // La ligne sans société est celle d'avant le multi-société : elle vaut aussi pour le couple
+      // de la société principale, sans quoi l'augmentation serait incalculable sur ces fiches.
+      if (!r.societe) out[String(r.employeId)] = r.anciennete ?? 0;
+    }
+    return { periodePrecedente: precedente, anciennetes: out };
+  },
+});
+
 const VALEURS = v.object({
   joursTravailles: v.number(), absencesJours: v.number(), sanctions: v.number(),
   primesVariables: v.number(), transport: v.number(), heuresSup: v.number(),

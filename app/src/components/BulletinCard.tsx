@@ -12,6 +12,7 @@
  * de référence »). Ce composant ne calcule rien, il met en page ce qu'il reçoit.
  */
 import { num } from "../lib/format";
+import { libellePeriodesConges } from "../../convex/lib/absences";
 import { Feuille, EnTeteDocument, TableauDocument, CasesDocument, CaseDocument } from "./documents/feuille";
 
 type Ligne = { code?: string; libelle: string; base?: number; taux?: number; gain?: number; retenue?: number; chargePatronale?: number };
@@ -84,7 +85,12 @@ export function BulletinCard({ b, entreprise, page }: { b: any; entreprise: any;
             <td><span className="cle">Jours travaillés</span><span className="val">{d.joursTravailles ?? "—"} / {joursBase}</span></td>
             <td><span className="cle">Salaire journalier</span><span className="val">{d.salaireJournalier ? num(d.salaireJournalier) : "—"}</span></td>
             <td><span className="cle">Congés acquis</span><span className="val">{jours(d.congesAcquis)}</span></td>
-            <td><span className="cle">Congés pris</span><span className="val">{jours(d.congesPris)}</span></td>
+            {/* Lot R10 : « du … au … » à côté du nombre de jours. Un nombre seul ne se vérifie
+                pas ; les dates se contrôlent d'un coup d'œil. */}
+            <td><span className="cle">Congés pris</span><span className="val">
+              {jours(d.congesPris)}
+              {d.periodesConges?.length ? <span className="periode"> {libellePeriodesConges(d.periodesConges)}</span> : null}
+            </span></td>
             <td className="reste"><span className="cle">Reste à prendre</span><span className="val">{jours(d.congesRestants)}</span></td>
             <td><span className="cle">Indemnité de congés</span><span className={`val${d.indemniteConges ? "" : " zero"}`}>{d.indemniteConges ? num(d.indemniteConges) : "0"}</span></td>
           </tr></tbody>

@@ -73,9 +73,8 @@ export function Courrier() {
   // porte une préférence (`auto` | `email` | `whatsapp`) : si TOUTES les lignes du mois forcent
   // la même voie, on la pré-sélectionne. Le sélecteur reste modifiable — c'était la condition.
   //
-  // ⚠️ Le routage reste GLOBAL à l'envoi : `courrier.envoyer` reçoit un seul jeu de canaux pour
-  // toute la sélection. Un routage ligne à ligne (chacun par sa voie en un seul envoi) demande
-  // d'étendre la mutation ; consigné plutôt que fait à moitié.
+  // Depuis le 06/11/2026, l'envoi accepte aussi un routage LIGNE À LIGNE (`routageParFiche`) :
+  // chacun part par la voie de sa fiche, en un seul envoi. C'était la limite consignée de R10.
   const prefsForcees = React.useMemo(() => {
     const p = new Set(
       (apercu?.lignes ?? [])
@@ -90,6 +89,13 @@ export function Courrier() {
     setCanal(prefsForcees[0]);
   }, [prefsForcees, canalTouche]);
   const setCanalEtMarquer = (v: typeof canal) => { setCanalTouche(true); setCanal(v); };
+
+  // Le routage par fiche ne s'offre que s'il change quelque chose : il faut DEUX préférences
+  // forcées différentes dans la sélection. Avec une seule, le sélecteur global suffit déjà — et
+  // proposer une option sans effet ferait douter de celle qui en a un.
+  const [routageParFiche, setRoutageParFiche] = React.useState(false);
+  const routageUtile = prefsForcees.length > 1;
+  React.useEffect(() => { if (!routageUtile) setRoutageParFiche(false); }, [routageUtile]);
   const canaux = canal === "les_deux" ? (["email", "whatsapp"] as const) : ([canal] as const);
   const parEmail = canal !== "whatsapp", parWhatsapp = canal !== "email";
   const reelCanal = (parEmail ? !!mode?.reel : true) && (parWhatsapp ? !!mode?.whatsapp.reel : true);
@@ -121,7 +127,7 @@ export function Courrier() {
   const lancerEnvoi = async () => {
     setEnvoiEnCours(true);
     try {
-      const r = await envoyer({ periode, cles: selectionnees.map((l) => String(l.bulletin.cle)), canaux: [...canaux] });
+      const r = await envoyer({ periode, cles: selectionnees.map((l) => String(l.bulletin.cle)), canaux: [...canaux], routageParFiche });
       // Une simulation ne doit jamais passer pour un envoi : on le dit en toutes lettres.
       const simulation = r.simules ? ` — ${r.simules} simulé(s) : RIEN n'est parti pour ceux-là (clé absente du déploiement ou interrupteur fermé)` : "";
       return `${r.envoyes} réellement envoyé(s), ${r.echecs} échec(s) sur ${r.total}${simulation} · PDF : ${Math.round(r.pdfOctets / 1024)} Ko`;
@@ -160,6 +166,22 @@ export function Courrier() {
                 <SelectItem value="les_deux">E-mail et WhatsApp</SelectItem>
               </SelectContent>
             </Select>
+            {/* N'apparaît que si la sélection mêle DEUX préférences forcées : sinon le sélecteur
+                ci-dessus suffit, et une option sans effet ferait douter de celle qui en a un. */}
+            {routageUtile ? (
+              <label
+                className="flex cursor-pointer items-center gap-1.5 rounded-md border border-filet bg-papier px-2.5 py-1.5 text-xs"
+                title="Chaque bulletin part par la voie forcée sur sa fiche. Les fiches en « auto » suivent le canal choisi."
+              >
+                <input
+                  type="checkbox"
+                  checked={routageParFiche}
+                  onChange={(e) => setRoutageParFiche(e.target.checked)}
+                  className="accent-ocean-profond"
+                />
+                Chacun par sa voie
+              </label>
+            ) : null}
             <BoutonImprimer entreprise={entreprise?.nom ?? "POITIERS COWORKING"} document="Courrier de paie" periode={libellePeriode(periode)} desactive={!selectionnees.length}>
               Imprimer {selectionnees.length ? `(${selectionnees.length})` : ""}
             </BoutonImprimer>

@@ -8,6 +8,7 @@
  * composées (primes / congé, heures sup / ancienneté) s'ouvrent en mini-fenêtre.
  */
 import * as React from "react";
+import { libellePeriodesConges } from "../../../convex/lib/absences";
 import { Link } from "react-router-dom";
 import { FileCheck2Icon, PencilIcon, UserRoundPenIcon } from "lucide-react";
 import { FicheEmploye } from "@/components/app/fiche-employe";
@@ -278,7 +279,11 @@ export function RecapToutVisible({
                           "indemniteRepresentation", "indemniteVehicule", "indemniteOutillage",
                         ]}
                         total={(d?.primes ?? 0) + (d?.indemniteConges ?? 0) + (d?.anciennete ?? 0)}
-                        sousTitre={`${d?.congesPris ?? 0} j congés`}
+                        sousTitre={
+                          d?.periodesConges?.length
+                            ? `${d.congesPris ?? 0} j congés · ${libellePeriodesConges(d.periodesConges)}`
+                            : `${d?.congesPris ?? 0} j congés`
+                        }
                       />
                     </td>
                     <td className={TD}>{cel(b, "heuresSup")}</td>

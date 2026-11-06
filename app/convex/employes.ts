@@ -3,9 +3,25 @@ import { v } from "convex/values";
 import { requireDroit, requireUnDesDroits } from "./lib/authz";
 import { lireReglages } from "./parametres";
 import { normaliserTelephone, erreurTelephone, avecIndicatif } from "./lib/telephone";
-import { erreurRattachement, rattachementsEffectifs } from "./lib/societes";
+import { erreurRattachement, rattachementsEffectifs, type Societe } from "./lib/societes";
 
 const SOCIETE = v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"));
+
+// Déclaré ICI et non plus bas : `creer` s'en sert dans ses arguments, et les validateurs sont
+// évalués au chargement du module — une référence en avant lèverait une erreur de zone morte.
+const CHAMPS_RATTACHEMENT = {
+  matriculeEmployeur: v.optional(v.string()),
+  cnpsEmployeur: v.optional(v.string()),
+  niuEmployeur: v.optional(v.string()),
+  salaireBase: v.optional(v.number()),
+  joursBase: v.optional(v.number()),
+  categorie: v.optional(v.string()),
+  echelon: v.optional(v.string()),
+  contrat: v.optional(v.string()),
+  dateDebut: v.optional(v.string()),
+  dateFin: v.optional(v.string()),
+};
+
 
 // Numéro WhatsApp : même règle que tout téléphone de l'application (indicatif obligatoire, lib/telephone).
 // Sans indicatif (import d'un fichier, par exemple), on complète avec +237 (lib/telephone.avecIndicatif).
@@ -37,15 +53,61 @@ export const creer = mutation({
     methodeEnvoi: v.optional(v.union(v.literal("auto"), v.literal("email"), v.literal("whatsapp"))),
     dateDebut: v.optional(v.string()), dateFin: v.optional(v.string()), congesInitial: v.optional(v.number()),
     categorie: v.optional(v.string()), echelon: v.optional(v.string()),
+    /**
+     * Sociétés à rattacher DÈS la création (lot R10). Facultatif : sans elles, la société de la
+     * fiche fait foi, comme avant. Une mutation Convex étant transactionnelle, un rattachement
+     * refusé annule aussi la création de la fiche — d'où la possibilité de tout saisir d'un coup,
+     * ce que le lot R10 avait laissé « à cadrer ».
+     */
+    rattachements: v.optional(v.array(v.object({ societe: SOCIETE, ...CHAMPS_RATTACHEMENT }))),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, { rattachements, ...args }) => {
     await requireDroit(ctx, "/employes", "faire");
     // Le matricule identifie la fiche (import, bulletins, « Mes bulletins ») : jamais deux fois le même (retour terrain du 13/10/2026).
     const matricule = args.matricule.trim().toUpperCase();
     if (!matricule) throw new Error("Matricule requis.");
     const doublon = await ctx.db.query("employes").withIndex("by_matricule", (q) => q.eq("matricule", matricule)).first();
     if (doublon) throw new Error(`Le matricule ${matricule} existe déjà : ${doublon.nom}${doublon.actif ? "" : " (fiche désactivée)"}.`);
-    return await ctx.db.insert("employes", { ...args, matricule, whatsapp: numeroWhatsapp(args.whatsapp), joursBase: (await lireReglages(ctx)).joursBaseDefaut, actif: true });
+    const reglages = await lireReglages(ctx);
+
+    // Les rattachements sont contrôlés AVANT l'insertion de la fiche : la mutation étant
+    // transactionnelle, un rattachement refusé annule aussi la création de l'employé. Rien ne
+    // reste à moitié fait.
+    const aCreer = rattachements ?? [];
+    const dejaVues: { societe: Societe; rattachementId?: string }[] = [];
+    for (const r of aCreer) {
+      const erreur = erreurRattachement(r, dejaVues);
+      if (erreur) throw new Error(erreur);
+      dejaVues.push({ societe: r.societe });
+    }
+
+    const employeId = await ctx.db.insert("employes", {
+      ...args, matricule, whatsapp: numeroWhatsapp(args.whatsapp),
+      joursBase: reglages.joursBaseDefaut, actif: true,
+    });
+
+    if (aCreer.length) {
+      const creeLe = new Date().toISOString();
+      // La société de la FICHE reste la principale : c'est elle qui fait foi partout où aucune
+      // société n'est précisée. Si elle ne figure pas dans la liste saisie, on la matérialise —
+      // sinon elle disparaîtrait de la paie dès la première ligne explicite, exactement comme
+      // dans `ajouterRattachement`.
+      if (!aCreer.some((r) => r.societe === args.societe)) {
+        await ctx.db.insert("rattachements", {
+          employeId, societe: args.societe, principal: true, actif: true, creeLe,
+          salaireBase: args.salaireBase, categorie: args.categorie, echelon: args.echelon,
+          contrat: args.contrat, dateDebut: args.dateDebut, matriculeEmployeur: matricule,
+          cnpsEmployeur: args.cnps, niuEmployeur: args.niu,
+        });
+      }
+      for (const { societe, ...champs } of aCreer) {
+        await ctx.db.insert("rattachements", {
+          employeId, societe, principal: societe === args.societe, actif: true, creeLe,
+          ...nettoyer(champs),
+        });
+      }
+    }
+    return employeId;
   },
 });
 
@@ -188,18 +250,6 @@ export const rattachements = query({
   },
 });
 
-const CHAMPS_RATTACHEMENT = {
-  matriculeEmployeur: v.optional(v.string()),
-  cnpsEmployeur: v.optional(v.string()),
-  niuEmployeur: v.optional(v.string()),
-  salaireBase: v.optional(v.number()),
-  joursBase: v.optional(v.number()),
-  categorie: v.optional(v.string()),
-  echelon: v.optional(v.string()),
-  contrat: v.optional(v.string()),
-  dateDebut: v.optional(v.string()),
-  dateFin: v.optional(v.string()),
-};
 
 // Une chaîne vide EFFACE le champ ; `undefined` le laisse inchangé. Sans cette distinction, un
 // formulaire qui ne charge pas un champ l'effacerait au premier enregistrement.

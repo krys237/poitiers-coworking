@@ -348,6 +348,17 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* La période de congé, à côté du nombre de jours (lot R10). Volontairement discrète : le nombre
+   reste l'information principale, les dates servent à le vérifier. */
+.doc-temps .val .periode {
+  display: block;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 7.5pt;
+  color: var(--encre-pale);
+  letter-spacing: 0.01em;
+}
+
 .doc-temps td.reste .val {
   color: var(--sceau);
 }

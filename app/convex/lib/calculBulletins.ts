@@ -264,6 +264,8 @@ export async function bulletinsPourPeriode(ctx: Ctx, periode: string): Promise<{
         ...(await extrasPour(ctx, e._id, periode, rat.societe, principale)),
         rubriques: rubriquesSaisies,
         ...(alloc ? { allocationConge: alloc.montant } : {}),
+        // Les dates des congés du mois, pour les afficher à côté du nombre de jours (lot R10).
+        ...(r.congesDuMois.length ? { periodesConges: r.congesDuMois } : {}),
       };
       // Chaque couple appelle le moteur SÉPARÉMENT : plafond CNPS et tranches d'IRPP par employeur.
       const calc = computeBulletin(rat.salaireBase, s, bareme, extras);

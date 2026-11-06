@@ -279,7 +279,11 @@ par elle, sans nous.
 6. **Prime d'ancienneté et nouvelle ancienneté qui s'incrémentent ensemble** — dépend de la
    réponse au point A6 (ce que représente la seconde ancienneté). À garder pour la fin.
 
-#### Ce qui reste du lot R10
+#### Le lot R10 est complété — 06/11/2026
+
+Les quatre restes sont livrés. Détail de ce qu'ils étaient :
+
+#### ~~Ce qui restait du lot R10~~
 
 1. **Les rattachements dès la création d'un employé.** Le composant `rattachements-employe.tsx`
    existe et fonctionne sur une fiche enregistrée ; l'intégrer au formulaire de **création**
@@ -398,7 +402,7 @@ Trois décisions en sont sorties :
 | **R7** | corrections du planning, services, impression, libellé du rôle | — **rien** |
 | **R8** ✅ | bulletin / récapitulatif, téléchargement conditionnel, DIPE filtré, filtre d'immatriculation | — *(livré)* |
 | **R9** ✅ | Vue RH du barème, tranches TDL et RAV portées par le barème daté | — *(livré)* |
-| **R10** 🟡 | référentiel de fonctions ✅ · champ à saisie assistée ✅ · méthode d'envoi pré-remplie ✅ · **reste** : sociétés dès la création, période de congés affichée, routage d'envoi ligne à ligne | A6 pour le point ancienneté |
+| **R10** ✅ | référentiel de fonctions · champ à saisie assistée · méthode d'envoi pré-remplie · sociétés dès la création · période de congés affichée · routage d'envoi ligne à ligne · augmentation d'ancienneté proposée | — *(complété le 06/11/2026)* |
 | **R11** 🟡 | générateur d'actes : **13 modèles**, pré-remplissage depuis le bulletin, références numérotées, PDF sans en-tête, archivage, identité juridique par société | T3, T4, T6 — *des confirmations, pas des blocages* |
 | R4 | allocation de congé | **une seule question** : comment compter la fraction de mois |
 | R6 | retenue médecins | M1, M2 — le comptable |

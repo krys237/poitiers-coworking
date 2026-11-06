@@ -7,6 +7,7 @@ import { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage } from "pdf-lib";
 import { libellePeriode, nomFichierPdf } from "./lib/periode";
+import { libellePeriodesConges } from "./lib/absences";
 
 // Les polices standard PDF n'encodent que Latin-1 : on remplace le reste (—, …, espaces fines…).
 const clean = (s: string) => (s ?? "").normalize("NFC").replace(/[–—]/g, "-").replace(/…/g, "...").replace(/[   ]/g, " ").replace(/[«»]/g, '"').replace(/[^\x20-\x7E\xA0-\xFF]/g, "?");
@@ -20,7 +21,14 @@ interface BulletinPdfInput {
     brut: number; totalRetenues: number; net: number;
     lignesGain: { code: string; libelle: string; base: number; gain: number }[];
     cotisations: { code: string; libelle: string; base: number; taux: number; retenue: number; chargePatronale: number }[];
-    details?: Record<string, number>;
+    // `Record<string, number>` décrivait le détail quand il ne portait que des montants. Depuis
+    // R4 et R10 il porte aussi un booléen (`allocationLegale`) et un tableau de dates : les
+    // champs non numériques sont donc déclarés à part, plutôt que d'élargir tout le reste à
+    // `unknown` — ce qui obligerait à transtyper chaque montant lu.
+    details?: Record<string, number> & {
+      periodesConges?: { debut: string; fin: string; jours: number }[];
+      allocationLegale?: boolean;
+    };
     periodeDu?: string; periodeAu?: string; datePaiement?: string; valide?: boolean; valideLe?: string;
   };
   periode: string;
@@ -144,7 +152,11 @@ async function buildPdf(input: BulletinPdfInput): Promise<Uint8Array> {
   const joursBase = d.joursBase ?? 30;
   const temps: [string, string, ReturnType<typeof rgb>?][] = [
     ["Jours travaillés", `${d.joursTravailles ?? "-"} / ${joursBase}`], ["Salaire journalier", d.salaireJournalier ? fmt(d.salaireJournalier) : "-"],
-    ["Congés acquis", j(d.congesAcquis)], ["Congés pris", j(d.congesPris)], ["Reste à prendre", j(d.congesRestants), SCEAU],
+    // Lot R10 : la PÉRIODE à côté du nombre de jours. Elle remplace le simple « 18 j » quand
+    // elle est connue — un nombre seul ne se vérifie pas, des dates se contrôlent.
+    ["Congés acquis", j(d.congesAcquis)],
+    ["Congés pris", d.periodesConges?.length ? `${j(d.congesPris)} · ${clean(libellePeriodesConges(d.periodesConges))}` : j(d.congesPris)],
+    ["Reste à prendre", j(d.congesRestants), SCEAU],
     ["Indemnité de congés", d.indemniteConges ? fmt(d.indemniteConges) : "0", d.indemniteConges ? undefined : ZERO],
   ];
   temps.forEach(([cle, val, color], i) => caseKV(M + i * c6, c6, TH, cle, val, { align: "c", f: monoBold, size: 10.5, color }));
@@ -252,8 +264,18 @@ export const envoyerCourrier = action({
     // Couples (employé, société) retenus : un pluri-employé a un courrier par employeur.
     cles: v.optional(v.array(v.string())),
     canaux: v.optional(v.array(v.union(v.literal("email"), v.literal("whatsapp")))),
+    /**
+     * Routage LIGNE À LIGNE (lot R10). Faux (défaut) : `canaux` s'applique à toute la sélection,
+     * comportement d'avant ce lot. Vrai : chaque bulletin part par la voie forcée sur SA fiche,
+     * et les fiches en `auto` retombent sur `canaux`.
+     *
+     * C'était la limite consignée du lot R10 : le pré-remplissage ne couvrait que le cas où TOUT
+     * le mois part par la même voie. Dès qu'un salarié est en e-mail et un autre en WhatsApp, il
+     * fallait deux envois.
+     */
+    routageParFiche: v.optional(v.boolean()),
   },
-  handler: async (ctx, { canaux, ...args }): Promise<ResultatEnvoi> => {
+  handler: async (ctx, { canaux, routageParFiche, ...args }): Promise<ResultatEnvoi> => {
     const key = process.env.RESEND_API_KEY;
     const cleWa = !!process.env.ULTRAMSG_INSTANCE_ID && !!process.env.ULTRAMSG_TOKEN;
     const reglages: { envoiReelActive: boolean; whatsappReelActive: boolean } = await ctx.runQuery(internal.parametres.reglagesInternes, {});
@@ -262,10 +284,21 @@ export const envoyerCourrier = action({
     const parEmail = !canaux || canaux.includes("email");
     const parWhatsapp = !!canaux?.includes("whatsapp");
     const lots: any[] = await ctx.runQuery(internal.courrier.payloads, { ...args, envoi: true });
+
+    // Les canaux d'UNE ligne. Sans routage par fiche, c'est la sélection pour tout le monde —
+    // d'où le calcul hors boucle avant ce lot. Avec, la méthode forcée sur la fiche prime, et
+    // `auto` signifie « laisse le système choisir », donc retombe sur la sélection.
+    const canauxDe = (p: { methodeEnvoi?: string }) => {
+      if (!routageParFiche) return { email: parEmail, whatsapp: parWhatsapp };
+      if (p.methodeEnvoi === "email") return { email: true, whatsapp: false };
+      if (p.methodeEnvoi === "whatsapp") return { email: false, whatsapp: true };
+      return { email: parEmail, whatsapp: parWhatsapp };
+    };
     let envoyes = 0, echecs = 0, simules = 0, pdfOctets = 0;
 
     for (const p of lots) {
-      if (parWhatsapp) {
+      const voies = canauxDe(p);
+      if (voies.whatsapp) {
         const base = { employeId: p.employeId as Id<"employes">, societe: p.societe, periode: args.periode, email: p.whatsapp as string, canal: "whatsapp" as const };
         if (!p.whatsapp) {
           echecs++;
@@ -288,7 +321,7 @@ export const envoyerCourrier = action({
           }
         }
       }
-      if (!parEmail) continue;
+      if (!voies.email) continue;
       const base = { employeId: p.employeId as Id<"employes">, societe: p.societe, periode: args.periode, email: p.email as string, canal: "email" as const };
       if (!p.email) {
         echecs++;

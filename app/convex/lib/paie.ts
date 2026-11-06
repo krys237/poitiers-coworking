@@ -146,6 +146,11 @@ export interface Extras {
    * Voir `lib/allocationConge.ts` et A-VERIFIER R-5.
    */
   allocationConge?: number;
+  /**
+   * Les périodes de congé du mois (lot R10), reprises telles quelles sur le bulletin à côté du
+   * nombre de jours. « 18 j » ne se vérifie pas ; « du 3 au 28 août » se contrôle d'un coup d'œil.
+   */
+  periodesConges?: { debut: string; fin: string; jours: number }[];
 }
 
 export interface LigneGain { code: string; libelle: string; base: number; gain: number; }
@@ -156,6 +161,8 @@ export interface DetailsBulletin {
   congesAcquis: number; congesPris: number; congesRestants: number; indemniteConges: number;
   /** Vrai si `indemniteConges` porte l'allocation légale au 1/16, et non la proratisation. */
   allocationLegale?: boolean;
+  /** Dates des congés du mois, pour l'affichage à côté du nombre de jours (lot R10). */
+  periodesConges?: { debut: string; fin: string; jours: number }[];
   primes: number; heuresSup: number; anciennete: number;
   /** OPTIONNEL : les snapshots des mois clôturés avant le 21/10/2026 ne le portent pas. */
   ancienneteSeparee?: number;
@@ -404,6 +411,7 @@ export function computeBulletin(salaireBaseRef: number, s: SaisieMois, b: Bareme
       salaireJournalier: Math.round(journalier), salaireBase, joursTravailles: s.joursTravailles,
       congesAcquis: s.congesAcquis || 0, congesPris: s.congesPris || 0, congesRestants, indemniteConges,
       allocationLegale: extras.allocationConge !== undefined,
+      ...(extras.periodesConges?.length ? { periodesConges: extras.periodesConges } : {}),
       primes, heuresSup: s.heuresSup, anciennete: s.anciennete, ancienneteSeparee,
       total1, total2, brutTaxable, baseCnps, mutuelle, acompteImpotsCnps, chargesSalariales, chargesPatronales,
       irpp, cac, tdl, rav, cnpsSalarie, assiettes, exonereSalarial,

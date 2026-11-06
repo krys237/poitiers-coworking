@@ -39,7 +39,9 @@ type Champs = Required<Omit<EmployeFiche, "employeId" | "actif" | "salaireBrut">
 
 export type CreerEmploye = (a: { matricule: string; nom: string; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string; societe: Societe; salaireBase: number; dateDebut?: string; congesInitial?: number;
   serviceId?: string; immatriculeImpots?: boolean; dateEntreeCnps?: string;
-  methodeEnvoi?: "auto" | "email" | "whatsapp" }) => Promise<unknown>;
+  methodeEnvoi?: "auto" | "email" | "whatsapp";
+  /** Sociétés supplémentaires à rattacher dès la création (lot R10). */
+  rattachements?: { societe: Societe; salaireBase?: number }[] }) => Promise<unknown>;
 export type ModifierEmploye = (a: { employeId: any; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string; societe?: Societe; salaireBase?: number; dateDebut?: string; congesInitial?: number; actif?: boolean;
   serviceId?: string; immatriculeImpots?: boolean; dateEntreeCnps?: string;
   methodeEnvoi?: "auto" | "email" | "whatsapp" }) => Promise<unknown>;
@@ -63,6 +65,19 @@ export function FicheEmploye({
   onEnregistre?: (id?: string) => void;
 }) {
   const creation = !employe?.employeId;
+  // Sociétés SUPPLÉMENTAIRES, saisies dès la création (lot R10). La société de la fiche reste la
+  // principale : elle n'apparaît donc pas dans cette liste, et le backend la matérialise.
+  //
+  // Le composant `RattachementsEmploye` n'est pas réutilisé ici : il agit par mutations sur une
+  // fiche DÉJÀ enregistrée. Le mettre en mode brouillon serait disproportionné pour deux lignes.
+  const [autresSocietes, setAutresSocietes] = React.useState<Record<string, number | null>>({});
+  const basculerSociete = (soc: Societe) =>
+    setAutresSocietes((x) => {
+      const n = { ...x };
+      if (soc in n) delete n[soc];
+      else n[soc] = null;
+      return n;
+    });
   // Les services alimentent le sélecteur : sans service, la frise annuelle affiche un
   // code couleur neutre, ce que la RH avait signalé le 03/11/2026.
   const services = useQuery(api.services.liste, {});
@@ -96,7 +111,15 @@ export function FicheEmploye({
     const whatsapp = f.whatsapp !== (employe?.whatsapp ?? "") ? f.whatsapp : undefined;
     try {
       if (creation) {
-        const id = await creer({ matricule: f.matricule.trim(), nom: f.nom.trim().toUpperCase(), ...commun, whatsapp: whatsapp || undefined });
+        const rattachements = Object.entries(autresSocietes).map(([societe, salaire]) => ({
+          societe: societe as Societe,
+          ...(salaire !== null && salaire > 0 ? { salaireBase: salaire } : {}),
+        }));
+        const id = await creer({
+          matricule: f.matricule.trim(), nom: f.nom.trim().toUpperCase(), ...commun,
+          whatsapp: whatsapp || undefined,
+          ...(rattachements.length ? { rattachements } : {}),
+        });
         toast.success(`${f.nom.trim().toUpperCase()} ajouté à l'effectif`, { description: `${f.matricule} · ${f.societe}` });
         onEnregistre?.(typeof id === "string" ? id : undefined);
       } else {
@@ -163,6 +186,44 @@ export function FicheEmploye({
               )}
             </Champ>
             <ChampNombre libelle="Salaire de base mensuel" aide="Hors primes : transport, assiduité, logement et ancienneté se saisissent dans le récapitulatif du mois." unite="FCFA" requis min={0} step={5000} valeur={f.salaireBase} onChange={(n) => setF({ ...f, salaireBase: n })} />
+            {/* Lot R10 : les autres sociétés dès la création, et non en deux temps. Un
+                rattachement refusé annule la création entière — la mutation est transactionnelle. */}
+            {creation ? (
+              <div className="sm:col-span-2 rounded-lg border border-filet bg-papier p-3">
+                <div className="text-xs font-semibold">Autres sociétés qui la rémunèrent</div>
+                <p className="mt-0.5 text-2xs text-encre-pale">
+                  Facultatif. Chaque société verse sa part et produit son propre bulletin. Sans
+                  montant, c'est le salaire de base ci-dessus qui s'applique.
+                </p>
+                <div className="mt-2 space-y-1.5">
+                  {SOCIETES.filter((soc) => soc !== f.societe).map((soc) => (
+                    <div key={soc} className="flex items-center gap-2">
+                      <label className="flex min-w-24 cursor-pointer items-center gap-1.5 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={soc in autresSocietes}
+                          onChange={() => basculerSociete(soc)}
+                          className="accent-ocean-profond"
+                        />
+                        {soc}
+                      </label>
+                      {soc in autresSocietes ? (
+                        <Input
+                          inputMode="numeric"
+                          placeholder={`Salaire chez ${soc} (défaut : ci-dessus)`}
+                          value={autresSocietes[soc] ?? ""}
+                          onChange={(e) => {
+                            const brut = e.target.value.replace(/[^\d]/g, "");
+                            setAutresSocietes((x) => ({ ...x, [soc]: brut ? Number(brut) : null }));
+                          }}
+                          className="h-8 flex-1 text-right font-mono text-xs"
+                        />
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             {texte("cnps", "N° CNPS", "351-1213677-6")}
             {texte("niu", "NIU", "M072517858332C")}
             {texte("email", "E-mail (courrier de paie)", "prenom.nom@…", false, "email")}
