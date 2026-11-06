@@ -4,6 +4,7 @@ import { requireDroit, requireUnDesDroits } from "./lib/authz";
 import { lireReglages } from "./parametres";
 import { normaliserTelephone, erreurTelephone, avecIndicatif } from "./lib/telephone";
 import { erreurRattachement, rattachementsEffectifs, type Societe } from "./lib/societes";
+import { LIBELLE_CADENCE, aSuivre, echeances, resumerEcheances } from "./lib/echeancesContrat";
 
 const SOCIETE = v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"));
 
@@ -53,6 +54,7 @@ export const creer = mutation({
     methodeEnvoi: v.optional(v.union(v.literal("auto"), v.literal("email"), v.literal("whatsapp"))),
     dateDebut: v.optional(v.string()), dateFin: v.optional(v.string()), congesInitial: v.optional(v.number()),
     categorie: v.optional(v.string()), echelon: v.optional(v.string()),
+    contratRenouvele: v.optional(v.boolean()),
     /**
      * Sociétés à rattacher DÈS la création (lot R10). Facultatif : sans elles, la société de la
      * fiche fait foi, comme avant. Une mutation Convex étant transactionnelle, un rattachement
@@ -124,6 +126,7 @@ export const modifier = mutation({
     methodeEnvoi: v.optional(v.union(v.literal("auto"), v.literal("email"), v.literal("whatsapp"))),
     dateDebut: v.optional(v.string()), dateFin: v.optional(v.string()), congesInitial: v.optional(v.number()),
     categorie: v.optional(v.string()), echelon: v.optional(v.string()),
+    contratRenouvele: v.optional(v.boolean()),
   },
   handler: async (ctx, { employeId, ...patch }) => {
     await requireDroit(ctx, "/employes", "faire");
@@ -427,6 +430,58 @@ export const effectifSociete = query({
       lignes: lignes.sort((a, b) => a.nom.localeCompare(b.nom)),
       // Masse des salaires de base de CETTE société seulement : jamais la somme des trois.
       masseBase: lignes.reduce((t, l) => t + l.salaireBase, 0),
+    };
+  },
+});
+
+/**
+ * Les échéances de contrat à surveiller, et les rappels du jour (demande N2).
+ *
+ * « Nous voulons un système d'alerte et de rappel qui signale avant échéance. »
+ *
+ * La cadence est réglable dans *Paramètres → Fonctionnement* ; par défaut un avis à un mois, puis
+ * chaque semaine, puis chaque jour la dernière semaine. Un contrat ÉCHU alerte tous les jours et
+ * reste en tête : c'est le seul cas où l'inaction crée un engagement, un CDD arrivé à terme sans
+ * décision se requalifiant en CDI.
+ */
+export const echeancesContrats = query({
+  args: { aujourdhui: v.optional(v.string()) },
+  handler: async (ctx, { aujourdhui }) => {
+    await requireDroit(ctx, "/employes");
+    const r = await lireReglages(ctx);
+    const regles = {
+      premierAvisJours: r.rappelPremierAvisJours,
+      hebdoDepuisJours: r.rappelHebdoDepuisJours,
+      quotidienDepuisJours: r.rappelQuotidienDepuisJours,
+    };
+    const jour = aujourdhui ?? new Date().toISOString().slice(0, 10);
+
+    const employes = await ctx.db.query("employes").collect();
+    const services = await ctx.db.query("services").collect();
+    const nomService = new Map(services.map((x) => [String(x._id), x.nom]));
+
+    const suivis = employes.filter((e) => aSuivre({ contrat: e.contrat, dateFin: e.dateFin, actif: e.actif }));
+    const liste = echeances(
+      suivis.map((e) => ({
+        id: String(e._id),
+        nom: e.nom,
+        matricule: e.matricule,
+        contrat: e.contrat,
+        dateDebut: e.dateDebut,
+        dateFin: e.dateFin!,
+        renouvele: e.contratRenouvele,
+        serviceNom: e.serviceId ? nomService.get(String(e.serviceId)) ?? null : null,
+      })),
+      jour,
+      regles,
+    );
+
+    return {
+      aujourdhui: jour,
+      regles,
+      echeances: liste,
+      resume: resumerEcheances(liste),
+      libelles: LIBELLE_CADENCE,
     };
   },
 });

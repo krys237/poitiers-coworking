@@ -116,6 +116,9 @@ const reglagesV = v.object({
   verrouFinancierMin: v.number(), verrouCaisseMin: v.number(),
   envoiReelActive: v.boolean(), whatsappReelActive: v.boolean(), iaDocumentsActive: v.boolean(), pdfAutoCloture: v.boolean(),
   joursBaseDefaut: v.number(), plafondSaisie: v.number(),
+  // Rappels d'échéance de contrat (N2).
+  rappelPremierAvisJours: v.number(), rappelHebdoDepuisJours: v.number(),
+  rappelQuotidienDepuisJours: v.number(),
 });
 
 export const enregistrerReglages = mutation({

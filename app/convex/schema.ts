@@ -87,6 +87,10 @@ export default defineSchema({
       verrouFinancierMin: v.optional(v.number()), verrouCaisseMin: v.optional(v.number()),
       envoiReelActive: v.optional(v.boolean()), whatsappReelActive: v.optional(v.boolean()), iaDocumentsActive: v.optional(v.boolean()), pdfAutoCloture: v.optional(v.boolean()),
       joursBaseDefaut: v.optional(v.number()), plafondSaisie: v.optional(v.number()),
+      // Rappels d'échéance de contrat (N2).
+      rappelPremierAvisJours: v.optional(v.number()),
+      rappelHebdoDepuisJours: v.optional(v.number()),
+      rappelQuotidienDepuisJours: v.optional(v.number()),
     })),
     // Droits VOIR / FAIRE par rôle et par module, quand ils diffèrent du défaut (rbac.droitsEffectifs).
     droitsRoles: v.optional(v.array(v.object({ role: v.string(), module: v.string(), voir: v.boolean(), faire: v.boolean() }))),
@@ -155,6 +159,12 @@ export default defineSchema({
     salaireBrut: v.optional(v.number()),
     joursBase: v.optional(v.number()),// jours standard (déf. 30)
     contrat: v.optional(v.string()),  // CDI, CDD…
+    /**
+     * CDD déjà renouvelé une fois (N2). L'information que les dates ne portent PAS : un contrat
+     * de 12 mois peut être un CDD de 6 mois renouvelé (régulier) ou un CDD de 12 mois d'un seul
+     * trait (irrégulier). Sans ce drapeau, on ne peut qu'énoncer les deux lectures.
+     */
+    contratRenouvele: v.optional(v.boolean()),
     dateDebut: v.optional(v.string()),// embauche — base de l'acquisition des congés
     dateFin: v.optional(v.string()),
     congesInitial: v.optional(v.number()), // solde de congés reporté à l'entrée dans l'outil

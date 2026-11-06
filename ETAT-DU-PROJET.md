@@ -158,6 +158,7 @@ retombe sur l'ancien comportement quand le champ est absent. Un push peut donc s
 | R6 | `retenuesMedecins` | — |
 | N1 | — | `joursFeries` : origine **decrete**, **motif** |
 | N5 | `tickets` | — |
+| N2 | — | `employes` : **contratRenouvele** · `parametresEntreprise.reglages` : les 3 seuils de rappel |
 
 `dirigeant` et `registreCommerce` ne sont pas cosmétiques : les trois contrats de travail les
 lisent au lieu de figer une identité. Les modèles Word de la RH portent **deux numéros de registre

@@ -18,9 +18,13 @@
 >
 >
 >
-> **Reste à construire :** **N2** (alertes d'échéance CDD) et **N3** (signature électronique —
-> à cadrer avant de coder, voir **N3-a**). **N1, N4 et N5 sont livrés le 06/11/2026** ; R10 et R11
-> sont complets. Une question nouvelle : **N5-a**, la notification par courriel. **R-6a est tranché** (les deux textes divergent volontairement) ; **R-6b** (la
+>
+> **Tous les lots R0 → R11 sont livrés, et les demandes N1, N2, N4, N5 avec eux.**
+> **Ne reste que N3** (signature électronique), volontairement bloqué par **N3-a** : apposer une
+> signature enregistrée engage la clinique, et trois questions se posent avant la première ligne
+> de code. Deux points ouverts, qui ne bloquent rien : **N5-a** (faut-il un courriel à l'ouverture
+> d'un ticket) et **T3** côté contrôle (avertir suffit-il, ou faut-il bloquer une durée de CDD hors
+> plafond — nous avertissons). **R-6a est tranché** (les deux textes divergent volontairement) ; **R-6b** (la
 > 1re ligne de D1 se corrige au 07/04) est à appliquer lors de la reprise du planning.
 
 ## R. Réponses de la RH et de la Direction — séance du 05/11/2026
@@ -334,7 +338,7 @@ Aucune n'était au programme. Elles sont consignées ici et non chiffrées.
 | # | Demande | Ce qu'elle implique |
 |---|---|---|
 | **N1** ✅ | **Fériés décrétés en cours d'année.** « *les jours fériés décrétés au cours de l'année pour une raison ou une autre augmentent ou décalent la date initialement prévue […] il faut donc que la RH puisse ajouter des fériés justifiés en cas de besoin* » | La table `joursFeries` existe déjà et est datée. Il manque l'écran d'ajout et le motif obligatoire. **Tranché le 05/11/2026 : un congé déjà posé se décale AUTOMATIQUEMENT.** Le recalcul doit donc remonter sur les congés en cours et à venir, et laisser une trace de ce qu'il a déplacé — un retour qui bouge sans explication serait pire que pas de recalcul. Résout **D2** |
-| **N2** | **Alertes d'échéance de CDD.** Durée max **6 mois renouvelable une fois**. Rappels configurables, par défaut : 1 rappel à 1 mois, 1 par semaine le dernier mois, 1 par jour la dernière semaine | Tâches planifiées + préférences de rappel. Complète **T3** |
+| **N2** ✅ | **Alertes d'échéance de CDD.** Durée max **6 mois renouvelable une fois**. Rappels configurables, par défaut : 1 rappel à 1 mois, 1 par semaine le dernier mois, 1 par jour la dernière semaine | Tâches planifiées + préférences de rappel. Complète **T3** |
 | **N3** | **Signature électronique.** « *nous aimerions que la signature se fasse via la plateforme […] permettre aux utilisateurs d'enregistrer cela sur la plateforme et de pouvoir l'apposer au besoin* » | Chaque utilisateur enregistre sa signature (image), qui s'apposerait sur les actes. Touche la valeur probante des documents : à cadrer avant de coder. Répond à **T6** |
 | **N4** ✅ | **Le certificat de fin de stage doit pouvoir être signé par la RH** | ✅ Livré le 06/11/2026. Signataire au choix, et la QUALITÉ inscrite sur l'acte suit : un acte signé par la RH ne peut pas annoncer « Directeur Général » |
 | **N5** ✅ | **Module de tickets.** Un membre ouvre un ticket décrivant un dysfonctionnement ou un besoin, avec **images ou captures**. Il part à **deux destinataires** : le Directeur (qui valide la pertinence) et le développeur | Nouveau module : table, écran, pièces jointes, deux destinataires, états. Répond à **X2** |
@@ -707,8 +711,20 @@ parties ». Deux questions :
    renouvellement. Si le plafond est de 2 ans renouvelable une fois, une saisie à « 3 ans »
    produirait un contrat irrégulier. **Faut-il que l'application refuse une durée hors plafond ?**
 
-**À faire :** faire préciser le plafond applicable par le comptable ou le conseil, et dire si le
-contrôle doit bloquer ou seulement avertir.
+**Réponse du 05/11/2026 : la durée maximale est de 6 mois, renouvelable une fois.** Et elle a
+demandé « un système d'alerte et de rappel », ce qui est traité par **N2**.
+
+**Livré le 06/11/2026 :** le contrôle de durée **avertit, il ne bloque pas** — la RH peut avoir une
+raison que nous ne connaissons pas, et un formulaire qui refuse d'enregistrer la réalité pousse à
+la contourner. Trois messages distincts selon le cas : 12 mois d'un seul trait (irrégulier, avec
+l'invitation à cocher le renouvellement), 12 mois marqués renouvelés (accepté, avec l'avis qu'il
+n'en reste plus), et au-delà de 12 mois (le risque de **requalification en CDI** est nommé).
+
+⚠️ Un drapeau `contratRenouvele` a dû être ajouté à la fiche : les dates seules ne disent pas si
+12 mois sont un CDD de 6 mois renouvelé — régulier — ou un CDD de 12 mois d'un trait, qui ne l'est
+pas. Sans cette information, on ne peut qu'énoncer les deux lectures.
+
+**Reste à confirmer :** avertir suffit-il, ou faut-il refuser l'enregistrement&nbsp;?
 
 ### T4 🟡 Le certificat de fin de stage est signé par le Directeur Général
 

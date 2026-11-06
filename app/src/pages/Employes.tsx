@@ -31,6 +31,7 @@ import { parseCsv, toFcfa } from "@/lib/csv";
 import { messageErreur, num } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageEnTete } from "@/components/app/en-tete";
+import { EcheancesContrats } from "@/components/app/echeances-contrats";
 import { GrilleTuiles, Tuile } from "@/components/app/tuile";
 import { GestionFonctions } from "@/components/app/gestion-fonctions";
 import {
@@ -168,6 +169,10 @@ export function Employes() {
           </>
         }
       />
+
+      {/* Échéances de contrat (N2) : le panneau s'ouvre de lui-même dès qu'un rappel tombe,
+          et il ne s'affiche pas du tout si aucun contrat n'a de date de fin. */}
+      <EcheancesContrats />
 
       <GrilleTuiles>
         <Tuile libelle="Effectif actif" valeur={employes ? actifs.length : undefined} note={employes ? `${tous.length - actifs.length} inactif(s) conservé(s)` : undefined} vedette />

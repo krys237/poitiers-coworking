@@ -7,6 +7,7 @@
  * matricule ne se modifient pas (identité de paie) ; ils se saisissent à la création.
  */
 import * as React from "react";
+import { controlerDureeCdd } from "../../../convex/lib/echeancesContrat";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { toast } from "sonner";
@@ -32,6 +33,9 @@ export type EmployeFiche = {
   societe: Societe; salaireBase?: number; salaireBrut?: number; dateDebut?: string; congesInitial?: number; actif?: boolean;
   serviceId?: string; immatriculeImpots?: boolean; dateEntreeCnps?: string;
   methodeEnvoi?: "auto" | "email" | "whatsapp";
+  // Contrat et échéance (N2). `contrat` et `dateFin` existaient en base mais n'étaient pas
+  // éditables : il n'y avait donc rien sur quoi alerter.
+  contrat?: string; dateFin?: string; contratRenouvele?: boolean;
 };
 // `salaireBrut` est l'ancien nom, encore présent dans les fiches non migrées : le formulaire
 // ne l'édite jamais, il ne travaille que sur `salaireBase`.
@@ -40,11 +44,13 @@ type Champs = Required<Omit<EmployeFiche, "employeId" | "actif" | "salaireBrut">
 export type CreerEmploye = (a: { matricule: string; nom: string; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string; societe: Societe; salaireBase: number; dateDebut?: string; congesInitial?: number;
   serviceId?: string; immatriculeImpots?: boolean; dateEntreeCnps?: string;
   methodeEnvoi?: "auto" | "email" | "whatsapp";
+  contrat?: string; dateFin?: string; contratRenouvele?: boolean;
   /** Sociétés supplémentaires à rattacher dès la création (lot R10). */
   rattachements?: { societe: Societe; salaireBase?: number }[] }) => Promise<unknown>;
 export type ModifierEmploye = (a: { employeId: any; fonction?: string; adresse?: string; cnps?: string; niu?: string; email?: string; whatsapp?: string; societe?: Societe; salaireBase?: number; dateDebut?: string; congesInitial?: number; actif?: boolean;
   serviceId?: string; immatriculeImpots?: boolean; dateEntreeCnps?: string;
-  methodeEnvoi?: "auto" | "email" | "whatsapp" }) => Promise<unknown>;
+  methodeEnvoi?: "auto" | "email" | "whatsapp";
+  contrat?: string; dateFin?: string; contratRenouvele?: boolean }) => Promise<unknown>;
 
 const depuis = (e?: EmployeFiche): Champs => ({
   matricule: e?.matricule ?? "", nom: e?.nom ?? "", fonction: e?.fonction ?? "", adresse: e?.adresse ?? "", cnps: e?.cnps ?? "",
@@ -52,6 +58,7 @@ const depuis = (e?: EmployeFiche): Champs => ({
   dateDebut: e?.dateDebut ?? "", congesInitial: e?.congesInitial ?? 0,
   serviceId: e?.serviceId ?? "", immatriculeImpots: e?.immatriculeImpots ?? false,
   dateEntreeCnps: e?.dateEntreeCnps ?? "", methodeEnvoi: e?.methodeEnvoi ?? "auto",
+  contrat: e?.contrat ?? "", dateFin: e?.dateFin ?? "", contratRenouvele: e?.contratRenouvele ?? false,
 });
 
 export function FicheEmploye({
@@ -86,6 +93,12 @@ export function FicheEmploye({
   const fonctions = useQuery(api.fonctions.liste, {});
   const [open, setOpen] = React.useState(false);
   const [f, setF] = React.useState<Champs>(() => depuis(employe));
+
+  // Durée du contrat : AVERTIT, ne bloque pas (N2). La RH peut avoir une raison que nous ne
+  // connaissons pas, et un formulaire qui refuse d'enregistrer la réalité pousse à la contourner.
+  const dureeContrat = f.dateDebut && f.dateFin
+    ? controlerDureeCdd({ dateDebut: f.dateDebut, dateFin: f.dateFin, renouvele: f.contratRenouvele })
+    : null;
   const [enCours, setEnCours] = React.useState(false);
   React.useEffect(() => { if (open) setF(depuis(employe)); }, [open, employe]);
 
@@ -106,6 +119,8 @@ export function FicheEmploye({
       serviceId: f.serviceId || undefined, immatriculeImpots: f.immatriculeImpots,
       dateEntreeCnps: f.dateEntreeCnps || undefined, methodeEnvoi: f.methodeEnvoi,
       congesInitial: f.congesInitial || undefined,
+      contrat: f.contrat || undefined, dateFin: f.dateFin || undefined,
+      contratRenouvele: f.contratRenouvele,
     };
     // WhatsApp : transmis seulement s'il a changé (les écrans qui ne le chargent pas ne l'effacent pas).
     const whatsapp = f.whatsapp !== (employe?.whatsapp ?? "") ? f.whatsapp : undefined;
@@ -223,6 +238,44 @@ export function FicheEmploye({
                   ))}
                 </div>
               </div>
+            ) : null}
+            {/* Contrat et échéance (N2). Les deux champs existaient en base sans être éditables :
+                il n'y avait donc rien sur quoi alerter. */}
+            <Champ libelle="Type de contrat" aide="CDI, CDD, stage, engagement à l'essai…">
+              {(a) => (
+                <Input {...a} value={f.contrat} onChange={(x) => setF({ ...f, contrat: x.target.value })} placeholder="CDD" />
+              )}
+            </Champ>
+            <Champ libelle="Fin de contrat" aide="Laisser vide pour un contrat sans terme : sans date, aucun rappel n'est possible">
+              {(a) => (
+                <Input {...a} type="date" value={f.dateFin} onChange={(x) => setF({ ...f, dateFin: x.target.value })} />
+              )}
+            </Champ>
+            {f.dateFin ? (
+              <label className="flex cursor-pointer items-start gap-2 text-xs sm:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={f.contratRenouvele}
+                  onChange={(x) => setF({ ...f, contratRenouvele: x.target.checked })}
+                  className="mt-0.5 accent-ocean-profond"
+                />
+                <span>
+                  Ce contrat est <strong>déjà un renouvellement</strong>
+                  <span className="block text-2xs text-encre-pale">
+                    Les dates ne le disent pas : 12 mois peuvent être un CDD de 6 mois renouvelé —
+                    régulier — ou un CDD de 12 mois d'un seul trait, qui ne l'est pas.
+                  </span>
+                </span>
+              </label>
+            ) : null}
+            {dureeContrat?.avertissements.length ? (
+              <ul className="space-y-1 rounded-lg border border-ocre bg-ocre-clair/40 px-3 py-2 text-2xs sm:col-span-2" role="status">
+                {dureeContrat.avertissements.map((x) => <li key={x}>{x}</li>)}
+              </ul>
+            ) : dureeContrat && dureeContrat.mois > 0 ? (
+              <p className="text-2xs text-encre-pale sm:col-span-2">
+                Durée : {dureeContrat.mois} mois. Les rappels d'échéance démarreront un mois avant la fin.
+              </p>
             ) : null}
             {texte("cnps", "N° CNPS", "351-1213677-6")}
             {texte("niu", "NIU", "M072517858332C")}

@@ -192,7 +192,7 @@ export function Parametres() {
           <TabsList className="h-auto flex-wrap gap-1 rounded-xl border border-filet bg-slate-100/80 p-1">
             {([
               ["entreprise", "Entreprise & documents", (["nom", "adresse", "niu", "numeroCnps", "dirigeant", "registreCommerce", "logoUrl", "couleurEntete", "filigrane"] as (keyof Entreprise)[]).some(modifieE)],
-              ["paie", "Paie & congés", (["responsableRH", "jourPaiement", "congesParMois"] as (keyof Entreprise)[]).some(modifieE) || (["joursBaseDefaut", "plafondSaisie", "pdfAutoCloture"] as (keyof Reglages)[]).some(modifieR)],
+              ["paie", "Paie & congés", (["responsableRH", "jourPaiement", "congesParMois"] as (keyof Entreprise)[]).some(modifieE) || (["joursBaseDefaut", "plafondSaisie", "pdfAutoCloture", "rappelPremierAvisJours", "rappelHebdoDepuisJours", "rappelQuotidienDepuisJours"] as (keyof Reglages)[]).some(modifieR)],
               ["courrier", "Courrier & e-mail", (["emailExpediteur", "modeleCourrier"] as (keyof Entreprise)[]).some(modifieE) || modifieR("envoiReelActive") || modifieR("whatsappReelActive")],
               ["fonctionnement", "Fonctionnement", (["crHeureOuverture", "crHeureFermeture", "crSamedi", "verrouFinancierMin", "verrouCaisseMin", "iaDocumentsActive"] as (keyof Reglages)[]).some(modifieR)],
               ["roles", "Rôles & accès", modifsD > 0],
@@ -315,6 +315,11 @@ export function Parametres() {
                 <Grille>
                   <ChampNombre libelle="Jours de base d'un nouvel employé" aide="Diviseur du salaire journalier (brut ÷ N). Les employés existants gardent le leur." unite="j" valeur={r.joursBaseDefaut} onChange={(v) => majR("joursBaseDefaut", v)} className={modif(modifieR("joursBaseDefaut"))} />
                   <ChampNombre libelle="Plafond de saisie mensuelle" aide="Au-delà, la saisie est refusée : protège des fautes de frappe." unite="FCFA" valeur={r.plafondSaisie} onChange={(v) => majR("plafondSaisie", v)} className={modif(modifieR("plafondSaisie"))} />
+                  {/* Rappels d'échéance de contrat (N2). Les trois seuils doivent rester ordonnés :
+                      `validerReglages` le vérifie, et explique pourquoi en cas d'inversion. */}
+                  <ChampNombre libelle="Premier avis d'échéance" aide="Un avis au jour exact, avant que les rappels réguliers commencent" unite="j avant" valeur={r.rappelPremierAvisJours} onChange={(v) => majR("rappelPremierAvisJours", v)} className={modif(modifieR("rappelPremierAvisJours"))} />
+                  <ChampNombre libelle="Rappels hebdomadaires à partir de" aide="En deçà de ce délai, un rappel par semaine" unite="j avant" valeur={r.rappelHebdoDepuisJours} onChange={(v) => majR("rappelHebdoDepuisJours", v)} className={modif(modifieR("rappelHebdoDepuisJours"))} />
+                  <ChampNombre libelle="Rappels quotidiens à partir de" aide="En deçà de ce délai, un rappel par jour. Un contrat échu alerte tous les jours quoi qu'il arrive." unite="j avant" valeur={r.rappelQuotidienDepuisJours} onChange={(v) => majR("rappelQuotidienDepuisJours", v)} className={modif(modifieR("rappelQuotidienDepuisJours"))} />
                 </Grille>
                 <Interrupteur libelle="Générer les PDF à la clôture" aide="Dès qu'un mois est clôturé, les bulletins figés sont rendus en PDF et archivés — sinon, à la demande depuis Archives." valeur={r.pdfAutoCloture} onChange={(v) => majR("pdfAutoCloture", v)} modifie={modifieR("pdfAutoCloture")} />
               </Bloc>
