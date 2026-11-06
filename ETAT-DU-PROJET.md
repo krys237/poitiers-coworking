@@ -156,6 +156,7 @@ retombe sur l'ancien comportement quand le champ est absent. Un push peut donc s
 | R11 | `modelesActes`, `actes` | `parametresEntreprise` : **dirigeant**, **registreCommerce** · `parametresEntreprise.societes[]` : **dirigeant**, **registreCommerce** |
 | R4 | — | `baremes` : **allocationPlafondMois**, **allocationMoisAvantPremierConge**, **allocationConventionFraction** |
 | R6 | `retenuesMedecins` | — |
+| N1 | — | `joursFeries` : origine **decrete**, **motif** |
 
 `dirigeant` et `registreCommerce` ne sont pas cosmétiques : les trois contrats de travail les
 lisent au lieu de figer une identité. Les modèles Word de la RH portent **deux numéros de registre

@@ -88,8 +88,13 @@ export const preparer = query({
     // Société émettrice. Pour un contrat d'embauche la fiche n'a pas encore de rattachement :
     // la RH la choisit. Sinon c'est la société principale de l'employé.
     societe: v.optional(SOCIETE),
+    /**
+     * Signataire retenu, parmi `modele.signataires` (lot N4). Absent = le premier déclaré, qui est
+     * le défaut du modèle Word.
+     */
+    signataireCle: v.optional(v.string()),
   },
-  handler: async (ctx, { code, employeId, periode, societe }) => {
+  handler: async (ctx, { code, employeId, periode, societe, signataireCle }) => {
     await requireDroit(ctx, "/employes");
     const modele = await modeleDe(ctx, code);
     const parametres = await ctx.db.query("parametresEntreprise").first();
@@ -147,6 +152,12 @@ export const preparer = query({
       duBulletin.primeLait = duBulletin["6634"];
     }
 
+    const signataires = (modele as any).signataires as
+      | { cle: string; libelle: string; qualite: string }[]
+      | undefined ?? [];
+    const retenu = signataires.find((x) => x.cle === signataireCle) ?? signataires[0]
+      ?? { cle: "responsableRH", libelle: "Responsable RH", qualite: "" };
+
     const valeurs: Record<string, string> = {};
     for (const c of modele.champs as ChampActe[]) {
       const s: any = c.source;
@@ -160,6 +171,13 @@ export const preparer = query({
       else if (s.de === "employe") {
         brut = s.cle === "salaireBase" && employe ? salaireDeBase(employe) : (employe as any)?.[s.cle];
       } else if (s.de === "bulletin") brut = duBulletin[s.cle];
+      // Signataire AU CHOIX (lot N4) : la clé retenue remplace celle du modèle, et la qualité
+      // suit — un acte signé par la RH ne peut pas annoncer « Directeur Général ».
+      if (signataires.length && (c.nom === "signataire" || c.nom === "qualiteSignataire")) {
+        brut = c.nom === "signataire"
+          ? (parametres as any)?.[retenu.cle] ?? identite.dirigeant
+          : retenu.qualite;
+      }
       if (brut === undefined || brut === null || brut === "") continue;
       valeurs[c.nom] =
         c.type === "montant" ? fmtMontant(brut)
@@ -177,6 +195,8 @@ export const preparer = query({
       modele,
       valeurs,
       avertissement,
+      signataires,
+      signataireRetenu: retenu.cle,
       identite: {
         societe: identite.societe || null,
         raisonSociale: identite.raisonSociale,

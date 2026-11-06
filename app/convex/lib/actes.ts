@@ -52,6 +52,14 @@ export interface ModeleActe {
   champs: ChampActe[];
   /** Gabarit de référence ; `{n}` = séquence, `{mm}`/`{aaaa}` = mois et année. */
   formatReference?: string;
+  /**
+   * Signataires possibles, quand l'acte peut être signé par plusieurs autorités (lot N4).
+   *
+   * Le premier est le défaut. Changer de signataire change aussi sa QUALITÉ dans le corps : un
+   * acte signé par la RH ne peut pas annoncer « Directeur Général ». C'est tout l'objet de ce
+   * champ — sans lui, il faudrait soit un modèle par signataire, soit laisser le titre mentir.
+   */
+  signataires?: { cle: string; libelle: string; qualite: string }[];
   ordre: number;
 }
 
@@ -473,16 +481,17 @@ Accord du Service des Ressources Humaines                 Accord de la Direction
     libelle: "Certificat de fin de stage",
     famille: "stage",
     ordre: 85,
-    // ⚠️ Le seul acte du lot signé par le DIRECTEUR GÉNÉRAL et non par la RH : son modèle écrit
-    // « Je soussigné, …, Directeur Général de la Polyclinique de Poitiers ». Le signataire est
-    // donc tiré du dirigeant, pas du visa RH.
+    // Son modèle Word écrit « Je soussigné, …, Directeur Général de la Polyclinique de Poitiers ».
+    // Mais la RH doit pouvoir le signer aussi (décision du 05/11/2026, point N4) : le signataire
+    // est donc AU CHOIX, et sa qualité suit — un acte signé par la RH ne peut pas annoncer
+    // « Directeur Général ». Le Directeur Général reste le défaut, conformément au modèle.
     //
     // Deux coquilles de son Word ne sont pas reprises : « du …… au 30 …… » (le « 30 » est un
     // reste de saisie, la date de fin est un champ comme l'autre) et « Fait à douala » en
     // minuscule. Voir A-VERIFIER si elle tient au libellé d'origine.
     corps: `CERTIFICAT DE FIN DE STAGE
 
-Je soussigné, {{signataire}}, Directeur Général de la Polyclinique de Poitiers, atteste que Mme/Mlle/M. {{nom}} a été employé(e) dans notre structure durant la période du {{dateDebutStage}} au {{dateFinStage}}, et a occupé les fonctions de {{fonction}}.
+Je soussigné(e), {{signataire}}, {{qualiteSignataire}} de la Polyclinique de Poitiers, atteste que Mme/Mlle/M. {{nom}} a été employé(e) dans notre structure durant la période du {{dateDebutStage}} au {{dateFinStage}}, et a occupé les fonctions de {{fonction}}.
 
 Il/Elle nous quitte ce jour libre de tout engagement.
 
@@ -494,8 +503,13 @@ Fait à Douala, le {{date}}`,
       ch("dateDebutStage", "Début du stage", "date", { de: "saisie" }),
       ch("dateFinStage", "Fin du stage", "date", { de: "saisie" }),
       ch("fonction", "Fonctions occupées", "texte", { de: "saisie" }),
-      ch("signataire", "Signataire (Directeur Général)", "texte", { de: "entreprise", cle: "dirigeant" }),
+      ch("signataire", "Signataire", "texte", { de: "entreprise", cle: "dirigeant" }),
+      ch("qualiteSignataire", "Qualité du signataire", "texte", { de: "entreprise", cle: "qualiteSignataire" }),
       LE_JOUR,
+    ],
+    signataires: [
+      { cle: "dirigeant", libelle: "Directeur Général", qualite: "Directeur Général" },
+      { cle: "responsableRH", libelle: "Responsable RH", qualite: "Responsable des Ressources Humaines" },
     ],
   },
   {

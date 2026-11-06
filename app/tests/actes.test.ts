@@ -176,15 +176,32 @@ check("elle n'a donc ni « Fait le » ni signataire unique",
 check("tous ses champs sont saisis à la main — aucun employé n'existe encore",
   autor.champs.every((c) => c.source.de === "saisie"));
 
-titre("Le certificat de fin de stage est signé par le Directeur Général");
+titre("Le certificat de fin de stage : signataire AU CHOIX (lot N4)");
 const certif = modele("STAGE_CERTIFICAT_FIN");
-check("son signataire est le dirigeant, pas le visa RH",
+check("le défaut reste le dirigeant, comme son modèle Word",
   certif.champs.find((c) => c.nom === "signataire")?.source.cle === "dirigeant");
-check("le corps le nomme Directeur Général", certif.corps.includes("Directeur Général"));
+check("deux signataires possibles sont déclarés", certif.signataires?.length === 2, certif.signataires);
+check("le Directeur Général est le premier, donc le défaut",
+  certif.signataires?.[0].cle === "dirigeant");
+check("la RH est le second", certif.signataires?.[1].cle === "responsableRH");
+// Le point qui compte : changer de signataire change sa QUALITÉ. Un acte signé par la RH ne peut
+// pas annoncer « Directeur Général ».
+check("la qualité est un JETON, pas un titre figé dans le corps",
+  certif.corps.includes("{{qualiteSignataire}}") && !certif.corps.includes(", Directeur Général de"),
+  certif.corps.slice(0, 200));
+check("chaque signataire porte sa qualité",
+  certif.signataires?.every((x) => x.qualite.length > 5));
+check("les deux qualités diffèrent",
+  certif.signataires?.[0].qualite !== certif.signataires?.[1].qualite);
+check("le champ de qualité est déclaré et vient de l'entreprise",
+  certif.champs.find((c) => c.nom === "qualiteSignataire")?.source.de === "entreprise");
+check("aucun autre modèle n'offre le choix du signataire",
+  MODELES_DEFAUT.filter((m) => m.signataires?.length).map((m) => m.code).join() === "STAGE_CERTIFICAT_FIN",
+  MODELES_DEFAUT.filter((m) => m.signataires?.length).map((m) => m.code));
 // Deux coquilles de son Word : « au 30 …… » et « Fait à douala » en minuscule.
 check("le « 30 » parasite de son modèle n'est pas repris", !/au 30\s/.test(certif.corps));
 check("Douala reprend sa majuscule", certif.corps.includes("Fait à Douala"));
-check("c'est le seul acte non signé par la RH",
+check("c'est le seul acte dont le signataire par défaut n'est pas la RH",
   MODELES_DEFAUT.filter((m) => m.champs.some((c) => c.nom === "signataire"
     && c.source.de === "entreprise" && c.source.cle !== "responsableRH")).length === 1);
 

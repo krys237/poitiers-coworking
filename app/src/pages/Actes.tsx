@@ -45,6 +45,8 @@ export function Actes() {
   // Société émettrice. Vide = la société principale de l'employé ; à choisir pour un contrat
   // d'embauche, où la fiche n'a pas encore de rattachement.
   const [societe, setSociete] = React.useState<string>("");
+  // Signataire retenu quand l'acte en offre plusieurs (lot N4). Vide = le défaut du modèle.
+  const [signataireCle, setSignataireCle] = React.useState<string>("");
   // Valeurs modifiées à la main : elles PRIMENT sur le pré-remplissage, sinon chaque
   // rechargement de la préparation écraserait la saisie en cours.
   const [saisies, setSaisies] = React.useState<Record<string, string>>({});
@@ -53,7 +55,11 @@ export function Actes() {
   const employes = useQuery(api.employes.liste, {});
   const prepa = useQuery(
     api.actes.preparer,
-    code ? { code, employeId: (employeId || undefined) as any, periode, societe: (societe || undefined) as any } : "skip",
+    code
+      ? { code, employeId: (employeId || undefined) as any, periode,
+          societe: (societe || undefined) as any,
+          signataireCle: signataireCle || undefined }
+      : "skip",
   );
   const generer = useMutation(api.actes.generer);
   const initModeles = useMutation(api.actes.initialiserModeles);
@@ -65,6 +71,8 @@ export function Actes() {
   // Changer de modèle ou de salarié repart d'une saisie vierge : garder des valeurs d'un
   // autre acte produirait un document faux sans que rien ne le signale.
   React.useEffect(() => setSaisies({}), [code, employeId]);
+  // Changer d'acte remet le signataire au défaut : celui d'un autre modèle n'a pas de sens ici.
+  React.useEffect(() => setSignataireCle(""), [code]);
 
   const valeurs = React.useMemo(
     () => ({ ...(prepa?.valeurs ?? {}), ...saisies }),
@@ -161,6 +169,27 @@ export function Actes() {
                       onChange={(v) => setEmployeId(v)}
                     />
                   </label>
+
+                  {/* Signataire au choix (lot N4) : n'apparaît que pour les actes qui en offrent
+                      plusieurs — aujourd'hui le seul certificat de fin de stage. */}
+                  {prepa?.signataires?.length ? (
+                    <label className="mt-3 grid gap-1 text-xs">
+                      Qui signe
+                      <select
+                        className="h-9 rounded-md border border-filet bg-surface px-2 text-sm"
+                        value={signataireCle || prepa.signataireRetenu}
+                        onChange={(ev) => setSignataireCle(ev.target.value)}
+                      >
+                        {prepa.signataires.map((x: any) => (
+                          <option key={x.cle} value={x.cle}>{x.libelle}</option>
+                        ))}
+                      </select>
+                      <span className="text-[11px] text-encre-pale">
+                        La qualité inscrite sur l'acte suit le signataire : il ne peut pas annoncer
+                        une fonction que la personne n'exerce pas.
+                      </span>
+                    </label>
+                  ) : null}
 
                   {/* L'identité juridique n'apparaît que sur les contrats : inutile de demander
                       la société pour une attestation de reprise de service. */}

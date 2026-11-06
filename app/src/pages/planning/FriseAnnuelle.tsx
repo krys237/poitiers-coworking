@@ -20,6 +20,7 @@ import { LIBELLE_OBSERVATION, OBSERVATIONS } from "../../../convex/lib/planningA
 import { cn } from "@/lib/utils";
 import { GrilleTuiles, Tuile } from "@/components/app/tuile";
 import { Montant } from "@/components/app/montant";
+import { JoursFeries } from "./JoursFeries";
 import { BoutonAction } from "@/components/app/bouton-action";
 import { Button } from "@/components/ui/button";
 import { Flag } from "@/components/ui/flag";
@@ -430,6 +431,9 @@ export function FriseAnnuelle() {
           </div>
         </div>
       </div>
+
+      {/* ---- Jours fériés : décret en cours d'année, et décalage des congés (N1) ---- */}
+      <JoursFeries annee={annee} />
 
       {/* ---- Vue en tableau : l'équivalent textuel de la frise ---- */}
       <div className="rounded-2xl border border-filet bg-surface shadow-xs">

@@ -16,8 +16,10 @@
 > indemnités restent celles de son fichier.
 >
 >
-> **Reste à construire, sans attendre personne :** les cinq demandes **N1 → N5**, et les restes de
-> R10 et R11. **R-6a est tranché** (les deux textes divergent volontairement) ; **R-6b** (la
+>
+> **Reste à construire, sans attendre personne :** **N2** (alertes d'échéance CDD), **N3**
+> (signature électronique) et **N5** (module de tickets), plus l'en-tête PDF de R11. **N1 et N4
+> sont livrés le 06/11/2026** ; R10 est complet. **R-6a est tranché** (les deux textes divergent volontairement) ; **R-6b** (la
 > 1re ligne de D1 se corrige au 07/04) est à appliquer lors de la reprise du planning.
 
 ## R. Réponses de la RH et de la Direction — séance du 05/11/2026
@@ -224,6 +226,29 @@ Or elle a validé notre correction au **06/04/2026** — qui n'est juste que si 
 **À trancher :** un jour, sur une ligne — mais la règle s'applique à tous les congés qui enjambent
 Pâques ou l'Ascension, chaque année.
 
+### R-7 🟢 Un férié décrété recule le retour de PLUS d'un jour — constaté le 06/11/2026
+
+Découvert en écrivant N1, et contre-intuitif : **ajouter un seul jour férié au milieu d'un congé
+peut reculer la date de retour de deux ou trois jours calendaires.**
+
+Sur un congé de 18 jours ouvrables partant le lundi 9 mars 2026 :
+
+| Calendrier | Dernier jour | Retour | Décalage |
+|---|---|---|---|
+| sans décret | samedi 28 mars | lundi 30 mars | — |
+| + 1 férié le 18/03 | lundi 30 mars | mardi 31 mars | **+2 jours** |
+| + 2 fériés (18 et 24/03) | mardi 31 mars | mercredi 1er avril | **+3 jours** |
+
+La raison : le congé devait finir un samedi. Il lui faut un jour ouvrable de plus, mais le dimanche
+n'en est pas un — la fin saute donc au lundi. Et le rapport n'est pas constant : le second férié
+n'ajoute qu'un jour calendaire au premier.
+
+**Conséquence pour l'écran :** afficher le seul écart (« +2 j ») serait trompeur. L'écran montre
+donc **l'avant et l'après de chaque date**, et le droit en jours ouvrables à côté — qui, lui, ne
+bouge jamais. C'est la combinaison des deux qui dit la vérité.
+
+---
+
 ### R-5 🟢 Arbitrages de la Direction — 05/11/2026, après confrontation aux données
 
 Les quatre points de **R-3** ont été tranchés par la Direction, en connaissance des contradictions
@@ -307,10 +332,10 @@ Aucune n'était au programme. Elles sont consignées ici et non chiffrées.
 
 | # | Demande | Ce qu'elle implique |
 |---|---|---|
-| **N1** | **Fériés décrétés en cours d'année.** « *les jours fériés décrétés au cours de l'année pour une raison ou une autre augmentent ou décalent la date initialement prévue […] il faut donc que la RH puisse ajouter des fériés justifiés en cas de besoin* » | La table `joursFeries` existe déjà et est datée. Il manque l'écran d'ajout et le motif obligatoire. **Tranché le 05/11/2026 : un congé déjà posé se décale AUTOMATIQUEMENT.** Le recalcul doit donc remonter sur les congés en cours et à venir, et laisser une trace de ce qu'il a déplacé — un retour qui bouge sans explication serait pire que pas de recalcul. Résout **D2** |
+| **N1** ✅ | **Fériés décrétés en cours d'année.** « *les jours fériés décrétés au cours de l'année pour une raison ou une autre augmentent ou décalent la date initialement prévue […] il faut donc que la RH puisse ajouter des fériés justifiés en cas de besoin* » | La table `joursFeries` existe déjà et est datée. Il manque l'écran d'ajout et le motif obligatoire. **Tranché le 05/11/2026 : un congé déjà posé se décale AUTOMATIQUEMENT.** Le recalcul doit donc remonter sur les congés en cours et à venir, et laisser une trace de ce qu'il a déplacé — un retour qui bouge sans explication serait pire que pas de recalcul. Résout **D2** |
 | **N2** | **Alertes d'échéance de CDD.** Durée max **6 mois renouvelable une fois**. Rappels configurables, par défaut : 1 rappel à 1 mois, 1 par semaine le dernier mois, 1 par jour la dernière semaine | Tâches planifiées + préférences de rappel. Complète **T3** |
 | **N3** | **Signature électronique.** « *nous aimerions que la signature se fasse via la plateforme […] permettre aux utilisateurs d'enregistrer cela sur la plateforme et de pouvoir l'apposer au besoin* » | Chaque utilisateur enregistre sa signature (image), qui s'apposerait sur les actes. Touche la valeur probante des documents : à cadrer avant de coder. Répond à **T6** |
-| **N4** | **Le certificat de fin de stage doit pouvoir être signé par la RH** (T4 : les deux documents sont utilisés) | Le signataire est aujourd'hui tiré du dirigeant. À rendre choisissable entre dirigeant et responsable RH |
+| **N4** ✅ | **Le certificat de fin de stage doit pouvoir être signé par la RH** | ✅ Livré le 06/11/2026. Signataire au choix, et la QUALITÉ inscrite sur l'acte suit : un acte signé par la RH ne peut pas annoncer « Directeur Général » |
 | **N5** | **Module de tickets.** Un membre ouvre un ticket décrivant un dysfonctionnement ou un besoin, avec **images ou captures**. Il part à **deux destinataires** : le Directeur (qui valide la pertinence) et le développeur | Nouveau module : table, écran, pièces jointes, deux destinataires, états. Répond à **X2** |
 
 ---

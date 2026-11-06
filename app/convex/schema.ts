@@ -693,7 +693,13 @@ export default defineSchema({
       v.literal("fixe"),              // date fixe du calendrier camerounais
       v.literal("pascal"),            // calculée par le comput de Pâques
       v.literal("saisi"),             // saisie à la main (Aïd, report administratif)
+      v.literal("decrete"),           // décrété en cours d'année (deuil national, report) — N1
     ),
+    /**
+     * Justification d'un férié décrété en cours d'année (demande N1). Obligatoire pour l'origine
+     * `decrete` : un jour qui décale les congés de tout le monde doit dire d'où il vient.
+     */
+    motif: v.optional(v.string()),
   })
     .index("by_date", ["date"])
     .index("by_annee", ["annee"]),
