@@ -228,6 +228,11 @@ export const journeePourApi = internalQuery({
 // porte pas exactement la somme prévue. Sur une correction qui touche de l'argent, mieux vaut
 // qu'elle s'arrête en annonçant l'écart que de recalculer sur une base qui aurait bougé.
 const CORRECTIONS_VISA: { date: string; visaAttendue: number; depotAAjouter: number; note: string }[] = [
+  // Ajoutée le 06/11, après coup : la saisie du 15/10 est retombée dans le même piège. L'écran
+  // offre deux champs aux libellés voisins — « Carte Visa » dans le bloc Recettes POITIERS, et
+  // « Dépôt Carte Visa » dans le bloc Carte Visa — et c'est le premier qui se trouve là où l'on
+  // saisit les recettes du jour. La cause est dans l'écran, pas dans la saisie.
+  { date: "2026-10-15", visaAttendue: 73600, depotAAjouter: 73600, note: "" },
   { date: "2026-10-16", visaAttendue: 88600, depotAAjouter: 88600, note: "" },
   // Le retrait carte de 67 400 de cette journée est laissé INTACT : nul ne sait encore s'il
   // correspond à une opération réelle ou à un doublon d'écriture. À trancher avec la DAF.
