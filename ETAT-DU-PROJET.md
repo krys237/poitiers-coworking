@@ -140,6 +140,11 @@ expliquer. R5 n'était bloqué par rien.
 
 #### Changements de schéma à pousser — note pour l'agent de déploiement
 
+> 📋 **Un dossier de passation complet existe : [`PASSATION-DEPLOIEMENT.md`](PASSATION-DEPLOIEMENT.md).**
+> Il reprend ce qui suit, et y ajoute l'état du déploiement Convex, les deux changements de
+> comportement à annoncer, les trois correctifs qui changent des montants, et les suites de tests
+> qui échappent au CI. **À lire en premier.**
+
 Tout est **additif et optionnel** : aucune donnée existante n'est invalidée, et chaque lecture
 retombe sur l'ancien comportement quand le champ est absent. Un push peut donc se faire d'un bloc.
 

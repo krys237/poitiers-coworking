@@ -598,7 +598,7 @@ salaire brut, primes incluses) et garde son nom à juste titre.
 
 ## N. Questions nées des demandes de la séance du 05/11/2026
 
-### N5-a 🟠 Faut-il qu'un courriel PARTE à l'ouverture d'un ticket&nbsp;?
+### N5-a 🟢 Faut-il qu'un courriel PARTE à l'ouverture d'un ticket&nbsp;? — **tranché le 06/11/2026 : non**
 
 Sa demande dit « cela sera **envoyé** à 2 personnes ». Le module le traduit par un
 **acheminement** : le ticket apparaît immédiatement dans l'écran du Directeur et dans celui du
@@ -612,8 +612,19 @@ Mais **aucun courriel ne quitte l'application**, et deux choses manquent pour qu
    servir pour des tickets mêlerait deux usages sur la même réputation d'envoi, et un ticket en
    erreur de livraison ferait douter des bulletins.
 
-**À trancher :** la pastille suffit-elle, ou faut-il un courriel&nbsp;? Si oui, avec quelle adresse
-d'expédition et quelle adresse pour le développeur. Ne bloque rien : le module fonctionne.
+**Décision : aucun courriel ne partira d'ici.** « Un système complet de notification est en train
+d'être implémenté, ce système pour gérer la question du courriel, parce que le courriel c'est trop
+formel. »
+
+Le module de tickets garde donc son acheminement en l'état — le ticket apparaît chez le Directeur
+et chez le développeur, avec la pastille au menu — et les **notifications viendront du système
+dédié**, quand il sera là. Les deux objections relevées ci-dessus (l'adresse du développeur,
+l'expéditeur partagé avec les bulletins) tombent d'elles-mêmes : elles étaient propres au courriel.
+
+⚠️ **Point de jonction à prévoir** quand le système de notification arrivera : `tickets.ouvrir`
+est le seul endroit à instrumenter, et il connaît déjà ses deux destinataires par leurs DROITS
+(`/tickets/arbitrage` et `/tickets/traitement`) plutôt que par une liste de noms — c'est ce qui
+permettra de notifier les bonnes personnes sans les recenser à la main.
 
 ### N3-a 🔴 La signature électronique engage la clinique — à cadrer avant de coder
 
