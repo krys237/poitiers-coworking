@@ -71,6 +71,12 @@ export async function ecrireJournee(ctx: MutationCtx, args: {
   date: string; mouvements: Mouvements; notes?: string; soldesOuverture?: Soldes;
   userId?: Doc<"users">["_id"]; userNom?: string;
 }) {
+  // Garde-fou au point de passage UNIQUE de toute écriture de journée. `enregistrer` validait
+  // déjà le format, mais pas `prendreVerrou` — qui crée la journée vide quand elle n'existe pas.
+  // Résultat constaté en production le 04/11/2026 : une journée de date "" a été créée, et comme
+  // `journeeAvant` compare les dates lexicographiquement, "" précède toute date réelle — cette
+  // ligne fantôme s'était donc installée à l'origine de la chaîne des soldes reportés.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(args.date)) throw new Error("Date au format AAAA-MM-JJ.");
   const periode = periodeDe(args.date);
   if (await moisCloture(ctx, periode)) throw new Error(`Le mois ${periode} est clôturé : journée immuable.`);
   const j = await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.eq("date", args.date)).unique();
@@ -211,6 +217,35 @@ export const journeePourApi = internalQuery({
 });
 
 // Purge des verrous expirés (cron hebdomadaire) : nettoie les traces de verrous de plus de 15 min.
+// Maintenance : supprime les journées dont la DATE est invalide — séquelles du défaut corrigé
+// dans `ecrireJournee` (voir son commentaire). Interne et appelée au CLI admin, sur le modèle de
+// `users:restaurerRole` documenté dans CLAUDE.md comme porte de secours.
+//
+// Volontairement prudente : elle refuse de toucher une journée qui porte des mouvements, un solde
+// non nul ou une pièce justificative. Une date invalide ne devrait jamais rien contenir ; si c'est
+// le cas, c'est un autre problème et il faut regarder avant de supprimer.
+export const purgerJourneesInvalides = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const toutes = await ctx.db.query("journeesFinancieres").collect();
+    const supprimees: string[] = [];
+    const conservees: { date: string; raison: string }[] = [];
+    for (const j of toutes) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(j.date)) continue;
+      const aDesMouvements = Object.values(j.mouvements ?? {}).some((b) => Object.values(b ?? {}).some((v) => v !== 0));
+      const aUnSolde = Object.values(j.soldes ?? {}).some((v) => v !== 0);
+      const aUnePiece = Object.keys(j.pieces ?? {}).length > 0;
+      if (aDesMouvements || aUnSolde || aUnePiece) {
+        conservees.push({ date: j.date, raison: aDesMouvements ? "porte des mouvements" : aUnSolde ? "solde non nul" : "pièce jointe" });
+        continue;
+      }
+      await ctx.db.delete(j._id);
+      supprimees.push(j.date === "" ? "(date vide)" : j.date);
+    }
+    return { examinees: toutes.length, supprimees, conservees };
+  },
+});
+
 export const purgerVerrousExpires = internalMutation({
   args: {},
   handler: async (ctx) => {
