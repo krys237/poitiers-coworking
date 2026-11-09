@@ -12,6 +12,11 @@
 > ⚠️ **Deux agents travaillent en parallèle sur ce dépôt.** Lire `CONSIGNES-MULTI-AGENTS.md`
 > (partage des fichiers, branches, worktrees) **avant** toute modification.
 
+> 🚀 **Avant de toucher à un déploiement : lire `PASSATION-DEPLOIEMENT.md` en entier.** Il décrit
+> l'architecture réelle (projets Vercel et Convex, portée des trois clés de déploiement), le
+> chantier en cours, onze pièges déjà payés et les incidents causés en production. Rien de tout
+> cela n'est déductible du dépôt : ça vit dans les dashboards.
+
 Plateforme de gestion administrative **+ moteur de paie automatisé** (contexte Cameroun, FCFA).
 Reconstruction unifiée dérivée de deux plateformes analysées — voir `../COMPREHENSION-PROJET.md`
 (compréhension métier complète) et l'esquisse d'architecture publiée (`../architecture-cible.html`).
