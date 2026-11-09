@@ -32,10 +32,24 @@ export default defineConfig({
         name: "POITIERS COWORKING",
         short_name: "POITIERS",
         description: "Gestion administrative et paie automatisée",
-        theme_color: "#0f2a44",
-        background_color: "#0f2a44",
+        // `#0f2a44` ne figurait dans aucune charte : remplacé par l'ocean-nuit officiel
+        // (.agents/skills/poitiers-ui-ux-system). Le fond de l'écran de démarrage reste blanc,
+        // parce que le logo a été dessiné pour du blanc et s'y lit sans halo.
+        theme_color: "#03045e",
+        background_color: "#ffffff",
         display: "standalone",
         start_url: "/",
+        lang: "fr", // l'interface est entièrement en français ; le manifeste annonçait « en »
+        // Sans ce tableau, Chrome et Android n'ont RIEN à installer : le raccourci bureau retombe
+        // sur une pastille générique. C'était la cause de l'absence d'icône.
+        icons: [
+          { src: "/pwa-64x64.png", sizes: "64x64", type: "image/png" },
+          { src: "/pwa-192x192.png", sizes: "192x192", type: "image/png" },
+          { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png" },
+          // `maskable` est une entrée SÉPARÉE et non un remplacement : le lanceur Android rogne
+          // jusqu'à 20 % de chaque bord, d'où un logo réduit à 60 % du canevas sur fond opaque.
+          { src: "/maskable-icon-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+        ],
       },
     }),
   ],

@@ -11,8 +11,14 @@ const STD = [E("especes", "Espèces"), E("cheque", "Dépôt chèque"), R("retrai
 
 // Clés stables (utilisées par l'API d'export : entity=poitiers|lilas|carte_visa|edrtim_finance|medicaments|biodiagnostic|med_esthetic|autres).
 export const BLOCS: Bloc[] = [
+  // Décision du propriétaire du 06/11/2026 : l'encaissement par carte ne transite plus par la
+  // caisse. Il se saisit sous la colonne « Carte Visa » (ligne `carte_visa.depot`), et la ligne
+  // « Carte Visa » du bloc POITIERS est donc RETIRÉE. Elle était la cause d'erreurs répétées : la
+  // matrice de saisie présente une colonne « Carte Visa » qui, sous POITIERS, visait `poitiers.visa`
+  // et sous Carte Visa visait `carte_visa.depot` — deux cellules voisines pour le même argent, dont
+  // l'une gonflait le solde F3. Cinq journées d'octobre et celle du 15/10 ont dû être corrigées.
   { cle: "poitiers", libelle: "Recettes POITIERS", lignes: [
-    E("especes", "Espèces"), E("cheque", "Dépôt chèque"), E("visa", "Carte Visa"), R("retrait", "Retrait"),
+    E("especes", "Espèces"), E("cheque", "Dépôt chèque"), R("retrait", "Retrait"),
     E("om", "OM du jour"), R("retrait_om", "Retrait OM"), E("momo", "MOMO du jour"), R("retrait_momo", "Retrait MOMO"),
   ] },
   { cle: "lilas", libelle: "Pharmacie Les Lilas", lignes: [
@@ -35,7 +41,10 @@ export interface Solde {
 }
 
 export const SOLDES: Solde[] = [
-  { cle: "poitiers_f3", libelle: "F3 POITIERS", bloc: "poitiers", plus: ["especes", "cheque", "visa"], moins: ["retrait"], principal: true },
+  // `visa` retiré de l'assiette le 06/11/2026 : l'encaissement par carte va sur la carte, pas en
+  // caisse. Le F3 vaut donc espèces + chèques − retraits, ce qui le fait enfin coïncider avec le
+  // « Solde F3 » suivi par la DAF, qui n'y comptait jamais la carte.
+  { cle: "poitiers_f3", libelle: "F3 POITIERS", bloc: "poitiers", plus: ["especes", "cheque"], moins: ["retrait"], principal: true },
   { cle: "poitiers_om", libelle: "OM POITIERS", bloc: "poitiers", plus: ["om"], moins: ["retrait_om"], principal: true },
   { cle: "poitiers_momo", libelle: "MOMO POITIERS", bloc: "poitiers", plus: ["momo"], moins: ["retrait_momo"], principal: true },
   { cle: "lilas_f3", libelle: "F3 LES LILAS", bloc: "lilas", plus: ["especes", "cheque"], moins: ["retrait"], principal: true },

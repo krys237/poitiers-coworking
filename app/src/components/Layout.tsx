@@ -5,7 +5,7 @@ import { Role } from "../../convex/rbac";
 import { Header } from "./Header";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import logoPolyclinique from "@/assets/logo-polyclinique.png";
+import logoCowork from "@/assets/logo-cowork-image.png";
 import {
   LayoutDashboard,
   Wallet,
@@ -126,14 +126,15 @@ function SidebarContent({
         aria-hidden="true"
       />
 
-      {/* 2. En-tête : Logo Polyclinique & Titre Institutionnel */}
+      {/* 2. En-tête : Logo Cowork & Titre Institutionnel */}
       <div className="relative z-10 flex flex-col items-center px-4 pt-5 pb-3 text-center">
-        {/* Badge blanc avec Logo officiel de la Polyclinique */}
-        <div className="flex items-center justify-center rounded-2xl bg-white px-3.5 py-1.5 shadow-md ring-1 ring-black/5">
+        {/* Badge blanc : le logo est bleu nuit, il lui faut un fond clair sur le dégradé de la
+            barre latérale. Padding uniforme depuis que la forme est carrée et non plus paysage. */}
+        <div className="flex items-center justify-center rounded-2xl bg-white p-2 shadow-md ring-1 ring-black/5">
           <img
-            src={logoPolyclinique}
-            alt="Polyclinique de Poitiers"
-            className="h-9 w-auto max-w-[180px] object-contain"
+            src={logoCowork}
+            alt="POITIERS COWORKING"
+            className="h-9 w-auto object-contain"
           />
         </div>
         <div className="mt-2.5 text-xs font-bold tracking-wider uppercase text-white drop-shadow-sm">
@@ -267,7 +268,7 @@ function RailLateral({
       />
       <div className="relative z-10 flex flex-col items-center gap-1.5 px-3 pt-3.5">
         <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-md ring-1 ring-black/5">
-          <img src={logoPolyclinique} alt="Polyclinique de Poitiers" className="h-6 w-auto object-contain" />
+          <img src={logoCowork} alt="POITIERS COWORKING" className="h-6 w-auto object-contain" />
         </div>
         <nav className="flex flex-col gap-1" aria-label="Navigation principale (repliée)">
           {items.map((item) => {

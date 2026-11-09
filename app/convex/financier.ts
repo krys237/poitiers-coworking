@@ -71,6 +71,12 @@ export async function ecrireJournee(ctx: MutationCtx, args: {
   date: string; mouvements: Mouvements; notes?: string; soldesOuverture?: Soldes;
   userId?: Doc<"users">["_id"]; userNom?: string;
 }) {
+  // Garde-fou au point de passage UNIQUE de toute écriture de journée. `enregistrer` validait
+  // déjà le format, mais pas `prendreVerrou` — qui crée la journée vide quand elle n'existe pas.
+  // Résultat constaté en production le 04/11/2026 : une journée de date "" a été créée, et comme
+  // `journeeAvant` compare les dates lexicographiquement, "" précède toute date réelle — cette
+  // ligne fantôme s'était donc installée à l'origine de la chaîne des soldes reportés.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(args.date)) throw new Error("Date au format AAAA-MM-JJ.");
   const periode = periodeDe(args.date);
   if (await moisCloture(ctx, periode)) throw new Error(`Le mois ${periode} est clôturé : journée immuable.`);
   const j = await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.eq("date", args.date)).unique();
@@ -211,6 +217,99 @@ export const journeePourApi = internalQuery({
 });
 
 // Purge des verrous expirés (cron hebdomadaire) : nettoie les traces de verrous de plus de 15 min.
+// Correction ponctuelle du 06/11/2026 — imputation de la Carte Visa.
+//
+// La Visa encaissée avait été portée en caisse POITIERS (`poitiers.visa`), qui alimente le solde
+// F3. Or la règle arrêtée par le propriétaire est de la porter sur la carte (`carte_visa.depot`).
+// Cinq journées suivaient l'ancienne imputation, et de trois manières différentes — d'où un F3
+// gonflé de 410 400 et un solde carte à −15 500, résidu de deux écritures contradictoires.
+//
+// Les montants attendus sont écrits ici en dur : la mutation REFUSE d'écrire si la journée ne
+// porte pas exactement la somme prévue. Sur une correction qui touche de l'argent, mieux vaut
+// qu'elle s'arrête en annonçant l'écart que de recalculer sur une base qui aurait bougé.
+const CORRECTIONS_VISA: { date: string; visaAttendue: number; depotAAjouter: number; note: string }[] = [
+  // Ajoutée le 06/11, après coup : la saisie du 15/10 est retombée dans le même piège. L'écran
+  // offre deux champs aux libellés voisins — « Carte Visa » dans le bloc Recettes POITIERS, et
+  // « Dépôt Carte Visa » dans le bloc Carte Visa — et c'est le premier qui se trouve là où l'on
+  // saisit les recettes du jour. La cause est dans l'écran, pas dans la saisie.
+  { date: "2026-10-15", visaAttendue: 73600, depotAAjouter: 73600, note: "" },
+  { date: "2026-10-16", visaAttendue: 88600, depotAAjouter: 88600, note: "" },
+  // Le retrait carte de 67 400 de cette journée est laissé INTACT : nul ne sait encore s'il
+  // correspond à une opération réelle ou à un doublon d'écriture. À trancher avec la DAF.
+  { date: "2026-10-17", visaAttendue: 67400, depotAAjouter: 67400, note: "retrait carte de 67 400 conservé, à arbitrer" },
+  // Le dépôt de 51 900 EXISTE DÉJÀ sur cette journée : l'argent y était compté deux fois, en
+  // caisse et sur la carte. On retire donc la part caisse sans rien ajouter.
+  { date: "2026-10-18", visaAttendue: 51900, depotAAjouter: 0, note: "dépôt déjà présent, non doublé" },
+  { date: "2026-10-19", visaAttendue: 68400, depotAAjouter: 68400, note: "" },
+  { date: "2026-10-21", visaAttendue: 134100, depotAAjouter: 134100, note: "" },
+];
+
+export const corrigerImputationVisa = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const faites: { date: string; visaRetiree: number; depotApres: number; note: string }[] = [];
+    const ignorees: { date: string; raison: string }[] = [];
+
+    // Ordre croissant des dates : chaque écriture recalcule la chaîne en aval, donc remonter le
+    // temps dans l'ordre évite de recalculer plusieurs fois sur des bases intermédiaires.
+    for (const c of CORRECTIONS_VISA) {
+      const j = await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.eq("date", c.date)).unique();
+      if (!j) { ignorees.push({ date: c.date, raison: "journée absente" }); continue; }
+
+      const visa = j.mouvements?.poitiers?.visa ?? 0;
+      if (visa === 0) { ignorees.push({ date: c.date, raison: "déjà corrigée (aucune Visa en caisse)" }); continue; }
+      if (visa !== c.visaAttendue) {
+        ignorees.push({ date: c.date, raison: `Visa en caisse de ${visa}, attendue ${c.visaAttendue} — données modifiées depuis, correction refusée` });
+        continue;
+      }
+
+      const mouvements = JSON.parse(JSON.stringify(j.mouvements ?? {}));
+      mouvements.poitiers.visa = 0;
+      if (c.depotAAjouter) {
+        mouvements.carte_visa = { ...(mouvements.carte_visa ?? {}) };
+        mouvements.carte_visa.depot = (mouvements.carte_visa.depot ?? 0) + c.depotAAjouter;
+      }
+      await ecrireJournee(ctx, { date: c.date, mouvements });
+      faites.push({ date: c.date, visaRetiree: visa, depotApres: mouvements.carte_visa?.depot ?? 0, note: c.note });
+    }
+
+    const dernier = await ctx.db.query("journeesFinancieres").withIndex("by_date").order("desc").first();
+    return {
+      faites, ignorees,
+      soldesApres: dernier ? { date: dernier.date, poitiers_f3: dernier.soldes.poitiers_f3, carte_visa: dernier.soldes.carte_visa } : null,
+    };
+  },
+});
+
+// Maintenance : supprime les journées dont la DATE est invalide — séquelles du défaut corrigé
+// dans `ecrireJournee` (voir son commentaire). Interne et appelée au CLI admin, sur le modèle de
+// `users:restaurerRole` documenté dans CLAUDE.md comme porte de secours.
+//
+// Volontairement prudente : elle refuse de toucher une journée qui porte des mouvements, un solde
+// non nul ou une pièce justificative. Une date invalide ne devrait jamais rien contenir ; si c'est
+// le cas, c'est un autre problème et il faut regarder avant de supprimer.
+export const purgerJourneesInvalides = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const toutes = await ctx.db.query("journeesFinancieres").collect();
+    const supprimees: string[] = [];
+    const conservees: { date: string; raison: string }[] = [];
+    for (const j of toutes) {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(j.date)) continue;
+      const aDesMouvements = Object.values(j.mouvements ?? {}).some((b) => Object.values(b ?? {}).some((v) => v !== 0));
+      const aUnSolde = Object.values(j.soldes ?? {}).some((v) => v !== 0);
+      const aUnePiece = Object.keys(j.pieces ?? {}).length > 0;
+      if (aDesMouvements || aUnSolde || aUnePiece) {
+        conservees.push({ date: j.date, raison: aDesMouvements ? "porte des mouvements" : aUnSolde ? "solde non nul" : "pièce jointe" });
+        continue;
+      }
+      await ctx.db.delete(j._id);
+      supprimees.push(j.date === "" ? "(date vide)" : j.date);
+    }
+    return { examinees: toutes.length, supprimees, conservees };
+  },
+});
+
 export const purgerVerrousExpires = internalMutation({
   args: {},
   handler: async (ctx) => {

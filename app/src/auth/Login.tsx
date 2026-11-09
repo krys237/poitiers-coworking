@@ -10,7 +10,7 @@ import { api } from "../../convex/_generated/api";
 import { messageErreur } from "../lib/format";
 import { erreurTelephone } from "../../convex/lib/telephone";
 import { ChampTelephone } from "@/components/app/champ-telephone";
-import logo from "@/assets/logo-polyclinique.png";
+import logo from "@/assets/logo-cowork-lettre.png";
 import fond from "@/assets/bg-clogin.jpg";
 import "./auth.css";
 
@@ -53,11 +53,8 @@ export function Login() {
       <div className="auth-voile" aria-hidden="true" />
       <main className="auth-modale" aria-labelledby="auth-titre">
         <header className="auth-entete">
-          <img src={logo} alt="" className="auth-logo" />
-          <div>
-            <p className="auth-marque">Polyclinique de Poitiers</p>
-            <h1 id="auth-titre" className="auth-titre">Plateforme de Coworking</h1>
-          </div>
+          <img src={logo} alt="POITIERS COWORKING" className="auth-logo" />
+          <h1 id="auth-titre" className="auth-titre">Plateforme de Coworking</h1>
         </header>
 
         <div className="auth-modes" role="tablist" aria-label="Mode de connexion">

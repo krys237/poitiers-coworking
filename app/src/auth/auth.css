@@ -256,23 +256,26 @@
   color: #0b132b;
 }
 
+/* Le bloc-marque Cowork remplace la pastille carrée + le libellé « Polyclinique de Poitiers » :
+   il porte le nom lui-même, donc la rangée horizontale logo | texte n'a plus de sens. Pile
+   verticale, bloc-marque en haut, titre de l'écran dessous. */
 .auth-entete {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
   margin-bottom: 22px;
   padding-bottom: 18px;
   border-bottom: 1px solid #e2e8f0;
 }
 
+/* Plus de carré 52×52 à fond blanc et bordé : il n'existait que parce que l'ancien logo portait
+   son propre fond opaque. Le bloc-marque est transparent et la modale est déjà blanche. */
 .auth-logo {
-  width: 52px;
-  height: 52px;
+  height: 40px;
+  width: auto;
+  max-width: 100%;
   object-fit: contain;
-  border-radius: 12px;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  padding: 4px;
 }
 
 .auth-modale .auth-marque {

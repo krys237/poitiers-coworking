@@ -15,12 +15,12 @@ const p2 = parseEntites("poitiers,LILAS"); check("entités : liste, casse ignor�
 const p3 = parseEntites("poitiers,foo"); check("entité inconnue → erreur", !p3.ok && /foo/.test((p3 as any).erreur));
 
 const j = { date: "2026-09-07", periode: "2026-09", cloture: false, recetteTotale: 999,
-  mouvements: { poitiers: { especes: 100000, cheque: 50000, visa: 10000, retrait: 20000 }, lilas: { especes: 30000 } },
-  soldesOuverture: { poitiers_f3: 1000000, lilas_f3: 500000, edrtim: 7 }, soldes: { poitiers_f3: 1140000, lilas_f3: 530000, edrtim: 7 } };
+  mouvements: { poitiers: { especes: 100000, cheque: 50000, retrait: 20000 }, lilas: { especes: 30000 } },
+  soldesOuverture: { poitiers_f3: 1000000, lilas_f3: 500000, edrtim: 7 }, soldes: { poitiers_f3: 1130000, lilas_f3: 530000, edrtim: 7 } };
 const r = reponseApi(j, ["poitiers"]);
-check("réponse : entrées/retraits/net Poitiers", (r.entites as any).poitiers.entrees === 160000 && (r.entites as any).poitiers.retraits === 20000 && (r.entites as any).poitiers.net === 140000, r.entites);
+check("réponse : entrées/retraits/net Poitiers", (r.entites as any).poitiers.entrees === 150000 && (r.entites as any).poitiers.retraits === 20000 && (r.entites as any).poitiers.net === 130000, r.entites);
 check("réponse : soldes filtrés sur l'entité", "poitiers_f3" in r.soldes && !("lilas_f3" in r.soldes), r.soldes);
-check("réponse : recette recalculée pour un sous-ensemble", r.recetteTotale === 160000, r.recetteTotale);
+check("réponse : recette recalculée pour un sous-ensemble", r.recetteTotale === 150000, r.recetteTotale);
 const rt = reponseApi(j, [...ENTITES]);
 check("réponse : toutes entités → recette totale d'origine + soldes complets", rt.recetteTotale === 999 && "edrtim" in rt.soldes);
 

@@ -5,7 +5,7 @@
 import { useAuthActions } from "@convex-dev/auth/react";
 import { FormulaireMotDePasse } from "./FormulaireMotDePasse";
 import type { Membre } from "./useMe";
-import logo from "@/assets/logo-polyclinique.png";
+import logo from "@/assets/logo-cowork-lettre.png";
 import fond from "@/assets/bg-clogin.jpg";
 import "./auth.css";
 
@@ -16,11 +16,8 @@ export function MotDePasseObligatoire({ me }: { me: Membre }) {
       <div className="auth-voile" aria-hidden="true" />
       <main className="auth-modale" aria-labelledby="mdp-titre">
         <header className="auth-entete">
-          <img src={logo} alt="" className="auth-logo" />
-          <div>
-            <p className="auth-marque">Polyclinique de Poitiers</p>
-            <h1 id="mdp-titre" className="auth-titre">Choisissez votre mot de passe</h1>
-          </div>
+          <img src={logo} alt="POITIERS COWORKING" className="auth-logo" />
+          <h1 id="mdp-titre" className="auth-titre">Choisissez votre mot de passe</h1>
         </header>
         <p className="auth-aide" style={{ marginBottom: 12 }}>
           Bonjour {me.nom ?? me.email}. Le mot de passe provisoire remis par la Direction ne sert qu'à cette première connexion :
