@@ -8,11 +8,11 @@ Deux agents travaillent en parallèle sur ce projet. Ce fichier est le contrat e
 | Dossier | Branche | Agent | Périmètre |
 |---|---|---|---|
 | `C:\test\Js\poitiers-coworking` | `clean` | **agent DÉPLOIEMENT** | `vercel.json`, `src/main.tsx`, `convex/seed.ts`, chaîne Vercel + Convex |
+| `C:\test\Js\poitiers-coworking-dev` | `dev` | **agent DÉPLOIEMENT** | intégration, recette, fusions depuis `rh` |
 | `C:\test\Js\poitiers-coworking-rh` | `rh` | **agent RH/PAIE** | planning annuel, DIPE, barème, schéma paie |
-| `C:\test\Js\poitiers-coworking-role` | `role` | **agent AUTH/RBAC** | authentification, rôles |
 
-*(Table remise à jour le 21/10/2026 : `features` et `role` ont été remplacées dans les faits par
-`clean` et `rh`. `git worktree list` reste la source de vérité.)*
+*(Table remise à jour le 10/11/2026 : le worktree `role` et la branche `features` ont été
+retirés, le worktree `dev` ajouté. `git worktree list` reste la source de vérité.)*
 
 Ce sont des *worktrees* du même dépôt : plusieurs dossiers, autant de branches sorties en même temps, un seul historique Git.
 
@@ -20,8 +20,10 @@ Ce sont des *worktrees* du même dépôt : plusieurs dossiers, autant de branche
 dans son propre dossier — cela arracherait les fichiers sous les pieds de l'autre.
 La commande `git worktree list` rappelle qui occupe quoi.
 
-**Règle n°2 : un seul agent pousse sur un déploiement Convex.** Il n'existe qu'un projet Convex
-(`coworking_app` : prod `focused-chipmunk-580`, dev `wonderful-shark-673`). Un `convex deploy`
+**Règle n°2 : un seul agent pousse sur un déploiement Convex.** Il existe désormais **deux**
+projets Convex : `coworking_app` (prod `focused-chipmunk-580`, dev `wonderful-shark-673`) et
+`coworking-recette` (prod **`coordinated-clam-865`**, qui porte la recette depuis le 10/11). Un
+`convex deploy`
 pousse **tout** le dossier `convex/` du worktree d'où il part, schéma compris : deux agents qui
 poussent depuis deux branches écrasent mutuellement leur schéma. Les changements de schéma passent
 par l'agent DÉPLOIEMENT, qui les séquence.
@@ -81,8 +83,9 @@ refusée à **tout le monde**, DG compris (`canAccess` renvoie `false` si le niv
 
 ## Pièges partagés
 
-- **Un seul déploiement Convex** (`wonderful-shark-673`) pour les deux agents. Une modification de
-  `convex/schema.ts` poussée par l'un s'applique immédiatement à l'autre. L'agent AUTH prévient ici
+- **Un seul déploiement Convex de développement** (`wonderful-shark-673`) pour les deux agents. Une
+  modification de `convex/schema.ts` poussée par l'un s'applique immédiatement à l'autre. La
+  recette, elle, ne reçoit de schéma que par un push sur `dev`. L'agent AUTH prévient ici
   avant tout changement de schéma.
 - **`npx convex dev` ne doit tourner que dans un seul dossier à la fois** — deux instances poussent
   en boucle l'une sur l'autre.
@@ -148,6 +151,23 @@ Chaque agent ajoute une ligne quand il touche à une zone frontière ou termine 
     Financier) : **ton travail commité est désormais sauvegardé sur GitHub**. La branche `features`
     elle-même n'est toujours pas poussée, et tes modifications non commitées de `main.tsx` et
     `Courrier.tsx` restent, elles, uniquement sur ce poste.
+
+- **2026-11-10 — DÉPLOIEMENT** : `rh` **entièrement fusionnée dans `dev`** (`eb8b1ad`, 22 commits,
+  sans conflit) puis déployée en recette. `dev` n'avait jusque-là que R0 → R3 et R5 ; elle porte
+  maintenant R4, R6, R7 → R11, N1, N2, N4 et N5. Validée avant poussée : typecheck, build et
+  **27 suites de tests**, toutes au vert ; `Schema validation complete` côté Convex.
+  - **La recette a changé de backend** : elle ne tourne plus sur un déploiement de *preview*
+    éphémère mais sur **`coordinated-clam-865`**, un déploiement de production porté par un second
+    projet Vercel (`poitiers-recette`) dont `dev` est la branche de production. Détail complet dans
+    `PASSATION-DEPLOIEMENT.md`.
+  - **Aucun fichier de `convex/` ni de `src/` n'a été modifié** — uniquement la fusion et la
+    documentation. Les deux migrations `employes:migrerSalaireBase` et `migrerRattachements`
+    restent inappelables (publiques, gardées par `requireDroit`, sans bouton) : **à l'agent RH de
+    décider** s'il leur donne une interface ou les passe en `internalMutation`. Ce n'est pas
+    bloquant — aucune fiche ne porte `salaireBrut`, et les rattachements se saisissent à la main
+    dans la fiche employé.
+  - Branches mortes retirées : `role` (contenue partout) et `features`, dont l'unique commit
+    propre est conservé sous l'étiquette `archive/features`.
 
 ## Demandes
 

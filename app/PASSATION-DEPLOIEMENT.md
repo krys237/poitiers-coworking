@@ -16,10 +16,14 @@
 |---|---|
 | **Production** | `poitiers-clean.vercel.app` ← projet Vercel `poitiers-coworking` ← branche `clean` ← Convex `focused-chipmunk-580` |
 | **Recette** | `poitiers-coworking.vercel.app` ← projet Vercel **`poitiers-recette`** ← branche `dev` ← Convex **`coordinated-clam-865`** — déploiement de **production**, donc durable |
-| **Chantier RH** | branche `rh`, jamais exercée contre des données |
+| **Chantier RH** | **intégralement fusionné dans `dev`** le 10/11 (`eb8b1ad`), toujours jamais exercé contre des données |
 | `clean` | `0d12ae7` — poussée le 10/11, saine |
-| `dev` | `efcfae4` — poussée le 10/11, en service sur la recette |
-| `rh` | `77876d1` — poussée le 10/11 |
+| `dev` | `eb8b1ad` — poussée le 10/11, en service sur la recette, **contient tout `rh`** |
+| `rh` | `77876d1` — poussée le 10/11, désormais entièrement contenue dans `dev` |
+
+Les branches mortes ont été retirées le 10/11 : `role` (contenue dans `clean`, `dev` et `rh`) et
+`features`, qui portait **un commit absent partout ailleurs** — archivé sous l'étiquette
+`archive/features`, poussée, plutôt que perdu.
 
 **Ce que contient réellement la production** (relevé le 10/11 sur `focused-chipmunk-580`,
 cible confirmée par `SITE_URL = poitiers-clean.vercel.app`) :
@@ -199,7 +203,11 @@ L'agent sortant opposait trois raisons. **Deux tombent** au vu de l'état réel 
    `salaireBrut` n'existe nulle part. **Si des fiches apparaissent en production d'ici la fusion**,
    reprendre les trois temps : schéma avec les deux champs optionnels, `migrerSalaireBase`, puis
    retrait de l'ancien champ. L'ordre inverse fait rejeter les fiches par Convex.
-3. **Le seul vrai blocage subsiste : le chantier RH n'a jamais tourné contre des données.** Ce qui
+3. **Le seul vrai blocage subsiste : le chantier RH n'a jamais tourné contre des données.**
+   Il est en revanche **entièrement dans `dev` et déployé en recette** depuis le 10/11 (merge
+   `eb8b1ad` : R4, R6, R7 → R11, N1, N2, N4, N5 — 22 commits, sans conflit, 27 suites de tests au
+   vert, « Schema validation complete » sur `clam`). Avant cette date `dev` n'avait que R0 → R3 et
+   R5, et le récapitulatif de l'agent RH qui le signalait était exact. Ce qui
    est garanti, c'est le typecheck, le build et la logique pure. Quatre points à exercer en recette
    — c'est désormais possible, elle est vivante et peuplée :
    - la détection de chevauchement et son seuil de 2 absents par service
@@ -207,8 +215,11 @@ L'agent sortant opposait trois raisons. **Deux tombent** au vu de l'état réel 
    - un employé rattaché à **deux sociétés**, qui doit produire deux bulletins indépendants
    - le **DIPE par société**, et non une déclaration unique
 
-   Note : la table `rattachements` est **vide** sur les deux déploiements, et aucun seed ne la
-   remplit. Le troisième point demande donc de créer les rattachements à la main.
+   Note : la table `rattachements` est **vide** sur les deux déploiements et aucun seed ne la
+   remplit ; `employes.serviceId` n'est renseigné sur aucune fiche. Les deux se posent **à la main
+   dans l'interface** — la fiche employé a un bloc de rattachements
+   (`src/components/app/rattachements-employe.tsx`). La migration `migrerRattachements` n'est donc
+   qu'un confort de masse, pas un préalable aux essais.
 
 ---
 
@@ -345,6 +356,8 @@ motif la couvre.**
 
 - **Les deux migrations RH restent inappelables** : publiques mais gardées par `requireDroit`, donc
   sans interface et hors d'atteinte du CLI. Bouton dans l'écran Employés, ou `internalMutation`.
+  Ce n'est pas urgent : `migrerSalaireBase` n'a rien à faire (aucune fiche ne porte `salaireBrut`,
+  ni en recette ni en production) et `migrerRattachements` se remplace par la saisie manuelle.
 - La table `rattachements` est vide partout et aucun seed ne la remplit : le scénario « employé
   rattaché à deux sociétés » demande de les créer à la main.
 
@@ -356,7 +369,7 @@ motif la couvre.**
 - Le correctif du rewrite SPA (piège n° 9), proposé et non appliqué.
 - `Financier.tsx` classe encore `"visa"` parmi les flux « banque » : code mort depuis que la ligne a
   quitté le bloc POITIERS.
-- Les worktrees `role` et la branche `features` sont morts (`origin: gone`) — à retirer.
+- ~~Les worktrees `role` et la branche `features`~~ — retirés le 10/11.
 - Les constats MEDIUM/LOW de la revue du 20/10 (antécédents de commande ignorant la date du bon,
   brouillons comptés comme historique, bouton « Hier » près de minuit…).
 
