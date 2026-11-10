@@ -296,8 +296,8 @@
     "ecran": "Planning des absences",
     "module": "/paie/planning",
     "compte": "rh",
-    "titre": "Congé payé de 5 jours : jours travaillés et indemnité de congés",
-    "objectif": "Un congé payé sort des jours travaillés et génère l'indemnité de congés (journalier × jours pris).",
+    "titre": "Congé payé de 5 jours : jours travaillés, et désormais l'allocation légale (lot R4)",
+    "objectif": "⚠️ Ce scénario a changé le 06/11/2026 : depuis le lot R4, un congé payé ne proratise plus (journalier × jours), il déclenche l'allocation légale au 1/16 dès qu'une date d'embauche permet de calculer une période de référence. Les jours travaillés restent inchangés.",
     "prealable": "R02 (brut 200 000, entrée 01/01/2026) existe, sans absence en septembre 2026.",
     "etapes": [
       "Ouvrir /paie/planning, période septembre 2026, onglet « Absences du mois ».",
@@ -307,14 +307,17 @@
     ],
     "attendu": [
       "Notification « Congé payé enregistrée — RECETTE PAIE DEUX » précisant la durée et « paie recalée : septembre 2026 ».",
-      "Soldes : Congés pris (ce mois) 5, « Jours travaillés » 25 / 30, colonne « Saisie de paie » « 25 j · 0 abs · à jour ».",
-      "Récapitulatif (règle journalier = brut ÷ 30) : salaire de base 166 667 (200 000 × 25/30) et indemnité de congés 33 333 ; le Total 1 de R02 reste 200 000 hors primes."
+      "Soldes : Congés pris (ce mois) 5, « Jours travaillés » 25 / 30, colonne « Saisie de paie » « 25 j · 0 abs · à jour ». (Inchangé par R4 : aucun jour férié ne tombe entre le 07 et le 11/09/2026.)",
+      "Récapitulatif (règle journalier = brut ÷ 30) : salaire de base 166 667 (200 000 × 25/30) — inchangé.",
+      "⚠️ CHANGEMENT R4 — « Indemnité de congés » n'est PLUS 33 333, mais 102 500 FCFA. La période de référence court de l'embauche (01/01/2026) à la veille du départ (06/09/2026), soit 8 mois entiers + 6/30, N = 8,2 ; allocation = 8,2 × 200 000 ÷ 16 = 102 500. Le Total 1 de R02 change donc en conséquence (166 667 + 102 500 au lieu de 166 667 + 33 333).",
+      "Point à signaler à la Direction : R02 n'a que 8 mois de service (moins que les 24 mois requis pour un premier congé, décision du 05/11/2026) ; l'allocation se calcule quand même intégralement. Voir aussi A-VERIFIER / le cahier RH, scénario RH-08, pour le même constat sur un autre cas."
     ],
     "gravite": "bloquant",
     "tags": [
       "planning",
       "calcul",
-      "conges"
+      "conges",
+      "allocation"
     ]
   },
   {
