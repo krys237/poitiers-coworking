@@ -14,11 +14,13 @@
  */
 import * as React from "react";
 import { useMutation, useQuery } from "convex/react";
-import { AlertTriangleIcon, CalendarPlusIcon, InfoIcon, PencilIcon, UsersIcon } from "lucide-react";
+import { AlertTriangleIcon, CalendarPlusIcon, InfoIcon, PencilIcon, PrinterIcon, UsersIcon } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import { LIBELLE_OBSERVATION, OBSERVATIONS } from "../../../convex/lib/planningAnnuel";
 import { cn } from "@/lib/utils";
 import { GrilleTuiles, Tuile } from "@/components/app/tuile";
+import { Montant } from "@/components/app/montant";
+import { JoursFeries } from "./JoursFeries";
 import { BoutonAction } from "@/components/app/bouton-action";
 import { Button } from "@/components/ui/button";
 import { Flag } from "@/components/ui/flag";
@@ -30,6 +32,8 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableVide,
 } from "@/components/ui/table";
+import { BoutonPersistance, useSaisiePersistante } from "@/components/app/saisie-persistante";
+import { GestionServices } from "./GestionServices";
 
 const fmt = (s?: string | null) => (s ? new Date(s + "T00:00:00").toLocaleDateString("fr-FR") : "—");
 const fmtCourt = (s: string) =>
@@ -56,6 +60,11 @@ export function FriseAnnuelle() {
   const [recherche, setRecherche] = React.useState("");
   const [edition, setEdition] = React.useState<Saisie | null>(null);
   const [survol, setSurvol] = React.useState<string | null>(null);
+  // Champs persistants par défaut : la RH enchaîne les saisies, le formulaire doit garder la
+  // dernière valeur plutôt que de repartir vierge (demande du 22/10/2026).
+  const [persistant, setPersistant] = useSaisiePersistante("planning-annuel", true);
+  // Filtre par personne pour l'impression : une frise de 78 lignes n'est pas lisible sur papier.
+  const [employeImprime, setEmployeImprime] = React.useState<string>("tous");
 
   const vue = useQuery(api.planning.vueAnnuelle, { annee, seuilChevauchement: seuil });
   const enregistrer = useMutation(api.planning.enregistrerCongeAnnuel);
@@ -64,7 +73,9 @@ export function FriseAnnuelle() {
 
   const q = sansAccents(recherche.trim());
   const lignes = (vue?.lignes ?? []).filter(
-    (l) => !q || sansAccents(`${l.nom} ${l.serviceNom ?? ""} ${l.matricule}`).includes(q),
+    (l) =>
+      (!q || sansAccents(`${l.nom} ${l.serviceNom ?? ""} ${l.matricule}`).includes(q)) &&
+      (employeImprime === "tous" || String(l.employeId) === employeImprime),
   );
 
   // Regroupement par service : c'est l'encodage principal, la couleur n'est qu'un rappel.
@@ -174,6 +185,17 @@ export function FriseAnnuelle() {
           </Select>
           personnes par service
         </label>
+        <Select value={employeImprime} onValueChange={setEmployeImprime}>
+          <SelectTrigger className="h-8 w-48" aria-label="Limiter à une personne">
+            <SelectValue placeholder="Tout l'effectif" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="tous">Tout l'effectif</SelectItem>
+            {(vue?.lignes ?? []).map((l) => (
+              <SelectItem key={String(l.employeId)} value={String(l.employeId)}>{l.nom}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <span className="flex-1" />
         <Input
           type="search"
@@ -183,6 +205,11 @@ export function FriseAnnuelle() {
           aria-label="Rechercher"
           className="h-8 w-52"
         />
+        <GestionServices services={vue?.services} />
+        <BoutonPersistance actif={persistant} onChange={setPersistant} />
+        <Button size="sm" variant="outline" onClick={() => window.print()}>
+          <PrinterIcon /> Imprimer
+        </Button>
       </div>
 
       {/* ---- Légende : l'identité n'est jamais portée par la couleur seule ---- */}
@@ -405,6 +432,9 @@ export function FriseAnnuelle() {
         </div>
       </div>
 
+      {/* ---- Jours fériés : décret en cours d'année, et décalage des congés (N1) ---- */}
+      <JoursFeries annee={annee} />
+
       {/* ---- Vue en tableau : l'équivalent textuel de la frise ---- */}
       <div className="rounded-2xl border border-filet bg-surface shadow-xs">
         <Table>
@@ -415,6 +445,9 @@ export function FriseAnnuelle() {
               <TableHead className="text-right">Principal</TableHead>
               <TableHead className="text-right">Supplément.</TableHead>
               <TableHead className="text-right">Total</TableHead>
+              {/* Lot R4 : l'allocation au 1/16. Le montant affiché est une ESTIMATION —
+                  l'ancienneté, qui entre dans l'assiette, vit dans la saisie mensuelle. */}
+              <TableHead className="text-right">Allocation</TableHead>
               <TableHead>Rappel {annee - 1}</TableHead>
               <TableHead>Départ</TableHead>
               <TableHead>Retour</TableHead>
@@ -426,7 +459,7 @@ export function FriseAnnuelle() {
           </TableHeader>
           <TableBody>
             {!lignes.length ? (
-              <TableVide colonnes={12}>Aucun employé.</TableVide>
+              <TableVide colonnes={13}>Aucun employé.</TableVide>
             ) : (
               lignes.map((l) => {
                 const ev = l.evenements[0];
@@ -452,6 +485,21 @@ export function FriseAnnuelle() {
                       ) : null}
                     </TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">{l.totalConge}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {l.allocation ? (
+                        <span
+                          className="cursor-help border-b border-dotted border-encre-pale"
+                          title={l.allocation.detail.join("\n")}
+                        >
+                          <Montant valeur={l.allocation.montant} />
+                          {l.allocation.plafonne ? (
+                            <span className="ml-1 text-ocre" title={`Période écrêtée de ${l.allocation.nBrut.toFixed(1)} à ${l.allocation.n} mois`}>✱</span>
+                          ) : null}
+                        </span>
+                      ) : (
+                        <span className="text-encre-pale">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-xs text-encre-pale">
                       {l.rappelAnneePrecedente
                         ? `${fmtCourt(l.rappelAnneePrecedente.debut)} → ${fmtCourt(l.rappelAnneePrecedente.fin)}`
@@ -502,6 +550,7 @@ export function FriseAnnuelle() {
       </div>
 
       <FormulaireConge
+        persistant={persistant}
         saisie={edition}
         annee={annee}
         onFermer={() => setEdition(null)}
@@ -516,10 +565,12 @@ export function FriseAnnuelle() {
 function FormulaireConge({
   saisie,
   annee,
+  persistant,
   onFermer,
   onEnregistrer,
 }: {
   saisie: Saisie | null;
+  persistant?: boolean;
   annee: number;
   onFermer: () => void;
   onEnregistrer: ReturnType<typeof useMutation>;
@@ -628,7 +679,9 @@ function FormulaireConge({
               } as any)
             }
             succes={(r: any) => {
-              onFermer();
+              // En mode persistant le formulaire reste ouvert : la RH enchaîne les saisies
+              // sans rouvrir la boîte à chaque employé.
+              if (!persistant) onFermer();
               return `Congé enregistré — retour le ${fmt(r.dateRetour)}` +
                 (r.periodes.length ? `, paie recalée (${r.periodes.join(", ")})` : "");
             }}

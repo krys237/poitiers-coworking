@@ -11,14 +11,16 @@
 // connaître les dates retenues dans l'établissement et doit pouvoir les tenir à jour chaque
 // janvier sans dépendre de la Direction. Toute modification est journalisée.
 
-import { query, mutation } from "./_generated/server";
+import { query, mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { requireDroit } from "./lib/authz";
 import { journaliser } from "./lib/journal";
 import { feriesParDefaut, FERIES_A_SAISIR } from "./lib/joursFeriesCameroun";
 import { compterOuvrables, indexFeries, type JourFerie } from "./lib/congesOuvrables";
+import { congesAReprendre, libelleRecalcul, recalculerRetours, resumerRecalcul } from "./lib/recalculFeries";
+import type { Id } from "./_generated/dataModel";
 
-const ORIGINE = v.union(v.literal("fixe"), v.literal("pascal"), v.literal("saisi"));
+const ORIGINE = v.union(v.literal("fixe"), v.literal("pascal"), v.literal("saisi"), v.literal("decrete"));
 
 /** Les fériés d'une année, triés par date. */
 export const liste = query({
@@ -100,6 +102,117 @@ export const initialiserAnnee = mutation({
 });
 
 /** Ajoute ou met à jour un férié (une seule ligne par date). */
+/**
+ * Décrète un jour férié en cours d'année, et DÉCALE les congés déjà posés (demande N1).
+ *
+ * « Les jours fériés décrétés au cours de l'année pour une raison ou une autre augmentent ou
+ *   décalent la date initialement prévue. » Puis, le 05/11/2026 : « un congé déjà posé se décale
+ *   automatiquement ».
+ *
+ * Ce que la mutation garantit :
+ *
+ *  • le **motif est obligatoire** — un jour qui décale les congés de tout le monde doit dire d'où
+ *    il vient ;
+ *  • seuls les congés qui **enjambent** la date sont relus. Un congé qui commence après le férié
+ *    ne le rencontre jamais : le recalculer serait du bruit ;
+ *  • un mois **clôturé** n'est jamais réécrit. Le décalage est calculé et RENDU À L'APPELANT, qui
+ *    doit en décider — une paie arrêtée ne se rejoue pas tout seule ;
+ *  • le détail de chaque décalage est journalisé et rendu. Un retour de congé qui bouge sans trace
+ *    serait pire que pas de recalcul du tout.
+ */
+export const decreter = mutation({
+  args: {
+    date: v.string(),
+    libelle: v.string(),
+    motif: v.string(),
+    /** Faux = jour férié travaillé dans l'entreprise, donc décompté comme un jour ouvrable. */
+    chome: v.optional(v.boolean()),
+  },
+  handler: async (ctx, { date, libelle, motif, chome }) => {
+    const user = await requireDroit(ctx, "/paie/planning", "faire");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Date attendue au format AAAA-MM-JJ.");
+    if (!libelle.trim()) throw new Error("Libellé du jour férié requis.");
+    if (!motif.trim()) throw new Error("Motif requis : ce jour décale les congés déjà posés.");
+    const annee = +date.slice(0, 4);
+    const chomeEffectif = chome ?? true;
+
+    const existant = await ctx.db.query("joursFeries").withIndex("by_date", (q) => q.eq("date", date)).unique();
+    if (existant) {
+      await ctx.db.patch(existant._id, {
+        libelle: libelle.trim(), chome: chomeEffectif, origine: "decrete", motif: motif.trim(),
+      });
+    } else {
+      await ctx.db.insert("joursFeries", {
+        date, libelle: libelle.trim(), chome: chomeEffectif, annee,
+        origine: "decrete", motif: motif.trim(),
+      });
+    }
+
+    const rapport = await appliquerDecalages(ctx, date, annee);
+    await journaliser(ctx, {
+      auteurId: user._id, auteurNom: user.name, action: "feries_modification", cible: date,
+      detail: `Décrété : ${libelle.trim()} — ${motif.trim()}. ${libelleRecalcul(resumerRecalcul(rapport.decalages))}`,
+    });
+    return rapport;
+  },
+});
+
+/**
+ * Relit les congés qui enjambent une date et applique les décalages.
+ *
+ * Extrait de `decreter` parce que la SUPPRESSION d'un férié doit faire exactement la même chose,
+ * en sens inverse : retirer un jour décrété raccourcit les congés qu'il avait prolongés.
+ */
+async function appliquerDecalages(ctx: MutationCtx, date: string, annee: number) {
+  const feriesLignes = await ctx.db
+    .query("joursFeries")
+    .withIndex("by_annee", (q) => q.eq("annee", annee))
+    .collect();
+  const feries = indexFeries(feriesLignes.map((f) => ({ date: f.date, chome: f.chome })));
+
+  // Seuls les congés qui ENJAMBENT la date, et seulement ceux de l'année : on ne relit pas
+  // 78 plannings pour deux lignes utiles.
+  const absences = await ctx.db.query("absences").collect();
+  const candidats = congesAReprendre(
+    absences.filter((a) => a.dateDebut.slice(0, 4) === String(annee) || a.dateFin.slice(0, 4) === String(annee)),
+    date,
+  );
+
+  const nomDe = new Map<string, string>();
+  const closDe = new Map<string, boolean>();
+  const aRecalculer = [];
+  for (const a of candidats) {
+    const idEmp = String(a.employeId);
+    if (!nomDe.has(idEmp)) {
+      const e = await ctx.db.get(a.employeId);
+      nomDe.set(idEmp, e?.nom ?? "—");
+    }
+    // Le mois du DÉPART fait foi pour la clôture : c'est lui qui porte l'allocation et les jours.
+    const periode = a.dateDebut.slice(0, 7);
+    if (!closDe.has(periode)) {
+      const c = await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
+      closDe.set(periode, !!c);
+    }
+    aRecalculer.push({
+      id: String(a._id), employeNom: nomDe.get(idEmp), type: a.type,
+      dateDebut: a.dateDebut, dateFin: a.dateFin, jours: a.jours,
+      joursOuvrables: a.joursOuvrables, dateRetour: a.dateRetour,
+      moisClos: closDe.get(periode),
+    });
+  }
+
+  const decalages = recalculerRetours(aRecalculer, feries);
+  for (const d of decalages) {
+    if (d.bloque) continue; // mois clos : signalé, jamais réécrit
+    await ctx.db.patch(d.id as Id<"absences">, {
+      dateFin: d.finApres,
+      dateRetour: d.retourApres,
+      jours: d.joursCalendairesApres,
+    });
+  }
+  return { decalages, resume: resumerRecalcul(decalages), libelle: libelleRecalcul(resumerRecalcul(decalages)) };
+}
+
 export const enregistrer = mutation({
   args: {
     date: v.string(),
@@ -139,13 +252,20 @@ export const supprimer = mutation({
     const f = await ctx.db.get(id);
     if (!f) throw new Error("Jour férié introuvable.");
     await ctx.db.delete(id);
+
+    // Retirer un férié RACCOURCIT les congés qu'il avait prolongés : le décalage joue dans les
+    // deux sens, et il doit être appliqué ici aussi — sans quoi un férié supprimé par erreur
+    // laisserait des retours de congé définitivement faux.
+    const rapport = await appliquerDecalages(ctx, f.date, f.annee);
+
     await journaliser(ctx, {
       auteurId: user._id,
       auteurNom: user.name,
       action: "feries_modification",
       cible: f.date,
-      detail: `Supprimé : ${f.libelle}`,
+      detail: `Supprimé : ${f.libelle}. ${rapport.libelle}`,
     });
+    return rapport;
   },
 });
 

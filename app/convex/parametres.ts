@@ -4,6 +4,10 @@ import { requireLevel, DEV_BYPASS, requireDroit } from "./lib/authz";
 import { journaliser } from "./lib/journal";
 import { reglagesDe, validerReglages, type Reglages } from "./lib/reglages";
 import { LIBELLE, MODULE_PAR_CLE, NIVEAU, celluleParDefaut, droitsEffectifs, estVerrouille, normaliser, type Role, type SurchargeRole } from "./rbac";
+import { erreurIdentiteSociete } from "./lib/societes";
+
+// Même convention que les autres modules : un validateur local, aligné sur `lib/societes.SOCIETES`.
+const SOCIETE = v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"));
 
 // Paramètres entreprise : singleton (première ligne). Apparaissent en en-tête/filigrane des PDF.
 export const get = query({
@@ -17,7 +21,7 @@ export const enregistrer = mutation({
     filigrane: v.optional(v.string()), couleurEntete: v.optional(v.string()),
     modeleCourrier: v.optional(v.string()), emailExpediteur: v.optional(v.string()),
     congesParMois: v.optional(v.number()),
-    niu: v.optional(v.string()), numeroCnps: v.optional(v.string()), responsableRH: v.optional(v.string()), jourPaiement: v.optional(v.number()),
+    niu: v.optional(v.string()), numeroCnps: v.optional(v.string()), dirigeant: v.optional(v.string()), registreCommerce: v.optional(v.string()), responsableRH: v.optional(v.string()), jourPaiement: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const me = await requireDroit(ctx, "/parametres", "faire");
@@ -25,6 +29,60 @@ export const enregistrer = mutation({
     if (existant) await ctx.db.patch(existant._id, args);
     else await ctx.db.insert("parametresEntreprise", args);
     await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "parametres_modification", cible: "entreprise", detail: Object.keys(args).join(", ") });
+  },
+});
+
+/**
+ * Identités juridiques par société (lot R11).
+ *
+ * SESAME, SOFINA et SGC sont des personnes morales distinctes : chacune a sa raison sociale, son
+ * NIU, son N° CNPS, son dirigeant et son numéro de registre du commerce. Le DIPE lisait déjà ce
+ * bloc (`dipe.declarantPourSociete`) mais RIEN ne l'écrivait — il restait vide, et toutes les
+ * déclarations retombaient sur l'identité de l'entreprise. Cette mutation le rend renseignable.
+ *
+ * Un champ laissé vide n'est pas une valeur vide : il **reprend** celui de l'entreprise, ce que
+ * `identitePourSociete` signale explicitement.
+ */
+export const enregistrerSocietes = mutation({
+  args: {
+    societes: v.array(v.object({
+      societe: SOCIETE,
+      raisonSociale: v.optional(v.string()),
+      adresse: v.optional(v.string()),
+      niu: v.optional(v.string()),
+      numeroCnps: v.optional(v.string()),
+      dirigeant: v.optional(v.string()),
+      registreCommerce: v.optional(v.string()),
+    })),
+  },
+  handler: async (ctx, { societes }) => {
+    const me = await requireDroit(ctx, "/parametres", "faire");
+    // Une société en double ferait dépendre l'identité de l'ordre du tableau.
+    const retenues: typeof societes = [];
+    for (const s of societes) {
+      const erreur = erreurIdentiteSociete(s, retenues);
+      if (erreur) throw new Error(erreur);
+      retenues.push(s);
+    }
+    // On ne garde que les lignes qui portent au moins une valeur : une ligne entièrement vide
+    // équivaut à l'absence de ligne, et encombrerait le repli sur l'entreprise.
+    const nettoyees = retenues
+      .map((s) => ({
+        societe: s.societe,
+        ...Object.fromEntries(
+          (["raisonSociale", "adresse", "niu", "numeroCnps", "dirigeant", "registreCommerce"] as const)
+            .map((c) => [c, s[c]?.trim() || undefined]),
+        ),
+      }))
+      .filter((s) => Object.entries(s).some(([c, v]) => c !== "societe" && v));
+
+    const existant = await ctx.db.query("parametresEntreprise").first();
+    if (!existant) throw new Error("Renseignez d'abord les informations de l'entreprise.");
+    await ctx.db.patch(existant._id, { societes: nettoyees as any });
+    await journaliser(ctx, {
+      auteurId: me._id, auteurNom: me.nom ?? me.email, action: "parametres_modification",
+      cible: "societes", detail: nettoyees.map((s) => s.societe).join(", ") || "aucune",
+    });
   },
 });
 
@@ -58,6 +116,9 @@ const reglagesV = v.object({
   verrouFinancierMin: v.number(), verrouCaisseMin: v.number(),
   envoiReelActive: v.boolean(), whatsappReelActive: v.boolean(), iaDocumentsActive: v.boolean(), pdfAutoCloture: v.boolean(),
   joursBaseDefaut: v.number(), plafondSaisie: v.number(),
+  // Rappels d'échéance de contrat (N2).
+  rappelPremierAvisJours: v.number(), rappelHebdoDepuisJours: v.number(),
+  rappelQuotidienDepuisJours: v.number(),
 });
 
 export const enregistrerReglages = mutation({

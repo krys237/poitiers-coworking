@@ -8,6 +8,15 @@
  * @module
  */
 
+import type * as actes from "../actes.js";
+import type * as actesPdf from "../actesPdf.js";
+import type * as retenueMedecins from "../retenueMedecins.js";
+import type * as tickets from "../tickets.js";
+import type * as lib_tickets from "../lib/tickets.js";
+import type * as lib_recalculFeries from "../lib/recalculFeries.js";
+import type * as lib_anciennete from "../lib/anciennete.js";
+import type * as lib_retenueMedecins from "../lib/retenueMedecins.js";
+import type * as lib_allocationConge from "../lib/allocationConge.js";
 import type * as archives from "../archives.js";
 import type * as audit from "../audit.js";
 import type * as auth from "../auth.js";
@@ -25,11 +34,13 @@ import type * as documentsIa from "../documentsIa.js";
 import type * as employes from "../employes.js";
 import type * as financier from "../financier.js";
 import type * as fournisseurs from "../fournisseurs.js";
+import type * as fonctions from "../fonctions.js";
 import type * as http from "../http.js";
 import type * as interventions from "../interventions.js";
 import type * as journal from "../journal.js";
 import type * as joursFeries from "../joursFeries.js";
 import type * as lib_absences from "../lib/absences.js";
+import type * as lib_actes from "../lib/actes.js";
 import type * as lib_apiSecurite from "../lib/apiSecurite.js";
 import type * as lib_audit from "../lib/audit.js";
 import type * as lib_authz from "../lib/authz.js";
@@ -39,6 +50,7 @@ import type * as lib_congesOuvrables from "../lib/congesOuvrables.js";
 import type * as lib_courrier from "../lib/courrier.js";
 import type * as lib_dipe from "../lib/dipe.js";
 import type * as lib_fenetre from "../lib/fenetre.js";
+import type * as lib_immatriculation from "../lib/immatriculation.js";
 import type * as lib_journal from "../lib/journal.js";
 import type * as lib_journalFamilles from "../lib/journalFamilles.js";
 import type * as lib_joursFeriesCameroun from "../lib/joursFeriesCameroun.js";
@@ -51,6 +63,7 @@ import type * as lib_rubriques from "../lib/rubriques.js";
 import type * as lib_societes from "../lib/societes.js";
 import type * as lib_stats from "../lib/stats.js";
 import type * as lib_telephone from "../lib/telephone.js";
+import type * as lib_vueRH from "../lib/vueRH.js";
 import type * as lib_tresorerie from "../lib/tresorerie.js";
 import type * as lib_verrouSaisie from "../lib/verrouSaisie.js";
 import type * as mesBulletins from "../mesBulletins.js";
@@ -75,6 +88,15 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  actes: typeof actes;
+  actesPdf: typeof actesPdf;
+  retenueMedecins: typeof retenueMedecins;
+  tickets: typeof tickets;
+  "lib/tickets": typeof lib_tickets;
+  "lib/recalculFeries": typeof lib_recalculFeries;
+  "lib/anciennete": typeof lib_anciennete;
+  "lib/retenueMedecins": typeof lib_retenueMedecins;
+  "lib/allocationConge": typeof lib_allocationConge;
   archives: typeof archives;
   audit: typeof audit;
   auth: typeof auth;
@@ -92,11 +114,13 @@ declare const fullApi: ApiFromModules<{
   employes: typeof employes;
   financier: typeof financier;
   fournisseurs: typeof fournisseurs;
+  fonctions: typeof fonctions;
   http: typeof http;
   interventions: typeof interventions;
   journal: typeof journal;
   joursFeries: typeof joursFeries;
   "lib/absences": typeof lib_absences;
+  "lib/actes": typeof lib_actes;
   "lib/apiSecurite": typeof lib_apiSecurite;
   "lib/audit": typeof lib_audit;
   "lib/authz": typeof lib_authz;
@@ -106,6 +130,7 @@ declare const fullApi: ApiFromModules<{
   "lib/courrier": typeof lib_courrier;
   "lib/dipe": typeof lib_dipe;
   "lib/fenetre": typeof lib_fenetre;
+  "lib/immatriculation": typeof lib_immatriculation;
   "lib/journal": typeof lib_journal;
   "lib/journalFamilles": typeof lib_journalFamilles;
   "lib/joursFeriesCameroun": typeof lib_joursFeriesCameroun;
@@ -118,6 +143,7 @@ declare const fullApi: ApiFromModules<{
   "lib/societes": typeof lib_societes;
   "lib/stats": typeof lib_stats;
   "lib/telephone": typeof lib_telephone;
+  "lib/vueRH": typeof lib_vueRH;
   "lib/tresorerie": typeof lib_tresorerie;
   "lib/verrouSaisie": typeof lib_verrouSaisie;
   mesBulletins: typeof mesBulletins;

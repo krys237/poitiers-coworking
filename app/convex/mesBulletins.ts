@@ -2,6 +2,7 @@ import { query, internalQuery, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Doc } from "./_generated/dataModel";
 import { requireDroit } from "./lib/authz";
+import { statutDocument } from "./lib/immatriculation";
 import { bulletinsPourPeriode } from "./lib/calculBulletins";
 import { rattachementsEffectifs, type Societe } from "./lib/societes";
 
@@ -42,7 +43,12 @@ async function monBulletin(ctx: QueryCtx, periode: string, societe?: Societe) {
   const miens = r.bulletins.filter((b) => String(b.employeId) === String(emp._id));
   const bulletin = (societe ? miens.find((b) => b.societe === societe) : undefined) ?? miens[0];
   if (!bulletin) throw new Error("Aucun bulletin validé pour ce mois.");
-  return { bulletin, entreprise: await entrepriseDocument(ctx), nom: emp.nom, societes: miens.map((b) => b.societe) };
+  // Le refus est posé ICI et pas seulement à l'écran : masquer un bouton n'est pas une sécurité.
+  // `monBulletin` sert la consultation ET le PDF — d'où le drapeau rendu au lieu d'un rejet sec,
+  // la consultation restant autorisée.
+  const statut = statutDocument(emp.immatriculeImpots);
+  return { bulletin, entreprise: await entrepriseDocument(ctx), nom: emp.nom,
+    societes: miens.map((b) => b.societe), statut };
 }
 
 /** Mes mois clôturés, du plus récent au plus ancien. */
@@ -56,7 +62,8 @@ export const liste = query({
     const lignes = await ctx.db.query("rattachements").withIndex("by_employe", (q) => q.eq("employeId", emp._id)).collect();
     const societes = rattachementsEffectifs(emp, lignes).map((r) => r.societe);
     return {
-      employe: { nom: emp.nom, matricule: emp.matricule, societe: emp.societe, societes },
+      employe: { nom: emp.nom, matricule: emp.matricule, societe: emp.societe, societes,
+        statut: statutDocument(emp.immatriculeImpots) },
       // Un bulletin par mois ET PAR SOCIÉTÉ : la clé de la liste est le couple, pas la période.
       bulletins: figes
         .map((b) => ({ cle: `${b.periode}:${b.societe}`, periode: b.periode, societe: b.societe, brut: b.brut, retenues: b.totalRetenues, net: b.net, genereLe: b.genereLe }))

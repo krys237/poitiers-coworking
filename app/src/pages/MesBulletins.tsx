@@ -79,8 +79,20 @@ export function MesBulletins() {
           {choisi && (
             <section className="overflow-hidden rounded-xl border border-filet bg-surface shadow-xs">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-filet px-3.5 py-2.5">
-                <div className="text-sm font-semibold">Bulletin de {libellePeriode(choisi.periode)}{liste.employe.societes.length > 1 ? ` — ${choisi.societe}` : ""}</div>
-                <BoutonPdf variant="default" titre="Télécharger ce bulletin en PDF" generer={() => pdf({ periode: choisi.periode, societe: choisi.societe })}>Télécharger le PDF</BoutonPdf>
+                <div className="text-sm font-semibold">
+                  {liste.employe.statut?.titre ?? "Bulletin de paie"} — {libellePeriode(choisi.periode)}
+                  {liste.employe.societes.length > 1 ? ` · ${choisi.societe}` : ""}
+                </div>
+                {/* Un salarié non immatriculé consulte son récapitulatif mais ne le télécharge pas
+                    (demande du 22/10/2026). Le refus est aussi posé côté serveur : masquer le
+                    bouton n'est pas une sécurité. */}
+                {liste.employe.statut && !liste.employe.statut.telechargeable ? (
+                  <p className="max-w-md text-xs text-encre-douce">
+                    <strong>Consultation seule.</strong> {liste.employe.statut.motifRefus}
+                  </p>
+                ) : (
+                  <BoutonPdf variant="default" titre="Télécharger ce document en PDF" generer={() => pdf({ periode: choisi.periode, societe: choisi.societe })}>Télécharger le PDF</BoutonPdf>
+                )}
               </div>
               <div className="bg-papier p-2 sm:p-3">
                 {detail === undefined ? <SqueletteTexte lignes={8} /> : <ApercuFeuille><BulletinCard b={detail.bulletin} entreprise={detail.entreprise} page="page 1/1" /></ApercuFeuille>}

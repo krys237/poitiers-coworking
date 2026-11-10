@@ -33,6 +33,9 @@ export const salaireDeBase = (e: { salaireBase?: number; salaireBrut?: number })
 /** Groupes de risque CNPS accidents du travail / maladies professionnelles. */
 export const TAUX_ATMP: Record<"A" | "B" | "C", number> = { A: 1.75, B: 2.5, C: 5 };
 
+/** Tranche d'un barème forfaitaire : `jusqua` exclusif, `null` = au-delà. */
+export interface TrancheForfait { jusqua: number | null; montant: number }
+
 export interface Bareme {
   plafondCnps: number;
   tauxPvidSal: number;      // %
@@ -71,8 +74,25 @@ export interface Bareme {
    * dès qu'il y a un salaire ».
    */
   seuilExoneration?: number;
+  /**
+   * Règles de l'allocation de congé (lot R4), portées par le barème DATÉ pour que les arbitrages
+   * du 05/11/2026 restent réversibles sans intervention technique — et pour qu'un mois rejoué
+   * avec son barème d'époque redonne exactement les mêmes chiffres.
+   *
+   * `conventionFraction` est le seul point que personne n'a tranché : voir A-VERIFIER R-5.
+   */
+  allocationPlafondMois?: number;
+  allocationMoisAvantPremierConge?: number;
+  allocationConventionFraction?: "jours_du_mois" | "trente" | "trente_virgule_44";
   /** C8 — groupe de risque AT/MP de l'établissement ; prime sur `tauxAtmp` s'il est renseigné. */
   groupeRisqueAtmp?: "A" | "B" | "C";
+  /**
+   * Tranches forfaitaires de la TDL et de la RAV, portées par le barème DATÉ.
+   * `jusqua` est le seuil EXCLUSIF (« en deçà de »), `null` pour la dernière tranche ouverte —
+   * même convention que `irppBrackets`. Absentes, les tables par défaut s'appliquent.
+   */
+  tdlBareme?: TrancheForfait[];
+  ravBareme?: TrancheForfait[];
   /** Catalogue de rubriques applicable à la période (déf. `RUBRIQUES_DEFAUT`). */
   rubriques?: Rubrique[];
 }
@@ -115,6 +135,22 @@ export interface Extras {
   rubriques?: Record<string, number>;
   /** C9 — exonération « jeunes de moins de 35 ans » (LF 2026) : charges fiscales et patronales. */
   exonereJeune?: boolean;
+  /**
+   * Allocation de congé calculée au 1/16 (lot R4), qui REMPLACE l'indemnité proratisée.
+   *
+   * Les deux ne mesurent pas la même chose. `journalier × congesPris` proratise le salaire du
+   * mois ; l'allocation légale vaut `N × (salaire de base + ancienneté) ÷ 16`, où N est la
+   * période de référence — elle ne dépend donc pas du nombre de jours pris ce mois-ci.
+   *
+   * Absent → on garde la proratisation, ce qui laisse intacts les mois calculés avant R4.
+   * Voir `lib/allocationConge.ts` et A-VERIFIER R-5.
+   */
+  allocationConge?: number;
+  /**
+   * Les périodes de congé du mois (lot R10), reprises telles quelles sur le bulletin à côté du
+   * nombre de jours. « 18 j » ne se vérifie pas ; « du 3 au 28 août » se contrôle d'un coup d'œil.
+   */
+  periodesConges?: { debut: string; fin: string; jours: number }[];
 }
 
 export interface LigneGain { code: string; libelle: string; base: number; gain: number; }
@@ -123,6 +159,10 @@ export interface LigneCotisation { code: string; libelle: string; base: number; 
 export interface DetailsBulletin {
   salaireJournalier: number; salaireBase: number; joursTravailles: number;
   congesAcquis: number; congesPris: number; congesRestants: number; indemniteConges: number;
+  /** Vrai si `indemniteConges` porte l'allocation légale au 1/16, et non la proratisation. */
+  allocationLegale?: boolean;
+  /** Dates des congés du mois, pour l'affichage à côté du nombre de jours (lot R10). */
+  periodesConges?: { debut: string; fin: string; jours: number }[];
   primes: number; heuresSup: number; anciennete: number;
   /** OPTIONNEL : les snapshots des mois clôturés avant le 21/10/2026 ne le portent pas. */
   ancienneteSeparee?: number;
@@ -164,6 +204,38 @@ export const RAV_BAREME: [number, number][] = [
   [700000, 8450], [800000, 9750], [900000, 11050], [1000000, 12350], [Infinity, 13000],
 ];
 
+/** Convertit les tranches stockées (`jusqua: null` = au-delà) en table interne. */
+export const trancheVersTable = (t: TrancheForfait[]): [number, number][] =>
+  t.map((x) => [x.jusqua ?? Infinity, x.montant]);
+
+/** Et l'inverse, pour afficher ou enregistrer une table par défaut. */
+export const tableVersTranches = (t: [number, number][]): TrancheForfait[] =>
+  t.map(([seuil, montant]) => ({ jusqua: Number.isFinite(seuil) ? seuil : null, montant }));
+
+/**
+ * Contrôle d'un barème forfaitaire saisi : seuils strictement croissants et dernière tranche
+ * ouverte. Sans cela une tranche inatteignable passerait inaperçue — `baremeInf` renvoie la
+ * PREMIÈRE tranche satisfaite, donc un seuil mal ordonné masque silencieusement les suivants.
+ */
+export function validerTranches(t: TrancheForfait[], nom: string): string[] {
+  const e: string[] = [];
+  if (!t.length) return [`${nom} : au moins une tranche est nécessaire.`];
+  if (t[t.length - 1].jusqua !== null)
+    e.push(`${nom} : la dernière tranche doit être ouverte (seuil vide).`);
+  for (let i = 0; i < t.length; i++) {
+    if (t[i].montant < 0) e.push(`${nom} : montant négatif sur la tranche ${i + 1}.`);
+    if (t[i].jusqua === null && i !== t.length - 1)
+      e.push(`${nom} : seule la dernière tranche peut être ouverte (tranche ${i + 1}).`);
+    if (i > 0) {
+      const p = t[i - 1].jusqua;
+      const c = t[i].jusqua;
+      if (p !== null && c !== null && c <= p)
+        e.push(`${nom} : le seuil de la tranche ${i + 1} (${c}) doit dépasser le précédent (${p}).`);
+    }
+  }
+  return e;
+}
+
 /** Lecture d'un barème forfaitaire à seuils exclusifs. */
 export const baremeInf = (table: [number, number][], montant: number) =>
   table.find(([seuil]) => montant < seuil)?.[1] ?? table[table.length - 1][1];
@@ -196,7 +268,10 @@ export function computeBulletin(salaireBaseRef: number, s: SaisieMois, b: Bareme
   // 1. Salaire journalier, salaire de base, indemnité de congés.
   const journalier = salaireBaseRef / joursBase;
   const salaireBase = Math.round(journalier * s.joursTravailles);
-  const indemniteConges = Math.round(journalier * (s.congesPris || 0));
+  // L'allocation légale prime sur la proratisation quand elle est fournie — voir `Extras`.
+  const indemniteConges = extras.allocationConge !== undefined
+    ? Math.round(extras.allocationConge)
+    : Math.round(journalier * (s.congesPris || 0));
   const congesRestants = s.congesRestants ?? Math.max(0, (s.congesAcquis || 0) - (s.congesPris || 0));
 
   // 2. Gains — liste fixe (toujours présente, même à zéro) + lignes libres du registre.
@@ -205,14 +280,22 @@ export function computeBulletin(salaireBaseRef: number, s: SaisieMois, b: Bareme
   const autresRubriques = extras.rubriques ?? {};
   const primes = s.primesVariables + s.transport + s.primeAssiduite + s.indemniteLogement + primesLibres
     + Object.values(autresRubriques).reduce((t, m) => t + Math.round(m || 0), 0);
+  // ⚠️ `ancienneteSeparee` est l'AUGMENTATION de l'ancienneté de l'année, affichée pour mémoire :
+  // elle n'entre PAS dans le Total 1. Le montant qui compte est le global, porté par `anciennete`
+  // (rubrique 66116). Décision du 05/11/2026 — voir A-VERIFIER R-2a et le commentaire de la
+  // rubrique 66117 dans `lib/rubriques.ts`.
+  //
+  // L'ajouter ici comptait l'augmentation DEUX FOIS : une fois dans le global, une fois à part.
+  // La ligne reste présente dans `lignesGain` — elle doit se voir sur le bulletin — mais à
+  // montant non sommé.
   const ancienneteSeparee = s.ancienneteSeparee ?? 0;
-  const total1 = salaireBase + primes + indemniteConges + s.heuresSup + s.anciennete + ancienneteSeparee;
+  const total1 = salaireBase + primes + indemniteConges + s.heuresSup + s.anciennete;
 
   const lignesGain: LigneGain[] = [
     { code: "66111", libelle: "Salaire du mois", base: salaireBase, gain: salaireBase },
     { code: "66112", libelle: "Forfait heures supplémentaires", base: 0, gain: s.heuresSup },
     { code: "66116", libelle: "Ancienneté", base: 0, gain: s.anciennete },
-    { code: "66117", libelle: "Ancienneté (colonne distincte)", base: 0, gain: ancienneteSeparee },
+    { code: "66117", libelle: "Augmentation d'ancienneté (indicatif)", base: 0, gain: ancienneteSeparee },
     { code: "6613", libelle: "Congés payés", base: 0, gain: indemniteConges },
     { code: "66121", libelle: "Prime de transport", base: s.transport, gain: s.transport },
     { code: "66122", libelle: "Prime d'assiduité", base: s.primeAssiduite, gain: s.primeAssiduite },
@@ -256,7 +339,13 @@ export function computeBulletin(salaireBaseRef: number, s: SaisieMois, b: Bareme
   const baseCnps = assiettes.cotisablePlafonne;
 
   // 4. Retenues SALARIALES — soumises au plancher d'exonération (62 000) et à l'exonération jeunes.
-  const exonereSalarial = brutTaxable < seuil || extras.exonereJeune === true;
+  //
+  // ⚠️ La comparaison est `<=` et non `<`. Décision du 05/11/2026 (A-VERIFIER R-2b), sur la
+  // précision de la RH : « ça commence à 62 001 F, 62 000 n'est pas taxable ». Le plancher est
+  // donc inclusif : un salarié dont le taxable vaut EXACTEMENT 62 000 est exonéré.
+  // Avec `<`, il était taxé — un écart d'un franc d'assiette, invisible à l'œil, qui se découvre
+  // en contrôle.
+  const exonereSalarial = brutTaxable <= seuil || extras.exonereJeune === true;
   const siDu = (montant: number) => (exonereSalarial ? 0 : montant);
 
   const cnpsSalarie = pct(baseCnps, b.tauxPvidSal); // la CNPS n'est PAS une retenue fiscale : pas de plancher
@@ -267,8 +356,10 @@ export function computeBulletin(salaireBaseRef: number, s: SaisieMois, b: Bareme
   const tranchesAnnuelles = b.irppBrackets.map((t) => ({ jusqua: t.jusqua === null ? null : t.jusqua * 12, taux: t.taux }));
   const irpp = siDu(Math.round(computeIrpp(baseIrppMensuelle * 12, tranchesAnnuelles) / 12));
   const cac = pct(irpp, b.tauxCac);
-  const tdl = tdlActif ? siDu(baremeInf(TDL_BAREME, salaireBase)) : 0;
-  const rav = ravActif ? siDu(baremeInf(RAV_BAREME, brutTaxable)) : 0;
+  const tableTdl = b.tdlBareme?.length ? trancheVersTable(b.tdlBareme) : TDL_BAREME;
+  const tableRav = b.ravBareme?.length ? trancheVersTable(b.ravBareme) : RAV_BAREME;
+  const tdl = tdlActif ? siDu(baremeInf(tableTdl, salaireBase)) : 0;
+  const rav = ravActif ? siDu(baremeInf(tableRav, brutTaxable)) : 0;
 
   // 5. Charges PATRONALES — aucun plancher : dès qu'un salaire est versé, l'employeur cotise.
   //    L'exonération « jeunes » de la LF 2026 ne couvre PAS les charges sociales CNPS.
@@ -319,6 +410,8 @@ export function computeBulletin(salaireBaseRef: number, s: SaisieMois, b: Bareme
     details: {
       salaireJournalier: Math.round(journalier), salaireBase, joursTravailles: s.joursTravailles,
       congesAcquis: s.congesAcquis || 0, congesPris: s.congesPris || 0, congesRestants, indemniteConges,
+      allocationLegale: extras.allocationConge !== undefined,
+      ...(extras.periodesConges?.length ? { periodesConges: extras.periodesConges } : {}),
       primes, heuresSup: s.heuresSup, anciennete: s.anciennete, ancienneteSeparee,
       total1, total2, brutTaxable, baseCnps, mutuelle, acompteImpotsCnps, chargesSalariales, chargesPatronales,
       irpp, cac, tdl, rav, cnpsSalarie, assiettes, exonereSalarial,
@@ -355,4 +448,7 @@ export const BAREME_DEFAUT: Bareme = {
   atmpPlafonne: false,             // C3 : la loi ne plafonne pas l'assiette AT/MP
   cfcPatronalEtFneSurBrut: true,   // C4
   seuilExoneration: 62000,         // C6, tranché le 20/10/2026
+  allocationPlafondMois: 16,              // R-3b, tranché le 05/11/2026 (16 et non 15)
+  allocationMoisAvantPremierConge: 24,    // R-3c, tranché le 05/11/2026
+  allocationConventionFraction: "jours_du_mois", // R-5 : retenu par défaut, à confirmer
 };

@@ -222,3 +222,103 @@ export function erreurRattachement(
   }
   return null;
 }
+
+// ---------------------------------------------------------------------------
+// Identité juridique d'une société (lot R11)
+// ---------------------------------------------------------------------------
+
+/** Ce qu'une société peut porter en propre dans les paramètres. */
+export interface IdentiteSaisie {
+  societe: string;
+  raisonSociale?: string;
+  adresse?: string;
+  niu?: string;
+  numeroCnps?: string;
+  dirigeant?: string;
+  registreCommerce?: string;
+}
+
+export interface IdentiteResolue {
+  societe: string;
+  raisonSociale: string;
+  adresse: string;
+  niu: string;
+  numeroCnps: string;
+  dirigeant: string;
+  registreCommerce: string;
+  /** Les champs repris de l'entreprise faute d'être renseignés sur la société. */
+  heritesDeLEntreprise: string[];
+  /** Les champs vides partout — ceux qui sortiront en pointillés sur un contrat. */
+  manquants: string[];
+}
+
+const CHAMPS_IDENTITE = [
+  "raisonSociale", "adresse", "niu", "numeroCnps", "dirigeant", "registreCommerce",
+] as const;
+
+/**
+ * Identité juridique à faire figurer sur un acte émis par `societe` : la sienne quand elle est
+ * renseignée, sinon celle de l'entreprise.
+ *
+ * Même principe que `dipe.declarantPourSociete`, et pour la même raison : SESAME, SOFINA et SGC
+ * sont des personnes morales distinctes. Un contrat de travail signé par SOFINA ne peut pas porter
+ * le numéro de registre du commerce de SESAME — ce serait une fausse identification de l'employeur
+ * dans l'acte.
+ *
+ * Le repli sur l'entreprise est volontaire et SIGNALÉ (`heritesDeLEntreprise`) : il reproduit le
+ * comportement d'avant le multi-société, sans le faire passer pour un choix.
+ */
+export function identitePourSociete(
+  societe: string,
+  propres: IdentiteSaisie[] | undefined,
+  entreprise: {
+    nom?: string; adresse?: string; niu?: string; numeroCnps?: string;
+    dirigeant?: string; registreCommerce?: string;
+  },
+): IdentiteResolue {
+  const p = (propres ?? []).find((x) => x.societe === societe);
+  const global: Record<string, string | undefined> = {
+    raisonSociale: entreprise.nom, adresse: entreprise.adresse, niu: entreprise.niu,
+    numeroCnps: entreprise.numeroCnps, dirigeant: entreprise.dirigeant,
+    registreCommerce: entreprise.registreCommerce,
+  };
+
+  const resolu: Record<string, string> = {};
+  const herites: string[] = [];
+  const manquants: string[] = [];
+  for (const c of CHAMPS_IDENTITE) {
+    const propre = (p as any)?.[c]?.trim?.() || "";
+    const repli = global[c]?.trim() || "";
+    resolu[c] = propre || repli;
+    if (!propre && repli) herites.push(c);
+    if (!resolu[c]) manquants.push(c);
+  }
+  // Faute de tout, la raison sociale vaut mieux que le vide : le code de la société l'identifie.
+  if (!resolu.raisonSociale) {
+    resolu.raisonSociale = societe;
+    manquants.splice(manquants.indexOf("raisonSociale"), 1);
+  }
+
+  return {
+    societe,
+    raisonSociale: resolu.raisonSociale, adresse: resolu.adresse, niu: resolu.niu,
+    numeroCnps: resolu.numeroCnps, dirigeant: resolu.dirigeant,
+    registreCommerce: resolu.registreCommerce,
+    heritesDeLEntreprise: herites, manquants,
+  };
+}
+
+/**
+ * Contrôle d'une identité saisie. Retourne le premier défaut, ou `null`.
+ * Les champs sont tous facultatifs — ce qui est contrôlé, c'est la société et l'unicité.
+ */
+export function erreurIdentiteSociete(
+  candidate: IdentiteSaisie,
+  autres: IdentiteSaisie[],
+): string | null {
+  if (!estSociete(candidate.societe)) return "Société inconnue : SESAME, SOFINA ou SGC.";
+  if (autres.some((a) => a.societe === candidate.societe)) {
+    return `${candidate.societe} figure déjà : modifiez la ligne existante.`;
+  }
+  return null;
+}

@@ -23,6 +23,16 @@ export const ACTIONS_LIBELLES = [
   ["parametres_modification", "Modification des paramètres"],
   ["caisse_modification_tardive", "Caisse / prime médecin modifiée après le délai"],
   ["feries_modification", "Jours fériés modifiés"],
+  // Retenue à la source sur les honoraires des médecins (lot R6). Une déclaration fiscale
+  // mérite sa trace : qui a déclaré quoi, quand, et pour quel montant.
+  ["retenue_medecin_creation", "Retenue médecin déclarée"],
+  ["retenue_medecin_modification", "Retenue médecin modifiée"],
+  ["retenue_medecin_suppression", "Retenue médecin retirée"],
+  // Tickets (N5). Journalisés comme le reste : un besoin refusé doit laisser une trace de qui a
+  // refusé et pourquoi.
+  ["ticket_ouverture", "Ticket ouvert"],
+  ["ticket_arbitrage", "Ticket arbitré"],
+  ["ticket_traitement", "Ticket traité"],
 ] as const;
 export type ActionJournal = typeof ACTIONS_LIBELLES[number][0];
 
@@ -43,4 +53,7 @@ export const FAMILLE_ACTION: Record<ActionJournal, FamilleJournal> = {
   cloture_paie: "paie", cloture_financier: "finances", verrous_purge: "finances", api_financial: "api",
   bareme_controle: "bareme", bareme_version: "bareme", audit_rapport: "audit", parametres_modification: "acces",
   caisse_modification_tardive: "finances", feries_modification: "paie",
+  retenue_medecin_creation: "paie", retenue_medecin_modification: "paie",
+  retenue_medecin_suppression: "paie",
+  ticket_ouverture: "acces", ticket_arbitrage: "acces", ticket_traitement: "acces",
 };

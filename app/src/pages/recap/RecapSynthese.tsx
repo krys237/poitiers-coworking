@@ -6,6 +6,7 @@
  * la personne et le mois que l'on modifie.
  */
 import * as React from "react";
+import { libellePeriodesConges } from "../../../convex/lib/absences";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { CheckIcon, ChevronRightIcon, FileCheck2Icon, UserRoundPenIcon, XIcon } from "lucide-react";
@@ -19,7 +20,7 @@ import { Montant } from "@/components/app/montant";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, TableVide } from "@/components/ui/table";
 import {
   type Brouillon, type BulletinLigne, type Champ, type FiltreRecap, type RecapPaie, type Valeurs, LIBELLE, UNITE,
-  BarreFiltre, BarreRecap, LegendeRecap, N, PastilleSociete, TuilesRecap, apercuBulletin, baremeClient, ficheDe, totaux, validerValeurs,
+  BarreFiltre, BarreRecap, LegendeRecap, N, PastilleSociete, TuilesRecap, aideAnciennete, apercuBulletin, baremeClient, ficheDe, totaux, validerValeurs,
 } from "./commun";
 
 const GROUPES: { titre: string; champs: Champ[]; colonnes: string }[] = [
@@ -44,6 +45,10 @@ function FicheSaisie({
   React.useEffect(() => { setV(brouillon.valeurs(id)); setErr({}); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   const apercu = apercuBulletin(b, v, baremeClient(bareme));
   const d = b.details;
+  // Les deux colonnes d'ancienneté (lot R10, A6) : `anciennete` est le TOTAL payé,
+  // `ancienneteSeparee` l'augmentation de l'année, indicative et comptée nulle part. Inverser les
+  // deux fait donc disparaître le montant du brut — d'où l'aide et les contrôles.
+  const anc = aideAnciennete(v, id, recap.anciennetePrec);
 
   const enregistrer = async () => {
     const e2 = validerValeurs(v);
@@ -95,7 +100,11 @@ function FicheSaisie({
               {g.titre === "Temps de travail" && (
                 <>
                   <ChampNombre libelle={LIBELLE.joursTravailles} unite="j" valeur={v.joursTravailles} onChange={(n) => setV({ ...v, joursTravailles: n })} min={0} max={31} disabled={cloture} erreur={err.joursTravailles} />
-                  <ChampNombre libelle="Congés pris" unite="j" valeur={d?.congesPris ?? 0} onChange={() => {}} disabled aide="Planning des absences" />
+                  <ChampNombre
+                    libelle="Congés pris" unite="j" valeur={d?.congesPris ?? 0}
+                    onChange={() => {}} disabled
+                    aide={d?.periodesConges?.length ? libellePeriodesConges(d.periodesConges) : "Planning des absences"}
+                  />
                 </>
               )}
               {g.champs.filter((c) => c !== "joursTravailles").map((c) => (
@@ -109,9 +118,29 @@ function FicheSaisie({
                   step={c === "mutuellePct" ? 0.5 : 1000}
                   disabled={cloture}
                   erreur={err[c]}
+                  aide={c === "ancienneteSeparee" ? anc.augmentation.explication : undefined}
                 />
               ))}
             </div>
+
+            {/* L'augmentation PROPOSÉE, jamais écrite d'office : une augmentation peut porter sur
+                un autre mois que celui où le montant change en base (rappel, rattrapage), et nous
+                n'avons aucun moyen de le savoir. */}
+            {g.titre === "Gains" && anc.aProposer && !cloture ? (
+              <button
+                type="button"
+                className="mt-2 w-full rounded-lg border border-ocean-ciel bg-ocean-brume/30 px-3 py-2 text-left text-2xs hover:border-ocean-profond"
+                onClick={() => setV({ ...v, ancienneteSeparee: anc.augmentation.proposee })}
+              >
+                <strong>Reporter l'augmentation : {anc.augmentation.proposee.toLocaleString("fr-FR")} FCFA</strong>
+                <span className="mt-0.5 block font-normal text-encre-douce">{anc.augmentation.explication}</span>
+              </button>
+            ) : null}
+            {g.titre === "Gains" && anc.erreurs.length ? (
+              <ul className="mt-2 space-y-1 rounded-lg border border-carmin/30 bg-carmin/5 px-3 py-2 text-2xs text-carmin" role="alert">
+                {anc.erreurs.map((e, i) => <li key={i}>{e}</li>)}
+              </ul>
+            ) : null}
           </section>
         ))}
 

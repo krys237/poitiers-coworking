@@ -1,5 +1,6 @@
 // Logique PURE du planning des absences : jours calendaires, ventilation par mois, acquisition et solde de congés.
 import { TYPES_ABSENCE } from "./absencesLegales.ts";
+import { compterOuvrables, type ReglesOuvrables } from "./congesOuvrables.ts";
 
 export type TypeAbsence = string;
 
@@ -39,6 +40,26 @@ export function joursDansMois(ev: { dateDebut: string; dateFin: string }, period
   return a > b ? 0 : joursCalendaires(a, b);
 }
 
+/**
+ * La même intersection, mais comptée en jours OUVRABLES (lot R4).
+ *
+ * C'est la bascule annoncée depuis le lot R0 : le planning annuel compte en ouvrables
+ * (dimanches et fériés exclus) tandis que la paie était alimentée en jours CALENDAIRES. Un congé
+ * de 18 jours ouvrables s'étale sur 21 à 23 jours calendaires : la paie retirait donc trop de
+ * jours travaillés, et l'indemnité portait sur trop de jours.
+ */
+export function joursOuvrablesDansMois(
+  ev: { dateDebut: string; dateFin: string },
+  periode: string,
+  feries: Set<string>,
+  regles?: ReglesOuvrables,
+): number {
+  const { debut, fin } = bornesMois(periode);
+  const a = ev.dateDebut > debut ? ev.dateDebut : debut;
+  const b = ev.dateFin < fin ? ev.dateFin : fin;
+  return a > b ? 0 : compterOuvrables(a, b, feries, regles);
+}
+
 // Liste des mois "YYYY-MM" couverts par un événement.
 export function periodesTouchees(ev: { dateDebut: string; dateFin: string }): string[] {
   const out: string[] = [];
@@ -72,21 +93,61 @@ export interface ResumeMois {
   congesAcquisCumul: number;   // solde initial + taux × mois de service
   soldeConges: number;         // acquis − pris (cumulés)
   joursTravailles: number;     // joursBase − absences non payées → alimente la paie
+  /** Vrai si les congés payés ont été comptés en jours OUVRABLES (lot R4). */
+  congesEnOuvrables: boolean;
+  /**
+   * Les congés payés qui touchent le mois, avec leurs dates (lot R10).
+   *
+   * Demande de la RH du 03/11/2026 : « ajouter la période de congés au nombre de jours pris ».
+   * Un nombre de jours seul ne permet pas de vérifier une ligne — « 18 j » peut être juste ou
+   * faux, « du 3 au 28 août » se contrôle d'un coup d'œil.
+   *
+   * Les bornes sont celles de l'ÉVÉNEMENT, pas celles du mois : un congé du 25 juin au 20 juillet
+   * s'affiche en entier sur les deux bulletins, ce qui est l'information utile — le salarié veut
+   * savoir quel congé est en cause, pas où le mois le coupe.
+   */
+  congesDuMois: { debut: string; fin: string; jours: number }[];
 }
 
 export function resumeMois(args: {
   employe: { dateDebut?: string; congesInitial?: number; joursBase?: number };
   evenements: Evenement[]; periode: string; congesParMois: number;
+  /**
+   * Jours fériés de la période. **Présents → les congés payés se comptent en jours OUVRABLES**
+   * (lot R4) ; absents → en jours calendaires, comme avant la bascule.
+   *
+   * L'option existe pour que les mois déjà CLOS gardent exactement les chiffres sous lesquels ils
+   * ont été arrêtés : on ne rejoue pas une paie archivée avec une règle postérieure.
+   */
+  feries?: Set<string>;
+  reglesOuvrables?: ReglesOuvrables;
 }): ResumeMois {
   const { employe, evenements, periode, congesParMois } = args;
+  const enOuvrables = args.feries !== undefined;
   const { jours: joursCal, fin } = bornesMois(periode);
   let absencesNonPayees = 0, absencesPayees = 0, congesPrisMois = 0, congesPrisCumul = 0;
+  const congesDuMois: { dateDebut: string; dateFin: string; jours: number }[] = [];
 
   for (const ev of evenements) {
     const j = joursDansMois(ev, periode);
     if (ev.type === "conge_paye") {
-      congesPrisMois += j;
-      if (ev.dateDebut <= fin) congesPrisCumul += joursCalendaires(ev.dateDebut, ev.dateFin < fin ? ev.dateFin : fin);
+      // Seuls les CONGÉS PAYÉS basculent en ouvrables : ce sont les seuls dont le décompte est
+      // posé par le décret n°75/28. Une maladie ou une mise à pied reste en jours calendaires.
+      congesPrisMois += enOuvrables
+        ? joursOuvrablesDansMois(ev, periode, args.feries!, args.reglesOuvrables)
+        : j;
+      if (ev.dateDebut <= fin) {
+        const borneFin = ev.dateFin < fin ? ev.dateFin : fin;
+        congesPrisCumul += enOuvrables
+          ? compterOuvrables(ev.dateDebut, borneFin, args.feries!, args.reglesOuvrables)
+          : joursCalendaires(ev.dateDebut, borneFin);
+      }
+      congesDuMois.push({
+        dateDebut: ev.dateDebut, dateFin: ev.dateFin,
+        jours: enOuvrables
+          ? joursOuvrablesDansMois(ev, periode, args.feries!, args.reglesOuvrables)
+          : j,
+      });
     } else if (ev.paye) absencesPayees += j;
     else absencesNonPayees += j;
   }
@@ -95,8 +156,47 @@ export function resumeMois(args: {
   const congesAcquisCumul = round1((employe.congesInitial ?? 0) + congesParMois * moisDeService(employe.dateDebut, periode));
   return {
     joursCalendaires: joursCal, joursBase, absencesNonPayees, absencesPayees, congesPrisMois, congesPrisCumul,
+    congesEnOuvrables: enOuvrables,
+    congesDuMois: congesDuMois
+      .filter((c) => c.jours > 0)
+      .sort((a, b) => a.dateDebut.localeCompare(b.dateDebut))
+      .map((c) => ({ debut: c.dateDebut, fin: c.dateFin, jours: c.jours })),
     congesAcquisCumul, soldeConges: round1(congesAcquisCumul - congesPrisCumul),
     // Les congés payés sont rémunérés par l'indemnité de congés (journalier × congés pris) : ils sortent des jours travaillés.
     joursTravailles: Math.max(0, joursBase - absencesNonPayees - congesPrisMois),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Libellé des périodes de congé (lot R10)
+// ---------------------------------------------------------------------------
+
+const JJMM = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+const JJMMAAAA = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
+
+/**
+ * « du 03/08 au 28/08 », à mettre à côté d'un nombre de jours.
+ *
+ * Demande de la RH du 03/11/2026. L'année n'apparaît que lorsqu'un congé enjambe deux années —
+ * sinon elle encombre une colonne déjà serrée, et le mois de paie la donne déjà.
+ */
+export function libellePeriodeConge(c: { debut: string; fin: string }): string {
+  const memeAnnee = c.debut.slice(0, 4) === c.fin.slice(0, 4);
+  return memeAnnee
+    ? `du ${JJMM(c.debut)} au ${JJMM(c.fin)}`
+    : `du ${JJMMAAAA(c.debut)} au ${JJMMAAAA(c.fin)}`;
+}
+
+/**
+ * Plusieurs congés dans le même mois : « du 03/08 au 10/08 et du 20/08 au 28/08 ».
+ * Au-delà de deux, on abrège plutôt que de déborder : « du 03/08 au 10/08 + 2 autres ».
+ */
+export function libellePeriodesConges(
+  conges: { debut: string; fin: string }[],
+  maxDetaille = 2,
+): string {
+  if (!conges.length) return "";
+  if (conges.length <= maxDetaille) return conges.map(libellePeriodeConge).join(" et ");
+  const reste = conges.length - 1;
+  return `${libellePeriodeConge(conges[0])} + ${reste} autre${reste > 1 ? "s" : ""}`;
 }

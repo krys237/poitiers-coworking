@@ -32,6 +32,14 @@ export interface Reglages {
   joursBaseDefaut: number;
   /** Paie : montant au-delà duquel une saisie mensuelle est refusée (garde-fou contre les fautes de frappe). */
   plafondSaisie: number;
+  /**
+   * Rappels d'échéance de contrat (N2). Un avis au jour exact de `rappelPremierAvisJours`, puis
+   * un rappel par semaine en deçà de `rappelHebdoDepuisJours`, puis un par jour en deçà de
+   * `rappelQuotidienDepuisJours`. Un contrat échu alerte tous les jours, quoi qu'il arrive.
+   */
+  rappelPremierAvisJours: number;
+  rappelHebdoDepuisJours: number;
+  rappelQuotidienDepuisJours: number;
 }
 
 export const REGLAGES_DEFAUT: Reglages = {
@@ -46,6 +54,11 @@ export const REGLAGES_DEFAUT: Reglages = {
   pdfAutoCloture: false,
   joursBaseDefaut: 30,
   plafondSaisie: 100_000_000,
+  // Rappels d'échéance de contrat (N2), configurables comme elle l'a demandé. Par défaut :
+  // un avis à un mois, puis chaque semaine, puis chaque jour la dernière semaine.
+  rappelPremierAvisJours: 30,
+  rappelHebdoDepuisJours: 30,
+  rappelQuotidienDepuisJours: 7,
 };
 
 /** Réglages effectifs : ce qui est stocké, complété par les défauts. */
@@ -69,5 +82,17 @@ export function validerReglages(r: Reglages): string[] {
   if (!entier(r.verrouCaisseMin) || r.verrouCaisseMin < 5 || r.verrouCaisseMin > 1440) e.push("Délai de modification de la caisse : entre 5 et 1 440 minutes.");
   if (!entier(r.joursBaseDefaut) || r.joursBaseDefaut < 20 || r.joursBaseDefaut > 31) e.push("Jours de base : entre 20 et 31.");
   if (!entier(r.plafondSaisie) || r.plafondSaisie < 1_000_000) e.push("Plafond de saisie : au moins 1 000 000 FCFA.");
+  // Les trois seuils doivent rester ORDONNÉS : un quotidien plus large que l'hebdomadaire rendrait
+  // ce dernier inatteignable, et la RH croirait à une panne de rappels.
+  const borne = (v: number, libelle: string, min: number, max: number) => {
+    if (!entier(v) || v < min || v > max) e.push(`${libelle} : entre ${min} et ${max} jours.`);
+  };
+  borne(r.rappelPremierAvisJours, "Premier avis", 1, 365);
+  borne(r.rappelHebdoDepuisJours, "Rappels hebdomadaires", 1, 365);
+  borne(r.rappelQuotidienDepuisJours, "Rappels quotidiens", 1, 90);
+  if (r.rappelQuotidienDepuisJours > r.rappelHebdoDepuisJours)
+    e.push("Les rappels quotidiens doivent démarrer APRÈS les hebdomadaires, pas avant : sinon l'hebdomadaire ne tombe jamais.");
+  if (r.rappelHebdoDepuisJours > r.rappelPremierAvisJours)
+    e.push("Le premier avis doit arriver au plus tôt : réglez-le au moins aussi loin que les rappels hebdomadaires.");
   return e;
 }

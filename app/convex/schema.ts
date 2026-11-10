@@ -78,6 +78,8 @@ export default defineSchema({
     congesParMois: v.optional(v.number()),    // jours de congé acquis par mois de service (déf. 1.5)
     niu: v.optional(v.string()),              // NIU de l'entreprise (en-tête bulletin)
     numeroCnps: v.optional(v.string()),       // N° CNPS employeur (en-tête bulletin)
+    dirigeant: v.optional(v.string()),        // nom du dirigeant — en-tête des contrats et certificat de fin de stage
+    registreCommerce: v.optional(v.string()), // n° RC — ses modèles Word en portent DEUX versions, voir A-VERIFIER
     responsableRH: v.optional(v.string()),    // visa du responsable RH sur les bulletins
     jourPaiement: v.optional(v.number()),     // jour de paiement du mois suivant (déf. 5)
     reglages: v.optional(v.object({           // réglages de fonctionnement — voir lib/reglages.ts (défauts = anciennes constantes)
@@ -85,6 +87,10 @@ export default defineSchema({
       verrouFinancierMin: v.optional(v.number()), verrouCaisseMin: v.optional(v.number()),
       envoiReelActive: v.optional(v.boolean()), whatsappReelActive: v.optional(v.boolean()), iaDocumentsActive: v.optional(v.boolean()), pdfAutoCloture: v.optional(v.boolean()),
       joursBaseDefaut: v.optional(v.number()), plafondSaisie: v.optional(v.number()),
+      // Rappels d'échéance de contrat (N2).
+      rappelPremierAvisJours: v.optional(v.number()),
+      rappelHebdoDepuisJours: v.optional(v.number()),
+      rappelQuotidienDepuisJours: v.optional(v.number()),
     })),
     // Droits VOIR / FAIRE par rôle et par module, quand ils diffèrent du défaut (rbac.droitsEffectifs).
     droitsRoles: v.optional(v.array(v.object({ role: v.string(), module: v.string(), voir: v.boolean(), faire: v.boolean() }))),
@@ -97,6 +103,11 @@ export default defineSchema({
       adresse: v.optional(v.string()),
       niu: v.optional(v.string()),
       numeroCnps: v.optional(v.string()),
+      // Identité juridique des contrats de travail (lot R11). Chaque société a son propre
+      // dirigeant et son propre numéro d'immatriculation : un contrat signé par SOFINA ne peut
+      // pas porter le RC de SESAME. Vide = on reprend celui de l'entreprise.
+      dirigeant: v.optional(v.string()),
+      registreCommerce: v.optional(v.string()),
     }))),
   }),
 
@@ -110,6 +121,21 @@ export default defineSchema({
     ordre: v.number(),
     actif: v.boolean(),
   }).index("by_nom", ["nom"]),
+
+  // Référentiel des FONCTIONS (lot R10). `employes.fonction` était un champ texte libre, d'où
+  // les fonctions vides que la RH a signalées le 03/11/2026. La table lui permet de les créer
+  // depuis la plateforme, et de les proposer à la saisie.
+  //
+  // Le champ texte de la fiche N'EST PAS remplacé par une référence : il reste libre et reçoit
+  // le libellé choisi. C'est volontaire — une fonction renommée ou supprimée ne doit pas effacer
+  // la fonction inscrite sur une fiche, ni sur un contrat déjà signé.
+  fonctions: defineTable({
+    libelle: v.string(),
+    // Catégorie et échelon par défaut, repris à la sélection : la grille salariale les lie.
+    categorie: v.optional(v.string()),
+    echelon: v.optional(v.string()),
+    actif: v.boolean(),
+  }).index("by_libelle", ["libelle"]),
 
   // ---- Paie (Phase 1) ----
   employes: defineTable({
@@ -133,6 +159,12 @@ export default defineSchema({
     salaireBrut: v.optional(v.number()),
     joursBase: v.optional(v.number()),// jours standard (déf. 30)
     contrat: v.optional(v.string()),  // CDI, CDD…
+    /**
+     * CDD déjà renouvelé une fois (N2). L'information que les dates ne portent PAS : un contrat
+     * de 12 mois peut être un CDD de 6 mois renouvelé (régulier) ou un CDD de 12 mois d'un seul
+     * trait (irrégulier). Sans ce drapeau, on ne peut qu'énoncer les deux lectures.
+     */
+    contratRenouvele: v.optional(v.boolean()),
     dateDebut: v.optional(v.string()),// embauche — base de l'acquisition des congés
     dateFin: v.optional(v.string()),
     congesInitial: v.optional(v.number()), // solde de congés reporté à l'entrée dans l'outil
@@ -148,6 +180,17 @@ export default defineSchema({
       prenom: v.optional(v.string()),
       dateNaissance: v.string(),            // "YYYY-MM-DD"
     }))),
+    // --- Immatriculation (lot R7/R8, arbitrage du 04/11/2026 : c'est celle de l'EMPLOYÉ) ---
+    // Un employé non immatriculé aux impôts reçoit un « Récapitulatif de paie » non
+    // téléchargeable au lieu d'un « Bulletin de paie », et n'apparaît pas au DIPE.
+    // Absent = non renseigné : l'écran le signale plutôt que de supposer.
+    immatriculeImpots: v.optional(v.boolean()),
+    // Date d'entrée à la CNPS, distincte de la date d'embauche — les deux diffèrent souvent et
+    // l'attestation de présence effective réclame le matricule CNPS.
+    dateEntreeCnps: v.optional(v.string()),   // "YYYY-MM-DD"
+    // Méthode d'envoi du courrier de paie (lot R10). `auto` = comportement actuel, qui choisit
+    // selon ce qui est renseigné ; `email` ou `whatsapp` forcent la voie. Absent = `auto`.
+    methodeEnvoi: v.optional(v.union(v.literal("auto"), v.literal("email"), v.literal("whatsapp"))),
     // Groupe de risque CNPS accidents du travail : A 1,75 % / B 2,50 % / C 5 % (voir A-VERIFIER B5).
     groupeRisqueAt: v.optional(v.union(v.literal("A"), v.literal("B"), v.literal("C"))),
   })
@@ -217,12 +260,23 @@ export default defineSchema({
     abattementIrppAnnuel: v.optional(v.number()), // abattement annuel IRPP (déf. 500 000), appliqué ÷ 12
     tdlActif: v.optional(v.boolean()),  // appliquer la taxe de développement local (barème forfaitaire)
     ravActif: v.optional(v.boolean()),  // appliquer la redevance audiovisuelle (barème forfaitaire)
+    // Tranches forfaitaires, editables depuis l'ecran Barème (lot R9). `jusqua` est le seuil
+    // EXCLUSIF (« en deçà de »), `null` pour la tranche ouverte — même convention que
+    // `irppBrackets`. Absentes, les tables par défaut de `lib/paie.ts` s'appliquent.
+    tdlBareme: v.optional(v.array(v.object({ jusqua: v.union(v.number(), v.null()), montant: v.number() }))),
+    ravBareme: v.optional(v.array(v.object({ jusqua: v.union(v.number(), v.null()), montant: v.number() }))),
     // --- Corrections du lot R2 (voir lib/paie.ts). ABSENTES = comportement d'avant la
     // correction : une version de barème déjà enregistrée reste donc rejouable à l'identique.
     transportTaxable: v.optional(v.boolean()),          // C1 : le transport entre dans le taxable
     atmpPlafonne: v.optional(v.boolean()),              // C3 : la loi ne plafonne PAS l'AT/MP
     cfcPatronalEtFneSurBrut: v.optional(v.boolean()),   // C4 : base = salaire brut
     seuilExoneration: v.optional(v.number()),           // C6 : 62 000, retenues SALARIALES seules
+    // Allocation de congé (lot R4) — arbitrages du 05/11/2026, portés par le barème daté.
+    allocationPlafondMois: v.optional(v.number()),                 // 16 mois → 24 j de principal
+    allocationMoisAvantPremierConge: v.optional(v.number()),       // 24 mois avant le 1er congé
+    allocationConventionFraction: v.optional(v.union(
+      v.literal("jours_du_mois"), v.literal("trente"), v.literal("trente_virgule_44"),
+    )),
     groupeRisqueAtmp: v.optional(v.union(v.literal("A"), v.literal("B"), v.literal("C"))), // C8
     source: v.string(),               // origine du barème
     controleLe: v.optional(v.string()),
@@ -592,6 +646,67 @@ export default defineSchema({
   }).index("by_periode", ["periode"]),
 
   // ---- Contrôle (Phase 4) ----
+  // Retenue à la source sur les honoraires des médecins (lot R6).
+  //
+  // Distincte de `primesMedecins`, qui suit les RÉTROCESSIONS versées aux médecins : ici il s'agit
+  // de l'impôt prélevé sur leurs honoraires. Même population, autre nature, autres chiffres.
+  //
+  // `base`, `taux` et `retenue` sont FIGÉS à l'enregistrement, et non recalculés à la lecture :
+  // une déclaration déposée doit se relire à l'identique, même si la règle change ensuite. Même
+  // principe que `actes.corpsRendu`.
+  // Tickets : dysfonctionnements et besoins remontés par les membres (demande N5).
+  //
+  // DEUX PISTES INDÉPENDANTES, et non un statut unique : le Directeur juge la PERTINENCE
+  // (`avis`), le développeur juge la RÉALISATION (`etat`). Un ticket peut être pertinent et pas
+  // encore traité, ou traité sans arbitrage — un plantage n'attend pas un avis. Un statut unique
+  // ferait perdre l'une des deux informations, et « fermé » ne dirait plus si c'est fait ou refusé.
+  tickets: defineTable({
+    auteurId: v.id("users"),
+    auteurNom: v.string(),
+    titre: v.string(),
+    description: v.string(),
+    nature: v.union(v.literal("dysfonctionnement"), v.literal("besoin"), v.literal("question")),
+    /** Écran concerné, quand l'auteur le précise : première information utile au développeur. */
+    ecran: v.optional(v.string()),
+    cree: v.string(),                 // ISO
+    pieces: v.optional(v.array(v.object({
+      fichierId: v.id("_storage"),
+      nomFichier: v.string(),
+      typeMime: v.string(),
+      taille: v.number(),
+    }))),
+
+    // --- Piste Direction : la pertinence ---
+    avis: v.union(v.literal("en_attente"), v.literal("pertinent"), v.literal("non_pertinent")),
+    avisPar: v.optional(v.string()),
+    avisLe: v.optional(v.string()),
+    /** Obligatoire pour un refus : l'auteur doit savoir pourquoi. */
+    avisMotif: v.optional(v.string()),
+
+    // --- Piste développeur : la réalisation ---
+    etat: v.union(v.literal("nouveau"), v.literal("en_cours"), v.literal("resolu"), v.literal("abandonne")),
+    etatPar: v.optional(v.string()),
+    etatLe: v.optional(v.string()),
+    etatNote: v.optional(v.string()),
+  })
+    .index("by_auteur", ["auteurId"])
+    .index("by_avis", ["avis"])
+    .index("by_etat", ["etat"]),
+
+  retenuesMedecins: defineTable({
+    periode: v.string(),              // "YYYY-MM"
+    medecin: v.string(),
+    tauxBase: v.number(),             // 5 ou 10, décidé par la RH — porté par la LIGNE
+    caAssurance: v.number(),          // retenu en entier
+    caEspeces: v.number(),            // retenu à 30 % (règle figée, M2)
+    base: v.number(),
+    taux: v.number(),                 // taux appliqué, centimes additionnels inclus (M1)
+    retenue: v.number(),
+    notes: v.optional(v.string()),
+  })
+    .index("by_periode", ["periode"])
+    .index("by_medecin", ["medecin"]),
+
   primesMedecins: defineTable({
     contexte: v.union(v.literal("stats"), v.literal("audit")),
     categorie: v.string(),
@@ -627,10 +742,60 @@ export default defineSchema({
       v.literal("fixe"),              // date fixe du calendrier camerounais
       v.literal("pascal"),            // calculée par le comput de Pâques
       v.literal("saisi"),             // saisie à la main (Aïd, report administratif)
+      v.literal("decrete"),           // décrété en cours d'année (deuil national, report) — N1
     ),
+    /**
+     * Justification d'un férié décrété en cours d'année (demande N1). Obligatoire pour l'origine
+     * `decrete` : un jour qui décale les congés de tout le monde doit dire d'où il vient.
+     */
+    motif: v.optional(v.string()),
   })
     .index("by_date", ["date"])
     .index("by_annee", ["annee"]),
+
+  // Modèles d'actes RH (lot R11) — les 13 formulaires Word de la responsable RH, devenus des
+  // DONNÉES pour qu'elle puisse corriger une formulation sans nous. Datés comme le barème.
+  // Voir lib/actes.ts : le corps porte des jetons {{champ}} et chaque champ dit ce qui le remplit.
+  modelesActes: defineTable({
+    code: v.string(),
+    libelle: v.string(),
+    famille: v.union(v.literal("attestation"), v.literal("notification"), v.literal("stage"), v.literal("contrat")),
+    corps: v.string(),
+    champs: v.array(v.object({
+      nom: v.string(),
+      libelle: v.string(),
+      type: v.union(v.literal("texte"), v.literal("date"), v.literal("nombre"), v.literal("montant"), v.literal("zone")),
+      obligatoire: v.boolean(),
+      // D'où vient la valeur proposée : fiche employé, bulletin de la période, paramètres,
+      // date du jour, ou saisie libre.
+      source: v.object({ de: v.string(), cle: v.optional(v.string()) }),
+      aide: v.optional(v.string()),
+    })),
+    formatReference: v.optional(v.string()),
+    ordre: v.number(),
+    actif: v.boolean(),
+  }).index("by_code", ["code"]),
+
+  // Actes DÉLIVRÉS. Archivés systématiquement : un acte remis au salarié doit pouvoir être
+  // retrouvé à l'identique, et c'est une pièce opposable à l'inspection du travail.
+  actes: defineTable({
+    modeleCode: v.string(),
+    employeId: v.optional(v.id("employes")),
+    nomBeneficiaire: v.string(),      // figé : un acte ne change pas si la fiche change ensuite
+    reference: v.optional(v.string()),
+    periode: v.optional(v.string()),  // période du bulletin ayant servi au pré-remplissage
+    valeurs: v.record(v.string(), v.string()),
+    corpsRendu: v.string(),           // le texte EXACT délivré, figé
+    genereLe: v.string(),
+    genereParId: v.optional(v.id("users")),
+    genereParNom: v.optional(v.string()),
+    pdfId: v.optional(v.id("_storage")),
+    annuleLe: v.optional(v.string()),
+    annuleMotif: v.optional(v.string()),
+  })
+    .index("by_employe", ["employeId"])
+    .index("by_modele", ["modeleCode"])
+    .index("by_date", ["genereLe"]),
 
   // Journal d'activité : rôles/activations, clôtures, appels API, contrôles du barème (lib/journal.ts).
   journalActivite: defineTable({

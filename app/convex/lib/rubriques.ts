@@ -53,6 +53,15 @@ export interface Rubrique {
   proratisable: boolean;
   /** Si renseigné, la rubrique est un avantage en nature évalué au forfait. */
   avantageNature?: AvantageNature;
+  /**
+   * Rubrique **purement indicative** : elle s'affiche sur le bulletin et dans le détail des
+   * assiettes, mais n'entre dans AUCUNE d'elles.
+   *
+   * Sans ce drapeau, une rubrique hors de toutes les assiettes ressemble à un oubli de saisie,
+   * et le prochain lecteur la « corrige » en la remettant dans le brut — ce qui recréerait
+   * exactement le double comptage que ce drapeau existe pour empêcher.
+   */
+  indicatif?: boolean;
 }
 
 /**
@@ -72,7 +81,21 @@ export const RUBRIQUES_DEFAUT: Rubrique[] = [
   r("66116", "Prime d'ancienneté", 30, true, true, true, true, false),
   // Second élément d'ancienneté (colonne distincte du récapitulatif, demande du 21/10/2026) :
   // même nature fiscale et sociale que la prime d'ancienneté.
-  r("66117", "Ancienneté (colonne distincte)", 35, true, true, true, true, false),
+  // ⚠️ L'augmentation de l'ancienneté de l'année, affichée POUR MÉMOIRE et comptée nulle part.
+  //
+  // Décision du 05/11/2026 (A-VERIFIER R-2a), sur l'explication de la RH : « il y a une prime
+  // d'ancienneté de base (disons 2 000 F), la nouvelle année son montant peut être de 3 000 F,
+  // cela veut dire que 1 000 F s'ajoutent à la prime existante, donc dans la case nouvelle
+  // ancienneté on va mettre 1 000 F et ce sera juste à titre indicatif ; c'est le 3 000 global
+  // qui sera finalement considéré. »
+  //
+  // Ce n'est donc PAS une seconde prime. Le montant qui compte est le global, porté par 66116.
+  // Avant cette correction, 66117 entrait dans le brut, le taxable, le cotisable ET l'allocation :
+  // sur l'exemple ci-dessus le brut valait 4 000 au lieu de 3 000, l'augmentation étant comptée
+  // une fois dans le global et une fois à part.
+  //
+  // Le libellé change aussi : « colonne distincte » portait déjà l'erreur d'interprétation.
+  r("66117", "Augmentation d'ancienneté (indicatif)", 35, false, false, false, false, false, true),
   r("6613", "Congés payés", 40, true, true, true, false, false),
   r("66121", "Prime de transport", 50, true, true, /* cotisable */ false, false, true),
   r("66122", "Prime d'assiduité", 60, true, true, true, true, true),
@@ -105,6 +128,7 @@ function r(
   dansCotisable: boolean,
   dansAllocConge: boolean,
   proratisable: boolean,
+  indicatif = false,
 ): Rubrique {
   return {
     code,
@@ -116,6 +140,7 @@ function r(
     dansCotisable,
     dansAllocConge,
     proratisable,
+    ...(indicatif ? { indicatif: true } : {}),
   };
 }
 

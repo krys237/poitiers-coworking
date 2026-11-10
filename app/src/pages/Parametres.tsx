@@ -23,6 +23,7 @@ import { api } from "../../convex/_generated/api";
 import { DESCRIPTION, LIBELLE, MODULES, NIVEAU, ROLES_ORDONNES, droitsEffectifs, estVerrouille, normaliser, type Action, type Cellule, type Exception, type Module, type Role, type SurchargeRole } from "../../convex/rbac";
 import { REGLAGES_DEFAUT, reglagesDe, validerReglages, type Reglages } from "../../convex/lib/reglages";
 import { MODELE_DEFAUT } from "../../convex/lib/courrier";
+import { SOCIETES } from "../../convex/lib/societes";
 import { messageErreur, num } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageEnTete } from "@/components/app/en-tete";
@@ -43,11 +44,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 // --- Vocabulaire ----------------------------------------------------------------
 
 type Entreprise = {
-  nom: string; adresse: string; niu: string; numeroCnps: string; logoUrl: string; couleurEntete: string; filigrane: string;
+  nom: string; adresse: string; niu: string; numeroCnps: string; dirigeant: string; registreCommerce: string; logoUrl: string; couleurEntete: string; filigrane: string;
   responsableRH: string; jourPaiement: number; congesParMois: number; emailExpediteur: string; modeleCourrier: string;
 };
 const entrepriseDe = (p: any): Entreprise => ({
-  nom: p?.nom ?? "", adresse: p?.adresse ?? "", niu: p?.niu ?? "", numeroCnps: p?.numeroCnps ?? "", logoUrl: p?.logoUrl ?? "",
+  nom: p?.nom ?? "", adresse: p?.adresse ?? "", niu: p?.niu ?? "", numeroCnps: p?.numeroCnps ?? "", dirigeant: p?.dirigeant ?? "", registreCommerce: p?.registreCommerce ?? "", logoUrl: p?.logoUrl ?? "",
   couleurEntete: p?.couleurEntete ?? "#0f2a44", filigrane: p?.filigrane ?? "", responsableRH: p?.responsableRH ?? "",
   jourPaiement: p?.jourPaiement ?? 5, congesParMois: p?.congesParMois ?? 1.5, emailExpediteur: p?.emailExpediteur ?? "", modeleCourrier: p?.modeleCourrier ?? "",
 });
@@ -55,6 +56,39 @@ const ONGLETS = ["entreprise", "paie", "courrier", "fonctionnement", "roles", "d
 type Onglet = typeof ONGLETS[number];
 
 const memes = (a: object, b: object) => JSON.stringify(a) === JSON.stringify(b);
+
+// --- Identités par société --------------------------------------------------------
+//
+// SESAME, SOFINA et SGC sont des personnes morales distinctes. Le DIPE lisait déjà ce bloc
+// (`dipe.declarantPourSociete`) mais rien ne l'écrivait : il restait vide et toutes les
+// déclarations retombaient sur l'identité de l'entreprise. Les contrats de travail ont le même
+// besoin — un contrat signé par SOFINA ne peut pas porter le n° de registre du commerce de SESAME.
+//
+// Un champ laissé VIDE n'est pas une valeur vide : il reprend celui de l'entreprise. Le
+// « placeholder » de chaque case montre donc ce qui s'appliquera à défaut.
+const CHAMPS_SOCIETE = [
+  ["raisonSociale", "Raison sociale", "nom"],
+  ["adresse", "Adresse", "adresse"],
+  ["niu", "NIU", "niu"],
+  ["numeroCnps", "N° CNPS", "numeroCnps"],
+  ["dirigeant", "Dirigeant", "dirigeant"],
+  ["registreCommerce", "N° registre du commerce", "registreCommerce"],
+] as const;
+type CleSociete = typeof CHAMPS_SOCIETE[number][0];
+type IdentiteSociete = { societe: string } & Record<CleSociete, string>;
+
+const identitesDe = (lignes: readonly any[] | undefined): IdentiteSociete[] =>
+  SOCIETES.map((societe) => {
+    const l = (lignes ?? []).find((x) => x.societe === societe);
+    return {
+      societe,
+      ...(Object.fromEntries(CHAMPS_SOCIETE.map(([c]) => [c, l?.[c] ?? ""])) as Record<CleSociete, string>),
+    };
+  });
+
+/** Une ligne sans aucune valeur n'est pas envoyée : elle équivaut à l'absence de ligne. */
+const identitesRenseignees = (l: IdentiteSociete[]) =>
+  l.filter((x) => CHAMPS_SOCIETE.some(([c]) => x[c].trim()));
 
 // --- Page -------------------------------------------------------------------------
 
@@ -66,6 +100,7 @@ export function Parametres() {
   const enregistrer = useMutation(api.parametres.enregistrer);
   const enregistrerReglages = useMutation(api.parametres.enregistrerReglages);
   const enregistrerDroits = useMutation(api.parametres.enregistrerDroitsRoles);
+  const enregistrerSocietes = useMutation(api.parametres.enregistrerSocietes);
   const [params, setParams] = useSearchParams();
   const ongletUrl = params.get("onglet") as Onglet | null;
   const onglet: Onglet = ongletUrl && ONGLETS.includes(ongletUrl) ? ongletUrl : "entreprise";
@@ -76,15 +111,18 @@ export function Parametres() {
   const [e, setE] = React.useState<Entreprise | null>(null);
   const [r, setR] = React.useState<Reglages | null>(null);
   const [dR, setDR] = React.useState<Matrice | null>(null);
-  React.useEffect(() => { if (p !== undefined && e === null) { setE(entrepriseDe(p)); setR(reglagesDe(p?.reglages)); setDR(matriceDe(p?.droitsRoles)); } }, [p, e]);
+  const [soc, setSoc] = React.useState<IdentiteSociete[] | null>(null);
+  React.useEffect(() => { if (p !== undefined && e === null) { setE(entrepriseDe(p)); setR(reglagesDe(p?.reglages)); setDR(matriceDe(p?.droitsRoles)); setSoc(identitesDe(p?.societes)); } }, [p, e]);
   const baseE = entrepriseDe(p);
   const baseR = reglagesDe(p?.reglages);
   const baseD = React.useMemo(() => matriceDe(p?.droitsRoles), [p?.droitsRoles]);
+  const baseSoc = React.useMemo(() => identitesDe(p?.societes), [p?.societes]);
   const dirtyE = !!e && !memes(e, baseE);
   const dirtyR = !!r && !memes(r, baseR);
   const modifsD = dR ? Object.keys(baseD).filter((k) => !memeCellule(dR[k], baseD[k])).length : 0;
+  const modifsSoc = soc ? soc.flatMap((x, i) => CHAMPS_SOCIETE.filter(([c]) => x[c] !== baseSoc[i][c])).length : 0;
   const nbModifs = (e ? (Object.keys(e) as (keyof Entreprise)[]).filter((k) => e[k] !== baseE[k]).length : 0)
-    + (r ? (Object.keys(r) as (keyof Reglages)[]).filter((k) => r[k] !== baseR[k]).length : 0) + modifsD;
+    + (r ? (Object.keys(r) as (keyof Reglages)[]).filter((k) => r[k] !== baseR[k]).length : 0) + modifsD + modifsSoc;
   const erreursR = r ? validerReglages(r) : [];
   const erreursE = e ? [
     ...(!e.nom.trim() ? ["Le nom de l'entreprise est obligatoire."] : []),
@@ -105,15 +143,17 @@ export function Parametres() {
         logoUrl: e.logoUrl.trim() || undefined, filigrane: e.filigrane.trim() || undefined, emailExpediteur: e.emailExpediteur.trim() || undefined,
         modeleCourrier: e.modeleCourrier.trim() || undefined, congesParMois: e.congesParMois,
         niu: e.niu.trim() || undefined, numeroCnps: e.numeroCnps.trim() || undefined, responsableRH: e.responsableRH.trim() || undefined,
+        dirigeant: e.dirigeant.trim() || undefined, registreCommerce: e.registreCommerce.trim() || undefined,
         jourPaiement: e.jourPaiement,
       });
       if (dirtyR) await enregistrerReglages({ reglages: r });
+      if (soc && modifsSoc) await enregistrerSocietes({ societes: identitesRenseignees(soc) as any });
       if (dR && modifsD) await enregistrerDroits({ droits: Object.entries(dR).map(([k, c]) => { const [role, module] = k.split("|"); return { role, module, voir: c.voir, faire: c.faire }; }) });
       toast.success("Paramètres enregistrés", { description: `${nbModifs} modification(s) appliquée(s) — journalisées.` });
     } catch (err) { toast.error("Enregistrement refusé", { description: messageErreur(err) }); }
     finally { setEnCours(false); }
   };
-  const annuler = () => { setE(baseE); setR(baseR); setDR(baseD); };
+  const annuler = () => { setE(baseE); setR(baseR); setDR(baseD); setSoc(baseSoc); };
 
   const majE = <K extends keyof Entreprise>(k: K, v: Entreprise[K]) => setE((x) => (x ? { ...x, [k]: v } : x));
   const majR = <K extends keyof Reglages>(k: K, v: Reglages[K]) => setR((x) => (x ? { ...x, [k]: v } : x));
@@ -151,8 +191,8 @@ export function Parametres() {
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-filet bg-surface px-3.5 py-2 shadow-xs sm:py-2.5">
           <TabsList className="h-auto flex-wrap gap-1 rounded-xl border border-filet bg-slate-100/80 p-1">
             {([
-              ["entreprise", "Entreprise & documents", (["nom", "adresse", "niu", "numeroCnps", "logoUrl", "couleurEntete", "filigrane"] as (keyof Entreprise)[]).some(modifieE)],
-              ["paie", "Paie & congés", (["responsableRH", "jourPaiement", "congesParMois"] as (keyof Entreprise)[]).some(modifieE) || (["joursBaseDefaut", "plafondSaisie", "pdfAutoCloture"] as (keyof Reglages)[]).some(modifieR)],
+              ["entreprise", "Entreprise & documents", (["nom", "adresse", "niu", "numeroCnps", "dirigeant", "registreCommerce", "logoUrl", "couleurEntete", "filigrane"] as (keyof Entreprise)[]).some(modifieE)],
+              ["paie", "Paie & congés", (["responsableRH", "jourPaiement", "congesParMois"] as (keyof Entreprise)[]).some(modifieE) || (["joursBaseDefaut", "plafondSaisie", "pdfAutoCloture", "rappelPremierAvisJours", "rappelHebdoDepuisJours", "rappelQuotidienDepuisJours"] as (keyof Reglages)[]).some(modifieR)],
               ["courrier", "Courrier & e-mail", (["emailExpediteur", "modeleCourrier"] as (keyof Entreprise)[]).some(modifieE) || modifieR("envoiReelActive") || modifieR("whatsappReelActive")],
               ["fonctionnement", "Fonctionnement", (["crHeureOuverture", "crHeureFermeture", "crSamedi", "verrouFinancierMin", "verrouCaisseMin", "iaDocumentsActive"] as (keyof Reglages)[]).some(modifieR)],
               ["roles", "Rôles & accès", modifsD > 0],
@@ -181,8 +221,56 @@ export function Parametres() {
                   <Champ libelle="Adresse" requis className={cn("sm:col-span-2", modif(modifieE("adresse")))}>{(a) => <Input {...a} value={e.adresse} onChange={(x) => majE("adresse", x.target.value)} />}</Champ>
                   <Champ libelle="NIU (entreprise)" aide="Numéro d'identifiant unique, bloc employeur du bulletin" className={modif(modifieE("niu"))}>{(a) => <Input {...a} value={e.niu} onChange={(x) => majE("niu", x.target.value)} placeholder="M0…" className="font-mono" />}</Champ>
                   <Champ libelle="N° CNPS employeur" className={modif(modifieE("numeroCnps"))}>{(a) => <Input {...a} value={e.numeroCnps} onChange={(x) => majE("numeroCnps", x.target.value)} className="font-mono" />}</Champ>
+                  {/* Identité juridique des contrats de travail et du certificat de fin de stage.
+                      Ses trois modèles Word portent DEUX n° de registre du commerce différents pour
+                      la même société : la valeur arbitrée se saisit ici, une fois, pour les trois. */}
+                  <Champ libelle="Dirigeant" aide="Signe les contrats de travail et le certificat de fin de stage" className={modif(modifieE("dirigeant"))}>{(a) => <Input {...a} value={e.dirigeant} onChange={(x) => majE("dirigeant", x.target.value)} placeholder="Nom du dirigeant" />}</Champ>
+                  <Champ libelle="N° registre du commerce" aide="En-tête des contrats de travail" className={modif(modifieE("registreCommerce"))}>{(a) => <Input {...a} value={e.registreCommerce} onChange={(x) => majE("registreCommerce", x.target.value)} placeholder="RC/…" className="font-mono" />}</Champ>
                 </Grille>
               </Bloc>
+              {/* Une personne morale par société : chacune signe ses propres contrats et dépose
+                  son propre DIPE. Vide = on reprend l'entreprise, ce que le placeholder montre. */}
+              <Bloc titre="Identité par société" description="SESAME, SOFINA et SGC signent leurs propres contrats et déposent leur propre DIPE. Une case laissée vide reprend l'entreprise." className="lg:col-start-1">
+                <div className="space-y-3">
+                  {soc?.map((x, i) => {
+                    const renseignes = CHAMPS_SOCIETE.filter(([c]) => x[c].trim()).length;
+                    return (
+                      <div key={x.societe} className="rounded-lg border border-filet bg-papier/60 p-3">
+                        <div className="mb-2 flex items-center gap-2">
+                          <span className="rounded-full border border-filet bg-surface px-2 py-0.5 text-2xs font-semibold tracking-wide">{x.societe}</span>
+                          <span className="text-2xs text-encre-pale">
+                            {renseignes === 0
+                              ? "tout repris de l'entreprise"
+                              : renseignes === CHAMPS_SOCIETE.length
+                                ? "identité propre complète"
+                                : `${CHAMPS_SOCIETE.length - renseignes} champ(s) repris de l'entreprise`}
+                          </span>
+                        </div>
+                        <Grille>
+                          {CHAMPS_SOCIETE.map(([cle, libelle, repli]) => (
+                            <Champ
+                              key={cle}
+                              libelle={libelle}
+                              className={cn(cle === "adresse" && "sm:col-span-2", modif(x[cle] !== baseSoc[i][cle]))}
+                            >
+                              {(a) => (
+                                <Input
+                                  {...a}
+                                  value={x[cle]}
+                                  onChange={(ev) => setSoc((l) => l?.map((y, j) => (j === i ? { ...y, [cle]: ev.target.value } : y)) ?? l)}
+                                  placeholder={(e as any)[repli] || "— à renseigner sur l'entreprise"}
+                                  className={cn((cle === "niu" || cle === "numeroCnps" || cle === "registreCommerce") && "font-mono")}
+                                />
+                              )}
+                            </Champ>
+                          ))}
+                        </Grille>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Bloc>
+
               <Bloc titre="Aperçu de l'en-tête" description="Tel qu'il apparaît sur un document imprimé." className="lg:row-span-2">
                 <div className="rounded-lg bg-papier p-3"><div className="rounded border border-filet bg-white p-4 text-encre shadow-sm">
                   <div className="flex items-start gap-3 border-b-2 pb-3" style={{ borderColor: e.couleurEntete }}>
@@ -227,6 +315,11 @@ export function Parametres() {
                 <Grille>
                   <ChampNombre libelle="Jours de base d'un nouvel employé" aide="Diviseur du salaire journalier (brut ÷ N). Les employés existants gardent le leur." unite="j" valeur={r.joursBaseDefaut} onChange={(v) => majR("joursBaseDefaut", v)} className={modif(modifieR("joursBaseDefaut"))} />
                   <ChampNombre libelle="Plafond de saisie mensuelle" aide="Au-delà, la saisie est refusée : protège des fautes de frappe." unite="FCFA" valeur={r.plafondSaisie} onChange={(v) => majR("plafondSaisie", v)} className={modif(modifieR("plafondSaisie"))} />
+                  {/* Rappels d'échéance de contrat (N2). Les trois seuils doivent rester ordonnés :
+                      `validerReglages` le vérifie, et explique pourquoi en cas d'inversion. */}
+                  <ChampNombre libelle="Premier avis d'échéance" aide="Un avis au jour exact, avant que les rappels réguliers commencent" unite="j avant" valeur={r.rappelPremierAvisJours} onChange={(v) => majR("rappelPremierAvisJours", v)} className={modif(modifieR("rappelPremierAvisJours"))} />
+                  <ChampNombre libelle="Rappels hebdomadaires à partir de" aide="En deçà de ce délai, un rappel par semaine" unite="j avant" valeur={r.rappelHebdoDepuisJours} onChange={(v) => majR("rappelHebdoDepuisJours", v)} className={modif(modifieR("rappelHebdoDepuisJours"))} />
+                  <ChampNombre libelle="Rappels quotidiens à partir de" aide="En deçà de ce délai, un rappel par jour. Un contrat échu alerte tous les jours quoi qu'il arrive." unite="j avant" valeur={r.rappelQuotidienDepuisJours} onChange={(v) => majR("rappelQuotidienDepuisJours", v)} className={modif(modifieR("rappelQuotidienDepuisJours"))} />
                 </Grille>
                 <Interrupteur libelle="Générer les PDF à la clôture" aide="Dès qu'un mois est clôturé, les bulletins figés sont rendus en PDF et archivés — sinon, à la demande depuis Archives." valeur={r.pdfAutoCloture} onChange={(v) => majR("pdfAutoCloture", v)} modifie={modifieR("pdfAutoCloture")} />
               </Bloc>

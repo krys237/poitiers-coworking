@@ -125,13 +125,76 @@ formulées pour la RH et le comptable dans `app/docs/rh/QUESTIONS-A-TRANCHER.md`
 | **R2** | table `rubriquesPaie` datée + les quatre assiettes + corrections C1 → C10 | ✅ livré | — |
 | **R2 bis** | **multi-société : table `rattachements`, un bulletin par société, un DIPE par déclarant** | ✅ livré | — |
 | **R3** | écran DIPE + export CSV + récapitulatif par destinataire + rapport d'écart typé | ✅ livré | — |
-| **R4** | allocation de congé (1/16) + liaison planning → paie | à faire | **A1**, **A2** — la RH tranche |
+| **R4** | allocation de congé (1/16) + liaison planning → paie | ✅ livré | — *(arbitré le 05/11/2026)* |
 | **R5** | absences élargies : maternité, AT/MP, chômage technique, permissions, sans solde, mise à pied, formation syndicale | ✅ livré | — |
-| **R6** | retenue à la source sur les honoraires des médecins | à faire | **M1**, **M2** — le comptable tranche |
+| **R6** | retenue à la source sur les honoraires des médecins | ✅ livré | — *(arbitré le 05/11/2026)* |
+| **R7** | droit à congé proratisé sur l'année, services gérables, impression du planning | ✅ livré | — |
+| **R8** | bulletin ou récapitulatif selon l'immatriculation du salarié aux impôts | ✅ livré | — |
+| **R9** | « Vue RH » du barème : le calcul expliqué en clair sur un exemple réel | ✅ livré | — |
+| **R10** | fonctions, saisie assistée, méthode d'envoi, sociétés dès la création, période de congés, routage ligne à ligne | ✅ livré | — *(complété le 06/11/2026)* |
+| **R11** | générateur d'actes RH : 13 modèles, identité juridique par société, impression directe | ✅ livré | — *(en-tête PDF abandonné le 06/11 : pro forma pré-imprimés)* |
 
 **Pourquoi R4 a été sauté et R5 fait à sa place** : R4 dépend de deux inconnues numériques relevées
 dans le DIPE d'août 2026 (le facteur 0,9984 et la détermination de N), que seule la RH peut
 expliquer. R5 n'était bloqué par rien.
+
+#### Changements de schéma à pousser — note pour l'agent de déploiement
+
+> 📋 **Un dossier de passation complet existe : [`PASSATION-DEPLOIEMENT.md`](PASSATION-DEPLOIEMENT.md).**
+> Il reprend ce qui suit, et y ajoute l'état du déploiement Convex, les deux changements de
+> comportement à annoncer, les trois correctifs qui changent des montants, et les suites de tests
+> qui échappent au CI. **À lire en premier.**
+
+Tout est **additif et optionnel** : aucune donnée existante n'est invalidée, et chaque lecture
+retombe sur l'ancien comportement quand le champ est absent. Un push peut donc se faire d'un bloc.
+
+| Lot | Tables créées | Champs ajoutés (tous optionnels) |
+|---|---|---|
+| R0 | `joursFeries` | — |
+| R1 | `services` | `employes` : serviceId, sexe, enfants[], groupeRisqueAt · `absences` : anneeReference, joursOuvrables, dateRetour, observation, commentaire, remplaçant, congeSupp* |
+| R2 | `rubriquesPaie` | `baremes` : transportTaxable, atmpPlafonne, cfcPatronalEtFneSurBrut, seuilExoneration, groupeRisqueAtmp · `saisiesMensuelles` : 9 primes du DIPE + ancienneteSeparee |
+| R2 bis | `rattachements` | `parametresEntreprise.societes` · `societe` devenue optionnelle sur saisiesMensuelles, primesCharges, envois |
+| R5 | — | `absences` : 7 nouveaux types, justificatifFourni, evenementFamilial, rangMois |
+| R7 | — | `employes` : **salaireBase**, immatriculeImpots, dateEntreeCnps |
+| R9 | — | `baremes` : tdlBareme, ravBareme |
+| R10 | `fonctions` | `employes` : methodeEnvoi |
+| R11 | `modelesActes`, `actes` | `parametresEntreprise` : **dirigeant**, **registreCommerce** · `parametresEntreprise.societes[]` : **dirigeant**, **registreCommerce** |
+| R4 | — | `baremes` : **allocationPlafondMois**, **allocationMoisAvantPremierConge**, **allocationConventionFraction** |
+| R6 | `retenuesMedecins` | — |
+| N1 | — | `joursFeries` : origine **decrete**, **motif** |
+| N5 | `tickets` | — |
+| N2 | — | `employes` : **contratRenouvele** · `parametresEntreprise.reglages` : les 3 seuils de rappel |
+
+`dirigeant` et `registreCommerce` ne sont pas cosmétiques : les trois contrats de travail les
+lisent au lieu de figer une identité. Les modèles Word de la RH portent **deux numéros de registre
+du commerce contradictoires** pour la même société (voir A-VERIFIER **T1**) ; tant que le champ est
+vide, les contrats impriment des pointillés plutôt qu'un numéro peut-être faux. Rien à migrer —
+mais à renseigner dans *Paramètres → Entreprise & documents* avant le premier contrat délivré.
+
+⚠️ **`parametresEntreprise.societes` était du schéma mort.** Le bloc existait depuis R2 bis et
+`dipe.declarantPourSociete` le **lisait déjà**, mais aucune mutation ne l'écrivait et aucun écran ne
+l'éditait : il restait vide, et chaque DIPE retombait donc sur l'identité de l'entreprise au lieu de
+celle de la société déclarante. La mutation `parametres.enregistrerSocietes` et le bloc « Identité
+par société » de l'écran Paramètres comblent ce trou. Conséquence à surveiller au déploiement : dès
+que la RH renseignera une identité propre, **les en-têtes de DIPE changeront** — c'est le
+comportement attendu, mais il ne l'était plus depuis R2 bis.
+
+⚠️ **Quatre suites de tests échappent au CI.** `.gitlab-ci.yml` vit sur `dev` et sa liste s'arrête
+aux suites qui existaient lors du passage à 17 : il ignore `test:vuerh`, `test:immat`, `test:actes`
+et `test:identite`, soit **209 vérifications** non gardées. À ajouter au pipeline lors du report de
+`rh` → `dev` ; je n'ai pas touché à `.gitlab-ci.yml`, qui n'est pas sur cette branche.
+
+**Deux migrations à lancer APRÈS le push, dans cet ordre :**
+
+1. `employes:migrerSalaireBase` — recopie `salaireBrut` → `salaireBase`. Les deux champs sont
+   déclarés optionnels exprès : **inverser l'ordre fait rejeter par Convex les fiches déjà en
+   base**. Le champ `salaireBrut` ne se retire du schéma qu'après.
+2. `employes:migrerRattachements` — crée une ligne de rattachement par fiche. Sans elle,
+   `employes.societe` continue de faire foi : rien ne casse, mais le multi-société reste inactif.
+
+Puis les deux initialisations depuis les bandeaux du Planning annuel : le **calendrier des jours
+fériés** de l'année et les **services**. Sans le calendrier, la pose d'un congé est refusée — et
+c'est voulu, un décompte sans jours fériés serait faux.
 
 **Préalables avant tout déploiement de `rh`** : reporter `clean` sur `rh` (sans quoi la branche
 arrive sans `convex deploy` dans son build, avec le repli Convex codé en dur et sans l'`ErrorBoundary`) ;

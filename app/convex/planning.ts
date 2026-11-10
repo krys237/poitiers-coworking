@@ -4,11 +4,13 @@ import { Id } from "./_generated/dataModel";
 import { requireDroit } from "./lib/authz";
 import { salaireDeBase } from "./lib/paie";
 import { rattachementsEffectifs, type Societe } from "./lib/societes";
-import { resumeMois, joursCalendaires, joursDansMois, periodesTouchees, moisDeService, PAYE_PAR_DEFAUT, CONGES_PAR_MOIS_DEFAUT, TypeAbsence } from "./lib/absences";
+import { resumeMois, joursCalendaires, joursDansMois, periodesTouchees, PAYE_PAR_DEFAUT, CONGES_PAR_MOIS_DEFAUT, TypeAbsence } from "./lib/absences";
 // Planning annuel (lot R1) : decompte en jours OUVRABLES et droit a conge.
 import {
   compterOuvrables, controlerLigne, dateRetour, dernierJourConge, droitConge, indexFeries,
+  moisDeServiceSurAnnee,
 } from "./lib/congesOuvrables";
+import { allocationConge, jourSuivant } from "./lib/allocationConge";
 import {
   EVENEMENTS_FAMILIAUX, PLAFOND_EVENEMENTS_FAMILIAUX_AN, TYPES_ABSENCE,
   controlerAbsence, joursServiceEffectif, remunererAbsence,
@@ -49,10 +51,20 @@ export const vueMensuelle = query({
     }
     const employes = (await ctx.db.query("employes").collect()).filter((e) => e.actif);
 
+    // La vue mensuelle doit compter dans la MÊME unité que la paie, sinon l'écran contredirait
+    // le bulletin qu'il annonce.
+    const feriesDuMois = await ctx.db
+      .query("joursFeries")
+      .withIndex("by_annee", (q) => q.eq("annee", +periode.slice(0, 4)))
+      .collect();
+    const feriesMois = feriesDuMois.length
+      ? indexFeries(feriesDuMois.map((f) => ({ date: f.date, chome: f.chome })))
+      : undefined;
+
     const lignes = [];
     for (const e of employes) {
       const evs = await ctx.db.query("absences").withIndex("by_employe", (q) => q.eq("employeId", e._id)).collect();
-      const r = resumeMois({ employe: e, evenements: evs, periode, congesParMois });
+      const r = resumeMois({ employe: e, evenements: evs, periode, congesParMois, feries: feriesMois });
       const ss = saisiesDe.get(String(e._id)) ?? [];
       const s = ss[0];
       lignes.push({
@@ -78,6 +90,19 @@ async function appliquerAuxSaisies(ctx: MutationCtx, employeId: Id<"employes">, 
   const congesParMois = await tauxConges(ctx);
   const evs = await ctx.db.query("absences").withIndex("by_employe", (q) => q.eq("employeId", employeId)).collect();
   const faites: string[] = [];
+  // Lot R4 : les congés payés se comptent en jours OUVRABLES, donc il faut le calendrier des
+  // fériés. Chargé PAR ANNÉE et mis en cache local — une même mutation peut toucher plusieurs
+  // mois, parfois à cheval sur deux années.
+  const feriesParAnnee = new Map<number, Set<string> | undefined>();
+  const feriesDe = async (annee: number) => {
+    if (!feriesParAnnee.has(annee)) {
+      const lignes = await ctx.db.query("joursFeries").withIndex("by_annee", (q) => q.eq("annee", annee)).collect();
+      feriesParAnnee.set(annee, lignes.length
+        ? indexFeries(lignes.map((f) => ({ date: f.date, chome: f.chome })))
+        : undefined);
+    }
+    return feriesParAnnee.get(annee);
+  };
   // Un congé est un fait de la PERSONNE, pas de l'employeur : il se répercute sur la saisie de
   // CHAQUE société qui la rémunère (lot R2 bis). Chacune en tirera son propre bulletin proratisé.
   const lignesRattachement = await ctx.db.query("rattachements").withIndex("by_employe", (q) => q.eq("employeId", employeId)).collect();
@@ -86,7 +111,7 @@ async function appliquerAuxSaisies(ctx: MutationCtx, employeId: Id<"employes">, 
   for (const periode of periodes) {
     const clos = await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
     if (clos) continue;
-    const r = resumeMois({ employe: e, evenements: evs, periode, congesParMois });
+    const r = resumeMois({ employe: e, evenements: evs, periode, congesParMois, feries: await feriesDe(+periode.slice(0, 4)) });
     const toutes = await ctx.db.query("saisiesMensuelles")
       .withIndex("by_employe_periode", (q) => q.eq("employeId", employeId).eq("periode", periode)).collect();
     for (const societe of societes) {
@@ -225,7 +250,8 @@ export const vueAnnuelle = query({
 
       // Droit à congé : calculé, puis surchargé si la RH l'a forcé (décision E5 du 20/10/2026).
       const droit = droitConge({
-        moisDeService: moisDeService(e.dateDebut, `${annee}-12`),
+        // Plafonné à 12 : sans cela le droit valait 1,5 j × (mois depuis l'embauche).
+        moisDeService: moisDeServiceSurAnnee(e.dateDebut, annee),
         dateDepart: principal?.dateDebut ?? `${annee}-01-01`,
         dateEmbauche: e.dateDebut,
         sexe: e.sexe,
@@ -289,6 +315,25 @@ export const vueAnnuelle = query({
       );
       const totalConge = principalArrondi + congeSupp;
 
+      // Allocation de congé au 1/16 (lot R4), pour le PREMIER départ de l'année : c'est celui
+      // qui porte l'allocation, les suivants relevant d'une autre période de référence.
+      //
+      // L'assiette est `salaire de base + ancienneté` (A-VERIFIER A3). L'ancienneté n'est pas
+      // connue ici — elle vit dans la saisie mensuelle, qui dépend de la société — donc seule la
+      // part « salaire de base » est servie, et l'écran l'annonce comme une ESTIMATION. Le
+      // montant qui fait foi est celui du bulletin.
+      const premierDepart = evenements
+        .filter((ev) => OBSERVATION_CONSOMME[ev.observation])
+        .sort((a, b) => a.dateDebut.localeCompare(b.dateDebut))[0];
+      const alloc = premierDepart
+        ? allocationConge({
+            assiette: salaireDeBase(e),
+            dateDepart: premierDepart.dateDebut,
+            dateRetourPrecedent: rappel ? jourSuivant(rappel.dateFin) : undefined,
+            dateEmbauche: e.dateDebut,
+          })
+        : null;
+
       lignes.push({
         employeId: e._id,
         nom: e.nom,
@@ -310,7 +355,22 @@ export const vueAnnuelle = query({
         joursPris,
         soldeConge: totalConge - joursPris,
         droitOuvert: droit.droitOuvert,
+        moisPourJouissance: droit.moisPourJouissance,
         detailDroit: droit.detail,
+        allocation: alloc
+          ? {
+              n: alloc.n,
+              nBrut: alloc.nBrut,
+              plafonne: alloc.plafonne,
+              droitJours: alloc.droitJours,
+              assiette: alloc.assiette,
+              montant: alloc.montant,
+              tauxJournalier: alloc.tauxJournalier,
+              /** L'ancienneté manque à l'assiette : le bulletin fait foi. */
+              estimation: true,
+              detail: alloc.detail,
+            }
+          : null,
         rappelAnneePrecedente: rappel ? { debut: rappel.dateDebut, fin: rappel.dateFin } : null,
         evenements,
       });

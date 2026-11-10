@@ -13,6 +13,7 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
+import { augmentationAnciennete, controlerAnciennete } from "../../../convex/lib/anciennete";
 import { toast } from "sonner";
 import { ChevronDownIcon, PrinterIcon, SearchIcon, XIcon } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
@@ -57,7 +58,11 @@ export const DEFAUT: Record<Champ, number> = {
 export const LIBELLE: Record<Champ, string> = {
   joursTravailles: "Jours travaillés", primesVariables: "Primes fixes", transport: "Prime transport",
   primeAssiduite: "Prime assiduité", indemniteLogement: "Indemnité logement", heuresSup: "Heures supplémentaires",
-  anciennete: "Ancienneté (primes fixes)", ancienneteSeparee: "Ancienneté", sanctions: "Sanctions", absences: "Absences", dettesSoins: "Dettes de soins",
+  // ⚠️ Les deux libellés étaient inversés dans leur effet : `ancienneteSeparee` s'appelait
+  // « Ancienneté » tout court, alors que c'est l'AUGMENTATION de l'année — indicative, comptée
+  // nulle part depuis le 05/11/2026 (A-VERIFIER R-2a). Saisir le montant global dans cette case
+  // le ferait maintenant disparaître du brut : le libellé doit lever tout doute.
+  anciennete: "Ancienneté (montant total)", ancienneteSeparee: "Dont augmentation (indicatif)", sanctions: "Sanctions", absences: "Absences", dettesSoins: "Dettes de soins",
   acompte: "Acompte", mutuellePct: "Mutuelle",
   primeSalissure: "Prime salissure", primePanier: "Prime panier", primeLait: "Prime lait", indemniteRepresentation: "Ind. représentation", indemniteVehicule: "Ind. véhicule / moto", primeCaisse: "Prime caisse", primeRendement: "Prime rendement", indemniteOutillage: "Ind. outillage", gratification: "Gratification",
 };
@@ -76,6 +81,32 @@ export type Valeurs = Record<Champ, number>;
 export type BulletinLigne = BulletinPeriode;
 
 /** Bornes de validation du dialogue de saisie (reprises du modèle du directeur). */
+/**
+ * L'augmentation d'ancienneté à proposer pour un couple, et les contrôles associés (lot R10, A6).
+ *
+ * `anciennete` porte le montant TOTAL — c'est lui qui est payé ; `ancienneteSeparee` porte
+ * l'augmentation de l'année, indicative et comptée nulle part depuis le 05/11/2026. Inverser les
+ * deux cases fait donc DISPARAÎTRE le montant du brut : d'où les contrôles.
+ */
+export function aideAnciennete(
+  valeurs: Valeurs,
+  cle: string,
+  anciennetePrec: { anciennetes: Record<string, number> } | undefined,
+) {
+  const precedente = anciennetePrec?.anciennetes[cle];
+  const augmentation = augmentationAnciennete(precedente, valeurs.anciennete);
+  return {
+    augmentation,
+    erreurs: controlerAnciennete({
+      anciennete: valeurs.anciennete,
+      ancienneteSeparee: valeurs.ancienneteSeparee,
+      precedente,
+    }),
+    /** Vrai si la proposition diffère de ce qui est saisi : l'écran peut offrir de l'appliquer. */
+    aProposer: augmentation.proposee > 0 && augmentation.proposee !== (valeurs.ancienneteSeparee ?? 0),
+  };
+}
+
 export function validerValeurs(v: Valeurs): Partial<Record<Champ, string>> {
   const err: Partial<Record<Champ, string>> = {};
   if (v.joursTravailles < 0 || v.joursTravailles > 31) err.joursTravailles = "Entre 0 et 31 jours.";
@@ -93,6 +124,10 @@ export function useRecapPaie(periode: string) {
   const paie = useQuery(api.payroll.bulletinsDuMois, { periode });
   const saisies = useQuery(api.payroll.saisiesDuMois, { periode });
   const bareme = useQuery(api.bareme.pourPeriode, { periode });
+  // L'ancienneté du mois précédent, pour PROPOSER l'augmentation de l'année (lot R10, A6).
+  // Requête séparée : l'écran fonctionne sans elle, et un mois précédent absent ne doit pas
+  // empêcher de saisir.
+  const anciennetePrec = useQuery(api.payroll.anciennetePrecedente, { periode });
   const saisir = useMutation(api.payroll.saisirMois);
   const generer = useMutation(api.payroll.genererEtCloturer);
   const modifierEmploye = useMutation(api.employes.modifier);
@@ -101,7 +136,10 @@ export function useRecapPaie(periode: string) {
   const cloture = paie?.cloture ?? false;
   const bulletins: BulletinLigne[] = (paie?.bulletins ?? []) as BulletinLigne[];
 
-  return { paie, saisies, bareme, saisir, generer, modifierEmploye, creerEmploye, cloture, bulletins };
+  return {
+    paie, saisies, bareme, saisir, generer, modifierEmploye, creerEmploye, cloture, bulletins,
+    anciennetePrec,
+  };
 }
 
 export type RecapPaie = ReturnType<typeof useRecapPaie>;

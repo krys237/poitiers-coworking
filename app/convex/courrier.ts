@@ -80,6 +80,9 @@ export const payloads = internalQuery({
         const lettre = rendreLettre(modele, { nom: b.nom, periode, net: b.net, entreprise: ent.nom });
         return {
           employeId: b.employeId, societe: b.societe, cle: b.cle, nom: b.nom, email: b.email ?? "", whatsapp: b.whatsapp ?? "",
+          // Méthode préférée de la fiche (lot R10) : `auto` laisse le système choisir selon
+          // ce qui est renseigné, sinon la voie est forcée. L'écran pré-remplit et reste modifiable.
+          methodeEnvoi: (b as any).methodeEnvoi ?? "auto",
           // Un pluri-employé reçoit un courrier par société : sans la société dans l'objet, les
           // deux messages du mois sont indiscernables dans sa boîte.
           sujet: b.nbSocietes > 1
