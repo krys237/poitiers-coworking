@@ -263,6 +263,16 @@ export default defineSchema({
     journees: v.number(),
   }).index("by_periode", ["periode"]),
 
+  // Verrou d'édition du grand livre, dans SA PROPRE table. Il vivait auparavant sur la journée
+  // elle-même, si bien qu'ouvrir un tableau créait une journée vide dans le grand livre : une
+  // simple consultation devenait indiscernable d'une journée réellement saisie à zéro.
+  verrousFinanciers: defineTable({
+    date: v.string(),                 // "YYYY-MM-DD"
+    parId: v.id("users"),
+    parNom: v.string(),
+    at: v.string(),                   // ISO, sert au calcul d'expiration
+  }).index("by_date", ["date"]),
+
   documents: defineTable({
     fichierId: v.id("_storage"),
     nomFichier: v.string(),

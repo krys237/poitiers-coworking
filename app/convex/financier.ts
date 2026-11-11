@@ -19,10 +19,14 @@ async function moisCloture(ctx: Ctx, periode: string) {
   return !!(await ctx.db.query("cloturesFinancieres").withIndex("by_periode", (q) => q.eq("periode", periode)).unique());
 }
 // Un verrou inactif expire après `verrouFinancierMin` minutes (Paramètres → Fonctionnement, déf. 15).
-async function verrouActif(ctx: Ctx, j: Doc<"journeesFinancieres"> | null) {
-  if (!j?.verrouParId || !j.verrouAt) return false;
+// Le verrou vit dans `verrousFinanciers`, pas sur la journée : poser un verrou ne doit rien
+// écrire dans le grand livre. Les champs `verrou*` de `journeesFinancieres` sont des vestiges,
+// encore acceptés par le schéma mais plus jamais écrits ; `purgerVerrousExpires` les efface.
+async function lireVerrou(ctx: Ctx, date: string) {
+  const v = await ctx.db.query("verrousFinanciers").withIndex("by_date", (q) => q.eq("date", date)).unique();
+  if (!v) return null;
   const minutes = (await lireReglages(ctx)).verrouFinancierMin;
-  return Date.now() - Date.parse(j.verrouAt) < minutes * 60 * 1000;
+  return Date.now() - Date.parse(v.at) < minutes * 60 * 1000 ? v : null;
 }
 
 // Ouverture effective d'une journée : J0 saisis manuellement, sinon soldes de la dernière journée précédente.
@@ -42,14 +46,14 @@ export const journee = query({
     const mouvements: Mouvements = j?.mouvements ?? {};
     const pieces: Record<string, string | null> = {};
     for (const [cle, id] of Object.entries(j?.pieces ?? {})) pieces[cle] = await ctx.storage.getUrl(id);
-    const actif = await verrouActif(ctx, j);
+    const verrou = await lireVerrou(ctx, date);
     return {
       date, periode: periodeDe(date), existe: !!j,
       cloture: (j?.cloture ?? false) || (await moisCloture(ctx, periodeDe(date))),
       mouvements, pieces, notes: j?.notes ?? "",
       soldesOuverture: ouverture.soldes, soldesOuvertureManuels: ouverture.manuels, ouvertureDepuis: ouverture.source,
       soldes: calculerSoldes(ouverture.soldes, mouvements), recetteTotale: recetteTotale(mouvements),
-      verrou: { actif, mien: actif && j?.verrouParId === me._id, parNom: actif ? j?.verrouNom ?? "?" : null, at: actif ? j?.verrouAt ?? null : null },
+      verrou: { actif: !!verrou, mien: verrou?.parId === me._id, parNom: verrou?.parNom ?? null, at: verrou?.at ?? null },
     };
   },
 });
@@ -81,7 +85,8 @@ export async function ecrireJournee(ctx: MutationCtx, args: {
   if (await moisCloture(ctx, periode)) throw new Error(`Le mois ${periode} est clôturé : journée immuable.`);
   const j = await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.eq("date", args.date)).unique();
   if (j?.cloture) throw new Error("Journée clôturée : immuable.");
-  if (j && (await verrouActif(ctx, j)) && args.userId && j.verrouParId !== args.userId) throw new Error(`Tableau verrouillé par ${j.verrouNom ?? "un autre membre"}.`);
+  const verrou = await lireVerrou(ctx, args.date);
+  if (verrou && args.userId && verrou.parId !== args.userId) throw new Error(`Tableau verrouillé par ${verrou.parNom}.`);
 
   const manuels = args.soldesOuverture !== undefined || (j?.soldesOuvertureManuels ?? false);
   const ouverture = args.soldesOuverture ?? (j?.soldesOuvertureManuels ? j.soldesOuverture : (await ouverturePour(ctx, args.date, null)).soldes);
@@ -89,11 +94,12 @@ export async function ecrireJournee(ctx: MutationCtx, args: {
   const now = new Date().toISOString();
   const doc = {
     date: args.date, periode, mouvements: args.mouvements, soldesOuverture: ouverture, soldesOuvertureManuels: manuels,
-    soldes, recetteTotale: recetteTotale(args.mouvements), notes: args.notes ?? j?.notes ?? "", cloture: false,
-    verrouParId: args.userId, verrouAt: args.userId ? now : undefined, verrouNom: args.userNom,
-    pieces: j?.pieces,
+    soldes, recetteTotale: recetteTotale(args.mouvements), notes: args.notes ?? j?.notes ?? "",
+    cloture: false, pieces: j?.pieces,
   };
   if (j) await ctx.db.patch(j._id, doc); else await ctx.db.insert("journeesFinancieres", doc);
+  // Celui qui enregistre garde la main : le verrou est posé ou prolongé dans sa propre table.
+  if (args.userId) await poserVerrou(ctx, args.date, args.userId, args.userNom ?? "?", now);
   await recalculerSuivantes(ctx, args.date);
   return { soldes, recetteTotale: doc.recetteTotale };
 }
@@ -107,17 +113,28 @@ export const enregistrer = mutation({
   },
 });
 
-// Verrou d'édition concurrent (crée la journée vide si nécessaire).
+async function poserVerrou(ctx: MutationCtx, date: string, parId: Doc<"users">["_id"], parNom: string, at: string) {
+  const v = await ctx.db.query("verrousFinanciers").withIndex("by_date", (q) => q.eq("date", date)).unique();
+  if (v) await ctx.db.patch(v._id, { parId, parNom, at });
+  else await ctx.db.insert("verrousFinanciers", { date, parId, parNom, at });
+}
+
+// Verrou d'édition concurrent. **N'écrit rien dans le grand livre** : la journée n'est créée
+// qu'à l'enregistrement. Ouvrir un tableau pour le consulter ne doit laisser aucune trace
+// comptable — c'est ainsi que des journées à zéro, nées d'une simple navigation, se sont
+// retrouvées dans l'historique de production (constaté le 11/11/2026).
 export const prendreVerrou = mutation({
   args: { date: v.string() },
   handler: async (ctx, { date }) => {
     const me = await requireDroit(ctx, "/financier", "faire");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Date au format AAAA-MM-JJ.");
+    if (await moisCloture(ctx, periodeDe(date))) throw new Error(`Le mois ${periodeDe(date)} est clôturé : journée immuable.`);
     const j = await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.eq("date", date)).unique();
-    if (j && (await verrouActif(ctx, j)) && j.verrouParId !== me._id) throw new Error(`Tableau verrouillé par ${j.verrouNom ?? "un autre membre"}.`);
-    const now = new Date().toISOString();
-    if (j) { await ctx.db.patch(j._id, { verrouParId: me._id, verrouAt: now, verrouNom: me.nom ?? me.email }); return { cree: false }; }
-    await ecrireJournee(ctx, { date, mouvements: {}, userId: me._id, userNom: me.nom ?? me.email });
-    return { cree: true };
+    if (j?.cloture) throw new Error("Journée clôturée : immuable.");
+    const verrou = await lireVerrou(ctx, date);
+    if (verrou && verrou.parId !== me._id) throw new Error(`Tableau verrouillé par ${verrou.parNom}.`);
+    await poserVerrou(ctx, date, me._id, me.nom ?? me.email ?? "?", new Date().toISOString());
+    return { cree: false };
   },
 });
 
@@ -125,8 +142,8 @@ export const libererVerrou = mutation({
   args: { date: v.string() },
   handler: async (ctx, { date }) => {
     await requireDroit(ctx, "/financier", "faire");
-    const j = await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.eq("date", date)).unique();
-    if (j) await ctx.db.patch(j._id, { verrouParId: undefined, verrouAt: undefined, verrouNom: undefined });
+    const v = await ctx.db.query("verrousFinanciers").withIndex("by_date", (q) => q.eq("date", date)).unique();
+    if (v) await ctx.db.delete(v._id);
   },
 });
 
@@ -310,15 +327,53 @@ export const purgerJourneesInvalides = internalMutation({
   },
 });
 
+// Retire les journées blanches nées d'une simple consultation, du temps où `prendreVerrou`
+// créait la journée pour y poser le verrou. On ne supprime QUE ce qui est démontrablement vide,
+// et on rend compte de ce qui a été refusé — une journée réellement saisie à zéro par le
+// comptable porterait au moins une pièce, une note, ou une ouverture manuelle.
+export const supprimerJourneesBlanches = internalMutation({
+  args: { dates: v.array(v.string()) },
+  handler: async (ctx, { dates }) => {
+    const supprimees: string[] = [];
+    const refusees: { date: string; raison: string }[] = [];
+    for (const date of dates) {
+      const j = await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.eq("date", date)).unique();
+      if (!j) { refusees.push({ date, raison: "aucune journée à cette date" }); continue; }
+      const raison =
+        Object.values(j.mouvements ?? {}).some((b) => Object.values(b ?? {}).some((v) => v !== 0)) ? "porte des mouvements"
+        : Object.keys(j.pieces ?? {}).length > 0 ? "porte une pièce jointe"
+        : (j.notes ?? "").trim() !== "" ? "porte une note"
+        : j.soldesOuvertureManuels ? "porte une ouverture saisie à la main"
+        : j.cloture ? "journée clôturée"
+        : await moisCloture(ctx, j.periode) ? "mois clôturé"
+        : null;
+      if (raison) { refusees.push({ date, raison }); continue; }
+      await ctx.db.delete(j._id);
+      supprimees.push(date);
+    }
+    // La chaîne des reports repart de la plus ancienne date touchée.
+    if (supprimees.length) await recalculerSuivantes(ctx, [...supprimees].sort()[0]);
+    return { demandees: dates.length, supprimees, refusees };
+  },
+});
+
 export const purgerVerrousExpires = internalMutation({
   args: {},
   handler: async (ctx) => {
-    const rows = await ctx.db.query("journeesFinancieres").collect();
+    const minutes = (await lireReglages(ctx)).verrouFinancierMin;
     let n = 0;
-    for (const j of rows) {
-      if (j.verrouParId && !(await verrouActif(ctx, j))) { await ctx.db.patch(j._id, { verrouParId: undefined, verrouAt: undefined, verrouNom: undefined }); n++; }
+    for (const v of await ctx.db.query("verrousFinanciers").collect()) {
+      if (Date.now() - Date.parse(v.at) >= minutes * 60 * 1000) { await ctx.db.delete(v._id); n++; }
     }
-    if (n) await journaliser(ctx, { action: "verrous_purge", detail: `${n} verrou(s) expiré(s) purgé(s)` });
-    return { purges: n };
+    // Vestiges de l'époque où le verrou vivait sur la journée : on les efface au passage.
+    let vestiges = 0;
+    for (const j of await ctx.db.query("journeesFinancieres").collect()) {
+      if (j.verrouParId || j.verrouAt || j.verrouNom) {
+        await ctx.db.patch(j._id, { verrouParId: undefined, verrouAt: undefined, verrouNom: undefined });
+        vestiges++;
+      }
+    }
+    if (n || vestiges) await journaliser(ctx, { action: "verrous_purge", detail: `${n} verrou(s) expiré(s) purgé(s), ${vestiges} vestige(s) effacé(s)` });
+    return { purges: n, vestiges };
   },
 });
