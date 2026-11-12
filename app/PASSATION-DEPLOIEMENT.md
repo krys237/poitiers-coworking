@@ -375,15 +375,18 @@ motif la couvre.**
 
 ### En attente de réponses humaines
 
-*(état au 10/11 : aucune n'a bougé)*
+*(état au 12/11)*
 
 - **Lots R4 et R6** du chantier RH, bloqués sur quatre questions posées dans
-  `docs/rh/QUESTIONS-A-TRANCHER.md` — deux pour la RH, deux pour le comptable.
-- **Grand livre financier**, à poser à la DAF : un écart de **7 716** sur le solde MOMO du 15/10
-  (son total `3 123 941 + 426 600 = 3 542 825` est faux, la somme vaut `3 550 541` — reste à savoir
-  si l'erreur est dans le total ou dans l'un des deux chiffres, le second cas obligeant à rectifier
-  un J0) ; le **retrait Carte Visa de 67 400 du 17/10**, réel ou doublon d'écriture ; le **solde
-  réel de la carte au 14/10**, pour poser son ouverture.
+  `docs/rh/QUESTIONS-A-TRANCHER.md` — deux pour la RH, deux pour le comptable. Aucune n'a bougé.
+- **Grand livre, question ouverte le 12/11 et bloquante** : l'entrée **biodiagnostic de 3 700 000
+  du 29/10**. Les trois autres entrées biodiagnostic (97 600 le 16/10, 38 850 le 23/10, 57 000 le
+  30/10) figurent bien dans le F3 du relevé DAF ; celle-là, non. Elle décide du signe du solde :
+  incluse, le F3 du 12/11 passe de **−1 916 936 à +2 073 014**. Sont aussi demandés les chiffres
+  F3 du DAF pour **novembre**, la feuille s'arrêtant au 31/10.
+- **Grand livre, questions plus anciennes** : l'écart de **7 716** sur le solde MOMO du 15/10 (le
+  total `3 123 941 + 426 600 = 3 542 825` est faux, la somme vaut `3 550 541`) ; le **retrait Carte
+  Visa de 67 400 du 17/10**, réel ou doublon ; le **solde réel de la carte au 14/10**.
 
 ---
 
@@ -408,6 +411,18 @@ npx convex run --prod --inline-query 'await ctx.db.query("…").take(5)'   # LEC
 npx convex env list --names-only --deployment coworking-recette:prod
 npx convex run --deployment coworking-recette:prod --inline-query "$Q"   # depuis le worktree lié
 ```
+
+### Localiser un écart dans le grand livre, sans ressaisir
+
+Comparer **jour par jour** la clôture d'un solde avec le relevé papier, et regarder non pas
+l'écart mais **sa variation**. Un écart qui reste constant plusieurs jours puis saute désigne la
+journée exacte où un montant manque, et le saut en donne le montant. Le 12/11, trois décrochages
+ont été localisés en une passe sur le F3 — 97 600 au 16/10, 38 850 au 23/10, 57 000 au 30/10 — et
+se sont révélés être, au franc près, les entrées biodiagnostic de ces journées : une divergence de
+**modèle**, pas une saisie manquante. Aucune journée n'a eu à être reprise.
+
+Corollaire : avant de conclure qu'un chiffre manque, vérifier si un **bloc entier** n'est pas
+rangé du mauvais côté de la formule. C'est la deuxième fois — la première était la Carte Visa.
 
 `--inline-query` est **en lecture seule** : il ne peut rien modifier. Pour une correction de
 données, écrire une `internalMutation` qui **vérifie les valeurs attendues avant d'écrire** et rend
