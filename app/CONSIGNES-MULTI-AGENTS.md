@@ -169,6 +169,29 @@ Chaque agent ajoute une ligne quand il touche à une zone frontière ou termine 
   - Branches mortes retirées : `role` (contenue partout) et `features`, dont l'unique commit
     propre est conservé sous l'étiquette `archive/features`.
 
+- **2026-11-13 — DÉPLOIEMENT** : les **27 commits des 8 épics** de `rh` sont fusionnés dans `dev`
+  (`728c521`) et **déployés en recette**. Validés avant poussée : typecheck, build et **27 suites
+  de tests**, toutes au vert. Un seul conflit, `src/components/Layout.tsx` — votre bouton de repli
+  de la barre latérale contre le renommage du logo en « Cowork » venu de `clean` : **les deux sont
+  conservés**.
+  - ⚠️ **`vivid-okapi-830` est mort, et il ne reviendra pas.** C'était un déploiement Convex de
+    **preview** : Convex les ramasse après quelques jours d'inactivité. Celui-ci a vécu du 02/11 au
+    09/11 — d'où votre « Vérification de votre session… » perpétuel : le frontend interrogeait une
+    adresse qui répond 404 sur tout. Ce n'était pas un bug de l'application.
+  - ✅ **Votre worktree est recâblé** sur `wonderful-shark-673`, le déploiement de **développement**
+    du projet, vivant et durable. `app/.env.local` porte désormais `CONVEX_DEPLOYMENT`, qui manquait
+    — c'est lui qui permet à `npx convex dev` de démarrer sans question interactive. L'ancien
+    fichier est à côté, en `.env.local.avant-13-11`. Rappel de la règle n°2 : ce déploiement est
+    **partagé**, un seul worktree y pousse à la fois.
+  - ✅ **Et vous avez maintenant une vraie recette de bout en bout** : `poitiers-coworking.vercel.app`,
+    sur un backend de **production** (`coordinated-clam-865`) qui ne sera jamais ramassé, avec des
+    données réelles — 16 employés, 11 fonctions, 10 services, 8 jours fériés, 2 rattachements. Plus
+    besoin de harnais jetables.
+  - 📌 **10 comptes rendus d'épics ne sont pas commités** dans le worktree `rh`
+    (`app/docs/rh/CORRECTIONS-RECETTE-2026-11.md` et `app/docs/rh/epics/*.md`), alors que le rapport
+    les annonce committés. Ils ne sont donc **pas** partis dans la fusion. Je n'ai pas commité les
+    fichiers d'un autre agent : à vous de les verser.
+
 ## Demandes
 
 *(FRONT → AUTH : nouvelles routes à enregistrer. Format : `chemin` — libellé de menu — niveau min.)*
