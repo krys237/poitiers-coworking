@@ -129,12 +129,25 @@ type CelluleProps = {
   numerique?: boolean;
   /** Centre le contenu. */
   centre?: boolean;
+  /**
+   * Colonne figee horizontalement (`position: sticky; left: 0`) : sur un tableau
+   * large en lecture seule (DIPE et consorts), impossible de savoir a quelle
+   * ligne correspond une cellule une fois le defilement horizontal engage. A
+   * poser sur la premiere colonne identifiante (nom, matricule…) — TableHead ET
+   * TableCell de cette meme colonne. Le fond devient opaque et fixe (il ne suit
+   * plus les bandes alternees ni le survol de la ligne) : c'est le prix d'etre
+   * toujours visible, et la bordure/l'ombre le signalent comme une zone a part.
+   */
+  figee?: boolean;
 };
+
+const CLASSES_FIGEE = "sticky left-0 border-r-2 border-filet shadow-[4px_0_6px_-4px_rgba(15,23,42,0.25)] print:static print:shadow-none";
 
 function TableHead({
   className,
   numerique,
   centre,
+  figee,
   ...props
 }: React.ComponentProps<"th"> & CelluleProps) {
   return (
@@ -145,6 +158,7 @@ function TableHead({
         "h-auto px-2.5 py-2 align-bottom text-xs font-semibold leading-tight",
         "border-r border-white/15 last:border-r-0 print:border-filet",
         numerique ? "text-right tabular-nums" : centre ? "text-center" : "text-left",
+        figee && cn(CLASSES_FIGEE, "z-20 bg-sceau"),
         className
       )}
       {...props}
@@ -156,6 +170,7 @@ function TableCell({
   className,
   numerique,
   centre,
+  figee,
   ...props
 }: React.ComponentProps<"td"> & CelluleProps) {
   return (
@@ -164,6 +179,7 @@ function TableCell({
       className={cn(
         "px-2.5 py-1.5 align-middle",
         numerique ? "text-right tabular-nums" : centre ? "text-center" : "text-left",
+        figee && cn(CLASSES_FIGEE, "z-10 bg-surface"),
         className
       )}
       {...props}

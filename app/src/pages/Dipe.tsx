@@ -266,7 +266,7 @@ export function Dipe() {
                 <TableRow>
                   <TableHead>N°</TableHead>
                   <TableHead>Matricule</TableHead>
-                  <TableHead>Nom</TableHead>
+                  <TableHead figee>Nom</TableHead>
                   <TableHead className="text-right">Jours</TableHead>
                   {gains.map((g) => (
                     <TableHead key={g.code} className="text-right whitespace-nowrap">{g.libelle}</TableHead>
@@ -286,7 +286,7 @@ export function Dipe() {
                     <TableRow key={l.cle}>
                       <TableCell className="tabular-nums">{l.no}</TableCell>
                       <TableCell className="font-medium">{l.matricule}</TableCell>
-                      <TableCell className="whitespace-nowrap">{l.nom}</TableCell>
+                      <TableCell figee className="whitespace-nowrap">{l.nom}</TableCell>
                       <TableCell className="text-right tabular-nums">{l.joursTravailles}</TableCell>
                       {gains.map((g) => (
                         <TableCell key={g.code} className="text-right tabular-nums">
