@@ -253,7 +253,7 @@ export function Membres() {
 
       {/* Fiche membre : création (pré-provisionnement), modification, autorisation */}
       <Dialog open={fiche !== null} onOpenChange={(o) => { if (!o) setFiche(null); }}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl">
           {fiche && (
             <FormFiche
               fiche={fiche}
