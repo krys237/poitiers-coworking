@@ -423,6 +423,26 @@ export default defineSchema({
     details: v.optional(v.object({       // synthèse figée (format bulletin de référence)
       salaireJournalier: v.number(), salaireBase: v.number(), joursTravailles: v.number(),
       congesAcquis: v.number(), congesPris: v.number(), congesRestants: v.number(), indemniteConges: v.number(),
+      // Portés par `computeBulletin` (lib/paie.ts) depuis les lots R2/R4/R10 : absents de ce
+      // validateur, ils faisaient échouer TOUT `ctx.db.insert("bulletins", …)` à la clôture, puisque
+      // Convex rejette un objet qui porte un champ hors du validateur (épic 1 — cause réelle).
+      allocationLegale: v.optional(v.boolean()),
+      periodesConges: v.optional(v.array(v.object({ debut: v.string(), fin: v.string(), jours: v.number() }))),
+      ancienneteSeparee: v.optional(v.number()),
+      assiettes: v.optional(v.object({
+        brut: v.number(), brutIntermediaire: v.number(), avantagesEvalues: v.number(), avantagesRetenus: v.number(),
+        taxable: v.number(), cotisable: v.number(), cotisablePlafonne: v.number(), cotisableAtmp: v.number(), allocConge: v.number(),
+        detail: v.array(v.object({
+          code: v.string(), libelle: v.string(), montant: v.number(),
+          brut: v.boolean(), intermediaire: v.boolean(), cotisable: v.boolean(),
+        })),
+        // `calculerAssiettes` (lib/rubriques.ts) renvoie `Assiettes & { inconnues: string[] }` : les
+        // codes de rubrique saisis mais absents du catalogue, remontés pour l'écran d'audit. Le type
+        // `Assiettes` ne la promet pas (c'est un ajout de `calculerAssiettes`) : optionnelle ici pour
+        // rester assignable depuis `DetailsBulletin.assiettes?: Assiettes` sans downcast.
+        inconnues: v.optional(v.array(v.string())),
+      })),
+      exonereSalarial: v.optional(v.boolean()),
       primes: v.number(), heuresSup: v.number(), anciennete: v.number(),
       total1: v.number(), total2: v.number(), brutTaxable: v.number(), baseCnps: v.number(),
       mutuelle: v.number(), acompteImpotsCnps: v.number(), chargesSalariales: v.number(), chargesPatronales: v.number(),
