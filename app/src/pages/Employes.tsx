@@ -86,6 +86,9 @@ export function Employes() {
   // Une seule fiche dépliée à la fois : le tableau reste lisible.
   const [deplie, setDeplie] = React.useState<string | null>(null);
   const peutFaire = usePeut("/employes", "faire");
+  // Ligne entièrement cliquable (demande RH) : on retrouve le bouton « Fiche » de la ligne
+  // cliquée pour simuler son clic, plutôt que de dupliquer la logique d'ouverture du dialogue.
+  const fichesParId = React.useRef(new Map<string, HTMLSpanElement | null>());
 
   const ratsDe = React.useCallback(
     (id: string): RattachementVu[] => ((rattachements ?? {}) as Record<string, RattachementVu[]>)[id] ?? [],
@@ -257,7 +260,17 @@ export function Employes() {
               const ouvert = deplie === id;
               return (
               <React.Fragment key={id}>
-              <TableRow className={cn(!e.actif && "opacity-60")}>
+              <TableRow
+                className={cn(!e.actif && "opacity-60", "cursor-pointer")}
+                onClick={(ev) => {
+                  // La ligne ouvre la fiche complète, SAUF si le clic visait déjà une autre
+                  // interaction de la ligne (chevron des sociétés, édition de la date d'entrée,
+                  // compte de connexion…) : ces commandes gardent leur propre comportement.
+                  const cible = ev.target as HTMLElement;
+                  if (cible.closest("button, a, input, [role='combobox']")) return;
+                  fichesParId.current.get(id)?.querySelector("button")?.click();
+                }}
+              >
                 <TableCell className="pr-0">
                   <Button
                     variant="ghost" size="icon-sm"
@@ -320,12 +333,14 @@ export function Employes() {
                   </TableCell>
                 )}
                 <TableCell className="text-right">
-                  <FicheEmploye
-                    employe={fiche(e)}
-                    creer={creer as any}
-                    modifier={modifier as any}
-                    declencheur={<Button variant="ghost" size="icon-sm" aria-label={`Fiche — ${e.nom}`} title="Fiche complète (CNPS, NIU, adresse, e-mail, congés initiaux)"><UserRoundPenIcon /></Button>}
-                  />
+                  <span ref={(n) => { fichesParId.current.set(id, n); }}>
+                    <FicheEmploye
+                      employe={fiche(e)}
+                      creer={creer as any}
+                      modifier={modifier as any}
+                      declencheur={<Button variant="ghost" size="icon-sm" aria-label={`Fiche — ${e.nom}`} title="Fiche complète (CNPS, NIU, adresse, e-mail, congés initiaux)"><UserRoundPenIcon /></Button>}
+                    />
+                  </span>
                 </TableCell>
               </TableRow>
               {ouvert && (
