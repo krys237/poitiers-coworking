@@ -1,5 +1,6 @@
 // Tests de la sécurité et de la forme de l'API d'export : `npm run test:api`.
 import { comparaisonConstante, dateValide, parseEntites, reponseApi, ENTITES } from "../convex/lib/apiSecurite.ts";
+import { BLOCS } from "../convex/lib/tresorerie.ts";
 
 let echecs = 0;
 const check = (nom: string, cond: boolean, d?: unknown) => { if (cond) console.log(`  ok  ${nom}`); else { console.error(`  KO  ${nom}`, d ?? ""); echecs++; } };
@@ -9,8 +10,12 @@ check("comparaison : différent même longueur", !comparaisonConstante("abc123",
 check("comparaison : longueurs différentes", !comparaisonConstante("abc", "abc1"));
 check("comparaison : vide vs non vide", !comparaisonConstante("", "x") && comparaisonConstante("", ""));
 check("dateValide", dateValide("2026-09-07") && !dateValide("2026-13-01") && !dateValide("2026-02-30") && !dateValide("hier"));
-check("8 entités", ENTITES.length === 8 && ENTITES.includes("poitiers"));
-const p1 = parseEntites(null); check("entités absentes = toutes", p1.ok && p1.entites.length === 8);
+// Dérivé de BLOCS, et non figé à un nombre : l'API doit exposer CHAQUE caisse, y compris celles
+// ajoutées plus tard — sinon une entité devient silencieusement inexportable.
+check("une entité par caisse", ENTITES.length === BLOCS.length && ENTITES.includes("poitiers"), { api: ENTITES.length, blocs: BLOCS.length });
+check("les deux biodiagnostics sont exportables séparément",
+  ENTITES.includes("biodiagnostic") && ENTITES.includes("biodiagnostic_advens"), ENTITES);
+const p1 = parseEntites(null); check("entités absentes = toutes", p1.ok && p1.entites.length === BLOCS.length);
 const p2 = parseEntites("poitiers,LILAS"); check("entités : liste, casse ignorée", p2.ok && p2.entites.join() === "poitiers,lilas", p2);
 const p3 = parseEntites("poitiers,foo"); check("entité inconnue → erreur", !p3.ok && /foo/.test((p3 as any).erreur));
 

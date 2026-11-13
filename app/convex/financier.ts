@@ -357,6 +357,31 @@ export const supprimerJourneesBlanches = internalMutation({
   },
 });
 
+// Rejoue TOUTE la chaîne des journées avec la formule courante. À lancer après un changement du
+// modèle de soldes (`lib/tresorerie.ts`), sans quoi chaque journée recalculerait avec la nouvelle
+// formule sur une ouverture héritée de l'ancienne — une chaîne bâtarde, et des chiffres que
+// personne ne peut rapprocher d'un relevé. Ne touche à aucun mouvement : elle ne fait que
+// recalculer ouvertures, soldes et recette, et rend le détail de ce qui a bougé.
+export const recalculerToutesLesJournees = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const journees = await ctx.db.query("journeesFinancieres").withIndex("by_date").collect();
+    const changements: { date: string; avant: number; apres: number }[] = [];
+    let precedent: Soldes | null = null;
+    for (const j of journees) {
+      const ouverture = j.soldesOuvertureManuels ? j.soldesOuverture : (precedent ?? {});
+      const soldes = calculerSoldes(ouverture, j.mouvements);
+      const recette = recetteTotale(j.mouvements);
+      const avant = Math.round(j.soldes?.poitiers_f3 ?? 0);
+      const apres = Math.round(soldes.poitiers_f3 ?? 0);
+      if (avant !== apres) changements.push({ date: j.date, avant, apres });
+      await ctx.db.patch(j._id, { soldesOuverture: ouverture, soldes, recetteTotale: recette });
+      precedent = soldes;
+    }
+    return { journees: journees.length, f3Modifies: changements.length, changements };
+  },
+});
+
 export const purgerVerrousExpires = internalMutation({
   args: {},
   handler: async (ctx) => {

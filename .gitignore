@@ -26,3 +26,6 @@ api-doc.html
 
 .vercel
 .env*
+
+# Archives du grand livre (données comptables réelles)
+archives/
