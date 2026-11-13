@@ -8,9 +8,9 @@
  * C'est le pattern « grille » du système de conception (§7) : on saisit dans la cellule, au clavier.
  * Tab suit la ligne (une caisse), ↑ ↓ changent de caisse sans quitter la colonne, Ctrl+S enregistre.
  *
- * Les croisements qui n'existent pas sont hachurés. Toute ligne de `BLOCS` qui n'entre pas dans la
- * matrice (« Autres prestations », et toute ligne ajoutée plus tard) est rendue dessous : aucun flux
- * ne peut devenir invisible.
+ * Les croisements qui n'existent pas sont hachurés. « Autres prestations » occupe sa propre ligne,
+ * au gabarit particulier (13/11/2026). Toute autre ligne de `BLOCS` qui n'entrerait pas dans la
+ * matrice est rendue dessous : aucun flux ne peut devenir invisible.
  */
 import * as React from "react";
 import { Paperclip, Plus, Save } from "lucide-react";
@@ -101,14 +101,28 @@ const COLONNES: { cle: string; libelle: string; retrait?: boolean; alias?: Recor
   { cle: "retrait", libelle: "Retrait", retrait: true },
   { cle: "retrait_om", libelle: "Retrait OM", retrait: true },
   { cle: "retrait_momo", libelle: "Retrait MOMO", retrait: true },
+  // Dernière colonne, et elle doit le rester : la ligne « Autres prestations » étale ses propres
+  // champs sur toutes les colonnes qui précèdent, et ne garde alignée que celle-ci.
+  { cle: "autres", libelle: "Autres" },
 ];
 
 const ligneDe = (bloc: Bloc, col: (typeof COLONNES)[number]): Ligne | undefined =>
   bloc.lignes.find((l) => l.cle === (col.alias?.[bloc.cle] ?? col.cle));
 
+/**
+ * « Autres prestations » est une ligne de la matrice depuis le 13/11/2026, mais au gabarit
+ * particulier : elle n'a ni espèces ni retrait, seulement ses prestations (TDM, Invest,
+ * Quantiferon, TEPSCAN) — plus la colonne « Autres », commune à toutes les lignes. Elle occupe
+ * donc une ligne pleine, alignée sur la grille, plutôt qu'une bande séparée sous le tableau.
+ */
+const BLOC_PRESTATIONS = BLOCS.find((b) => b.cle === "autres")!;
+const EST_PRESTATION = (l: Ligne) => l.cle !== "autres";
+
 /** Caisses qui entrent dans la matrice, et tout ce qui n'y entre pas (rendu à part, jamais masqué). */
-const BLOCS_MATRICE = BLOCS.filter((b) => COLONNES.some((c) => ligneDe(b, c)));
-const HORS_MATRICE = BLOCS.flatMap((b) =>
+const BLOCS_MATRICE = BLOCS.filter((b) => b.cle !== BLOC_PRESTATIONS.cle && COLONNES.some((c) => ligneDe(b, c)));
+/** Rangs navigables au clavier : les caisses, puis la ligne des prestations. */
+const RANGS = [...BLOCS_MATRICE, BLOC_PRESTATIONS];
+const HORS_MATRICE = BLOCS.filter((b) => b.cle !== BLOC_PRESTATIONS.cle).flatMap((b) =>
   b.lignes.filter((l) => !COLONNES.some((c) => (c.alias?.[b.cle] ?? c.cle) === l.cle)).map((l) => ({ bloc: b, ligne: l })),
 );
 
@@ -144,7 +158,7 @@ export function MatriceSaisie({
     const rang = Number(e.currentTarget.dataset.rang);
     if (!col || Number.isNaN(rang)) return;
     const pas = e.key === "ArrowDown" ? 1 : -1;
-    for (let r = rang + pas; r >= 0 && r < BLOCS_MATRICE.length; r += pas) {
+    for (let r = rang + pas; r >= 0 && r < RANGS.length; r += pas) {
       const cible = grille.current?.querySelector<HTMLInputElement>(`input[data-col="${col}"][data-rang="${r}"]`);
       if (cible) { e.preventDefault(); cible.focus(); cible.select(); return; }
     }
@@ -152,7 +166,7 @@ export function MatriceSaisie({
 
   const valeur = (bloc: string, ligne: string) => draft[bloc]?.[ligne] ?? 0;
   const totalColonne = (col: (typeof COLONNES)[number]) =>
-    BLOCS_MATRICE.reduce((t, b) => { const l = ligneDe(b, col); return t + (l ? valeur(b.cle, l.cle) : 0); }, 0);
+    RANGS.reduce((t, b) => { const l = ligneDe(b, col); return t + (l ? valeur(b.cle, l.cle) : 0); }, 0);
   const netCaisse = (b: Bloc) =>
     b.lignes.reduce((t, l) => t + valeur(b.cle, l.cle) * (l.sens === "retrait" ? -1 : 1), 0);
   const piecesCaisse = (b: Bloc) => b.lignes.filter((l) => pieces[CLE_PIECE(b.cle, l.cle)]).length;
@@ -220,6 +234,55 @@ export function MatriceSaisie({
                 </tr>
               );
             })}
+            {/* « Autres prestations » : ligne pleine, ses propres champs étalés sur la grille,
+                et la colonne « Autres » alignée au bout comme pour les caisses. */}
+            <tr className="group">
+              <td className="sticky left-0 z-10 border-b border-slate-100 bg-surface px-3 py-1 font-semibold group-hover:bg-papier/60">
+                {BLOC_PRESTATIONS.libelle}
+              </td>
+              <td colSpan={COLONNES.length - 1} className="border-b border-slate-100 px-2 py-1">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                  {BLOC_PRESTATIONS.lignes.filter(EST_PRESTATION).map((l) => {
+                    const cle = CLE_PIECE(BLOC_PRESTATIONS.cle, l.cle);
+                    const piece = pieces[cle];
+                    return (
+                      <div key={l.cle} className="flex items-center gap-1.5">
+                        <span className="whitespace-nowrap text-2xs font-semibold uppercase tracking-wide text-encre-douce">{l.libelle}</span>
+                        <ChampMontant
+                          valeur={valeur(BLOC_PRESTATIONS.cle, l.cle)}
+                          retrait={l.sens === "retrait"}
+                          libelle={`${BLOC_PRESTATIONS.libelle} — ${l.libelle}`}
+                          largeur="w-28"
+                          onChange={(v) => setMontant(BLOC_PRESTATIONS.cle, l.cle, v)}
+                        />
+                        {piece ? (
+                          <Button asChild size="icon-sm" variant="outline" className="border-emerald-300 text-emerald-700 hover:bg-emerald-50" title={`Justificatif — ${l.libelle}`}>
+                            <a href={piece} target="_blank" rel="noreferrer"><Paperclip className="h-3.5 w-3.5" /></a>
+                          </Button>
+                        ) : (
+                          <Button type="button" size="icon-sm" variant="ghost" className="text-encre-pale hover:text-ocean-profond" title={`Joindre un justificatif — ${l.libelle}`} onClick={() => onJustificatif(cle)}>
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </td>
+              <CaseMatrice
+                bloc={BLOC_PRESTATIONS}
+                col={COLONNES[COLONNES.length - 1]}
+                rang={BLOCS_MATRICE.length}
+                valeur={valeur}
+                onChange={setMontant}
+                onKeyDown={navigation}
+              />
+              <td className="border-b border-slate-100 bg-ocean-brume/40 px-2 py-1 text-right font-mono text-xs font-bold tabular-nums">
+                {netCaisse(BLOC_PRESTATIONS) ? num(netCaisse(BLOC_PRESTATIONS)) : <span className="text-encre-pale">—</span>}
+              </td>
+              <td className="border-b border-slate-100 px-2 py-1" />
+            </tr>
+
             {/* Justificatifs de la caisse dépliée : joindre reste possible sans quitter la matrice. */}
             {BLOCS_MATRICE.filter((b) => b.cle === pieceOuverte).map((b) => (
               <tr key={`${b.cle}-pieces`}>
@@ -265,7 +328,7 @@ export function MatriceSaisie({
       {HORS_MATRICE.length > 0 && (
         <section className="border-t border-filet">
           <div className="bg-papier/40 px-3.5 py-2 text-2xs font-bold uppercase tracking-wide text-encre-pale">
-            Autres prestations
+            Flux hors matrice
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
             {HORS_MATRICE.map(({ bloc, ligne }) => {
