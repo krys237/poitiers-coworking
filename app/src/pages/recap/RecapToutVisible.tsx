@@ -109,7 +109,7 @@ function CellulePopover({
           {sousTitre && <span className="text-[10px] leading-none text-encre-pale">{sousTitre}</span>}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-72 p-3">
+      <PopoverContent align="end" className="w-72 max-h-[70vh] overflow-y-auto p-3">
         <div className="mb-2">
           <div className="text-sm font-semibold">{libelle}</div>
           <div className="text-xs text-encre-douce">{b.nom}</div>
@@ -215,7 +215,18 @@ export function RecapToutVisible({
             <colgroup>
               {COLONNES.map((w, i) => <col key={i} className={w} />)}
             </colgroup>
-            <thead className="sticky top-0 z-10 bg-sceau text-primary-foreground">
+            {/*
+              z-20, pas z-10 : `<thead>` est lui-même `position: sticky`, donc il forme SA PROPRE
+              pile d'empilement — le z-20 du <th> "Noms et prénoms" ne compte que FACE À SES
+              FRÈRES DANS CE thead, jamais face aux lignes du corps. Vu de l'extérieur, tout le
+              thead ne vaut que SON PROPRE z-index. À z-10 des deux côtés, le thead et la cellule
+              figée de la première colonne du corps (elle aussi `sticky left-0 z-10`) étaient à
+              égalité — départagée par l'ordre du DOM, où <tbody> vient après <thead> : pendant le
+              défilement, la ligne qui passait sous l'en-tête le recouvrait au lieu de disparaître
+              dessous. Constaté dans le navigateur (cellule du corps masquée ⇒ "Noms et prénoms"
+              réapparaît dessous), pas seulement déduit de la lecture.
+            */}
+            <thead className="sticky top-0 z-20 bg-sceau text-primary-foreground">
               <tr>
                 <th className={cn(TH, "sticky left-0 z-20 bg-sceau text-left")}>Noms et prénoms</th>
                 <th className={TH}>Sal. journalier</th>
