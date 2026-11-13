@@ -6,6 +6,7 @@ import {
   OBSERVATIONS,
   OBSERVATION_CONSOMME,
   PALETTE_SERVICES,
+  compteAllocation,
   couleurServiceParDefaut,
   detecterChevauchements,
   doublonsEmploye,
@@ -14,6 +15,7 @@ import {
   observationDeduite,
   segmentFrise,
   type CongePose,
+  type Observation,
 } from "../convex/lib/planningAnnuel.ts";
 import { feriesParDefaut } from "../convex/lib/joursFeriesCameroun.ts";
 import { indexFeries } from "../convex/lib/congesOuvrables.ts";
@@ -212,6 +214,32 @@ check(
   "toutes les valeurs ont un libellé et une règle de consommation",
   OBSERVATIONS.every(([c]) => LIBELLE_OBSERVATION[c] && typeof OBSERVATION_CONSOMME[c] === "boolean"),
 );
+
+titre("Le congé porteur de l'allocation — distinct du quota de jours consommés");
+// Le défaut corrigé : réutiliser OBSERVATION_CONSOMME pour choisir le congé qui affiche
+// l'allocation excluait à tort un congé posé pour le futur ("planifie" ne consomme pas encore),
+// alors que son montant d'allocation est pourtant bien calculé.
+check("un congé planifié (départ futur) compte pour porter l'allocation",
+  compteAllocation("planifie") === true);
+check("un congé en cours compte", compteAllocation("en_cours") === true);
+check("un congé pris compte", compteAllocation("pris") === true);
+check("un congé non pris compte", compteAllocation("non_pris") === true);
+check("un congé soldé au départ compte", compteAllocation("solde_au_depart") === true);
+check("un congé à la retraite compte", compteAllocation("retraite") === true);
+check("un congé annulé n'en porte aucune", compteAllocation("annule") === false);
+check("un congé reporté n'a plus de date de départ valide pour cette année : exclu",
+  compteAllocation("reporte") === false);
+check("compteAllocation et OBSERVATION_CONSOMME diffèrent bien sur « planifie »",
+  compteAllocation("planifie") !== OBSERVATION_CONSOMME.planifie);
+// Simule la sélection du "premier départ" telle que `planning.ts` la fait désormais.
+const evenementsAnnee: { dateDebut: string; observation: Observation }[] = [
+  { dateDebut: "2026-12-07", observation: "planifie" },
+];
+const premierDepart = evenementsAnnee
+  .filter((ev) => compteAllocation(ev.observation))
+  .sort((a, b) => a.dateDebut.localeCompare(b.dateDebut))[0];
+check("un congé payé posé pour le futur est bien retenu comme porteur de l'allocation",
+  premierDepart?.dateDebut === "2026-12-07", premierDepart);
 
 titre("Observation déduite des dates");
 const c = { depart: "2026-03-10", dernierJour: "2026-03-31" };
