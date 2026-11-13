@@ -1,8 +1,8 @@
 // Générateur d'actes RH : `npm run test:actes`
 import {
   LIBELLE_FAMILLE, MARGE_HAUTE_ENTETE, MODELES_DEFAUT,
-  champsManquants, construireReference, jetonsDuCorps, prochaineSequence,
-  rendreActe, validerModele,
+  champsManquants, construireReference, jetonsDuCorps, nettoyerPourPdf, paragraphesActe,
+  prochaineSequence, rendreActe, validerModele,
 } from "../convex/lib/actes.ts";
 
 let echecs = 0;
@@ -208,6 +208,27 @@ check("c'est le seul acte dont le signataire par défaut n'est pas la RH",
 titre("Mise en page");
 check("la marge haute dégage le bandeau à en-tête mesuré (125 pt ≈ 44 mm)",
   MARGE_HAUTE_ENTETE === 125);
+
+titre("Découpage du corps en paragraphes pour le PDF — nettoyer APRÈS avoir découpé");
+// Le défaut qu'avait le PDF des actes : nettoyer le corps ENTIER avant de le découper sur `\n`
+// transformait chaque retour à la ligne en « ? » (hors Latin-1), et il ne restait plus rien à
+// séparer — tout le texte devenait un seul paragraphe.
+const corpsMultiParagraphes = "ATTESTATION DE SALAIRE\n\nPremier paragraphe — avec un tiret long.\nSecond paragraphe, sans rien de spécial.";
+const paras = paragraphesActe(corpsMultiParagraphes);
+check("le corps à plusieurs paragraphes produit bien plusieurs blocs distincts",
+  paras.length === 4, paras);
+check("aucun paragraphe non vide ne contient un « ? » à la place d'une coupure",
+  paras.every((p) => !p.texte.includes("?") || p.texte.trim() === ""), paras);
+check("le premier paragraphe est bien détecté comme titre (capitales courtes)",
+  paras[0].estTitre === true, paras[0]);
+check("la ligne vide entre deux paragraphes est préservée (espacement)",
+  paras[1].texte.trim() === "");
+check("un paragraphe de corps normal n'est pas pris pour un titre",
+  paras[2].estTitre === false, paras[2]);
+check("le nettoyage Latin-1 s'applique bien à chaque paragraphe (tiret long → tiret simple)",
+  paras[2].texte.includes("paragraphe - avec"), paras[2]);
+check("nettoyerPourPdf seul transforme toujours un retour à la ligne en « ? »",
+  nettoyerPourPdf("a\nb") === "a?b");
 
 titre("Sources de pré-remplissage");
 check("tous les champs déclarent une source",

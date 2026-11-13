@@ -94,6 +94,15 @@ export function FicheEmploye({
   const [open, setOpen] = React.useState(false);
   const [f, setF] = React.useState<Champs>(() => depuis(employe));
 
+  // Matricule suggéré (lot 6) : le prochain numéro disponible, pré-rempli mais modifiable — une
+  // saisie déjà commencée par la RH ne doit jamais être écrasée par la suggestion qui arrive après.
+  const suggestionMatricule = useQuery(api.employes.prochainMatricule, creation && open ? {} : "skip");
+  React.useEffect(() => {
+    if (creation && open && suggestionMatricule) {
+      setF((cur) => (cur.matricule ? cur : { ...cur, matricule: suggestionMatricule }));
+    }
+  }, [creation, open, suggestionMatricule]);
+
   // Durée du contrat : AVERTIT, ne bloque pas (N2). La RH peut avoir une raison que nous ne
   // connaissons pas, et un formulaire qui refuse d'enregistrer la réalité pousse à la contourner.
   const dureeContrat = f.dateDebut && f.dateFin
@@ -170,7 +179,9 @@ export function FicheEmploye({
           <div className="mt-4 grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 sm:grid-cols-3">
             {creation ? (
               <>
-                {texte("matricule", "Matricule", "E009", true)}
+                <Champ libelle="Matricule" requis aide={suggestionMatricule ? "Proposé automatiquement : prochain numéro disponible, modifiable" : undefined}>
+                  {(a) => <Input {...a} required placeholder="E009" value={f.matricule} onChange={(e) => setF({ ...f, matricule: e.target.value })} />}
+                </Champ>
                 <div className="min-[480px]:col-span-2">{texte("nom", "Noms et prénoms", "TARGNE Jean Beau", true)}</div>
               </>
             ) : null}

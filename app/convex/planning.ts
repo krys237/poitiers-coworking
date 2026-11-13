@@ -16,7 +16,7 @@ import {
   controlerAbsence, joursServiceEffectif, remunererAbsence,
 } from "./lib/absencesLegales";
 import {
-  COULEUR_NEUTRE, LIBELLE_OBSERVATION, OBSERVATION_CONSOMME, detecterChevauchements,
+  COULEUR_NEUTRE, LIBELLE_OBSERVATION, OBSERVATION_CONSOMME, compteAllocation, detecterChevauchements,
   doublonsEmploye, graduationsMois, joursDeLAnnee, observationDeduite, segmentFrise,
   type CongePose, type Observation,
 } from "./lib/planningAnnuel";
@@ -318,12 +318,16 @@ export const vueAnnuelle = query({
       // Allocation de congé au 1/16 (lot R4), pour le PREMIER départ de l'année : c'est celui
       // qui porte l'allocation, les suivants relevant d'une autre période de référence.
       //
+      // `compteAllocation` (pas `OBSERVATION_CONSOMME`, qui sert au quota de jours déjà
+      // consommés) : un congé posé pour le futur n'a encore rien consommé, mais porte bien son
+      // allocation — seuls un congé annulé ou reporté n'en portent aucune pour cette année.
+      //
       // L'assiette est `salaire de base + ancienneté` (A-VERIFIER A3). L'ancienneté n'est pas
       // connue ici — elle vit dans la saisie mensuelle, qui dépend de la société — donc seule la
       // part « salaire de base » est servie, et l'écran l'annonce comme une ESTIMATION. Le
       // montant qui fait foi est celui du bulletin.
       const premierDepart = evenements
-        .filter((ev) => OBSERVATION_CONSOMME[ev.observation])
+        .filter((ev) => compteAllocation(ev.observation))
         .sort((a, b) => a.dateDebut.localeCompare(b.dateDebut))[0];
       const alloc = premierDepart
         ? allocationConge({

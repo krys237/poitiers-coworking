@@ -42,7 +42,7 @@ import { Montant } from "@/components/app/montant";
 import { CelluleNombre } from "@/components/app/champs";
 import { SqueletteTableau } from "@/components/app/chargement";
 import { BoutonPersistance, useSaisiePersistante } from "@/components/app/saisie-persistante";
-import { SelecteurLignes, useLignesVisibles } from "@/components/app/lignes-visibles";
+import { Pagination, usePagination } from "@/components/app/pagination";
 import { FicheEmploye, SOCIETES, type EmployeFiche, type Societe } from "@/components/app/fiche-employe";
 import {
   BadgePluriEmploi, PanneauRattachements, ResumeSocietes,
@@ -76,7 +76,6 @@ export function Employes() {
   const fichierRef = React.useRef<HTMLInputElement>(null);
 
   const [persistant, setPersistant] = useSaisiePersistante("employes", true);
-  const lignesVisibles = useLignesVisibles("employes", 15);
   const [societe, setSociete] = React.useState<Societe | "toutes">("toutes");
   const [etat, setEtat] = React.useState<"actifs" | "inactifs" | "tous">("actifs");
   const [recherche, setRecherche] = React.useState("");
@@ -86,6 +85,9 @@ export function Employes() {
   // Une seule fiche dépliée à la fois : le tableau reste lisible.
   const [deplie, setDeplie] = React.useState<string | null>(null);
   const peutFaire = usePeut("/employes", "faire");
+  // Ligne entièrement cliquable (demande RH) : on retrouve le bouton « Fiche » de la ligne
+  // cliquée pour simuler son clic, plutôt que de dupliquer la logique d'ouverture du dialogue.
+  const fichesParId = React.useRef(new Map<string, HTMLSpanElement | null>());
 
   const ratsDe = React.useCallback(
     (id: string): RattachementVu[] => ((rattachements ?? {}) as Record<string, RattachementVu[]>)[id] ?? [],
@@ -113,6 +115,7 @@ export function Employes() {
     .filter((e) => !q || sansAccents(`${e.nom} ${e.matricule} ${e.fonction ?? ""} ${e.cnps ?? ""}`).includes(q))
     .filter((e) => immat === "tous" || statutDocument(e.immatriculeImpots).etat === immat)
     .sort((a, b) => a.nom.localeCompare(b.nom));
+  const pagination = usePagination(liste, "employes", 25);
   const repartition = repartitionImmatriculation(actifs);
   const sansDate = actifs.filter((e) => !e.dateDebut).length;
   const sansCnps = actifs.filter((e) => !e.cnps).length;
@@ -201,7 +204,6 @@ export function Employes() {
           </SelectContent>
         </Select>
         <span className="flex-1" />
-        <SelecteurLignes valeur={lignesVisibles.lignes} onChange={lignesVisibles.setLignes} />
         <div className="relative w-56">
           <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-encre-pale" aria-hidden="true" />
           <Input type="search" value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Nom, matricule, fonction, CNPS…" aria-label="Rechercher un employé" className="h-8 pl-8" />
@@ -224,7 +226,7 @@ export function Employes() {
       {employes === undefined ? (
         <SqueletteTableau colonnes={9} lignes={8} />
       ) : (
-        <Table classNameConteneur="rounded-xl" hauteurMax={lignesVisibles.hauteurMax(49, 40, 0)}>
+        <Table classNameConteneur="rounded-xl">
           <TableHeader>
             <TableRow>
               <TableHead className="w-8" aria-label="Déplier les sociétés" />
@@ -251,13 +253,23 @@ export function Employes() {
                 }}
               />
             )}
-            {liste.map((e) => {
+            {pagination.visibles.map((e) => {
               const id = String(e._id);
               const rats = ratsDe(id);
               const ouvert = deplie === id;
               return (
               <React.Fragment key={id}>
-              <TableRow className={cn(!e.actif && "opacity-60")}>
+              <TableRow
+                className={cn(!e.actif && "opacity-60", "cursor-pointer")}
+                onClick={(ev) => {
+                  // La ligne ouvre la fiche complète, SAUF si le clic visait déjà une autre
+                  // interaction de la ligne (chevron des sociétés, édition de la date d'entrée,
+                  // compte de connexion…) : ces commandes gardent leur propre comportement.
+                  const cible = ev.target as HTMLElement;
+                  if (cible.closest("button, a, input, [role='combobox']")) return;
+                  fichesParId.current.get(id)?.querySelector("button")?.click();
+                }}
+              >
                 <TableCell className="pr-0">
                   <Button
                     variant="ghost" size="icon-sm"
@@ -320,12 +332,14 @@ export function Employes() {
                   </TableCell>
                 )}
                 <TableCell className="text-right">
-                  <FicheEmploye
-                    employe={fiche(e)}
-                    creer={creer as any}
-                    modifier={modifier as any}
-                    declencheur={<Button variant="ghost" size="icon-sm" aria-label={`Fiche — ${e.nom}`} title="Fiche complète (CNPS, NIU, adresse, e-mail, congés initiaux)"><UserRoundPenIcon /></Button>}
-                  />
+                  <span ref={(n) => { fichesParId.current.set(id, n); }}>
+                    <FicheEmploye
+                      employe={fiche(e)}
+                      creer={creer as any}
+                      modifier={modifier as any}
+                      declencheur={<Button variant="ghost" size="icon-sm" aria-label={`Fiche — ${e.nom}`} title="Fiche complète (CNPS, NIU, adresse, e-mail, congés initiaux)"><UserRoundPenIcon /></Button>}
+                    />
+                  </span>
                 </TableCell>
               </TableRow>
               {ouvert && (
@@ -350,6 +364,13 @@ export function Employes() {
             )}
           </TableBody>
         </Table>
+      )}
+      {employes !== undefined && (
+        <Pagination
+          page={pagination.page} nbPages={pagination.nbPages} onPage={pagination.setPage}
+          total={pagination.total} debut={pagination.debut} nbVisibles={pagination.visibles.length}
+          taille={pagination.taille} onTaille={pagination.setTaille}
+        />
       )}
     </div>
   );

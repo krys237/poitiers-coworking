@@ -37,6 +37,18 @@ import {
 
 type Onglet = "generer" | "historique";
 
+// Les champs de type "date" sont stockés comme les autres — un texte au format français
+// (JJ/MM/AAAA), celui qui sort sur l'acte imprimé — mais saisis via un sélecteur natif, qui ne
+// connaît que l'ISO (AAAA-MM-JJ). D'où l'aller-retour, local à cet écran.
+const frVersIso = (fr: string) => {
+  const m = fr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
+};
+const isoVersFr = (iso: string) => {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
+};
+
 export function Actes() {
   const [onglet, setOnglet] = React.useState<Onglet>("generer");
   const [code, setCode] = React.useState<string>("");
@@ -272,6 +284,16 @@ export function Actes() {
                           rows={2}
                           aria-label={c.libelle}
                           onChange={(e) => setSaisies((s) => ({ ...s, [c.nom]: e.target.value }))}
+                        />
+                      ) : c.type === "date" ? (
+                        // Sélecteur natif plutôt qu'un texte libre « en toutes lettres » (retour
+                        // RH) — le même composant que la fiche employé et le planning.
+                        <Input
+                          type="date"
+                          value={frVersIso(valeur)}
+                          aria-label={c.libelle}
+                          className={vide ? "border-ocre" : undefined}
+                          onChange={(e) => setSaisies((s) => ({ ...s, [c.nom]: isoVersFr(e.target.value) }))}
                         />
                       ) : (
                         <Input

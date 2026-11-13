@@ -259,6 +259,18 @@ export const OBSERVATION_CONSOMME: Record<Observation, boolean> = {
 };
 
 /**
+ * Les observations qui désignent le congé PORTEUR DE L'ALLOCATION de l'année — distinct de
+ * `OBSERVATION_CONSOMME`, qui décide des jours déjà consommés dans le quota.
+ *
+ * Un congé « planifie » (départ futur) n'a encore rien consommé, mais son allocation est bien
+ * calculée en arrière-plan et doit s'afficher : réutiliser `OBSERVATION_CONSOMME` ici l'excluait à
+ * tort. Seuls « annule » (n'a jamais eu lieu) et « reporte » (n'a plus de date de départ valide
+ * pour cette année) sont écartés.
+ */
+export const compteAllocation = (observation: Observation) =>
+  observation !== "annule" && observation !== "reporte";
+
+/**
  * Observation déduite des dates, quand la RH n'en a pas forcé une.
  * `aujourdHui` est passé explicitement : la logique reste pure et testable.
  */

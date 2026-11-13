@@ -21,6 +21,18 @@ export function decalerPeriode(periode: string, mois: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+/** Toutes les periodes « AAAA-MM » entre `debut` et `fin`, bornes incluses (ordre croissant, meme si `debut` et `fin` sont inverses). */
+export function periodesEntre(debut: string, fin: string): string[] {
+  const [a1, m1] = debut.split("-").map(Number);
+  const [a2, m2] = fin.split("-").map(Number);
+  let n1 = a1 * 12 + (m1 - 1);
+  let n2 = a2 * 12 + (m2 - 1);
+  if (n1 > n2) [n1, n2] = [n2, n1];
+  const out: string[] = [];
+  for (let n = n1; n <= n2; n++) out.push(`${Math.floor(n / 12)}-${String((n % 12) + 1).padStart(2, "0")}`);
+  return out;
+}
+
 /**
  * Selecteur de periode de paie.
  *
@@ -125,6 +137,78 @@ export function SelecteurPeriode({
           Mois courant
         </Button>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Selecteur d'un INTERVALLE de periodes (« Du » mois-annee « a » mois-annee), pour les exports qui
+ * couvrent plusieurs mois (bulletins d'un employe, liste des salaires). Pas de fleches ni de retour
+ * au mois courant ici : contrairement a `SelecteurPeriode`, ce n'est pas le filtre pilote en continu,
+ * seulement le choix ponctuel d'une plage avant de lancer l'export.
+ */
+export function SelecteurIntervallePeriode({
+  debut,
+  fin,
+  onChange,
+  desactive,
+  anneeMin = 2023,
+  anneeMax = new Date().getFullYear() + 1,
+}: {
+  debut: string;
+  fin: string;
+  onChange: (debut: string, fin: string) => void;
+  desactive?: boolean;
+  anneeMin?: number;
+  anneeMax?: number;
+}) {
+  const annees = Array.from(
+    { length: anneeMax - anneeMin + 1 },
+    (_, i) => anneeMin + i
+  );
+
+  const champ = (valeur: string, onValeur: (p: string) => void, etiquette: string) => {
+    const [a, m] = valeur.split("-");
+    return (
+      <div className="inline-flex items-center gap-1">
+        <Select value={m} disabled={desactive} onValueChange={(mm) => onValeur(`${a}-${mm}`)}>
+          <SelectTrigger size="sm" className="w-[7.5rem]" aria-label={`Mois (${etiquette})`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {MOIS.map((nom, i) => (
+              <SelectItem key={nom} value={String(i + 1).padStart(2, "0")}>
+                {nom}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={a} disabled={desactive} onValueChange={(aa) => onValeur(`${aa}-${m}`)}>
+          <SelectTrigger size="sm" className="w-[5.5rem]" aria-label={`Annee (${etiquette})`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {annees.map((an) => (
+              <SelectItem key={an} value={String(an)}>
+                {an}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  };
+
+  return (
+    <div
+      role="group"
+      aria-label="Intervalle de periodes"
+      className="inline-flex flex-wrap items-center gap-2 print:hidden"
+    >
+      <span className="text-xs font-semibold text-encre-douce">Du</span>
+      {champ(debut, (d) => onChange(d, fin), "debut")}
+      <span className="text-xs font-semibold text-encre-douce">a</span>
+      {champ(fin, (f) => onChange(debut, f), "fin")}
     </div>
   );
 }

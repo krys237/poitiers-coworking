@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Flag, FlagVariant } from "@/components/ui/flag";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SelecteurLignes, useLignesVisibles } from "@/components/app/lignes-visibles";
+import { useDefilerVersDetail } from "@/components/app/defilement-detail";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -102,6 +103,7 @@ function CommandesContenu() {
   const fournisseurs = useQuery(api.fournisseurs.liste, {});
 
   const [sel, setSel] = useState<string | null>(null);
+  const refDetail = useDefilerVersDetail<HTMLTableRowElement>(sel);
   const detail = useQuery(api.commandes.detail, sel ? { commandeId: sel as any } : "skip");
   // Récupération des antécédents d'achats en BD (Option 1 : verrouillage automatique / Option 3 : saisie libre si base vide)
   const antecedentsCreation = useQuery(api.commandes.derniersAchats, { type });
@@ -675,8 +677,11 @@ function CommandesContenu() {
       {/* 3. Sélecteur de type de commande & Barre de recherche */}
       <div className="rounded-2xl border border-filet bg-surface p-3 shadow-xs space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          {/* Onglets de type de commande : design unifié, sobre et élégant */}
-          <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-slate-100/90 border border-filet self-start shadow-2xs">
+          {/* Onglets de type de commande : design unifié, sobre et élégant.
+              `max-w-full overflow-x-auto` : sur mobile, les trois onglets (Médicaments,
+              Fournitures, Réactifs Labo) dépassaient la largeur de l'écran sans défilement
+              propre, ce qui poussait toute la page en défilement horizontal. */}
+          <div className="inline-flex max-w-full items-center gap-1 overflow-x-auto p-1 rounded-xl bg-slate-100/90 border border-filet self-start shadow-2xs">
             <button
               type="button"
               onClick={() => {
@@ -1190,7 +1195,11 @@ function CommandesContenu() {
               </div>
 
               {/* Barre d'actions d'enregistrement */}
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-filet">
+              {/* `flex-col sm:flex-row` : les boutons ne se compressaient ni ne passaient à la
+                  ligne (flex, min-width auto par défaut) — sur mobile, « Valider et soumettre
+                  le bon de commande » poussait « Annuler » hors du cadre, rogné par le
+                  `overflow-hidden` de la Card parente et donc inatteignable. */}
+              <div className="flex flex-col-reverse gap-2 pt-2 border-t border-filet sm:flex-row sm:items-center sm:justify-end">
                 <Button
                   type="button"
                   variant="outline"
@@ -1339,8 +1348,14 @@ function CommandesContenu() {
 
                       {/* Fiche détaillée dépliable directement sous la ligne sélectionnée */}
                       {estSelectionne && (
-                        <tr className="border-b border-filet bg-papier">
-                          <td colSpan={8} className="p-2 sm:p-4">
+                        <tr ref={refDetail} className="border-b border-filet bg-papier">
+                          {/* `w-px min-w-full` : sans ça, la largeur NATURELLE de la fiche dépliée
+                              (elle contient elle-même un tableau, le registre d'articles) remontait
+                              à la cellule, donc à la TABLE entière — le tableau de liste s'élargissait
+                              bien au-delà de l'écran sur mobile, et les boutons de la fiche (ex.
+                              « Enregistrer & Soumettre ») se retrouvaient centrés hors-cadre, invisibles
+                              sans aucun défilement pour les atteindre. */}
+                          <td colSpan={8} className="w-px min-w-full p-2 sm:p-4">
                             {!detail || String(detail._id) !== id ? (
                               <div className="flex items-center justify-center p-8 text-xs text-slate-500 gap-2 bg-white rounded-xl border border-filet">
                                 <Clock className="h-4 w-4 animate-spin text-ocean-profond" />
@@ -1557,7 +1572,10 @@ function CommandesContenu() {
                                         />
                                       </div>
 
-                                      <div className="flex items-center justify-end gap-2 pt-2 border-t border-amber-200">
+                                      {/* Même défaut que la barre d'actions de création (voir plus haut) :
+                                          trois boutons en ligne, aucun ne se compressait ni ne passait à la
+                                          ligne — les deux premiers sortaient du cadre sur mobile. */}
+                                      <div className="flex flex-col-reverse gap-2 pt-2 border-t border-amber-200 sm:flex-row sm:items-center sm:justify-end">
                                         <Button
                                           type="button"
                                           size="sm"

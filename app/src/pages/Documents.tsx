@@ -1186,7 +1186,7 @@ export function Documents() {
 
       {/* Aperçu en lecture seule : PDF et images dans un cadre, texte brut, sinon invitation à télécharger. */}
       <Dialog open={!!apercu} onOpenChange={(o) => { if (!o) setApercu(null); }}>
-        <DialogContent className="max-h-[92vh] sm:max-w-5xl">
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-5xl">
           {apercu && (
             <>
               <DialogHeader>

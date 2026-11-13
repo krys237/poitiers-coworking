@@ -22,6 +22,42 @@ export const MARGE_HAUTE_ENTETE = 125; // pt — mesuré sur le papier à en-tê
 export const MARGE_BASSE = 70;
 export const MARGE_LATERALE = 60;
 
+/**
+ * Sanitise un texte pour les polices PDF standard, qui n'encodent que le Latin-1. Ses modèles
+ * Word sont pleins de tirets longs, de points de suspension, de guillemets français et de l'espace
+ * fine insécable des montants : sans ce nettoyage, pdf-lib lève sur le premier caractère non
+ * encodable.
+ */
+export const nettoyerPourPdf = (s: string) =>
+  (s ?? "")
+    .normalize("NFC")
+    .replace(/[–—]/g, "-")
+    .replace(/…/g, "...")
+    .replace(/[   ]/g, " ")
+    .replace(/[«»]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/[^\x20-\x7E\xA0-\xFF]/g, "?");
+
+export interface ParagrapheActe {
+  texte: string;
+  /** Ligne courte et entièrement en capitales : c'est ainsi que ses modèles Word écrivent un titre. */
+  estTitre: boolean;
+}
+
+/**
+ * Découpe le corps BRUT d'un acte en paragraphes sur ses retours à la ligne, puis nettoie chaque
+ * paragraphe individuellement — jamais le texte entier avant découpe : `nettoyerPourPdf` remplace
+ * tout caractère hors Latin-1 par `"?"`, et le `\n` en fait partie. Nettoyer avant de découper
+ * transforme donc chaque retour à la ligne en `"?"` littéral, et il ne reste plus rien à séparer.
+ */
+export function paragraphesActe(corpsBrut: string): ParagrapheActe[] {
+  return corpsBrut.split("\n").map((brut) => {
+    const texte = nettoyerPourPdf(brut);
+    const estTitre = texte.length < 70 && texte === texte.toUpperCase() && /[A-Z]{4}/.test(texte);
+    return { texte, estTitre };
+  });
+}
+
 export type TypeChamp = "texte" | "date" | "nombre" | "montant" | "zone";
 
 /** D'où vient la valeur proposée, quand elle peut l'être. */

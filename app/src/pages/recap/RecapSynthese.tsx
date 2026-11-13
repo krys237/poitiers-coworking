@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ChampNombre } from "@/components/app/champs";
 import { SqueletteTableau } from "@/components/app/chargement";
+import { useDefilerVersDetail } from "@/components/app/defilement-detail";
 import { Montant } from "@/components/app/montant";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, TableVide } from "@/components/ui/table";
 import {
@@ -180,6 +181,7 @@ export function RecapSynthese({
   const bulletins = filtre.visibles;
   const [selection, setSelection] = React.useState<string | null>(null);
   React.useEffect(() => setSelection(null), [periode]);
+  const refDetail = useDefilerVersDetail<HTMLDivElement>(selection);
   const t = totaux(bulletins);
   // La fiche reste ouverte même si la recherche masque la ligne sélectionnée.
   const choisi = recap.bulletins.find((b) => b.cle === selection) ?? null;
@@ -265,7 +267,9 @@ export function RecapSynthese({
         </div>
 
         {choisi ? (
-          <FicheSaisie b={choisi} brouillon={brouillon} bareme={bareme} periode={periode} cloture={cloture} onFermer={() => setSelection(null)} recap={recap} />
+          <div ref={refDetail} className="w-full lg:w-[27.5rem] lg:shrink-0">
+            <FicheSaisie b={choisi} brouillon={brouillon} bareme={bareme} periode={periode} cloture={cloture} onFermer={() => setSelection(null)} recap={recap} />
+          </div>
         ) : (
           <aside className="hidden w-[27.5rem] shrink-0 items-center justify-center rounded-xl border border-dashed border-filet bg-surface/60 p-6 text-center text-sm text-encre-douce lg:flex">
             Sélectionnez un employé pour ouvrir sa fiche de saisie du mois.

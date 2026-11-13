@@ -136,9 +136,10 @@ export function rattachementsEffectifs(
     .map((l): Rattachement => ({
       rattachementId: l._id,
       societe: l.societe,
-      // Un rattachement sans montant retombe sur la fiche : la RH peut déclarer l'appartenance
-      // d'abord et chiffrer ensuite, sans produire un bulletin à zéro entre-temps.
-      salaireBase: l.salaireBase ?? (l.societe === fiche.societe ? salaireDeBase(fiche) : 0),
+      // Un rattachement sans montant retombe sur le salaire de base de la fiche, quelle que soit
+      // la société portée par la ligne : la RH peut déclarer l'appartenance à une société
+      // secondaire d'abord et chiffrer ensuite, sans produire un bulletin à zéro entre-temps.
+      salaireBase: l.salaireBase ?? salaireDeBase(fiche),
       joursBase: l.joursBase ?? fiche.joursBase ?? JOURS_BASE_DEFAUT,
       matriculeEmployeur: l.matriculeEmployeur ?? (l.societe === fiche.societe ? fiche.matricule : undefined),
       cnpsEmployeur: l.cnpsEmployeur ?? (l.societe === fiche.societe ? fiche.cnps : undefined),

@@ -383,6 +383,40 @@ export const pdfBulletins = action({
   },
 });
 
+// PDF des bulletins d'UN employé sur PLUSIEURS mois (demande RH : télécharger d'un coup les 6
+// derniers mois d'un salarié) — même mécanisme que `pdfBulletins`, axe de boucle inversé : l'employé
+// est fixé, la période devient une liste. Les périodes sans bulletin pour ce salarié (pas encore
+// embauché, société différente ce mois-là…) sont silencieusement ignorées plutôt que de faire
+// échouer tout le téléchargement.
+export const pdfBulletinsEmploye = action({
+  args: { employeId: v.id("employes"), periodes: v.array(v.string()) },
+  handler: async (ctx, { employeId, periodes }): Promise<{ pdf: ArrayBuffer; nomFichier: string; bulletins: number }> => {
+    if (!periodes.length) throw new Error("Choisissez au moins une période.");
+    const lots: { periode: string; lot: any }[] = [];
+    for (const periode of periodes) {
+      const l: any[] = await ctx.runQuery(internal.courrier.payloads, { periode, employeIds: [employeId] });
+      if (l.length) lots.push({ periode, lot: l[0] });
+    }
+    if (!lots.length) throw new Error("Aucun bulletin pour ce salarié sur ces périodes.");
+    const pdfs = await Promise.all(lots.map(({ periode, lot }) => buildPdf({ bulletin: lot.bulletin, periode, entreprise: lot.entreprise })));
+    let octets: Uint8Array;
+    if (pdfs.length === 1) octets = pdfs[0];
+    else {
+      const doc = await PDFDocument.create();
+      for (const un of pdfs) {
+        const src = await PDFDocument.load(un);
+        for (const page of await doc.copyPages(src, src.getPageIndices())) doc.addPage(page);
+      }
+      doc.setTitle(clean(`Bulletins - ${lots[0].lot.nom}`));
+      octets = await doc.save();
+    }
+    const entreprise = lots[0].lot.entreprise?.nom ?? "PAIE";
+    const periodeLabel = lots.length > 1 ? `${libellePeriode(lots[0].periode)} a ${libellePeriode(lots[lots.length - 1].periode)}` : libellePeriode(lots[0].periode);
+    const nom = `${nomFichierPdf(entreprise, lots[0].lot.nom, periodeLabel)}.pdf`;
+    return { pdf: octets.buffer.slice(octets.byteOffset, octets.byteOffset + octets.byteLength) as ArrayBuffer, nomFichier: nom, bulletins: lots.length };
+  },
+});
+
 // « Mes bulletins » : le PDF de SON bulletin d'un mois clôturé (contrôle dans mesBulletins.pourPdf).
 export const pdfMonBulletin = action({
   args: { periode: v.string(), societe: v.optional(v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"))) },

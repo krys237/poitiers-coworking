@@ -99,7 +99,7 @@ function CellulePopover({
           className={cn(
             "group/pop flex w-full flex-col items-end rounded-sm px-1.5 py-0.5 text-right",
             "hover:bg-surface hover:ring-1 hover:ring-filet focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30",
-            brouillon.modifie(id) && "bg-ocre-clair/40"
+            brouillon.modifieChamp(id, champs) && "bg-ocre-clair/40"
           )}
         >
           <span className="inline-flex items-center gap-1 border-b border-dashed border-sky-300 font-mono text-[11.5px] tabular-nums">
@@ -109,7 +109,7 @@ function CellulePopover({
           {sousTitre && <span className="text-[10px] leading-none text-encre-pale">{sousTitre}</span>}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-72 p-3">
+      <PopoverContent align="end" className="w-72 max-h-[70vh] overflow-y-auto p-3">
         <div className="mb-2">
           <div className="text-sm font-semibold">{libelle}</div>
           <div className="text-xs text-encre-douce">{b.nom}</div>
@@ -183,9 +183,15 @@ export function RecapToutVisible({
         valeur={brouillon.val(id, c)}
         onChange={(v) => brouillon.set(id, c, v)}
         onCommit={() => brouillon.flush(id)}
-        modifie={brouillon.modifie(id)}
+        modifie={brouillon.modifieChamp(id, c)}
         lectureSeule={ro}
         decimales={decimales}
+        // Mut. % est la colonne la plus étroite (46 px) : le `min-w-[3.25rem]` (52 px) par défaut
+        // de CelluleInline dépassait du <td>, jusque dans la colonne Mutuelle voisine — les deux
+        // chiffres se touchaient, sans espace visible entre le pourcentage saisi et le montant
+        // calculé juste à côté. Constaté par mesure réelle des rects dans le navigateur (l'entrée
+        // débordait de ~12 px sur la cellule suivante), pas seulement à l'œil.
+        className={c === "mutuellePct" ? "min-w-[1.75rem]" : undefined}
       />
     );
   };
@@ -209,7 +215,18 @@ export function RecapToutVisible({
             <colgroup>
               {COLONNES.map((w, i) => <col key={i} className={w} />)}
             </colgroup>
-            <thead className="sticky top-0 z-10 bg-sceau text-primary-foreground">
+            {/*
+              z-20, pas z-10 : `<thead>` est lui-même `position: sticky`, donc il forme SA PROPRE
+              pile d'empilement — le z-20 du <th> "Noms et prénoms" ne compte que FACE À SES
+              FRÈRES DANS CE thead, jamais face aux lignes du corps. Vu de l'extérieur, tout le
+              thead ne vaut que SON PROPRE z-index. À z-10 des deux côtés, le thead et la cellule
+              figée de la première colonne du corps (elle aussi `sticky left-0 z-10`) étaient à
+              égalité — départagée par l'ordre du DOM, où <tbody> vient après <thead> : pendant le
+              défilement, la ligne qui passait sous l'en-tête le recouvrait au lieu de disparaître
+              dessous. Constaté dans le navigateur (cellule du corps masquée ⇒ "Noms et prénoms"
+              réapparaît dessous), pas seulement déduit de la lecture.
+            */}
+            <thead className="sticky top-0 z-20 bg-sceau text-primary-foreground">
               <tr>
                 <th className={cn(TH, "sticky left-0 z-20 bg-sceau text-left")}>Noms et prénoms</th>
                 <th className={TH}>Sal. journalier</th>

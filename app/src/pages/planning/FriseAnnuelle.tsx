@@ -19,6 +19,7 @@ import { api } from "../../../convex/_generated/api";
 import { LIBELLE_OBSERVATION, OBSERVATIONS } from "../../../convex/lib/planningAnnuel";
 import { cn } from "@/lib/utils";
 import { GrilleTuiles, Tuile } from "@/components/app/tuile";
+import { ChampAutocomplete } from "@/components/app/champ-autocomplete";
 import { Montant } from "@/components/app/montant";
 import { JoursFeries } from "./JoursFeries";
 import { BoutonAction } from "@/components/app/bouton-action";
@@ -553,6 +554,7 @@ export function FriseAnnuelle() {
         persistant={persistant}
         saisie={edition}
         annee={annee}
+        employes={vue?.lignes}
         onFermer={() => setEdition(null)}
         onEnregistrer={enregistrer}
       />
@@ -566,18 +568,27 @@ function FormulaireConge({
   saisie,
   annee,
   persistant,
+  employes,
   onFermer,
   onEnregistrer,
 }: {
   saisie: Saisie | null;
   persistant?: boolean;
   annee: number;
+  employes?: { employeId: unknown; nom: string; matricule: string }[];
   onFermer: () => void;
   onEnregistrer: ReturnType<typeof useMutation>;
 }) {
   const [v, setV] = React.useState<Saisie | null>(saisie);
   React.useEffect(() => setV(saisie), [saisie]);
   if (!v) return null;
+
+  // Un remplaçant est presque toujours un employé existant, mais le champ reste du texte libre
+  // (`ev.remplacant`, ligne « CONTINUITE » possible) : suggestions SANS contraindre (`strict`
+  // faux), pour ne pas bloquer un remplaçant qui ne serait pas encore dans la base.
+  const optionsRemplacant = (employes ?? [])
+    .filter((e) => String(e.employeId) !== v.employeId)
+    .map((e) => ({ valeur: String(e.employeId), libelle: e.nom, note: e.matricule }));
 
   const champ = <K extends keyof Saisie>(k: K, x: Saisie[K]) => setV({ ...v, [k]: x });
   const surcharge = v.congeSuppManuel.trim() !== "";
@@ -621,10 +632,12 @@ function FormulaireConge({
           </label>
           <label className="grid gap-1 text-xs">
             Remplaçant
-            <Input
-              value={v.remplacantTexte}
-              onChange={(e) => champ("remplacantTexte", e.target.value)}
+            <ChampAutocomplete
+              valeur={v.remplacantTexte}
+              ariaLabel="Remplaçant"
               placeholder="Nom, ou CONTINUITE"
+              options={optionsRemplacant}
+              onChange={(x) => champ("remplacantTexte", x)}
             />
           </label>
           <label className="grid gap-1 text-xs sm:col-span-2">
