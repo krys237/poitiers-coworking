@@ -14,13 +14,13 @@
 import * as React from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { ArchiveIcon, FileCheck2Icon, PrinterIcon, SearchIcon, TableIcon, XIcon } from "lucide-react";
+import { ArchiveIcon, CalendarRangeIcon, FileCheck2Icon, PrinterIcon, SearchIcon, TableIcon, XIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { fcfa, libellePeriode, num, periodeCourante } from "@/lib/format";
 import { PageEnTete } from "@/components/app/en-tete";
 import { GrilleTuiles, Tuile } from "@/components/app/tuile";
 import { StatutMois } from "@/components/app/statut";
-import { SelecteurPeriode } from "@/components/app/selecteur-periode";
+import { SelecteurPeriode, SelecteurIntervallePeriode, decalerPeriode, periodesEntre } from "@/components/app/selecteur-periode";
 import { BoutonConfirmation } from "@/components/app/bouton-action";
 import { BoutonImprimer, useImpression } from "@/components/app/imprimer";
 import { BoutonPdf } from "@/components/app/bouton-pdf";
@@ -47,10 +47,14 @@ export function Bulletins() {
   const entreprise = useQuery(api.parametres.get);
   const generer = useMutation(api.payroll.genererEtCloturer);
   const pdfBulletins = useAction(api.paiePdf.pdfBulletins);
+  const pdfBulletinsEmploye = useAction(api.paiePdf.pdfBulletinsEmploye);
   const peutCloturer = usePeut("/paie/bulletins", "faire");
   const lignesVisibles = useLignesVisibles("bulletins", 15);
   const [q, setQ] = React.useState("");
   const [ouvert, setOuvert] = React.useState<string | null>(filtre);
+  // Téléchargement groupé des bulletins d'UN salarié sur plusieurs mois (demande RH, cf. épic 8) :
+  // l'intervalle n'est affiché que lorsque la RH l'ouvre, pour ne pas alourdir le volet par défaut.
+  const [intervalle, setIntervalle] = React.useState<{ debut: string; fin: string } | null>(null);
   const imprimer = useImpression();
   // « Imprimer seul » : on limite d'abord l'impression au salarié (adresse), puis on imprime une fois le filtre appliqué.
   const [imprimerSeul, setImprimerSeul] = React.useState<string | null>(null);
@@ -202,10 +206,29 @@ export function Bulletins() {
                     ? <Button variant="outline" size="sm" onClick={() => filtrer(null)} title="Revenir à l'impression de tous les bulletins"><XIcon /> Tous à l'impression</Button>
                     : <Button variant="outline" size="sm" onClick={() => { filtrer(selection.matricule); setImprimerSeul(selection.matricule); }} title="Imprimer uniquement ce bulletin"><PrinterIcon /> Imprimer seul</Button>}
                   <BoutonPdf titre="Télécharger le PDF de ce bulletin" generer={() => pdfBulletins({ periode, employeId: selection.employeId })}>PDF</BoutonPdf>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    title="Télécharger les bulletins de ce salarié sur plusieurs mois"
+                    onClick={() => setIntervalle(intervalle ? null : { debut: decalerPeriode(periode, -5), fin: periode })}
+                  >
+                    <CalendarRangeIcon /> Plusieurs mois
+                  </Button>
                   {paie.cloture && <Button variant="outline" size="sm" asChild><Link to="/paie/archives"><ArchiveIcon /> Archives</Link></Button>}
                 </div>
               )}
             </div>
+            {selection && intervalle && (
+              <div className="flex flex-wrap items-center gap-2 border-b border-filet bg-bande/40 px-4 py-2.5">
+                <SelecteurIntervallePeriode debut={intervalle.debut} fin={intervalle.fin} onChange={(debut, fin) => setIntervalle({ debut, fin })} />
+                <BoutonPdf
+                  titre="Un seul PDF avec les bulletins de ce salarié sur l'intervalle choisi"
+                  generer={() => pdfBulletinsEmploye({ employeId: selection.employeId, periodes: periodesEntre(intervalle.debut, intervalle.fin) })}
+                >
+                  Télécharger ({periodesEntre(intervalle.debut, intervalle.fin).length} mois)
+                </BoutonPdf>
+              </div>
+            )}
             <div className="bg-papier p-3">
               {selection ? <ApercuFeuille><BulletinCard b={selection} entreprise={entreprise} page="page 1/1" /></ApercuFeuille> : null}
             </div>
