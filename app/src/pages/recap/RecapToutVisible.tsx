@@ -99,7 +99,7 @@ function CellulePopover({
           className={cn(
             "group/pop flex w-full flex-col items-end rounded-sm px-1.5 py-0.5 text-right",
             "hover:bg-surface hover:ring-1 hover:ring-filet focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30",
-            brouillon.modifie(id) && "bg-ocre-clair/40"
+            brouillon.modifieChamp(id, champs) && "bg-ocre-clair/40"
           )}
         >
           <span className="inline-flex items-center gap-1 border-b border-dashed border-sky-300 font-mono text-[11.5px] tabular-nums">
@@ -183,9 +183,15 @@ export function RecapToutVisible({
         valeur={brouillon.val(id, c)}
         onChange={(v) => brouillon.set(id, c, v)}
         onCommit={() => brouillon.flush(id)}
-        modifie={brouillon.modifie(id)}
+        modifie={brouillon.modifieChamp(id, c)}
         lectureSeule={ro}
         decimales={decimales}
+        // Mut. % est la colonne la plus étroite (46 px) : le `min-w-[3.25rem]` (52 px) par défaut
+        // de CelluleInline dépassait du <td>, jusque dans la colonne Mutuelle voisine — les deux
+        // chiffres se touchaient, sans espace visible entre le pourcentage saisi et le montant
+        // calculé juste à côté. Constaté par mesure réelle des rects dans le navigateur (l'entrée
+        // débordait de ~12 px sur la cellule suivante), pas seulement à l'œil.
+        className={c === "mutuellePct" ? "min-w-[1.75rem]" : undefined}
       />
     );
   };

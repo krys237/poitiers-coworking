@@ -241,9 +241,27 @@ export function useBrouillon(recap: RecapPaie, periode: string) {
 
   const flush = React.useCallback((id: string) => void enregistrer(id), [enregistrer]);
   const modifie = React.useCallback((id: string) => !!brouillon[id], [brouillon]);
+  /**
+   * `modifie(id)` répond pour TOUTE la ligne (une seule saisie en attente suffit pour la lever) —
+   * correct pour le badge « Modifié… » de la ligne, mais trompeur si on l'utilise pour surligner
+   * une cellule précise : saisir Mutuelle % surlignait alors Sanctions, Dettes de soins, Acompte…
+   * toute la ligne, en ocre, comme si elles avaient toutes une saisie en attente — la RH a vu une
+   * valeur juste tapée ailleurs « apparaître » dans Sanctions, qui n'a jamais changé. `champs`
+   * accepte aussi un tableau pour les cellules composées (ex. le popover Primes fixes / congé, qui
+   * recouvre 14 rubriques à la fois) : surligné si AU MOINS une d'elles a une saisie en attente.
+   */
+  const modifieChamp = React.useCallback(
+    (id: string, champs: Champ | Champ[]) => {
+      const b = brouillon[id];
+      if (!b) return false;
+      const liste = Array.isArray(champs) ? champs : [champs];
+      return liste.some((c) => b[c] !== undefined);
+    },
+    [brouillon]
+  );
   const etat = React.useCallback((id: string): EtatLigne | undefined => etats[id], [etats]);
 
-  return { val, valeurs, set, flush, enregistrer, modifie, etat, cloture };
+  return { val, valeurs, set, flush, enregistrer, modifie, modifieChamp, etat, cloture };
 }
 
 export type Brouillon = ReturnType<typeof useBrouillon>;
