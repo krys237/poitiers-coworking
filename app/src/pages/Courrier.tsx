@@ -69,6 +69,33 @@ export function Courrier() {
   const [envoiEnCours, setEnvoiEnCours] = React.useState(false);
   // Canal d'envoi : e-mail (Resend), WhatsApp (UltraMsg) ou les deux — chacun réel ou simulé (courrier.mode).
   const [canal, setCanal] = React.useState<"email" | "whatsapp" | "les_deux">("email");
+  // Pré-remplissage de la méthode d'envoi (lot R10, demande du 22/10/2026). La fiche employé
+  // porte une préférence (`auto` | `email` | `whatsapp`) : si TOUTES les lignes du mois forcent
+  // la même voie, on la pré-sélectionne. Le sélecteur reste modifiable — c'était la condition.
+  //
+  // Depuis le 06/11/2026, l'envoi accepte aussi un routage LIGNE À LIGNE (`routageParFiche`) :
+  // chacun part par la voie de sa fiche, en un seul envoi. C'était la limite consignée de R10.
+  const prefsForcees = React.useMemo(() => {
+    const p = new Set(
+      (apercu?.lignes ?? [])
+        .map((l: any) => l.bulletin?.methodeEnvoi ?? "auto")
+        .filter((x: string) => x !== "auto"),
+    );
+    return [...p] as ("email" | "whatsapp")[];
+  }, [apercu?.lignes]);
+  const [canalTouche, setCanalTouche] = React.useState(false);
+  React.useEffect(() => {
+    if (canalTouche || prefsForcees.length !== 1) return;
+    setCanal(prefsForcees[0]);
+  }, [prefsForcees, canalTouche]);
+  const setCanalEtMarquer = (v: typeof canal) => { setCanalTouche(true); setCanal(v); };
+
+  // Le routage par fiche ne s'offre que s'il change quelque chose : il faut DEUX préférences
+  // forcées différentes dans la sélection. Avec une seule, le sélecteur global suffit déjà — et
+  // proposer une option sans effet ferait douter de celle qui en a un.
+  const [routageParFiche, setRoutageParFiche] = React.useState(false);
+  const routageUtile = prefsForcees.length > 1;
+  React.useEffect(() => { if (!routageUtile) setRoutageParFiche(false); }, [routageUtile]);
   const canaux = canal === "les_deux" ? (["email", "whatsapp"] as const) : ([canal] as const);
   const parEmail = canal !== "whatsapp", parWhatsapp = canal !== "email";
   const reelCanal = (parEmail ? !!mode?.reel : true) && (parWhatsapp ? !!mode?.whatsapp.reel : true);
@@ -76,7 +103,9 @@ export function Courrier() {
   const lignes = (apercu?.lignes ?? []) as any[];
   const entreprise = apercu?.entreprise;
   // Par défaut tout le monde est destinataire quand la période change.
-  React.useEffect(() => { if (apercu) setSelection(new Set(lignes.map((l) => String(l.bulletin.employeId)))); }, [periode, apercu?.lignes.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  // La sélection porte sur le COUPLE (employé, société) : un pluri-employé a un courrier par
+  // employeur, et on doit pouvoir n'en cocher qu'un.
+  React.useEffect(() => { if (apercu) setSelection(new Set(lignes.map((l) => String(l.bulletin.cle)))); }, [periode, apercu?.lignes.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const q = sansAccents(recherche.trim());
   const visibles = lignes.filter((l) => {
@@ -84,28 +113,28 @@ export function Courrier() {
     const ok = filtre === "tous" || (filtre === "sans_email" ? !b.email : filtre === "non_envoyes" ? !(d && d.statut === "envoye") : d?.statut === "echec");
     return ok && (!q || sansAccents(`${b.nom} ${b.email ?? ""} ${b.societe}`).includes(q));
   });
-  const selectionnees = lignes.filter((l) => selection.has(String(l.bulletin.employeId)));
+  const selectionnees = lignes.filter((l) => selection.has(String(l.bulletin.cle)));
   const sansEmail = lignes.filter((l) => !l.bulletin.email);
   const sansEmailSel = selectionnees.filter((l) => !l.bulletin.email).length;
   const sansWhatsappSel = selectionnees.filter((l) => !l.bulletin.whatsapp).length;
   const envoyes = lignes.filter((l) => l.dernierEnvoi?.statut === "envoye").length;
   const echecs = lignes.filter((l) => l.dernierEnvoi?.statut === "echec").length;
-  const toutesVisiblesCochees = visibles.length > 0 && visibles.every((l) => selection.has(String(l.bulletin.employeId)));
+  const toutesVisiblesCochees = visibles.length > 0 && visibles.every((l) => selection.has(String(l.bulletin.cle)));
 
   const toggle = (id: string) => setSelection((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const cocherVisibles = (on: boolean) => setSelection((s) => { const n = new Set(s); for (const l of visibles) { const id = String(l.bulletin.employeId); if (on) n.add(id); else n.delete(id); } return n; });
+  const cocherVisibles = (on: boolean) => setSelection((s) => { const n = new Set(s); for (const l of visibles) { const id = String(l.bulletin.cle); if (on) n.add(id); else n.delete(id); } return n; });
 
   const lancerEnvoi = async () => {
     setEnvoiEnCours(true);
     try {
-      const r = await envoyer({ periode, employeIds: selectionnees.map((l) => l.bulletin.employeId), canaux: [...canaux] });
+      const r = await envoyer({ periode, cles: selectionnees.map((l) => String(l.bulletin.cle)), canaux: [...canaux], routageParFiche });
       // Une simulation ne doit jamais passer pour un envoi : on le dit en toutes lettres.
       const simulation = r.simules ? ` — ${r.simules} simulé(s) : RIEN n'est parti pour ceux-là (clé absente du déploiement ou interrupteur fermé)` : "";
       return `${r.envoyes} réellement envoyé(s), ${r.echecs} échec(s) sur ${r.total}${simulation} · PDF : ${Math.round(r.pdfOctets / 1024)} Ko`;
     } finally { setEnvoiEnCours(false); }
   };
 
-  const ligneApercu = lignes.find((l) => String(l.bulletin.employeId) === apercuDe) ?? null;
+  const ligneApercu = lignes.find((l) => String(l.bulletin.cle) === apercuDe) ?? null;
 
   return (
     <div className="space-y-4">
@@ -129,7 +158,7 @@ export function Courrier() {
         }
         actions={
           <>
-            <Select value={canal} onValueChange={(v) => setCanal(v as typeof canal)}>
+            <Select value={canal} onValueChange={(v) => setCanalEtMarquer(v as typeof canal)}>
               <SelectTrigger size="sm" className="w-40" aria-label="Canal d'envoi"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="email">Par e-mail</SelectItem>
@@ -137,6 +166,22 @@ export function Courrier() {
                 <SelectItem value="les_deux">E-mail et WhatsApp</SelectItem>
               </SelectContent>
             </Select>
+            {/* N'apparaît que si la sélection mêle DEUX préférences forcées : sinon le sélecteur
+                ci-dessus suffit, et une option sans effet ferait douter de celle qui en a un. */}
+            {routageUtile ? (
+              <label
+                className="flex cursor-pointer items-center gap-1.5 rounded-md border border-filet bg-papier px-2.5 py-1.5 text-xs"
+                title="Chaque bulletin part par la voie forcée sur sa fiche. Les fiches en « auto » suivent le canal choisi."
+              >
+                <input
+                  type="checkbox"
+                  checked={routageParFiche}
+                  onChange={(e) => setRoutageParFiche(e.target.checked)}
+                  className="accent-ocean-profond"
+                />
+                Chacun par sa voie
+              </label>
+            ) : null}
             <BoutonImprimer entreprise={entreprise?.nom ?? "POITIERS COWORKING"} document="Courrier de paie" periode={libellePeriode(periode)} desactive={!selectionnees.length}>
               Imprimer {selectionnees.length ? `(${selectionnees.length})` : ""}
             </BoutonImprimer>
@@ -222,7 +267,7 @@ export function Courrier() {
                 </TableHeader>
                 <TableBody>
                   {visibles.map((l) => {
-                    const b = l.bulletin, id = String(b.employeId), d = l.dernierEnvoi;
+                    const b = l.bulletin, id = String(b.cle), d = l.dernierEnvoi;
                     return (
                       <TableRow key={id}>
                         <TableCell><Checkbox checked={selection.has(id)} onCheckedChange={() => toggle(id)} aria-label={`Sélectionner ${b.nom}`} /></TableCell>
@@ -333,7 +378,7 @@ export function Courrier() {
       {/* Impression : lettre + bulletin par destinataire sélectionné */}
       <div className="hidden print:block">
         {selectionnees.map((l) => (
-          <React.Fragment key={String(l.bulletin.employeId)}>
+          <React.Fragment key={String(l.bulletin.cle)}>
             <Lettre entreprise={entreprise} periode={periode} texte={l.lettre} />
             <BulletinCard b={l.bulletin} entreprise={entreprise} />
           </React.Fragment>

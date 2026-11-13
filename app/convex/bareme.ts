@@ -3,7 +3,10 @@ import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { requireDroit } from "./lib/authz";
 import { journaliser } from "./lib/journal";
-import { BAREME_DEFAUT } from "./lib/paie";
+import { BAREME_DEFAUT, validerTranches } from "./lib/paie";
+import { vueRH as vueRHPure } from "./lib/vueRH";
+import { baremeFromDoc, baremePourPeriode } from "./lib/calculBulletins";
+import { rubriquesPourPeriode } from "./rubriques";
 
 // "YYYY-MM" -> "YYYY-MM-01"
 const debutMois = (periode: string) => `${periode}-01`;
@@ -31,6 +34,17 @@ const valeursV = v.object({
   tauxCfcSal: v.number(), tauxCfcPat: v.number(), tauxFne: v.number(), abattementIrppPct: v.number(), tauxCac: v.number(),
   irppBrackets: v.array(v.object({ jusqua: v.union(v.number(), v.null()), taux: v.number() })),
   abattementIrppAnnuel: v.optional(v.number()), tdlActif: v.optional(v.boolean()), ravActif: v.optional(v.boolean()),
+  // Corrections du lot R2 : absentes = comportement d'avant la correction.
+  transportTaxable: v.optional(v.boolean()), atmpPlafonne: v.optional(v.boolean()),
+  cfcPatronalEtFneSurBrut: v.optional(v.boolean()), seuilExoneration: v.optional(v.number()),
+  groupeRisqueAtmp: v.optional(v.union(v.literal("A"), v.literal("B"), v.literal("C"))),
+  tdlBareme: v.optional(v.array(v.object({ jusqua: v.union(v.number(), v.null()), montant: v.number() }))), ravBareme: v.optional(v.array(v.object({ jusqua: v.union(v.number(), v.null()), montant: v.number() }))),
+  // Allocation de congé (lot R4) : absentes = les valeurs arbitrées du 05/11/2026.
+  allocationPlafondMois: v.optional(v.number()),
+  allocationMoisAvantPremierConge: v.optional(v.number()),
+  allocationConventionFraction: v.optional(v.union(
+    v.literal("jours_du_mois"), v.literal("trente"), v.literal("trente_virgule_44"),
+  )),
 });
 
 // Nouvelle version datée (DG). Sans `valeurs` : BAREME_DEFAUT (amorçage).
@@ -42,10 +56,24 @@ export const upsert = mutation({
     const b = valeurs ?? BAREME_DEFAUT;
     const tranches = [...b.irppBrackets];
     if (!tranches.length || tranches[tranches.length - 1].jusqua !== null) throw new Error("La dernière tranche IRPP doit être ouverte (plafond vide).");
+    // Les forfaits sont lus par `baremeInf`, qui renvoie la PREMIÈRE tranche satisfaite : un
+    // seuil mal ordonné masquerait silencieusement les suivantes.
+    const erreurs = [
+      ...(b.tdlBareme?.length ? validerTranches(b.tdlBareme, "TDL") : []),
+      ...(b.ravBareme?.length ? validerTranches(b.ravBareme, "RAV") : []),
+    ];
+    if (erreurs.length) throw new Error(erreurs.join(" "));
     const id = await ctx.db.insert("baremes", {
       effectiveFrom, plafondCnps: b.plafondCnps, tauxPvidSal: b.tauxPvidSal, tauxPvidPat: b.tauxPvidPat, tauxPf: b.tauxPf, tauxAtmp: b.tauxAtmp,
       tauxCfcSal: b.tauxCfcSal, tauxCfcPat: b.tauxCfcPat, tauxFne: b.tauxFne, abattementIrppPct: b.abattementIrppPct, tauxCac: b.tauxCac,
       irppBrackets: tranches, abattementIrppAnnuel: b.abattementIrppAnnuel ?? 500000, tdlActif: b.tdlActif ?? true, ravActif: b.ravActif ?? true,
+      transportTaxable: b.transportTaxable, atmpPlafonne: b.atmpPlafonne,
+      cfcPatronalEtFneSurBrut: b.cfcPatronalEtFneSurBrut, seuilExoneration: b.seuilExoneration,
+      groupeRisqueAtmp: b.groupeRisqueAtmp,
+      tdlBareme: b.tdlBareme, ravBareme: b.ravBareme,
+      allocationPlafondMois: b.allocationPlafondMois,
+      allocationMoisAvantPremierConge: b.allocationMoisAvantPremierConge,
+      allocationConventionFraction: b.allocationConventionFraction,
       source, controleLe: new Date().toISOString(), statut: "actif",
     });
     await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "bareme_version", cible: effectiveFrom, detail: source });
@@ -107,5 +135,44 @@ export const controlerBaremeOfficiel = internalAction({
     if (actif) await ctx.runMutation(internal.bareme.marquerControle, { baremeId: actif._id, controleLe: new Date().toISOString(), detail: resultat });
     else await ctx.runMutation(internal.journal.ecrire, { action: "bareme_controle", detail: `aucun barème actif — ${resultat}` });
     return { resultat };
+  },
+});
+
+/**
+ * « Vue RH » du barème (lot R9) — tout le détail des règles de calcul, pour que la responsable RH
+ * puisse vérifier nos chiffres SANS nous. Chaque valeur est lue dans le barème applicable à la
+ * période et chaque étape de l'exemple est calculée par le moteur réel : la vue ne peut pas
+ * dériver du calcul.
+ *
+ * Visible dès le niveau 4 comme le reste de l'écran Barème — c'est une aide à la lecture, pas une
+ * action.
+ */
+export const vueRH = query({
+  args: { periode: v.string(), exemple: v.optional(v.object({
+    salaireBase: v.number(), anciennete: v.number(), transport: v.number(),
+    primeAssiduite: v.number(), indemniteLogement: v.number(),
+  })) },
+  handler: async (ctx, { periode, exemple }) => {
+    await requireDroit(ctx, "/bareme");
+    const doc = await baremePourPeriode(ctx, periode);
+    if (!doc) return { periode, trouve: false as const };
+
+    const bareme = baremeFromDoc(doc);
+    const rubriques = await rubriquesPourPeriode(ctx, periode);
+    return {
+      periode,
+      trouve: true as const,
+      effectiveFrom: doc.effectiveFrom,
+      source: doc.source,
+      // Un barème antérieur au lot R2 ne porte pas les interrupteurs de correction : la vue le
+      // dit, sinon la RH lirait des règles qui ne sont pas celles appliquées à sa période.
+      correctionsActives: {
+        transportTaxable: doc.transportTaxable ?? false,
+        atmpPlafonne: doc.atmpPlafonne ?? true,
+        cfcPatronalEtFneSurBrut: doc.cfcPatronalEtFneSurBrut ?? false,
+        seuilExoneration: doc.seuilExoneration ?? 0,
+      },
+      ...vueRHPure(bareme, rubriques, exemple),
+    };
   },
 });

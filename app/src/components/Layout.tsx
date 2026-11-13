@@ -1,6 +1,8 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import { Role } from "../../convex/rbac";
 import { Header } from "./Header";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -14,6 +16,8 @@ import {
   ShoppingBag,
   Wrench,
   TrendingUp,
+  LifeBuoy,
+  Percent,
   Stethoscope,
   Users,
   TableProperties,
@@ -32,18 +36,41 @@ import {
   Settings,
   LogOut,
   PanelLeftOpen,
+  PanelLeftClose,
+  FileSpreadsheet,
+  FileSignature,
 } from "lucide-react";
 import { useMe } from "../auth/useMe";
 import "../auth/auth.css";
 
 // Mode « rail » : la barre latérale se replie en une colonne d'icônes de 64 px.
-// Un écran très large (le récapitulatif salaires et ses 18 colonnes) le demande
-// le temps où il est affiché ; tout est rétabli quand on le quitte.
+//
+// Deux sources, une seule priorité : un écran très large (le récapitulatif salaires
+// et ses 18 colonnes) peut SUGGÉRER le repli le temps qu'il est affiché
+// (`useRailLateral`) — mais dès que la RH choisit elle-même l'état de la barre
+// (bouton replier/déplier), ce choix est un CHOIX, pas une suggestion : il est
+// mémorisé (localStorage) et gagne sur toute suggestion future, y compris après
+// un rechargement. Avant cette distinction, la suggestion automatique reposait
+// sur `setRail` recréée à chaque rendu de `Layout` : l'effet de `useRailLateral`
+// se redéclenchait alors sans que l'écran change, et republiait aussitôt la barre
+// — le bouton « Déplier » semblait ne jamais répondre (constat RH).
+const CLE_RAIL_MANUEL = "rail-lateral:choix";
+
+function lireRailManuel(): boolean | null {
+  try {
+    const v = window.localStorage.getItem(CLE_RAIL_MANUEL);
+    return v === null ? null : v === "1";
+  } catch {
+    return null;
+  }
+}
+
 const RailContext = createContext<{ rail: boolean; setRail: (rail: boolean) => void }>({
   rail: false,
   setRail: () => {},
 });
 
+/** Suggestion (pas un ordre) : un écran large peut proposer le repli tant qu'il est affiché. */
 export function useRailLateral(actif: boolean) {
   const { setRail } = useContext(RailContext);
   useEffect(() => {
@@ -72,11 +99,13 @@ const NAV: { grp: string; items: NavItem[] }[] = [
       { to: "/interventions", label: "Interventions", perm: "/interventions", icon: Wrench },
       { to: "/caisse", label: "Caisse du mois", perm: "/caisse", icon: TrendingUp },
       { to: "/primes-medecins", label: "Primes médecins", perm: "/primes-medecins", icon: Stethoscope },
+      { to: "/tickets", label: "Tickets", perm: "/tickets", icon: LifeBuoy },
     ],
   },
   {
     grp: "Paie",
     items: [
+      { to: "/actes", label: "Actes RH", perm: "/actes", icon: FileSignature },
       { to: "/employes", label: "Employés", perm: "/employes", icon: Users },
       // `perm` reprend exactement la clé de la route correspondante dans App.tsx :
       // le menu et le garde d'accès lisent ainsi le même droit (`me.droits`, rbac.MODULES).
@@ -86,6 +115,8 @@ const NAV: { grp: string; items: NavItem[] }[] = [
       { to: "/paie/courrier", label: "Courrier de paie", perm: "/paie/courrier", icon: Mail },
       { to: "/paie/planning", label: "Planning des absences", perm: "/paie/planning", icon: CalendarDays },
       { to: "/paie/primes", label: "Primes & retenues (paie)", perm: "/paie/primes", icon: Receipt },
+      { to: "/paie/dipe", label: "DIPE (impôts & CNPS)", perm: "/paie/dipe", icon: FileSpreadsheet },
+      { to: "/retenues-medecins", label: "Retenue médecins", perm: "/retenues-medecins", icon: Percent },
       { to: "/paie/archives", label: "Archives", perm: "/paie/archives", icon: Archive },
     ],
   },
@@ -107,15 +138,21 @@ function SidebarContent({
   me,
   onItemClick,
   signOut,
+  onReplier,
 }: {
   role: Role;
   me: any;
   onItemClick?: () => void;
   signOut: () => Promise<unknown>;
+  /** Repli manuel vers le rail — absent sur la barre mobile (le tiroir se ferme autrement). */
+  onReplier?: () => void;
 }) {
+  // Ce qui attend une décision de MA part sur les tickets (N5). La requête rend 0 pour qui
+  // n'arbitre ni ne traite : la pastille ne s'affiche donc que chez les deux destinataires.
+  const ticketsEnAttente = useQuery(api.tickets.enAttente, {}) ?? 0;
   return (
     <div className="relative flex h-full flex-col justify-between bg-gradient-to-b from-blue-600 via-[#0077b6] to-[#0077b6] text-slate-800 overflow-hidden border-r border-blue-700/30">
-      {/* 
+      {/*
         1. Fond bleu continu étendu sur toute la hauteur de la barre latérale :
         Descend du bleu supérieur jusqu'au bloc de déconnexion tout en bas.
       */}
@@ -123,6 +160,18 @@ function SidebarContent({
         className="pointer-events-none absolute inset-0 bg-gradient-to-b from-blue-600 via-[#0077b6] to-[#0077b6]"
         aria-hidden="true"
       />
+
+      {onReplier && (
+        <button
+          type="button"
+          onClick={onReplier}
+          title="Replier la barre latérale"
+          aria-label="Replier la barre latérale"
+          className="absolute right-2 top-2 z-20 rounded-lg p-1.5 text-white/80 transition-colors hover:bg-white/15 hover:text-white"
+        >
+          <PanelLeftClose className="h-4 w-4" />
+        </button>
+      )}
 
       {/* 2. En-tête : Logo Cowork & Titre Institutionnel */}
       <div className="relative z-10 flex flex-col items-center px-4 pt-5 pb-3 text-center">
@@ -191,6 +240,20 @@ function SidebarContent({
                               <span className={cn("truncate", isActive ? "!text-white font-semibold" : "")}>
                                 {item.label}
                               </span>
+                              {/* « Envoyé à deux personnes » (N5) se traduit par un ACHEMINEMENT :
+                                  le ticket apparaît chez le Directeur et chez le développeur, et
+                                  la pastille dit ce qui attend une action de LEUR part. */}
+                              {item.to === "/tickets" && ticketsEnAttente ? (
+                                <span
+                                  className={cn(
+                                    "ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums",
+                                    isActive ? "bg-white/25 text-white" : "bg-carmin text-white",
+                                  )}
+                                  title={`${ticketsEnAttente} ticket(s) en attente de votre décision`}
+                                >
+                                  {ticketsEnAttente}
+                                </span>
+                              ) : null}
                             </>
                           )}
                         </NavLink>
@@ -258,6 +321,7 @@ function RailLateral({
   onDeplier: () => void;
 }) {
   const items = NAV.flatMap((g) => g.items).filter((i) => !!me?.droits?.[i.perm]?.voir);
+  const ticketsEnAttente = useQuery(api.tickets.enAttente, {}) ?? 0;
   return (
     <div className="relative flex h-full flex-col justify-between overflow-hidden border-r border-blue-700/30 bg-gradient-to-b from-blue-600 via-[#0077b6] to-[#0077b6]">
       <div
@@ -287,7 +351,17 @@ function RailLateral({
                   )
                 }
               >
-                <Icon className="h-[18px] w-[18px]" />
+                <span className="relative">
+                  <Icon className="h-[18px] w-[18px]" />
+                  {/* La barre repliée n'affiche que des icônes : une puce suffit à dire
+                      « quelque chose attend », le compte se lit en dépliant. */}
+                  {item.to === "/tickets" && ticketsEnAttente ? (
+                    <span
+                      className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-carmin ring-1 ring-white"
+                      title={`${ticketsEnAttente} ticket(s) en attente de votre décision`}
+                    />
+                  ) : null}
+                </span>
               </NavLink>
             );
           })}
@@ -332,30 +406,31 @@ export function Layout() {
   // "employe" ne sert qu'au bref instant de rechargement d'une session.
   const role = (me?.role ?? "employe") as Role;
   const [mobileOpen, setMobileOpen] = useState(false);
-  // Rail demandé par l'écran courant (useRailLateral) ; « déplier » l'annule jusqu'au
-  // prochain changement d'écran.
+  // Suggestion de l'écran courant (useRailLateral) : suivie tant que la RH n'a jamais
+  // tranché elle-même. `railManuel` est SON choix, mémorisé et prioritaire dès qu'il existe.
   const [railDemande, setRailDemande] = useState(false);
-  const [railForceOuvert, setRailForceOuvert] = useState(false);
-  const rail = railDemande && !railForceOuvert;
+  const [railManuel, setRailManuelBrut] = useState<boolean | null>(lireRailManuel);
+  const setRailManuel = useCallback((v: boolean) => {
+    setRailManuelBrut(v);
+    try { window.localStorage.setItem(CLE_RAIL_MANUEL, v ? "1" : "0"); } catch { /* stockage indisponible */ }
+  }, []);
+  const rail = railManuel ?? railDemande;
+  // Identité stable : une `setRail` qui changerait à chaque rendu de `Layout` redéclencherait
+  // l'effet de `useRailLateral` (son tableau de dépendances la contient) sans que l'écran
+  // n'ait changé — et republierait la barre juste après que la RH l'ait dépliée (bug constaté).
+  const setRail = useCallback((r: boolean) => setRailDemande(r), []);
+  const valeurRail = useMemo(() => ({ rail, setRail }), [rail, setRail]);
 
   return (
-    <RailContext.Provider
-      value={{
-        rail,
-        setRail: (r) => {
-          setRailDemande(r);
-          setRailForceOuvert(false);
-        },
-      }}
-    >
+    <RailContext.Provider value={valeurRail}>
     <div className="flex min-h-screen bg-papier text-encre">
       {/* Sidebar Desktop Fixe (ou rail replié) */}
       <aside className={cn("hidden shrink-0 print:!hidden md:block", rail ? "w-16" : "w-64")}>
         <div className="sticky top-0 h-screen shadow-md">
           {rail ? (
-            <RailLateral role={role} me={me} signOut={signOut} onDeplier={() => setRailForceOuvert(true)} />
+            <RailLateral role={role} me={me} signOut={signOut} onDeplier={() => setRailManuel(false)} />
           ) : (
-            <SidebarContent role={role} me={me} signOut={signOut} />
+            <SidebarContent role={role} me={me} signOut={signOut} onReplier={() => setRailManuel(true)} />
           )}
         </div>
       </aside>

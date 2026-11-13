@@ -6,6 +6,7 @@
  * la personne et le mois que l'on modifie.
  */
 import * as React from "react";
+import { libellePeriodesConges } from "../../../convex/lib/absences";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { CheckIcon, ChevronRightIcon, FileCheck2Icon, UserRoundPenIcon, XIcon } from "lucide-react";
@@ -15,16 +16,18 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ChampNombre } from "@/components/app/champs";
 import { SqueletteTableau } from "@/components/app/chargement";
+import { useDefilerVersDetail } from "@/components/app/defilement-detail";
 import { Montant } from "@/components/app/montant";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, TableVide } from "@/components/ui/table";
 import {
   type Brouillon, type BulletinLigne, type Champ, type FiltreRecap, type RecapPaie, type Valeurs, LIBELLE, UNITE,
-  BarreFiltre, BarreRecap, LegendeRecap, N, PastilleSociete, TuilesRecap, apercuBulletin, baremeClient, ficheDe, totaux, validerValeurs,
+  BarreFiltre, BarreRecap, LegendeRecap, N, PastilleSociete, TuilesRecap, aideAnciennete, apercuBulletin, baremeClient, ficheDe, totaux, validerValeurs,
 } from "./commun";
 
 const GROUPES: { titre: string; champs: Champ[]; colonnes: string }[] = [
   { titre: "Temps de travail", champs: ["joursTravailles", "absences"], colonnes: "grid-cols-3" },
-  { titre: "Gains", champs: ["primesVariables", "transport", "primeAssiduite", "indemniteLogement", "heuresSup", "anciennete"], colonnes: "grid-cols-3" },
+  // Les 9 primes du DIPE ont été ajoutées le 21/10/2026 : le groupe passe à 15 champs.
+  { titre: "Gains", champs: ["primesVariables", "transport", "primeAssiduite", "indemniteLogement", "heuresSup", "anciennete", "ancienneteSeparee", "primeCaisse", "primeRendement", "gratification", "primeSalissure", "primePanier", "primeLait", "indemniteRepresentation", "indemniteVehicule", "indemniteOutillage"], colonnes: "grid-cols-3" },
   { titre: "Retenues", champs: ["sanctions", "dettesSoins", "acompte", "mutuellePct"], colonnes: "grid-cols-4" },
 ];
 
@@ -34,7 +37,8 @@ function FicheSaisie({
 }: {
   b: BulletinLigne; brouillon: Brouillon; bareme: any; periode: string; cloture: boolean; onFermer: () => void; recap: RecapPaie;
 }) {
-  const id = String(b.employeId);
+  // La saisie porte sur le COUPLE (employé, société) : chaque employeur verse sa propre part.
+  const id = b.cle;
   const [v, setV] = React.useState<Valeurs>(() => brouillon.valeurs(id));
   const [err, setErr] = React.useState<Partial<Record<Champ, string>>>({});
   const [enCours, setEnCours] = React.useState(false);
@@ -42,6 +46,10 @@ function FicheSaisie({
   React.useEffect(() => { setV(brouillon.valeurs(id)); setErr({}); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   const apercu = apercuBulletin(b, v, baremeClient(bareme));
   const d = b.details;
+  // Les deux colonnes d'ancienneté (lot R10, A6) : `anciennete` est le TOTAL payé,
+  // `ancienneteSeparee` l'augmentation de l'année, indicative et comptée nulle part. Inverser les
+  // deux fait donc disparaître le montant du brut — d'où l'aide et les contrôles.
+  const anc = aideAnciennete(v, id, recap.anciennetePrec);
 
   const enregistrer = async () => {
     const e2 = validerValeurs(v);
@@ -65,7 +73,7 @@ function FicheSaisie({
           <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-encre-douce">
             <span>{b.fonction ?? "—"}</span>
             <PastilleSociete societe={b.societe} />
-            <span className="font-mono tabular-nums text-encre-pale">{b.matricule} · brut {num(b.salaireBrut)}</span>
+            <span className="font-mono tabular-nums text-encre-pale">{b.matricule} · base {num(b.salaireBase)}</span>
           </div>
         </div>
         <div className="flex items-center gap-1">
@@ -93,7 +101,11 @@ function FicheSaisie({
               {g.titre === "Temps de travail" && (
                 <>
                   <ChampNombre libelle={LIBELLE.joursTravailles} unite="j" valeur={v.joursTravailles} onChange={(n) => setV({ ...v, joursTravailles: n })} min={0} max={31} disabled={cloture} erreur={err.joursTravailles} />
-                  <ChampNombre libelle="Congés pris" unite="j" valeur={d?.congesPris ?? 0} onChange={() => {}} disabled aide="Planning des absences" />
+                  <ChampNombre
+                    libelle="Congés pris" unite="j" valeur={d?.congesPris ?? 0}
+                    onChange={() => {}} disabled
+                    aide={d?.periodesConges?.length ? libellePeriodesConges(d.periodesConges) : "Planning des absences"}
+                  />
                 </>
               )}
               {g.champs.filter((c) => c !== "joursTravailles").map((c) => (
@@ -107,9 +119,29 @@ function FicheSaisie({
                   step={c === "mutuellePct" ? 0.5 : 1000}
                   disabled={cloture}
                   erreur={err[c]}
+                  aide={c === "ancienneteSeparee" ? anc.augmentation.explication : undefined}
                 />
               ))}
             </div>
+
+            {/* L'augmentation PROPOSÉE, jamais écrite d'office : une augmentation peut porter sur
+                un autre mois que celui où le montant change en base (rappel, rattrapage), et nous
+                n'avons aucun moyen de le savoir. */}
+            {g.titre === "Gains" && anc.aProposer && !cloture ? (
+              <button
+                type="button"
+                className="mt-2 w-full rounded-lg border border-ocean-ciel bg-ocean-brume/30 px-3 py-2 text-left text-2xs hover:border-ocean-profond"
+                onClick={() => setV({ ...v, ancienneteSeparee: anc.augmentation.proposee })}
+              >
+                <strong>Reporter l'augmentation : {anc.augmentation.proposee.toLocaleString("fr-FR")} FCFA</strong>
+                <span className="mt-0.5 block font-normal text-encre-douce">{anc.augmentation.explication}</span>
+              </button>
+            ) : null}
+            {g.titre === "Gains" && anc.erreurs.length ? (
+              <ul className="mt-2 space-y-1 rounded-lg border border-carmin/30 bg-carmin/5 px-3 py-2 text-2xs text-carmin" role="alert">
+                {anc.erreurs.map((e, i) => <li key={i}>{e}</li>)}
+              </ul>
+            ) : null}
           </section>
         ))}
 
@@ -149,9 +181,10 @@ export function RecapSynthese({
   const bulletins = filtre.visibles;
   const [selection, setSelection] = React.useState<string | null>(null);
   React.useEffect(() => setSelection(null), [periode]);
+  const refDetail = useDefilerVersDetail<HTMLDivElement>(selection);
   const t = totaux(bulletins);
   // La fiche reste ouverte même si la recherche masque la ligne sélectionnée.
-  const choisi = recap.bulletins.find((b) => String(b.employeId) === selection) ?? null;
+  const choisi = recap.bulletins.find((b) => b.cle === selection) ?? null;
   const retenues = (b: BulletinLigne) => (b.details?.total1 ?? b.brut) - (b.details?.total2 ?? b.net);
 
   return (
@@ -181,7 +214,7 @@ export function RecapSynthese({
               </TableHeader>
               <TableBody>
                 {bulletins.map((b) => {
-                  const id = String(b.employeId);
+                  const id = b.cle;
                   const d = b.details;
                   const active = selection === id;
                   return (
@@ -234,7 +267,9 @@ export function RecapSynthese({
         </div>
 
         {choisi ? (
-          <FicheSaisie b={choisi} brouillon={brouillon} bareme={bareme} periode={periode} cloture={cloture} onFermer={() => setSelection(null)} recap={recap} />
+          <div ref={refDetail} className="w-full lg:w-[27.5rem] lg:shrink-0">
+            <FicheSaisie b={choisi} brouillon={brouillon} bareme={bareme} periode={periode} cloture={cloture} onFermer={() => setSelection(null)} recap={recap} />
+          </div>
         ) : (
           <aside className="hidden w-[27.5rem] shrink-0 items-center justify-center rounded-xl border border-dashed border-filet bg-surface/60 p-6 text-center text-sm text-encre-douce lg:flex">
             Sélectionnez un employé pour ouvrir sa fiche de saisie du mois.

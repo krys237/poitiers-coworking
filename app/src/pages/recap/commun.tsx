@@ -13,6 +13,7 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
+import { augmentationAnciennete, controlerAnciennete } from "../../../convex/lib/anciennete";
 import { toast } from "sonner";
 import { ChevronDownIcon, PrinterIcon, SearchIcon, XIcon } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
@@ -37,30 +38,40 @@ import type { EmployeFiche } from "@/components/app/fiche-employe";
 
 export type Champ =
   | "joursTravailles" | "primesVariables" | "transport" | "primeAssiduite" | "indemniteLogement"
-  | "heuresSup" | "anciennete" | "sanctions" | "absences" | "dettesSoins" | "acompte" | "mutuellePct";
+  | "heuresSup" | "anciennete" | "ancienneteSeparee" | "sanctions" | "absences" | "dettesSoins" | "acompte" | "mutuellePct"
+  // Primes du DIPE ajoutées au récapitulatif le 21/10/2026 (demande de la responsable RH).
+  | "primeSalissure" | "primePanier" | "primeLait" | "indemniteRepresentation" | "indemniteVehicule" | "primeCaisse" | "primeRendement" | "indemniteOutillage" | "gratification";
 
 export const CHAMPS: Champ[] = [
   "joursTravailles", "primesVariables", "transport", "primeAssiduite", "indemniteLogement",
-  "heuresSup", "anciennete", "sanctions", "absences", "dettesSoins", "acompte", "mutuellePct",
+  "heuresSup", "anciennete", "ancienneteSeparee", "sanctions", "absences", "dettesSoins", "acompte", "mutuellePct",
+  "primeSalissure", "primePanier", "primeLait", "indemniteRepresentation", "indemniteVehicule", "primeCaisse", "primeRendement", "indemniteOutillage", "gratification",
 ];
 
 export const DEFAUT: Record<Champ, number> = {
   joursTravailles: 30, primesVariables: 0, transport: 0, primeAssiduite: 0, indemniteLogement: 0,
-  heuresSup: 0, anciennete: 0, sanctions: 0, absences: 0, dettesSoins: 0, acompte: 0, mutuellePct: 0,
+  heuresSup: 0, anciennete: 0, ancienneteSeparee: 0, sanctions: 0, absences: 0, dettesSoins: 0, acompte: 0, mutuellePct: 0,
+  primeSalissure: 0, primePanier: 0, primeLait: 0, indemniteRepresentation: 0, indemniteVehicule: 0, primeCaisse: 0, primeRendement: 0, indemniteOutillage: 0, gratification: 0,
 };
 
 /** Libellé court de chaque champ (en-têtes, libellés accessibles). */
 export const LIBELLE: Record<Champ, string> = {
   joursTravailles: "Jours travaillés", primesVariables: "Primes fixes", transport: "Prime transport",
   primeAssiduite: "Prime assiduité", indemniteLogement: "Indemnité logement", heuresSup: "Heures supplémentaires",
-  anciennete: "Ancienneté", sanctions: "Sanctions", absences: "Absences", dettesSoins: "Dettes de soins",
+  // ⚠️ Les deux libellés étaient inversés dans leur effet : `ancienneteSeparee` s'appelait
+  // « Ancienneté » tout court, alors que c'est l'AUGMENTATION de l'année — indicative, comptée
+  // nulle part depuis le 05/11/2026 (A-VERIFIER R-2a). Saisir le montant global dans cette case
+  // le ferait maintenant disparaître du brut : le libellé doit lever tout doute.
+  anciennete: "Ancienneté (montant total)", ancienneteSeparee: "Dont augmentation (indicatif)", sanctions: "Sanctions", absences: "Absences", dettesSoins: "Dettes de soins",
   acompte: "Acompte", mutuellePct: "Mutuelle",
+  primeSalissure: "Prime salissure", primePanier: "Prime panier", primeLait: "Prime lait", indemniteRepresentation: "Ind. représentation", indemniteVehicule: "Ind. véhicule / moto", primeCaisse: "Prime caisse", primeRendement: "Prime rendement", indemniteOutillage: "Ind. outillage", gratification: "Gratification",
 };
 
 export const UNITE: Record<Champ, string> = {
   joursTravailles: "j", primesVariables: "FCFA", transport: "FCFA", primeAssiduite: "FCFA", indemniteLogement: "FCFA",
-  heuresSup: "FCFA", anciennete: "FCFA", sanctions: "FCFA", absences: "FCFA", dettesSoins: "FCFA", acompte: "FCFA",
+  heuresSup: "FCFA", anciennete: "FCFA", ancienneteSeparee: "FCFA", sanctions: "FCFA", absences: "FCFA", dettesSoins: "FCFA", acompte: "FCFA",
   mutuellePct: "%",
+  primeSalissure: "FCFA", primePanier: "FCFA", primeLait: "FCFA", indemniteRepresentation: "FCFA", indemniteVehicule: "FCFA", primeCaisse: "FCFA", primeRendement: "FCFA", indemniteOutillage: "FCFA", gratification: "FCFA",
 };
 
 export const SOCIETES = ["SESAME", "SOFINA", "SGC"] as const;
@@ -70,6 +81,32 @@ export type Valeurs = Record<Champ, number>;
 export type BulletinLigne = BulletinPeriode;
 
 /** Bornes de validation du dialogue de saisie (reprises du modèle du directeur). */
+/**
+ * L'augmentation d'ancienneté à proposer pour un couple, et les contrôles associés (lot R10, A6).
+ *
+ * `anciennete` porte le montant TOTAL — c'est lui qui est payé ; `ancienneteSeparee` porte
+ * l'augmentation de l'année, indicative et comptée nulle part depuis le 05/11/2026. Inverser les
+ * deux cases fait donc DISPARAÎTRE le montant du brut : d'où les contrôles.
+ */
+export function aideAnciennete(
+  valeurs: Valeurs,
+  cle: string,
+  anciennetePrec: { anciennetes: Record<string, number> } | undefined,
+) {
+  const precedente = anciennetePrec?.anciennetes[cle];
+  const augmentation = augmentationAnciennete(precedente, valeurs.anciennete);
+  return {
+    augmentation,
+    erreurs: controlerAnciennete({
+      anciennete: valeurs.anciennete,
+      ancienneteSeparee: valeurs.ancienneteSeparee,
+      precedente,
+    }),
+    /** Vrai si la proposition diffère de ce qui est saisi : l'écran peut offrir de l'appliquer. */
+    aProposer: augmentation.proposee > 0 && augmentation.proposee !== (valeurs.ancienneteSeparee ?? 0),
+  };
+}
+
 export function validerValeurs(v: Valeurs): Partial<Record<Champ, string>> {
   const err: Partial<Record<Champ, string>> = {};
   if (v.joursTravailles < 0 || v.joursTravailles > 31) err.joursTravailles = "Entre 0 et 31 jours.";
@@ -87,6 +124,10 @@ export function useRecapPaie(periode: string) {
   const paie = useQuery(api.payroll.bulletinsDuMois, { periode });
   const saisies = useQuery(api.payroll.saisiesDuMois, { periode });
   const bareme = useQuery(api.bareme.pourPeriode, { periode });
+  // L'ancienneté du mois précédent, pour PROPOSER l'augmentation de l'année (lot R10, A6).
+  // Requête séparée : l'écran fonctionne sans elle, et un mois précédent absent ne doit pas
+  // empêcher de saisir.
+  const anciennetePrec = useQuery(api.payroll.anciennetePrecedente, { periode });
   const saisir = useMutation(api.payroll.saisirMois);
   const generer = useMutation(api.payroll.genererEtCloturer);
   const modifierEmploye = useMutation(api.employes.modifier);
@@ -95,7 +136,10 @@ export function useRecapPaie(periode: string) {
   const cloture = paie?.cloture ?? false;
   const bulletins: BulletinLigne[] = (paie?.bulletins ?? []) as BulletinLigne[];
 
-  return { paie, saisies, bareme, saisir, generer, modifierEmploye, creerEmploye, cloture, bulletins };
+  return {
+    paie, saisies, bareme, saisir, generer, modifierEmploye, creerEmploye, cloture, bulletins,
+    anciennetePrec,
+  };
 }
 
 export type RecapPaie = ReturnType<typeof useRecapPaie>;
@@ -105,8 +149,9 @@ export type RecapPaie = ReturnType<typeof useRecapPaie>;
 export type EtatLigne = "modifie" | "enregistrement" | "enregistre";
 
 /**
- * Le brouillon est indexé par employé ET remis à zéro à chaque changement de
- * période : une valeur tapée en septembre ne réapparaît plus en octobre.
+ * Le brouillon est indexé par COUPLE (employé, société) — la clé `BulletinPeriode.cle` — et remis
+ * à zéro à chaque changement de période : une valeur tapée en septembre ne réapparaît plus en
+ * octobre, et la part versée par SOFINA ne se mélange pas à celle de SGC.
  * Chaque modification programme un enregistrement 800 ms plus tard ; `flush`
  * l'exécute tout de suite (sortie de champ, fermeture d'un dialogue).
  */
@@ -131,7 +176,7 @@ export function useBrouillon(recap: RecapPaie, periode: string) {
     [brouillon, saisies]
   );
 
-  /** Valeurs complètes d'un employé (brouillon + saisie serveur + défauts). */
+  /** Valeurs complètes d'un couple (employé, société) : brouillon + saisie serveur + défauts. */
   const valeurs = React.useCallback(
     (id: string): Valeurs => Object.fromEntries(CHAMPS.map((c) => [c, val(id, c)])) as Valeurs,
     [val]
@@ -147,8 +192,11 @@ export function useBrouillon(recap: RecapPaie, periode: string) {
       ) as Valeurs;
       setEtats((e) => ({ ...e, [id]: "enregistrement" }));
       try {
+        // `id` est la clé du couple : `<employeId>:<SOCIETE>`. Chaque société saisit sa part.
+        const [employeId, societe] = id.split(":");
         await saisir({
-          employeId: id as Id<"employes">,
+          employeId: employeId as Id<"employes">,
+          societe: societe as Societe | undefined,
           periode,
           valeurs: { ...base, absencesJours: (saisies?.[id] as any)?.absencesJours ?? 0 },
         });
@@ -193,9 +241,27 @@ export function useBrouillon(recap: RecapPaie, periode: string) {
 
   const flush = React.useCallback((id: string) => void enregistrer(id), [enregistrer]);
   const modifie = React.useCallback((id: string) => !!brouillon[id], [brouillon]);
+  /**
+   * `modifie(id)` répond pour TOUTE la ligne (une seule saisie en attente suffit pour la lever) —
+   * correct pour le badge « Modifié… » de la ligne, mais trompeur si on l'utilise pour surligner
+   * une cellule précise : saisir Mutuelle % surlignait alors Sanctions, Dettes de soins, Acompte…
+   * toute la ligne, en ocre, comme si elles avaient toutes une saisie en attente — la RH a vu une
+   * valeur juste tapée ailleurs « apparaître » dans Sanctions, qui n'a jamais changé. `champs`
+   * accepte aussi un tableau pour les cellules composées (ex. le popover Primes fixes / congé, qui
+   * recouvre 14 rubriques à la fois) : surligné si AU MOINS une d'elles a une saisie en attente.
+   */
+  const modifieChamp = React.useCallback(
+    (id: string, champs: Champ | Champ[]) => {
+      const b = brouillon[id];
+      if (!b) return false;
+      const liste = Array.isArray(champs) ? champs : [champs];
+      return liste.some((c) => b[c] !== undefined);
+    },
+    [brouillon]
+  );
   const etat = React.useCallback((id: string): EtatLigne | undefined => etats[id], [etats]);
 
-  return { val, valeurs, set, flush, enregistrer, modifie, etat, cloture };
+  return { val, valeurs, set, flush, enregistrer, modifie, modifieChamp, etat, cloture };
 }
 
 export type Brouillon = ReturnType<typeof useBrouillon>;
@@ -225,7 +291,7 @@ export function apercuBulletin(b: BulletinLigne, v: Valeurs, bareme: Bareme | nu
   const s: SaisieMois = {
     ...v,
     // journalier = brut ÷ joursBase → on retrouve la base de jours de la fiche employé.
-    joursBase: d && d.salaireJournalier > 0 ? Math.round(b.salaireBrut / d.salaireJournalier) : 30,
+    joursBase: d && d.salaireJournalier > 0 ? Math.round(b.salaireBase / d.salaireJournalier) : 30,
     congesPris: d?.congesPris ?? 0,
     congesAcquis: d?.congesAcquis ?? 0,
     congesRestants: d?.congesRestants,
@@ -235,7 +301,7 @@ export function apercuBulletin(b: BulletinLigne, v: Valeurs, bareme: Bareme | nu
     charges: b.cotisations.filter((l) => l.code === "RETENUE").map((l) => ({ libelle: l.libelle, montant: l.retenue })),
   };
   try {
-    return computeBulletin(b.salaireBrut, s, bareme, extras);
+    return computeBulletin(b.salaireBase, s, bareme, extras);
   } catch {
     return null;
   }
@@ -255,9 +321,18 @@ export function totaux(bulletins: BulletinLigne[]) {
     effectif: bulletins.length,
     salaireBase: t("salaireBase"),
     primes: t("primes") + t("indemniteConges"),
-    heuresSupAnciennete: t("heuresSup") + t("anciennete"),
+    heuresSup: t("heuresSup"),
+    anciennete: t("anciennete"),
+    ancienneteSeparee: t("ancienneteSeparee"),
     total1,
     acompteImpotsCnps: t("acompteImpotsCnps"),
+    // Les deux colonnes issues de la séparation du 21/10/2026 : l'acompte saisi d'un côté,
+    // les retenues fiscales et sociales de l'autre.
+    acompte: bulletins.reduce(
+      (x, b) => x + (b.cotisations.find((c) => c.libelle === "Acompte")?.retenue ?? 0),
+      0,
+    ),
+    chargesSalariales: t("chargesSalariales"),
     mutuelle: t("mutuelle"),
     total2,
     net,
@@ -438,7 +513,7 @@ export function N({ valeur }: { valeur: number | undefined }) {
 export function ficheDe(b: BulletinLigne): EmployeFiche {
   return {
     employeId: String(b.employeId), matricule: b.matricule, nom: b.nom, fonction: b.fonction, adresse: b.adresse, cnps: b.cnps,
-    niu: b.niu, email: b.email, societe: b.societe, salaireBrut: b.salaireBrut, dateDebut: b.dateDebut, actif: true,
+    niu: b.niu, email: b.email, societe: b.societe, salaireBase: b.salaireBase, dateDebut: b.dateDebut, actif: true,
   };
 }
 

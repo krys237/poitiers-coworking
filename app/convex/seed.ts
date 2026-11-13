@@ -6,14 +6,14 @@ import { DEV_TOKEN, requireLevel, requireLevelOuAmorcage } from "./lib/authz";
 // Amorçage de démonstration : membre DG (dev), entreprise, barème, effectif de démo.
 // Idempotent : ne recrée pas ce qui existe déjà ; complète la date d'embauche des employés de démo qui n'en ont pas.
 const EMPLOYES_DEMO = [
-  { matricule: "E001", nom: "ABAMI Rosine Belie", fonction: "Infirmier(ère) diplômé(e) d'État", societe: "SESAME", salaireBrut: 106950, dateDebut: "2021-03-01" },
-  { matricule: "E002", nom: "ACHALE Roderick Essoh", fonction: "Aide-soignant(e)", societe: "SGC", salaireBrut: 195941, dateDebut: "2019-09-16" },
-  { matricule: "E003", nom: "AMEFFO Lucie C.", fonction: "Agent d'accueil", societe: "SGC", salaireBrut: 122621, dateDebut: "2023-01-09" },
-  { matricule: "E004", nom: "ATCHEMO Geneviève", fonction: "Technicien(ne) de laboratoire", societe: "SGC", salaireBrut: 133464, dateDebut: "2020-06-01" },
-  { matricule: "E005", nom: "BIAHEU Amandine", fonction: "Agent d'entretien", societe: "SGC", salaireBrut: 123055, dateDebut: "2024-02-05" },
-  { matricule: "E006", nom: "BILOA ELOUNDOU Gertrude", fonction: "Sage-femme", societe: "SGC", salaireBrut: 130665, dateDebut: "2018-11-12" },
-  { matricule: "E007", nom: "BINAMA Patrick Junior", fonction: "Caissier(ère)", societe: "SOFINA", salaireBrut: 102450, dateDebut: "2026-04-01" },
-  { matricule: "E008", nom: "TCHIDJO Magloire", fonction: "Directeur Général", societe: "SGC", salaireBrut: 2500000, dateDebut: "2016-07-01" },
+  { matricule: "E001", nom: "ABAMI Rosine Belie", fonction: "Infirmier(ère) diplômé(e) d'État", societe: "SESAME", salaireBase: 106950, dateDebut: "2021-03-01" },
+  { matricule: "E002", nom: "ACHALE Roderick Essoh", fonction: "Aide-soignant(e)", societe: "SGC", salaireBase: 195941, dateDebut: "2019-09-16" },
+  { matricule: "E003", nom: "AMEFFO Lucie C.", fonction: "Agent d'accueil", societe: "SGC", salaireBase: 122621, dateDebut: "2023-01-09" },
+  { matricule: "E004", nom: "ATCHEMO Geneviève", fonction: "Technicien(ne) de laboratoire", societe: "SGC", salaireBase: 133464, dateDebut: "2020-06-01" },
+  { matricule: "E005", nom: "BIAHEU Amandine", fonction: "Agent d'entretien", societe: "SGC", salaireBase: 123055, dateDebut: "2024-02-05" },
+  { matricule: "E006", nom: "BILOA ELOUNDOU Gertrude", fonction: "Sage-femme", societe: "SGC", salaireBase: 130665, dateDebut: "2018-11-12" },
+  { matricule: "E007", nom: "BINAMA Patrick Junior", fonction: "Caissier(ère)", societe: "SOFINA", salaireBase: 102450, dateDebut: "2026-04-01" },
+  { matricule: "E008", nom: "TCHIDJO Magloire", fonction: "Directeur Général", societe: "SGC", salaireBase: 2500000, dateDebut: "2016-07-01" },
 ] as const;
 
 export const initialiser = mutation({

@@ -31,6 +31,7 @@ import { Champ, ChampNombre } from "@/components/app/champs";
 import { SqueletteTableau } from "@/components/app/chargement";
 import { SelecteurLignes, useLignesVisibles } from "@/components/app/lignes-visibles";
 import { Button } from "@/components/ui/button";
+import { VueRH } from "./bareme/VueRH";
 import { Input } from "@/components/ui/input";
 import { Flag } from "@/components/ui/flag";
 import { Switch } from "@/components/ui/switch";
@@ -121,6 +122,7 @@ export function Bareme() {
         actions={
           <>
             <SelecteurPeriode valeur={periode} onChange={(p) => { setPeriode(p); setChoisie(null); }} />
+            <VueRH periode={periode} />
             <BoutonAction variant="outline" size="sm" onAction={() => verifier()} succes="Contrôle planifié : le résultat apparaît dans « Dernier contrôle » et dans le journal d'activité.">
               <RefreshCwIcon /> Vérifier la source
             </BoutonAction>

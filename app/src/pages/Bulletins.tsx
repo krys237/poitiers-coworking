@@ -14,13 +14,13 @@
 import * as React from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { ArchiveIcon, FileCheck2Icon, PrinterIcon, SearchIcon, TableIcon, XIcon } from "lucide-react";
+import { ArchiveIcon, CalendarRangeIcon, FileCheck2Icon, PrinterIcon, SearchIcon, TableIcon, XIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { fcfa, libellePeriode, num, periodeCourante } from "@/lib/format";
 import { PageEnTete } from "@/components/app/en-tete";
 import { GrilleTuiles, Tuile } from "@/components/app/tuile";
 import { StatutMois } from "@/components/app/statut";
-import { SelecteurPeriode } from "@/components/app/selecteur-periode";
+import { SelecteurPeriode, SelecteurIntervallePeriode, decalerPeriode, periodesEntre } from "@/components/app/selecteur-periode";
 import { BoutonConfirmation } from "@/components/app/bouton-action";
 import { BoutonImprimer, useImpression } from "@/components/app/imprimer";
 import { BoutonPdf } from "@/components/app/bouton-pdf";
@@ -28,6 +28,7 @@ import { usePeut } from "../auth/useMe";
 import { SqueletteTableau } from "@/components/app/chargement";
 import { EtatVide } from "@/components/app/etat-vide";
 import { SelecteurLignes, useLignesVisibles } from "@/components/app/lignes-visibles";
+import { useDefilerVersDetail } from "@/components/app/defilement-detail";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Flag } from "@/components/ui/flag";
@@ -46,20 +47,27 @@ export function Bulletins() {
   const entreprise = useQuery(api.parametres.get);
   const generer = useMutation(api.payroll.genererEtCloturer);
   const pdfBulletins = useAction(api.paiePdf.pdfBulletins);
+  const pdfBulletinsEmploye = useAction(api.paiePdf.pdfBulletinsEmploye);
   const peutCloturer = usePeut("/paie/bulletins", "faire");
   const lignesVisibles = useLignesVisibles("bulletins", 15);
   const [q, setQ] = React.useState("");
   const [ouvert, setOuvert] = React.useState<string | null>(filtre);
+  // Téléchargement groupé des bulletins d'UN salarié sur plusieurs mois (demande RH, cf. épic 8) :
+  // l'intervalle n'est affiché que lorsque la RH l'ouvre, pour ne pas alourdir le volet par défaut.
+  const [intervalle, setIntervalle] = React.useState<{ debut: string; fin: string } | null>(null);
   const imprimer = useImpression();
   // « Imprimer seul » : on limite d'abord l'impression au salarié (adresse), puis on imprime une fois le filtre appliqué.
   const [imprimerSeul, setImprimerSeul] = React.useState<string | null>(null);
+  const refDetail = useDefilerVersDetail<HTMLDivElement>(ouvert);
 
   const tous = (paie?.bulletins ?? []) as any[];
   const qq = sansAccents(q.trim());
   const liste = tous.filter((b) => !qq || sansAccents(`${b.nom} ${b.matricule} ${b.societe}`).includes(qq));
   // À imprimer : le salarié filtré par l'adresse, sinon tous.
   const aImprimer = filtre ? tous.filter((b) => b.matricule === filtre) : tous;
-  const selection = tous.find((b) => b.matricule === ouvert) ?? tous[0] ?? null;
+  // `ouvert` est la clé du couple (employé, société) depuis le lot R2 bis ; le lien profond
+  // `?employe=<matricule>` continue de désigner un salarié, d’où la reconnaissance des deux formes.
+  const selection = tous.find((b) => b.cle === ouvert || b.matricule === ouvert) ?? tous[0] ?? null;
   const total = (cle: "brut" | "totalRetenues" | "net", src: any[] = tous) => src.reduce((t, b) => t + (b[cle] ?? 0), 0);
   const nomEntreprise = entreprise?.nom ?? "POITIERS COWORKING";
 
@@ -160,7 +168,7 @@ export function Bulletins() {
               </TableHeader>
               <TableBody>
                 {liste.map((b, i) => (
-                  <TableRow key={String(b.employeId)} active={selection?.matricule === b.matricule} className="cursor-pointer" tabIndex={0} onClick={() => setOuvert(b.matricule)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOuvert(b.matricule); } }}>
+                  <TableRow key={b.cle} active={selection?.cle === b.cle} className="cursor-pointer" tabIndex={0} onClick={() => setOuvert(b.cle)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOuvert(b.cle); } }}>
                     <TableCell className="font-mono text-2xs text-encre-pale">{i + 1}</TableCell>
                     <TableCell className="whitespace-nowrap">
                       <div className="text-[13px] font-semibold">{b.nom}</div>
@@ -186,7 +194,7 @@ export function Bulletins() {
           </div>
 
           {/* Aperçu du bulletin sélectionné : la feuille A4 réduite pour tenir dans le volet. */}
-          <aside className="flex w-full flex-col overflow-hidden rounded-xl border border-filet bg-surface xl:w-[30rem] xl:shrink-0">
+          <aside ref={refDetail} className="flex w-full flex-col overflow-hidden rounded-xl border border-filet bg-surface xl:w-[30rem] xl:shrink-0">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-filet px-4 py-3">
               <div>
                 <div className="text-sm font-semibold">{selection ? selection.nom : "Bulletin"}</div>
@@ -198,10 +206,29 @@ export function Bulletins() {
                     ? <Button variant="outline" size="sm" onClick={() => filtrer(null)} title="Revenir à l'impression de tous les bulletins"><XIcon /> Tous à l'impression</Button>
                     : <Button variant="outline" size="sm" onClick={() => { filtrer(selection.matricule); setImprimerSeul(selection.matricule); }} title="Imprimer uniquement ce bulletin"><PrinterIcon /> Imprimer seul</Button>}
                   <BoutonPdf titre="Télécharger le PDF de ce bulletin" generer={() => pdfBulletins({ periode, employeId: selection.employeId })}>PDF</BoutonPdf>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    title="Télécharger les bulletins de ce salarié sur plusieurs mois"
+                    onClick={() => setIntervalle(intervalle ? null : { debut: decalerPeriode(periode, -5), fin: periode })}
+                  >
+                    <CalendarRangeIcon /> Plusieurs mois
+                  </Button>
                   {paie.cloture && <Button variant="outline" size="sm" asChild><Link to="/paie/archives"><ArchiveIcon /> Archives</Link></Button>}
                 </div>
               )}
             </div>
+            {selection && intervalle && (
+              <div className="flex flex-wrap items-center gap-2 border-b border-filet bg-bande/40 px-4 py-2.5">
+                <SelecteurIntervallePeriode debut={intervalle.debut} fin={intervalle.fin} onChange={(debut, fin) => setIntervalle({ debut, fin })} />
+                <BoutonPdf
+                  titre="Un seul PDF avec les bulletins de ce salarié sur l'intervalle choisi"
+                  generer={() => pdfBulletinsEmploye({ employeId: selection.employeId, periodes: periodesEntre(intervalle.debut, intervalle.fin) })}
+                >
+                  Télécharger ({periodesEntre(intervalle.debut, intervalle.fin).length} mois)
+                </BoutonPdf>
+              </div>
+            )}
             <div className="bg-papier p-3">
               {selection ? <ApercuFeuille><BulletinCard b={selection} entreprise={entreprise} page="page 1/1" /></ApercuFeuille> : null}
             </div>
@@ -219,7 +246,7 @@ export function Bulletins() {
               <thead><tr><th className="c">N°</th><th>Nom et prénoms</th><th>Matricule</th><th className="c">Société</th><th className="r">Brut (FCFA)</th><th className="r">Retenues</th><th className="r">Net à payer</th></tr></thead>
               <tbody>
                 {aImprimer.map((b, i) => (
-                  <tr key={String(b.employeId)}><td className="c">{i + 1}</td><td>{b.nom}</td><td className="c">{b.matricule}</td><td className="c">{b.societe}</td><td className="r">{num(b.brut)}</td><td className="r">{num(b.totalRetenues)}</td><td className="r">{num(b.net)}</td></tr>
+                  <tr key={b.cle}><td className="c">{i + 1}</td><td>{b.nom}</td><td className="c">{b.matricule}</td><td className="c">{b.societe}</td><td className="r">{num(b.brut)}</td><td className="r">{num(b.totalRetenues)}</td><td className="r">{num(b.net)}</td></tr>
                 ))}
                 <tr className="appuyee"><td colSpan={4}>TOTAUX</td><td className="r">{num(total("brut", aImprimer))}</td><td className="r">{num(total("totalRetenues", aImprimer))}</td><td className="r">{num(total("net", aImprimer))}</td></tr>
               </tbody>
@@ -227,7 +254,7 @@ export function Bulletins() {
             <MentionDocument valide={!!paie?.cloture} dateValidation={aImprimer[0]?.valideLe ? new Date(aImprimer[0].valideLe).toLocaleDateString("fr-FR") : undefined} />
           </Feuille>
         )}
-        {aImprimer.map((b, i) => <BulletinCard key={String(b.employeId)} b={b} entreprise={entreprise} page={`page ${i + 1}/${aImprimer.length}`} />)}
+        {aImprimer.map((b, i) => <BulletinCard key={b.cle} b={b} entreprise={entreprise} page={`page ${i + 1}/${aImprimer.length}`} />)}
       </div>
     </div>
   );

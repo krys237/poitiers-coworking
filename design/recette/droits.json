@@ -1,5 +1,5 @@
 {
- "genereLe": "2026-10-09T07:29:19.038Z",
+ "genereLe": "2026-11-10T19:48:12.833Z",
  "lignes": [
   {
    "cle": "/",
@@ -16,11 +16,25 @@
    "faire": "Superviser l'équipe (taux, validation)"
   },
   {
+   "cle": "/comptes-rendus/plusieurs-par-jour",
+   "libelle": "Comptes rendus : plusieurs par jour",
+   "menu": null,
+   "voir": null,
+   "faire": "Déposer plusieurs comptes rendus pour une même journée (le point de présence reste acquis une seule fois)"
+  },
+  {
    "cle": "/interventions",
    "libelle": "Interventions",
    "menu": "Interventions",
-   "voir": "Consulter, déclarer, commenter",
+   "voir": "Déposer, suivre et commenter ses propres demandes",
    "faire": "Valider, clôturer, rejeter"
+  },
+  {
+   "cle": "/interventions/toutes",
+   "libelle": "Interventions : toutes les demandes",
+   "menu": null,
+   "voir": "Voir et suivre les demandes de tout le monde",
+   "faire": null
   },
   {
    "cle": "/documents",
@@ -35,6 +49,13 @@
    "menu": null,
    "voir": "Lire les documents confidentiels",
    "faire": "Déposer un document confidentiel"
+  },
+  {
+   "cle": "/actes",
+   "libelle": "Actes RH",
+   "menu": "Actes RH",
+   "voir": "Consulter les actes délivrés",
+   "faire": "Délivrer et annuler un acte"
   },
   {
    "cle": "/employes",
@@ -77,6 +98,34 @@
    "menu": "Primes médecins",
    "voir": "Consulter les primes par catégorie",
    "faire": "Saisir, importer, supprimer une prime"
+  },
+  {
+   "cle": "/retenues-medecins",
+   "libelle": "Retenue médecins (impôts)",
+   "menu": "Retenue médecins",
+   "voir": "Consulter et exporter la déclaration mensuelle",
+   "faire": "Saisir et supprimer une ligne"
+  },
+  {
+   "cle": "/tickets",
+   "libelle": "Tickets",
+   "menu": "Tickets",
+   "voir": "Suivre ses propres tickets",
+   "faire": "Ouvrir un ticket, avec captures d'écran"
+  },
+  {
+   "cle": "/tickets/arbitrage",
+   "libelle": "Tickets : juger la pertinence",
+   "menu": null,
+   "voir": "Voir tous les tickets",
+   "faire": "Juger un ticket pertinent ou non (refus motivé)"
+  },
+  {
+   "cle": "/tickets/traitement",
+   "libelle": "Tickets : traitement technique",
+   "menu": null,
+   "voir": "Voir tous les tickets",
+   "faire": "Faire avancer l'état (en cours, résolu, abandonné)"
   },
   {
    "cle": "/primes-medecins/deverrouillage",
@@ -135,6 +184,13 @@
    "faire": "Ajouter, modifier, supprimer"
   },
   {
+   "cle": "/paie/dipe",
+   "libelle": "DIPE (impôts & CNPS)",
+   "menu": "DIPE (impôts & CNPS)",
+   "voir": "Consulter et exporter l'état mensuel",
+   "faire": "Comparer avec le classeur de la RH"
+  },
+  {
    "cle": "/paie/archives",
    "libelle": "Archives de paie",
    "menu": "Archives",
@@ -168,6 +224,13 @@
    "menu": "Membres",
    "voir": "Consulter",
    "faire": "Créer, modifier, rôles (jusqu'à son niveau)"
+  },
+  {
+   "cle": "/membres/mot-de-passe",
+   "libelle": "Membres : réinitialiser un mot de passe",
+   "menu": null,
+   "voir": null,
+   "faire": "Remettre le mot de passe provisoire d'un membre (jusqu'à son niveau)"
   },
   {
    "cle": "/parametres",
@@ -206,8 +269,16 @@
      "voir": true,
      "faire": false
     },
+    "/comptes-rendus/plusieurs-par-jour": {
+     "voir": false,
+     "faire": false
+    },
     "/interventions": {
      "voir": true,
+     "faire": false
+    },
+    "/interventions/toutes": {
+     "voir": false,
      "faire": false
     },
     "/documents": {
@@ -215,6 +286,10 @@
      "faire": true
     },
     "/documents/confidentiels": {
+     "voir": false,
+     "faire": false
+    },
+    "/actes": {
      "voir": false,
      "faire": false
     },
@@ -239,6 +314,22 @@
      "faire": false
     },
     "/primes-medecins": {
+     "voir": false,
+     "faire": false
+    },
+    "/retenues-medecins": {
+     "voir": false,
+     "faire": false
+    },
+    "/tickets": {
+     "voir": true,
+     "faire": true
+    },
+    "/tickets/arbitrage": {
+     "voir": false,
+     "faire": false
+    },
+    "/tickets/traitement": {
      "voir": false,
      "faire": false
     },
@@ -274,6 +365,10 @@
      "voir": false,
      "faire": false
     },
+    "/paie/dipe": {
+     "voir": false,
+     "faire": false
+    },
     "/paie/archives": {
      "voir": false,
      "faire": false
@@ -291,6 +386,10 @@
      "faire": false
     },
     "/membres": {
+     "voir": false,
+     "faire": false
+    },
+    "/membres/mot-de-passe": {
      "voir": false,
      "faire": false
     },
@@ -322,7 +421,15 @@
      "voir": true,
      "faire": true
     },
+    "/comptes-rendus/plusieurs-par-jour": {
+     "voir": false,
+     "faire": false
+    },
     "/interventions": {
+     "voir": true,
+     "faire": false
+    },
+    "/interventions/toutes": {
      "voir": true,
      "faire": false
     },
@@ -331,6 +438,10 @@
      "faire": true
     },
     "/documents/confidentiels": {
+     "voir": false,
+     "faire": false
+    },
+    "/actes": {
      "voir": false,
      "faire": false
     },
@@ -355,6 +466,22 @@
      "faire": false
     },
     "/primes-medecins": {
+     "voir": false,
+     "faire": false
+    },
+    "/retenues-medecins": {
+     "voir": false,
+     "faire": false
+    },
+    "/tickets": {
+     "voir": true,
+     "faire": true
+    },
+    "/tickets/arbitrage": {
+     "voir": false,
+     "faire": false
+    },
+    "/tickets/traitement": {
      "voir": false,
      "faire": false
     },
@@ -390,6 +517,10 @@
      "voir": false,
      "faire": false
     },
+    "/paie/dipe": {
+     "voir": false,
+     "faire": false
+    },
     "/paie/archives": {
      "voir": false,
      "faire": false
@@ -407,6 +538,10 @@
      "faire": false
     },
     "/membres": {
+     "voir": false,
+     "faire": false
+    },
+    "/membres/mot-de-passe": {
      "voir": false,
      "faire": false
     },
@@ -438,7 +573,15 @@
      "voir": true,
      "faire": true
     },
+    "/comptes-rendus/plusieurs-par-jour": {
+     "voir": false,
+     "faire": false
+    },
     "/interventions": {
+     "voir": true,
+     "faire": false
+    },
+    "/interventions/toutes": {
      "voir": true,
      "faire": false
     },
@@ -447,6 +590,10 @@
      "faire": true
     },
     "/documents/confidentiels": {
+     "voir": false,
+     "faire": false
+    },
+    "/actes": {
      "voir": false,
      "faire": false
     },
@@ -473,6 +620,22 @@
     "/primes-medecins": {
      "voir": true,
      "faire": true
+    },
+    "/retenues-medecins": {
+     "voir": true,
+     "faire": false
+    },
+    "/tickets": {
+     "voir": true,
+     "faire": true
+    },
+    "/tickets/arbitrage": {
+     "voir": false,
+     "faire": false
+    },
+    "/tickets/traitement": {
+     "voir": false,
+     "faire": false
     },
     "/primes-medecins/deverrouillage": {
      "voir": false,
@@ -506,6 +669,10 @@
      "voir": false,
      "faire": false
     },
+    "/paie/dipe": {
+     "voir": true,
+     "faire": false
+    },
     "/paie/archives": {
      "voir": false,
      "faire": false
@@ -523,6 +690,10 @@
      "faire": false
     },
     "/membres": {
+     "voir": false,
+     "faire": false
+    },
+    "/membres/mot-de-passe": {
      "voir": false,
      "faire": false
     },
@@ -543,7 +714,7 @@
   {
    "id": "rh",
    "role": "gestionnaire_rh",
-   "libelle": "Gestionnaire RH",
+   "libelle": "Responsable RH",
    "telephone": "+237 6 90 00 00 07",
    "droits": {
     "/": {
@@ -554,7 +725,15 @@
      "voir": true,
      "faire": true
     },
+    "/comptes-rendus/plusieurs-par-jour": {
+     "voir": false,
+     "faire": false
+    },
     "/interventions": {
+     "voir": true,
+     "faire": false
+    },
+    "/interventions/toutes": {
      "voir": true,
      "faire": false
     },
@@ -565,6 +744,10 @@
     "/documents/confidentiels": {
      "voir": false,
      "faire": false
+    },
+    "/actes": {
+     "voir": true,
+     "faire": true
     },
     "/employes": {
      "voir": true,
@@ -589,6 +772,22 @@
     "/primes-medecins": {
      "voir": true,
      "faire": true
+    },
+    "/retenues-medecins": {
+     "voir": true,
+     "faire": true
+    },
+    "/tickets": {
+     "voir": true,
+     "faire": true
+    },
+    "/tickets/arbitrage": {
+     "voir": false,
+     "faire": false
+    },
+    "/tickets/traitement": {
+     "voir": false,
+     "faire": false
     },
     "/primes-medecins/deverrouillage": {
      "voir": false,
@@ -622,6 +821,10 @@
      "voir": true,
      "faire": true
     },
+    "/paie/dipe": {
+     "voir": true,
+     "faire": true
+    },
     "/paie/archives": {
      "voir": true,
      "faire": true
@@ -639,8 +842,12 @@
      "faire": false
     },
     "/membres": {
-     "voir": false,
+     "voir": true,
      "faire": false
+    },
+    "/membres/mot-de-passe": {
+     "voir": true,
+     "faire": true
     },
     "/parametres": {
      "voir": false,
@@ -670,15 +877,27 @@
      "voir": true,
      "faire": true
     },
+    "/comptes-rendus/plusieurs-par-jour": {
+     "voir": true,
+     "faire": true
+    },
     "/interventions": {
      "voir": true,
      "faire": true
+    },
+    "/interventions/toutes": {
+     "voir": true,
+     "faire": false
     },
     "/documents": {
      "voir": true,
      "faire": true
     },
     "/documents/confidentiels": {
+     "voir": true,
+     "faire": true
+    },
+    "/actes": {
      "voir": true,
      "faire": true
     },
@@ -705,6 +924,22 @@
     "/primes-medecins": {
      "voir": true,
      "faire": true
+    },
+    "/retenues-medecins": {
+     "voir": true,
+     "faire": true
+    },
+    "/tickets": {
+     "voir": true,
+     "faire": true
+    },
+    "/tickets/arbitrage": {
+     "voir": false,
+     "faire": false
+    },
+    "/tickets/traitement": {
+     "voir": false,
+     "faire": false
     },
     "/primes-medecins/deverrouillage": {
      "voir": false,
@@ -738,6 +973,10 @@
      "voir": true,
      "faire": true
     },
+    "/paie/dipe": {
+     "voir": true,
+     "faire": true
+    },
     "/paie/archives": {
      "voir": true,
      "faire": true
@@ -755,6 +994,10 @@
      "faire": false
     },
     "/membres": {
+     "voir": false,
+     "faire": false
+    },
+    "/membres/mot-de-passe": {
      "voir": false,
      "faire": false
     },
@@ -786,15 +1029,27 @@
      "voir": true,
      "faire": true
     },
+    "/comptes-rendus/plusieurs-par-jour": {
+     "voir": false,
+     "faire": false
+    },
     "/interventions": {
      "voir": true,
      "faire": true
+    },
+    "/interventions/toutes": {
+     "voir": true,
+     "faire": false
     },
     "/documents": {
      "voir": true,
      "faire": true
     },
     "/documents/confidentiels": {
+     "voir": true,
+     "faire": true
+    },
+    "/actes": {
      "voir": true,
      "faire": true
     },
@@ -821,6 +1076,22 @@
     "/primes-medecins": {
      "voir": true,
      "faire": true
+    },
+    "/retenues-medecins": {
+     "voir": true,
+     "faire": true
+    },
+    "/tickets": {
+     "voir": true,
+     "faire": true
+    },
+    "/tickets/arbitrage": {
+     "voir": true,
+     "faire": true
+    },
+    "/tickets/traitement": {
+     "voir": false,
+     "faire": false
     },
     "/primes-medecins/deverrouillage": {
      "voir": true,
@@ -854,6 +1125,10 @@
      "voir": true,
      "faire": true
     },
+    "/paie/dipe": {
+     "voir": true,
+     "faire": true
+    },
     "/paie/archives": {
      "voir": true,
      "faire": true
@@ -871,6 +1146,10 @@
      "faire": true
     },
     "/membres": {
+     "voir": true,
+     "faire": true
+    },
+    "/membres/mot-de-passe": {
      "voir": true,
      "faire": true
     },
@@ -902,15 +1181,27 @@
      "voir": true,
      "faire": true
     },
+    "/comptes-rendus/plusieurs-par-jour": {
+     "voir": true,
+     "faire": true
+    },
     "/interventions": {
      "voir": true,
      "faire": true
+    },
+    "/interventions/toutes": {
+     "voir": true,
+     "faire": false
     },
     "/documents": {
      "voir": true,
      "faire": true
     },
     "/documents/confidentiels": {
+     "voir": true,
+     "faire": true
+    },
+    "/actes": {
      "voir": true,
      "faire": true
     },
@@ -935,6 +1226,22 @@
      "faire": true
     },
     "/primes-medecins": {
+     "voir": true,
+     "faire": true
+    },
+    "/retenues-medecins": {
+     "voir": true,
+     "faire": true
+    },
+    "/tickets": {
+     "voir": true,
+     "faire": true
+    },
+    "/tickets/arbitrage": {
+     "voir": true,
+     "faire": true
+    },
+    "/tickets/traitement": {
      "voir": true,
      "faire": true
     },
@@ -970,6 +1277,10 @@
      "voir": true,
      "faire": true
     },
+    "/paie/dipe": {
+     "voir": true,
+     "faire": true
+    },
     "/paie/archives": {
      "voir": true,
      "faire": true
@@ -987,6 +1298,10 @@
      "faire": true
     },
     "/membres": {
+     "voir": true,
+     "faire": true
+    },
+    "/membres/mot-de-passe": {
      "voir": true,
      "faire": true
     },
@@ -1018,7 +1333,15 @@
      "voir": false,
      "faire": false
     },
+    "/comptes-rendus/plusieurs-par-jour": {
+     "voir": false,
+     "faire": false
+    },
     "/interventions": {
+     "voir": true,
+     "faire": false
+    },
+    "/interventions/toutes": {
      "voir": true,
      "faire": false
     },
@@ -1028,6 +1351,10 @@
     },
     "/documents/confidentiels": {
      "voir": false,
+     "faire": false
+    },
+    "/actes": {
+     "voir": true,
      "faire": false
     },
     "/employes": {
@@ -1051,6 +1378,22 @@
      "faire": false
     },
     "/primes-medecins": {
+     "voir": true,
+     "faire": false
+    },
+    "/retenues-medecins": {
+     "voir": true,
+     "faire": false
+    },
+    "/tickets": {
+     "voir": true,
+     "faire": false
+    },
+    "/tickets/arbitrage": {
+     "voir": true,
+     "faire": false
+    },
+    "/tickets/traitement": {
      "voir": true,
      "faire": false
     },
@@ -1086,6 +1429,10 @@
      "voir": true,
      "faire": false
     },
+    "/paie/dipe": {
+     "voir": true,
+     "faire": false
+    },
     "/paie/archives": {
      "voir": false,
      "faire": false
@@ -1104,6 +1451,10 @@
     },
     "/membres": {
      "voir": true,
+     "faire": false
+    },
+    "/membres/mot-de-passe": {
+     "voir": false,
      "faire": false
     },
     "/parametres": {

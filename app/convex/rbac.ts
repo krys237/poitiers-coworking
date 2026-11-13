@@ -24,7 +24,9 @@ export const LIBELLE: Record<Role, string> = {
   employe: "Employé",
   chef_equipe: "Chef d'équipe",
   comptable: "Comptable",
-  gestionnaire_rh: "Gestionnaire RH",
+  // Libellé renommé le 04/11/2026 à la demande de la RH. La CLÉ `gestionnaire_rh` ne
+  // change PAS : la renommer invaliderait les rôles déjà attribués en base.
+  gestionnaire_rh: "Responsable RH",
   da1: "Directeur Administratif (DAF)",
   dg: "Directeur Général (Admin)",
   super_admin: "Super administrateur (technique)",
@@ -87,12 +89,19 @@ export const MODULES: Module[] = [
   { cle: "/interventions/toutes", libelle: "Interventions : toutes les demandes", categorie: "Exploitation", voir: "Voir et suivre les demandes de tout le monde", faire: null, niveauVoir: 2, niveauFaire: 2 },
   { cle: "/documents", libelle: "Documents", categorie: "Exploitation", voir: "Consulter (selon le niveau de chaque document)", faire: "Déposer, supprimer ses dépôts", niveauVoir: 1, niveauFaire: 1 },
   { cle: "/documents/confidentiels", libelle: "Documents confidentiels", categorie: "Exploitation", voir: "Lire les documents confidentiels", faire: "Déposer un document confidentiel", niveauVoir: 5, niveauFaire: 5 },
+  { cle: "/actes", libelle: "Actes RH", categorie: "Exploitation", voir: "Consulter les actes délivrés", faire: "Délivrer et annuler un acte", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/employes", libelle: "Employés", categorie: "Exploitation", voir: "Consulter les fiches", faire: "Créer, modifier, importer", niveauVoir: 3, niveauFaire: 4 },
   { cle: "/commandes", libelle: "Commandes", categorie: "Exploitation", voir: "Consulter", faire: "Créer, modifier, commenter, livrer", niveauVoir: 3, niveauFaire: 3 },
   { cle: "/commandes/validation", libelle: "Validation des commandes", categorie: "Exploitation", voir: null, faire: "Valider ou rejeter une commande", niveauVoir: 5, niveauFaire: 5 },
   { cle: "/caisse", libelle: "Caisse du mois", categorie: "Exploitation", voir: "Consulter les intervalles et le chiffre d'affaires", faire: "Saisir, importer, supprimer un intervalle", niveauVoir: 3, niveauFaire: 3 },
   { cle: "/caisse/deverrouillage", libelle: "Caisse : modifier après le délai", categorie: "Exploitation", voir: null, faire: "Corriger ou supprimer un intervalle verrouillé (délai réglé dans Paramètres)", niveauVoir: 7, niveauFaire: 7 },
   { cle: "/primes-medecins", libelle: "Primes médecins", categorie: "Exploitation", voir: "Consulter les primes par catégorie", faire: "Saisir, importer, supprimer une prime", niveauVoir: 3, niveauFaire: 3 },
+  { cle: "/retenues-medecins", libelle: "Retenue médecins (impôts)", categorie: "Paie", voir: "Consulter et exporter la déclaration mensuelle", faire: "Saisir et supprimer une ligne", niveauVoir: 3, niveauFaire: 4 },
+  // Tickets (demande N5). Ouvrir un ticket est ouvert à TOUS — c'est le point du module : qui
+  // constate un dysfonctionnement doit pouvoir le dire sans demander la permission.
+  { cle: "/tickets", libelle: "Tickets", categorie: "Exploitation", voir: "Suivre ses propres tickets", faire: "Ouvrir un ticket, avec captures d'écran", niveauVoir: 1, niveauFaire: 1 },
+  { cle: "/tickets/arbitrage", libelle: "Tickets : juger la pertinence", categorie: "Exploitation", voir: "Voir tous les tickets", faire: "Juger un ticket pertinent ou non (refus motivé)", niveauVoir: 7, niveauFaire: 7 },
+  { cle: "/tickets/traitement", libelle: "Tickets : traitement technique", categorie: "Exploitation", voir: "Voir tous les tickets", faire: "Faire avancer l'état (en cours, résolu, abandonné)", niveauVoir: 8, niveauFaire: 8 },
   { cle: "/primes-medecins/deverrouillage", libelle: "Primes médecins : modifier après le délai", categorie: "Exploitation", voir: null, faire: "Corriger ou supprimer une prime verrouillée (délai réglé dans Paramètres)", niveauVoir: 7, niveauFaire: 7 },
   { cle: "/mes-bulletins", libelle: "Mes bulletins", categorie: "Paie", voir: "Consulter et télécharger ses propres bulletins (mois clôturés)", faire: null, niveauVoir: 1, niveauFaire: 1 },
   { cle: "/paie/saisie", libelle: "Récapitulatif salaires", categorie: "Paie", voir: "Consulter", faire: "Saisir le mois", niveauVoir: 4, niveauFaire: 4 },
@@ -101,6 +110,7 @@ export const MODULES: Module[] = [
   { cle: "/paie/courrier", libelle: "Courrier de paie", categorie: "Paie", voir: "Consulter, imprimer", faire: "Envoyer, modifier la lettre", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/paie/planning", libelle: "Planning des absences", categorie: "Paie", voir: "Consulter", faire: "Saisir, synchroniser la paie", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/paie/primes", libelle: "Primes & retenues", categorie: "Paie", voir: "Consulter", faire: "Ajouter, modifier, supprimer", niveauVoir: 4, niveauFaire: 4 },
+  { cle: "/paie/dipe", libelle: "DIPE (impôts & CNPS)", categorie: "Paie", voir: "Consulter et exporter l'état mensuel", faire: "Comparer avec le classeur de la RH", niveauVoir: 3, niveauFaire: 4 },
   { cle: "/paie/archives", libelle: "Archives de paie", categorie: "Paie", voir: "Consulter les mois clôturés", faire: "Générer les PDF", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/bareme", libelle: "Barème", categorie: "Paie", voir: "Consulter, contrôler la source", faire: "Publier une nouvelle version", niveauVoir: 4, niveauFaire: 7 },
   { cle: "/financier", libelle: "Récapitulatif financier (grand livre)", categorie: "Finances", voir: "Consulter", faire: "Saisir la journée, justificatifs, clôturer", niveauVoir: 5, niveauFaire: 5 },

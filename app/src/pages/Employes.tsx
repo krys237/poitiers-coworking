@@ -1,9 +1,16 @@
 /**
  * Employés — refonte (charte poitiers-ui-ux-system).
  *
- * Le registre des salariés : identité de paie (matricule, nom), société de
- * rattachement, brut de référence, date d'entrée (base de l'acquisition des
- * congés), CNPS. Tout est repris automatiquement par la paie.
+ * Le registre des salariés : identité de paie (matricule, nom), sociétés de
+ * rattachement, salaire de base versé par chacune, date d'entrée (base de
+ * l'acquisition des congés), CNPS. Tout est repris automatiquement par la paie.
+ *
+ * MULTI-SOCIÉTÉ (lot R2 bis, décision du 20/10/2026) : « SESAME déclare de son
+ * côté. » Un employé peut relever de deux ou trois sociétés, chacune étant un
+ * employeur distinct qui verse sa part, édite son bulletin et dépose son DIPE.
+ * La colonne « Sociétés » le montre ; le chevron DÉPLIE le détail sur la ligne
+ * même — pas une modale de plus (skill §7) — avec une ligne de saisie
+ * permanente pour rattacher la société suivante.
  *
  * Saisie en série (skill §7) : ligne de saisie permanente en tête du tableau
  * (matricule, nom, fonction, société, brut, date d'entrée) ; la fiche complète
@@ -13,7 +20,7 @@
 import * as React from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
-import { KeyRoundIcon, PlusIcon, SearchIcon, UploadIcon, UserRoundPenIcon } from "lucide-react";
+import { ChevronDownIcon, KeyRoundIcon, PlusIcon, SearchIcon, UploadIcon, UserRoundPenIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { usePeut } from "@/auth/useMe";
 import { MOT_DE_PASSE_PROVISOIRE } from "../../convex/lib/motDePasse";
@@ -24,13 +31,23 @@ import { parseCsv, toFcfa } from "@/lib/csv";
 import { messageErreur, num } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageEnTete } from "@/components/app/en-tete";
+import { EcheancesContrats } from "@/components/app/echeances-contrats";
 import { GrilleTuiles, Tuile } from "@/components/app/tuile";
+import { GestionFonctions } from "@/components/app/gestion-fonctions";
+import {
+  LIBELLE_IMMATRICULATION, repartitionImmatriculation, statutDocument,
+  type EtatImmatriculation,
+} from "../../convex/lib/immatriculation";
 import { Montant } from "@/components/app/montant";
 import { CelluleNombre } from "@/components/app/champs";
 import { SqueletteTableau } from "@/components/app/chargement";
 import { BoutonPersistance, useSaisiePersistante } from "@/components/app/saisie-persistante";
-import { SelecteurLignes, useLignesVisibles } from "@/components/app/lignes-visibles";
+import { Pagination, usePagination } from "@/components/app/pagination";
 import { FicheEmploye, SOCIETES, type EmployeFiche, type Societe } from "@/components/app/fiche-employe";
+import {
+  BadgePluriEmploi, PanneauRattachements, ResumeSocietes,
+  type ActionsRattachement, type RattachementVu,
+} from "@/components/app/rattachements-employe";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Flag } from "@/components/ui/flag";
@@ -45,6 +62,12 @@ export function Employes() {
   const creer = useMutation(api.employes.creer);
   const modifier = useMutation(api.employes.modifier);
   const importer = useMutation(api.employes.importer);
+  // Rattachements multi-société : une seule requête pour tout l'effectif, résolue côté serveur —
+  // l'écran affiche donc exactement ce que la paie calcule (`lib/societes.rattachementsEffectifs`).
+  const rattachements = useQuery(api.employes.rattachements, {});
+  const ajouterRattachement = useMutation(api.employes.ajouterRattachement);
+  const modifierRattachement = useMutation(api.employes.modifierRattachement);
+  const supprimerRattachement = useMutation(api.employes.supprimerRattachement);
   // Comptes de connexion (décision du 13/10/2026) : une fiche employé ne se connecte pas, son compte se crée ici.
   const voitComptes = usePeut("/membres");
   const peutCreerCompte = usePeut("/membres", "faire");
@@ -53,22 +76,58 @@ export function Employes() {
   const fichierRef = React.useRef<HTMLInputElement>(null);
 
   const [persistant, setPersistant] = useSaisiePersistante("employes", true);
-  const lignesVisibles = useLignesVisibles("employes", 15);
   const [societe, setSociete] = React.useState<Societe | "toutes">("toutes");
   const [etat, setEtat] = React.useState<"actifs" | "inactifs" | "tous">("actifs");
   const [recherche, setRecherche] = React.useState("");
+  // Filtre d'immatriculation (lot R8) : trois états, car « non renseigné » n'est pas
+  // « non immatriculé » — c'est justement ce que la RH doit pouvoir isoler pour compléter.
+  const [immat, setImmat] = React.useState<EtatImmatriculation | "tous">("tous");
+  // Une seule fiche dépliée à la fois : le tableau reste lisible.
+  const [deplie, setDeplie] = React.useState<string | null>(null);
+  const peutFaire = usePeut("/employes", "faire");
+  // Ligne entièrement cliquable (demande RH) : on retrouve le bouton « Fiche » de la ligne
+  // cliquée pour simuler son clic, plutôt que de dupliquer la logique d'ouverture du dialogue.
+  const fichesParId = React.useRef(new Map<string, HTMLSpanElement | null>());
+
+  const ratsDe = React.useCallback(
+    (id: string): RattachementVu[] => ((rattachements ?? {}) as Record<string, RattachementVu[]>)[id] ?? [],
+    [rattachements],
+  );
+  const actionsRattachement: ActionsRattachement = {
+    ajouter: (a) => ajouterRattachement(a as any),
+    modifier: (a) => modifierRattachement(a as any),
+    supprimer: (a) => supprimerRattachement(a as any),
+    modifierFiche: (a) => modifier(a as any),
+  };
 
   const tous = (employes ?? []) as any[];
   const actifs = tous.filter((e) => e.actif);
   const q = sansAccents(recherche.trim());
   const liste = tous
-    .filter((e) => (etat === "tous" || (etat === "actifs") === !!e.actif) && (societe === "toutes" || e.societe === societe))
+    .filter((e) => {
+      if (etat !== "tous" && (etat === "actifs") !== !!e.actif) return false;
+      if (societe === "toutes") return true;
+      // Filtrer sur la société, c'est filtrer sur ce que CETTE société paie : un pluri-employé
+      // apparaît dans les deux listes, parce que les deux le déclarent.
+      const r = ratsDe(String(e._id));
+      return r.length ? r.some((x) => x.societe === societe) : e.societe === societe;
+    })
     .filter((e) => !q || sansAccents(`${e.nom} ${e.matricule} ${e.fonction ?? ""} ${e.cnps ?? ""}`).includes(q))
+    .filter((e) => immat === "tous" || statutDocument(e.immatriculeImpots).etat === immat)
     .sort((a, b) => a.nom.localeCompare(b.nom));
+  const pagination = usePagination(liste, "employes", 25);
+  const repartition = repartitionImmatriculation(actifs);
   const sansDate = actifs.filter((e) => !e.dateDebut).length;
   const sansCnps = actifs.filter((e) => !e.cnps).length;
-  const masseBrute = actifs.reduce((s, e) => s + e.salaireBrut, 0);
-  const parSociete = (s: Societe) => actifs.filter((e) => e.societe === s).length;
+  const masseBase = actifs.reduce((s, e) => s + (e.salaireBase ?? e.salaireBrut ?? 0), 0);
+  // Une société compte tous ceux QU'ELLE rémunère, pluri-employés compris : le total des trois
+  // dépasse donc l'effectif, et c'est normal — ce ne sont pas trois tranches d'un même ensemble.
+  const parSociete = (s: Societe) =>
+    actifs.filter((e) => {
+      const r = ratsDe(String(e._id));
+      return r.length ? r.some((x) => x.societe === s) : e.societe === s;
+    }).length;
+  const pluriEmployes = actifs.filter((e) => ratsDe(String(e._id)).length > 1).length;
 
   const onImport = async (file: File) => {
     const rows = parseCsv(await file.text());
@@ -78,11 +137,12 @@ export function Employes() {
         fonction: r.fonction || undefined, adresse: r.adresse || undefined,
         cnps: r.cnps || undefined, niu: r.niu || undefined, email: r.email || undefined, whatsapp: r.whatsapp || undefined,
         societe: (SOCIETES.includes((r.societe ?? "").toUpperCase() as Societe) ? r.societe.toUpperCase() : "SGC") as Societe,
-        salaireBrut: toFcfa(r.salaire_brut ?? r.salairebrut ?? r.brut ?? "0"),
+        // `salaire_brut` reste accepté : c'est l'ancien en-tête des fichiers déjà diffusés.
+        salaireBase: toFcfa(r.salaire_base ?? r.salairebase ?? r.salaire_brut ?? r.salairebrut ?? r.brut ?? "0"),
         dateDebut: /^\d{4}-\d{2}-\d{2}$/.test(r.date_debut ?? "") ? r.date_debut : undefined,
       }))
       .filter((l) => l.matricule && l.nom);
-    if (!lignes.length) { toast.error("Aucune ligne valide dans ce fichier", { description: "Colonnes attendues : matricule ; nom ; fonction ; societe ; salaire_brut ; date_debut ; cnps ; email ; whatsapp" }); return; }
+    if (!lignes.length) { toast.error("Aucune ligne valide dans ce fichier", { description: "Colonnes attendues : matricule ; nom ; fonction ; societe ; salaire_base ; date_debut ; cnps ; email ; whatsapp" }); return; }
     try {
       const r = await importer({ lignes });
       toast.success(`Import terminé : ${r.crees} créé(s), ${r.majs} mis à jour`, { description: "Reconnaissance par matricule · les bulletins du mois se recalculent" });
@@ -91,19 +151,20 @@ export function Employes() {
 
   const fiche = (e: any): EmployeFiche => ({
     employeId: String(e._id), matricule: e.matricule, nom: e.nom, fonction: e.fonction, adresse: e.adresse, cnps: e.cnps, niu: e.niu,
-    email: e.email, whatsapp: e.whatsapp, societe: e.societe, salaireBrut: e.salaireBrut, dateDebut: e.dateDebut, congesInitial: e.congesInitial, actif: e.actif,
+    email: e.email, whatsapp: e.whatsapp, societe: e.societe, salaireBase: e.salaireBase ?? e.salaireBrut ?? 0, dateDebut: e.dateDebut, congesInitial: e.congesInitial, actif: e.actif,
   });
 
   return (
     <div className="space-y-4">
       <PageEnTete
         titre="Employés"
-        description="Registre des salariés : identité de paie, société de rattachement, brut de référence, date d'entrée (base de l'acquisition des congés). Tout est repris automatiquement par la paie."
+        description="Registre des salariés : identité de paie, société de rattachement, salaire de base, date d'entrée (base de l'acquisition des congés). Tout est repris automatiquement par la paie. Le salaire de base est HORS primes : elles s'y ajoutent dans le récapitulatif du mois."
         statut={sansDate || sansCnps ? <Flag variant="a-renseigner" size="sm" title="À compléter dans la fiche">{[sansDate ? `${sansDate} sans date d'entrée` : "", sansCnps ? `${sansCnps} sans n° CNPS` : ""].filter(Boolean).join(" · ")}</Flag> : null}
         actions={
           <>
             <input ref={fichierRef} type="file" accept=".csv,text/csv" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void onImport(f); e.target.value = ""; }} />
-            <Button variant="outline" size="sm" onClick={() => fichierRef.current?.click()} title="Colonnes : matricule ; nom ; fonction ; societe ; salaire_brut ; date_debut ; cnps ; email — mise à jour par matricule">
+            <GestionFonctions />
+            <Button variant="outline" size="sm" onClick={() => fichierRef.current?.click()} title="Colonnes : matricule ; nom ; fonction ; societe ; salaire_base ; date_debut ; cnps ; email — mise à jour par matricule">
               <UploadIcon /> Importer CSV / Excel
             </Button>
             {!persistant ? <FicheEmploye creer={creer as any} modifier={modifier as any} /> : null}
@@ -112,11 +173,17 @@ export function Employes() {
         }
       />
 
+      {/* Échéances de contrat (N2) : le panneau s'ouvre de lui-même dès qu'un rappel tombe,
+          et il ne s'affiche pas du tout si aucun contrat n'a de date de fin. */}
+      <EcheancesContrats />
+
       <GrilleTuiles>
         <Tuile libelle="Effectif actif" valeur={employes ? actifs.length : undefined} note={employes ? `${tous.length - actifs.length} inactif(s) conservé(s)` : undefined} vedette />
         <Tuile libelle="Par société" valeur={employes ? <span className="font-mono text-lg tabular-nums">{parSociete("SESAME")} · {parSociete("SOFINA")} · {parSociete("SGC")}</span> : undefined} note="SESAME · SOFINA · SGC" />
-        <Tuile libelle="Masse brute de référence" valeur={employes ? <Montant valeur={masseBrute} zero="0" /> : undefined} note="somme des bruts mensuels des actifs" />
-        <Tuile libelle="Fiches à compléter" valeur={employes ? sansDate + sansCnps : undefined} note="date d'entrée ou n° CNPS manquant" />
+        <Tuile libelle="Masse des salaires de base" valeur={employes ? <Montant valeur={masseBase} zero="0" /> : undefined} note="hors primes · salariés actifs" />
+        <Tuile libelle="Pluri-emploi" valeur={employes && rattachements ? pluriEmployes : undefined} note="salariés payés par 2 ou 3 sociétés · un bulletin et un DIPE par société" />
+        <Tuile libelle="Fiches à compléter" valeur={employes ? sansDate + sansCnps + repartition.non_renseigne : undefined} note="date d'entrée, n° CNPS ou immatriculation manquants" ton={employes && repartition.non_renseigne ? "attente" : "neutre"} />
+        <Tuile libelle="Immatriculés aux impôts" valeur={employes ? repartition.immatricule : undefined} note={employes ? `${repartition.non_immatricule} non immatriculé(s) · ${repartition.non_renseigne} à renseigner` : undefined} />
       </GrilleTuiles>
 
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-filet bg-surface px-3 py-2 shadow-xs print:hidden">
@@ -137,24 +204,37 @@ export function Employes() {
           </SelectContent>
         </Select>
         <span className="flex-1" />
-        <SelecteurLignes valeur={lignesVisibles.lignes} onChange={lignesVisibles.setLignes} />
         <div className="relative w-56">
           <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-encre-pale" aria-hidden="true" />
           <Input type="search" value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Nom, matricule, fonction, CNPS…" aria-label="Rechercher un employé" className="h-8 pl-8" />
         </div>
+        <div className="w-full min-[480px]:w-auto">
+          <Select value={immat} onValueChange={(v) => setImmat(v as EtatImmatriculation | "tous")}>
+            <SelectTrigger className="h-8 w-full min-[480px]:w-52" aria-label="Immatriculation aux impôts">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tous">Toute immatriculation</SelectItem>
+              {(["immatricule", "non_immatricule", "non_renseigne"] as EtatImmatriculation[]).map((k) => (
+                <SelectItem key={k} value={k}>{LIBELLE_IMMATRICULATION[k]} ({repartition[k]})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {employes === undefined ? (
-        <SqueletteTableau colonnes={8} lignes={8} />
+        <SqueletteTableau colonnes={9} lignes={8} />
       ) : (
-        <Table classNameConteneur="rounded-xl" hauteurMax={lignesVisibles.hauteurMax(49, 40, 0)}>
+        <Table classNameConteneur="rounded-xl">
           <TableHeader>
             <TableRow>
+              <TableHead className="w-8" aria-label="Déplier les sociétés" />
               <TableHead>Matricule</TableHead>
               <TableHead>Noms et prénoms</TableHead>
               <TableHead>Fonction</TableHead>
-              <TableHead>Société</TableHead>
-              <TableHead numerique>Brut mensuel (FCFA)</TableHead>
+              <TableHead>Sociétés</TableHead>
+              <TableHead numerique>Salaire de base (FCFA)</TableHead>
               <TableHead>Date d'entrée</TableHead>
               <TableHead>N° CNPS</TableHead>
               <TableHead>État</TableHead>
@@ -166,19 +246,58 @@ export function Employes() {
             {persistant && (
               <LigneSaisie
                 societeParDefaut={societe === "toutes" ? "SGC" : societe}
+                colonnesRestantes={voitComptes ? 3 : 2}
                 onEnregistrer={async (l) => {
-                  await creer({ matricule: l.matricule, nom: l.nom, fonction: l.fonction || undefined, societe: l.societe, salaireBrut: l.salaireBrut, dateDebut: l.dateDebut || undefined });
+                  await creer({ matricule: l.matricule, nom: l.nom, fonction: l.fonction || undefined, societe: l.societe, salaireBase: l.salaireBase, dateDebut: l.dateDebut || undefined });
                   toast.success(`${l.nom} ajouté à l'effectif`, { description: `${l.matricule} · ${l.societe} · complétez CNPS et adresse dans la fiche` });
                 }}
               />
             )}
-            {liste.map((e) => (
-              <TableRow key={String(e._id)} className={cn(!e.actif && "opacity-60")}>
+            {pagination.visibles.map((e) => {
+              const id = String(e._id);
+              const rats = ratsDe(id);
+              const ouvert = deplie === id;
+              return (
+              <React.Fragment key={id}>
+              <TableRow
+                className={cn(!e.actif && "opacity-60", "cursor-pointer")}
+                onClick={(ev) => {
+                  // La ligne ouvre la fiche complète, SAUF si le clic visait déjà une autre
+                  // interaction de la ligne (chevron des sociétés, édition de la date d'entrée,
+                  // compte de connexion…) : ces commandes gardent leur propre comportement.
+                  const cible = ev.target as HTMLElement;
+                  if (cible.closest("button, a, input, [role='combobox']")) return;
+                  fichesParId.current.get(id)?.querySelector("button")?.click();
+                }}
+              >
+                <TableCell className="pr-0">
+                  <Button
+                    variant="ghost" size="icon-sm"
+                    aria-expanded={ouvert}
+                    aria-label={`${ouvert ? "Replier" : "Déplier"} les sociétés — ${e.nom}`}
+                    title="Sociétés qui rémunèrent ce salarié (un bulletin et un DIPE par société)"
+                    onClick={() => setDeplie(ouvert ? null : id)}
+                  >
+                    <ChevronDownIcon className={cn("transition-transform", ouvert && "rotate-180")} />
+                  </Button>
+                </TableCell>
                 <TableCell className="whitespace-nowrap font-mono text-xs font-semibold text-ocean-profond">{e.matricule}</TableCell>
                 <TableCell className="whitespace-nowrap text-[13px] font-semibold">{e.nom}</TableCell>
                 <TableCell className="max-w-[14rem] truncate text-xs text-encre-douce" title={e.fonction}>{e.fonction || <span className="text-encre-pale">—</span>}</TableCell>
-                <TableCell><Flag variant="neutre" size="xs">{e.societe}</Flag></TableCell>
-                <TableCell numerique className="font-mono text-xs font-semibold">{num(e.salaireBrut)}</TableCell>
+                <TableCell>
+                  <span className="inline-flex flex-wrap items-center gap-1">
+                    {rattachements === undefined
+                      ? <Flag variant="neutre" size="xs">{e.societe}</Flag>
+                      : <ResumeSocietes rattachements={rats} />}
+                    <BadgePluriEmploi nb={rats.length} />
+                  </span>
+                </TableCell>
+                <TableCell numerique className="font-mono text-xs font-semibold tabular-nums">
+                  {num(e.salaireBase ?? e.salaireBrut ?? 0)}
+                  {/* Pluri-emploi : le montant de la fiche n'est QUE la part de la société
+                      porteuse. Ne jamais additionner les trois : ce sont trois employeurs. */}
+                  {rats.length > 1 ? <div className="text-2xs font-normal text-encre-pale">part {rats.find((r) => r.principal)?.societe ?? e.societe}</div> : null}
+                </TableCell>
                 <TableCell className="whitespace-nowrap">
                   {e.dateDebut ? (
                     <span className="font-mono text-xs tabular-nums">{fmtDate(e.dateDebut)}</span>
@@ -213,20 +332,45 @@ export function Employes() {
                   </TableCell>
                 )}
                 <TableCell className="text-right">
-                  <FicheEmploye
-                    employe={fiche(e)}
-                    creer={creer as any}
-                    modifier={modifier as any}
-                    declencheur={<Button variant="ghost" size="icon-sm" aria-label={`Fiche — ${e.nom}`} title="Fiche complète (CNPS, NIU, adresse, e-mail, congés initiaux)"><UserRoundPenIcon /></Button>}
-                  />
+                  <span ref={(n) => { fichesParId.current.set(id, n); }}>
+                    <FicheEmploye
+                      employe={fiche(e)}
+                      creer={creer as any}
+                      modifier={modifier as any}
+                      declencheur={<Button variant="ghost" size="icon-sm" aria-label={`Fiche — ${e.nom}`} title="Fiche complète (CNPS, NIU, adresse, e-mail, congés initiaux)"><UserRoundPenIcon /></Button>}
+                    />
+                  </span>
                 </TableCell>
               </TableRow>
-            ))}
+              {ouvert && (
+                <TableRow className="bg-bande/30 hover:bg-bande/30">
+                  <TableCell colSpan={voitComptes ? 11 : 10} className="p-2">
+                    <PanneauRattachements
+                      employeId={id}
+                      nom={e.nom}
+                      matricule={e.matricule}
+                      rattachements={rats}
+                      actions={actionsRattachement}
+                      lectureSeule={!peutFaire || !e.actif}
+                    />
+                  </TableCell>
+                </TableRow>
+              )}
+              </React.Fragment>
+              );
+            })}
             {liste.length === 0 && (
-              <TableVide colonnes={voitComptes ? 10 : 9}>{q || societe !== "toutes" || etat !== "actifs" ? "Aucun employé ne correspond aux filtres." : "Aucun employé : saisissez la première fiche ci-dessus ou importez un CSV."}</TableVide>
+              <TableVide colonnes={voitComptes ? 11 : 10}>{q || societe !== "toutes" || etat !== "actifs" ? "Aucun employé ne correspond aux filtres." : "Aucun employé : saisissez la première fiche ci-dessus ou importez un CSV."}</TableVide>
             )}
           </TableBody>
         </Table>
+      )}
+      {employes !== undefined && (
+        <Pagination
+          page={pagination.page} nbPages={pagination.nbPages} onPage={pagination.setPage}
+          total={pagination.total} debut={pagination.debut} nbVisibles={pagination.visibles.length}
+          taille={pagination.taille} onTaille={pagination.setTaille}
+        />
       )}
     </div>
   );
@@ -235,10 +379,10 @@ export function Employes() {
 // --- Ligne de saisie permanente (skill §7) ---------------------------------------
 
 const CS = "bg-ocean-brume/40 align-middle";
-type Nouveau = { matricule: string; nom: string; fonction: string; societe: Societe; salaireBrut: number; dateDebut: string };
+type Nouveau = { matricule: string; nom: string; fonction: string; societe: Societe; salaireBase: number; dateDebut: string };
 
-function LigneSaisie({ societeParDefaut, onEnregistrer }: { societeParDefaut: Societe; onEnregistrer: (l: Nouveau) => Promise<void> }) {
-  const vierge = React.useCallback((): Nouveau => ({ matricule: "", nom: "", fonction: "", societe: societeParDefaut, salaireBrut: 0, dateDebut: "" }), [societeParDefaut]);
+function LigneSaisie({ societeParDefaut, colonnesRestantes, onEnregistrer }: { societeParDefaut: Societe; colonnesRestantes: number; onEnregistrer: (l: Nouveau) => Promise<void> }) {
+  const vierge = React.useCallback((): Nouveau => ({ matricule: "", nom: "", fonction: "", societe: societeParDefaut, salaireBase: 0, dateDebut: "" }), [societeParDefaut]);
   const [l, setL] = React.useState(vierge);
   const [enCours, setEnCours] = React.useState(false);
   const premier = React.useRef<HTMLInputElement>(null);
@@ -247,7 +391,7 @@ function LigneSaisie({ societeParDefaut, onEnregistrer }: { societeParDefaut: So
   const vider = () => { setL(vierge()); premier.current?.focus(); };
   const valider = async () => {
     if (!l.matricule.trim() || !l.nom.trim()) { toast.error("Matricule et nom sont requis."); premier.current?.focus(); return; }
-    if (!(l.salaireBrut > 0)) { toast.error("Le salaire brut doit être supérieur à 0."); return; }
+    if (!(l.salaireBase > 0)) { toast.error("Le salaire de base doit être supérieur à 0."); return; }
     setEnCours(true);
     try {
       await onEnregistrer({ ...l, matricule: l.matricule.trim(), nom: l.nom.trim().toUpperCase(), fonction: l.fonction.trim() });
@@ -260,6 +404,8 @@ function LigneSaisie({ societeParDefaut, onEnregistrer }: { societeParDefaut: So
 
   return (
     <TableRow className={CS} aria-label="Nouvel employé">
+      {/* Colonne du chevron : rien à déplier tant que la fiche n'existe pas. */}
+      <TableCell className={CS} />
       <TableCell className={CS}><Input ref={premier} value={l.matricule} onChange={(e) => setL({ ...l, matricule: e.target.value })} onKeyDown={k} placeholder="E009" aria-label="Matricule (nouvel employé)" className="h-8 w-20 font-mono text-xs" /></TableCell>
       <TableCell className={CS}><Input value={l.nom} onChange={(e) => setL({ ...l, nom: e.target.value })} onKeyDown={k} placeholder="NOM Prénoms" aria-label="Noms et prénoms (nouvel employé)" className="h-8 w-48 text-xs" /></TableCell>
       <TableCell className={CS}><Input value={l.fonction} onChange={(e) => setL({ ...l, fonction: e.target.value })} onKeyDown={k} placeholder="Fonction" aria-label="Fonction (nouvel employé)" className="h-8 w-36 text-xs" /></TableCell>
@@ -269,9 +415,11 @@ function LigneSaisie({ societeParDefaut, onEnregistrer }: { societeParDefaut: So
           <SelectContent>{SOCIETES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
         </Select>
       </TableCell>
-      <TableCell numerique className={CS}><span onKeyDown={k}><CelluleNombre libelle="Brut mensuel (nouvel employé)" valeur={l.salaireBrut} onChange={(n) => setL({ ...l, salaireBrut: n })} largeur={104} min={0} pas={5000} /></span></TableCell>
+      <TableCell numerique className={CS}><span onKeyDown={k}><CelluleNombre libelle="Salaire de base mensuel (nouvel employé)" valeur={l.salaireBase} onChange={(n) => setL({ ...l, salaireBase: n })} largeur={104} min={0} pas={5000} /></span></TableCell>
       <TableCell className={CS}><Input type="date" value={l.dateDebut} onChange={(e) => setL({ ...l, dateDebut: e.target.value })} onKeyDown={k} aria-label="Date d'entrée (nouvel employé)" className="h-8 w-[8.5rem] px-1.5 text-2xs" /></TableCell>
-      <TableCell className={cn(CS, "text-2xs text-encre-pale")} colSpan={2}>CNPS, NIU, adresse : dans la fiche</TableCell>
+      {/* Le reste de la fiche se complète après création : le nombre de colonnes à couvrir dépend
+          de la présence de la colonne « Compte », réservée à qui voit les membres. */}
+      <TableCell className={cn(CS, "text-2xs text-encre-pale")} colSpan={colonnesRestantes}>CNPS, NIU, adresse : dans la fiche</TableCell>
       <TableCell className={cn(CS, "text-right")}>
         <Button size="icon-sm" onClick={() => void valider()} disabled={enCours} aria-label="Ajouter l'employé" title="Ajouter (Entrée) · vider (Échap)"><PlusIcon /></Button>
       </TableCell>

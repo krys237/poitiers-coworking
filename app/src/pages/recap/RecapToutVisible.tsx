@@ -8,6 +8,7 @@
  * composées (primes / congé, heures sup / ancienneté) s'ouvrent en mini-fenêtre.
  */
 import * as React from "react";
+import { libellePeriodesConges } from "../../../convex/lib/absences";
 import { Link } from "react-router-dom";
 import { FileCheck2Icon, PencilIcon, UserRoundPenIcon } from "lucide-react";
 import { FicheEmploye } from "@/components/app/fiche-employe";
@@ -72,7 +73,7 @@ function CellulePopover({
 }: {
   b: BulletinLigne; champs: Champ[]; total: number; sousTitre?: React.ReactNode; brouillon: Brouillon; lectureSeule: boolean; libelle: string;
 }) {
-  const id = String(b.employeId);
+  const id = b.cle;
   const [open, setOpen] = React.useState(false);
   const [v, setV] = React.useState<Partial<Valeurs>>({});
   React.useEffect(() => {
@@ -98,7 +99,7 @@ function CellulePopover({
           className={cn(
             "group/pop flex w-full flex-col items-end rounded-sm px-1.5 py-0.5 text-right",
             "hover:bg-surface hover:ring-1 hover:ring-filet focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30",
-            brouillon.modifie(id) && "bg-ocre-clair/40"
+            brouillon.modifieChamp(id, champs) && "bg-ocre-clair/40"
           )}
         >
           <span className="inline-flex items-center gap-1 border-b border-dashed border-sky-300 font-mono text-[11.5px] tabular-nums">
@@ -108,7 +109,7 @@ function CellulePopover({
           {sousTitre && <span className="text-[10px] leading-none text-encre-pale">{sousTitre}</span>}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-72 p-3">
+      <PopoverContent align="end" className="w-72 max-h-[70vh] overflow-y-auto p-3">
         <div className="mb-2">
           <div className="text-sm font-semibold">{libelle}</div>
           <div className="text-xs text-encre-douce">{b.nom}</div>
@@ -140,11 +141,27 @@ function CellulePopover({
 }
 
 const COLONNES = [
-  "w-[164px]", "w-[66px]", "w-[52px]", "w-[74px]", "w-[82px]", "w-[78px]", "w-[78px]", "w-[66px]", "w-[64px]",
-  "w-[60px]", "w-[94px]", "w-[46px]", "w-[60px]", "w-[78px]", "w-[70px]", "w-[70px]", "w-[70px]", "w-[32px]",
+  "w-[164px]", // Noms
+  "w-[66px]",  // Sal. journalier
+  "w-[52px]",  // Jours trav.
+  "w-[74px]",  // Salaire de base
+  "w-[86px]",  // Primes fixes / congé — regroupe 13 primes dans son infobulle
+  "w-[66px]",  // Heures sup                 ← séparé de l'ancienneté
+  "w-[66px]",  // Ancienneté                 ← nouvelle colonne
+  "w-[78px]",  // Total 1
+  "w-[62px]",  // Sanctions
+  "w-[62px]",  // Absence
+  "w-[60px]",  // Dettes de soins
+  "w-[72px]",  // Acompte / dette            ← séparé des impôts
+  "w-[78px]",  // Impôts & CNPS              ← nouvelle colonne
+  "w-[46px]",  // Mut. %
+  "w-[60px]",  // Mutuelle
+  "w-[78px]",  // Total 2
+  "w-[70px]", "w-[70px]", "w-[70px]", // SESAME / SOFINA / SGC
+  "w-[32px]",  // Bulletin
 ];
-const TH = "px-1.5 py-1.5 text-right text-[10px] font-semibold uppercase leading-tight tracking-wide whitespace-normal align-bottom";
-const TD = "h-10 px-1.5 text-right font-mono text-[11.5px] tabular-nums whitespace-nowrap border-b border-filet-clair";
+const TH = "px-2 py-2.5 text-right text-[10px] font-semibold uppercase leading-tight tracking-wide whitespace-normal align-bottom";
+const TD = "h-12 px-2 text-right font-mono text-[11.5px] tabular-nums whitespace-nowrap border-b border-filet-clair";
 
 export function RecapToutVisible({
   periode, onPeriode, recap, brouillon, filtre, actif, actions,
@@ -159,16 +176,22 @@ export function RecapToutVisible({
   const ro = cloture;
 
   const cel = (b: BulletinLigne, c: Champ, decimales = false) => {
-    const id = String(b.employeId);
+    const id = b.cle;
     return (
       <CelluleInline
         libelle={`${LIBELLE[c]} — ${b.nom}`}
         valeur={brouillon.val(id, c)}
         onChange={(v) => brouillon.set(id, c, v)}
         onCommit={() => brouillon.flush(id)}
-        modifie={brouillon.modifie(id)}
+        modifie={brouillon.modifieChamp(id, c)}
         lectureSeule={ro}
         decimales={decimales}
+        // Mut. % est la colonne la plus étroite (46 px) : le `min-w-[3.25rem]` (52 px) par défaut
+        // de CelluleInline dépassait du <td>, jusque dans la colonne Mutuelle voisine — les deux
+        // chiffres se touchaient, sans espace visible entre le pourcentage saisi et le montant
+        // calculé juste à côté. Constaté par mesure réelle des rects dans le navigateur (l'entrée
+        // débordait de ~12 px sur la cellule suivante), pas seulement à l'œil.
+        className={c === "mutuellePct" ? "min-w-[1.75rem]" : undefined}
       />
     );
   };
@@ -187,24 +210,37 @@ export function RecapToutVisible({
           className="overflow-auto rounded-xl border border-filet bg-surface"
           style={hauteurMax ? { maxHeight: hauteurMax } : undefined}
         >
-          <table className="w-full min-w-[1180px] table-fixed border-collapse text-sm">
+          <table className="w-full min-w-[1412px] table-fixed border-collapse text-sm">
             {/* Largeurs calibrées pour 1336 px utiles (1440 − rail 64 − marges) : aucune colonne ne déborde. */}
             <colgroup>
               {COLONNES.map((w, i) => <col key={i} className={w} />)}
             </colgroup>
-            <thead className="sticky top-0 z-10 bg-sceau text-primary-foreground">
+            {/*
+              z-20, pas z-10 : `<thead>` est lui-même `position: sticky`, donc il forme SA PROPRE
+              pile d'empilement — le z-20 du <th> "Noms et prénoms" ne compte que FACE À SES
+              FRÈRES DANS CE thead, jamais face aux lignes du corps. Vu de l'extérieur, tout le
+              thead ne vaut que SON PROPRE z-index. À z-10 des deux côtés, le thead et la cellule
+              figée de la première colonne du corps (elle aussi `sticky left-0 z-10`) étaient à
+              égalité — départagée par l'ordre du DOM, où <tbody> vient après <thead> : pendant le
+              défilement, la ligne qui passait sous l'en-tête le recouvrait au lieu de disparaître
+              dessous. Constaté dans le navigateur (cellule du corps masquée ⇒ "Noms et prénoms"
+              réapparaît dessous), pas seulement déduit de la lecture.
+            */}
+            <thead className="sticky top-0 z-20 bg-sceau text-primary-foreground">
               <tr>
                 <th className={cn(TH, "sticky left-0 z-20 bg-sceau text-left")}>Noms et prénoms</th>
                 <th className={TH}>Sal. journalier</th>
                 <th className={TH}>Jours trav.</th>
                 <th className={TH}>Salaire de base</th>
                 <th className={TH}>Primes fixes / congé</th>
-                <th className={TH}>H. sup / ancienneté</th>
+                <th className={TH}>Heures sup</th>
+                <th className={TH}>Ancienneté</th>
                 <th className={cn(TH, "bg-ocean-nuit")}>Total 1</th>
                 <th className={TH}>Sanctions</th>
                 <th className={TH}>Absence</th>
                 <th className={TH}>Dettes de soins</th>
-                <th className={TH}>Acompte / dette / impôts &amp; CNPS</th>
+                <th className={TH}>Acompte / dette</th>
+                <th className={TH}>Impôts &amp; CNPS</th>
                 <th className={TH}>Mut. %</th>
                 <th className={TH}>Mutuelle</th>
                 <th className={cn(TH, "bg-ocean-nuit")}>Total 2</th>
@@ -216,7 +252,7 @@ export function RecapToutVisible({
             </thead>
             <tbody className="[&>tr:nth-child(even)]:bg-bande [&>tr:hover]:bg-sceau-clair/70 [&>tr:focus-within]:bg-sceau-clair [&>tr:focus-within]:shadow-[inset_3px_0_0_var(--ocean-ceruleen)]">
               {bulletins.map((b) => {
-                const id = String(b.employeId);
+                const id = b.cle;
                 const d = b.details;
                 return (
                   <tr key={id}>
@@ -245,34 +281,37 @@ export function RecapToutVisible({
                     </td>
                     <td className={cn(TD, "text-encre-douce")}>
                       <N valeur={d?.salaireJournalier ?? 0} />
-                      <div className="font-sans text-[10px] leading-none text-encre-pale">brut {num(b.salaireBrut)}</div>
+                      <div className="font-sans text-[10px] leading-none text-encre-pale">base {num(b.salaireBase)}</div>
                     </td>
                     <td className={TD}>{cel(b, "joursTravailles")}</td>
                     <td className={TD}><N valeur={d?.salaireBase ?? 0} /></td>
                     <td className={TD}>
                       <CellulePopover
                         b={b} brouillon={brouillon} lectureSeule={ro} libelle="Primes fixes / congé"
-                        champs={["primesVariables", "transport", "primeAssiduite", "indemniteLogement"]}
-                        total={(d?.primes ?? 0) + (d?.indemniteConges ?? 0)}
-                        sousTitre={`${d?.congesPris ?? 0} j congés`}
+                        champs={[
+                          "primesVariables", "transport", "primeAssiduite", "indemniteLogement",
+                          "anciennete",
+                          "primeCaisse", "primeRendement", "gratification",
+                          "primeSalissure", "primePanier", "primeLait",
+                          "indemniteRepresentation", "indemniteVehicule", "indemniteOutillage",
+                        ]}
+                        total={(d?.primes ?? 0) + (d?.indemniteConges ?? 0) + (d?.anciennete ?? 0)}
+                        sousTitre={
+                          d?.periodesConges?.length
+                            ? `${d.congesPris ?? 0} j congés · ${libellePeriodesConges(d.periodesConges)}`
+                            : `${d?.congesPris ?? 0} j congés`
+                        }
                       />
                     </td>
-                    <td className={TD}>
-                      <CellulePopover
-                        b={b} brouillon={brouillon} lectureSeule={ro} libelle="Heures sup / ancienneté"
-                        champs={["heuresSup", "anciennete"]}
-                        total={(d?.heuresSup ?? 0) + (d?.anciennete ?? 0)}
-                      />
-                    </td>
+                    <td className={TD}>{cel(b, "heuresSup")}</td>
+                    <td className={TD}>{cel(b, "ancienneteSeparee")}</td>
                     <td className={cn(TD, "bg-ocean-brume font-semibold")}><N valeur={d?.total1 ?? b.brut} /></td>
                     <td className={TD}>{cel(b, "sanctions")}</td>
                     <td className={TD}>{cel(b, "absences")}</td>
                     <td className={TD}>{cel(b, "dettesSoins")}</td>
-                    <td className={TD}>
-                      {cel(b, "acompte")}
-                      <div className="font-sans text-[10px] leading-none text-encre-pale">
-                        = <b className="font-mono text-encre"><N valeur={d?.acompteImpotsCnps ?? 0} /></b> avec impôts
-                      </div>
+                    <td className={TD}>{cel(b, "acompte")}</td>
+                    <td className={TD} title="CNPS + IRPP + CAC + TDL + RAV + CFC salarial">
+                      <N valeur={d?.chargesSalariales ?? 0} />
                     </td>
                     <td className={TD}>{cel(b, "mutuellePct", true)}</td>
                     <td className={TD}><N valeur={d?.mutuelle ?? 0} /></td>
@@ -294,7 +333,7 @@ export function RecapToutVisible({
                 );
               })}
               {bulletins.length === 0 && (
-                <TableVide colonnes={18}>{filtre.recherche ? "Aucun employé ne correspond à la recherche." : "Aucun employé actif pour ce mois."}</TableVide>
+                <TableVide colonnes={20}>{filtre.recherche ? "Aucun employé ne correspond à la recherche." : "Aucun employé actif pour ce mois."}</TableVide>
               )}
             </tbody>
             {bulletins.length > 0 && (
@@ -305,11 +344,13 @@ export function RecapToutVisible({
                   </td>
                   <td className={TD} /><td className={TD} />
                   <td className={TD}><N valeur={t.salaireBase} /></td>
-                  <td className={TD}><N valeur={t.primes} /></td>
-                  <td className={TD}><N valeur={t.heuresSupAnciennete} /></td>
+                  <td className={TD}><N valeur={t.primes + t.anciennete} /></td>
+                  <td className={TD}><N valeur={t.heuresSup} /></td>
+                  <td className={TD}><N valeur={t.ancienneteSeparee} /></td>
                   <td className={cn(TD, "bg-ocean-brume")}><N valeur={t.total1} /></td>
                   <td className={TD} /><td className={TD} /><td className={TD} />
-                  <td className={TD}><N valeur={t.acompteImpotsCnps} /></td>
+                  <td className={TD}><N valeur={t.acompte} /></td>
+                  <td className={TD}><N valeur={t.chargesSalariales} /></td>
                   <td className={TD} />
                   <td className={TD}><N valeur={t.mutuelle} /></td>
                   <td className={cn(TD, "bg-ocean-brume")}><N valeur={t.total2} /></td>

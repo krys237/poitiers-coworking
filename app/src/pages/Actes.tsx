@@ -1,0 +1,455 @@
+/**
+ * Actes RH (lot R11) — attestations, notifications, stages et contrats.
+ *
+ * Ce que l'écran remplace : la RH ouvre un fichier Word, remplace les pointillés à la main, et
+ * pour une attestation de salaire **recopie seize montants** depuis le bulletin. Ici elle choisit
+ * le modèle, le salarié et la période : tout ce que le système sait est déjà en place, et il ne
+ * reste à saisir que ce qu'il ne peut pas deviner — un motif, une date d'effet, un diplôme.
+ *
+ * Deux partis pris visibles à l'écran :
+ *  · l'aperçu se met à jour **à la frappe**, parce qu'un acte se relit avant d'être remis ;
+ *  · un champ laissé vide ne disparaît pas du document — il devient une ligne de pointillés,
+ *    comme dans ses modèles Word, pour que l'acte reste imprimable et complétable à la main.
+ */
+import * as React from "react";
+import { useAction, useMutation, useQuery } from "convex/react";
+import { FileTextIcon, InfoIcon, TriangleAlertIcon } from "lucide-react";
+import { api } from "../../convex/_generated/api";
+import {
+  LIBELLE_FAMILLE, rendreActe, type FamilleActe,
+} from "../../convex/lib/actes";
+import { Link } from "react-router-dom";
+import { SOCIETES } from "../../convex/lib/societes";
+import { periodeCourante } from "@/lib/format";
+import { PageEnTete } from "@/components/app/en-tete";
+import { BoutonAction } from "@/components/app/bouton-action";
+import { BoutonPdf } from "@/components/app/bouton-pdf";
+import { ChampAutocomplete } from "@/components/app/champ-autocomplete";
+import { SelecteurPeriode } from "@/components/app/selecteur-periode";
+import { Flag } from "@/components/ui/flag";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableVide,
+} from "@/components/ui/table";
+
+type Onglet = "generer" | "historique";
+
+// Les champs de type "date" sont stockés comme les autres — un texte au format français
+// (JJ/MM/AAAA), celui qui sort sur l'acte imprimé — mais saisis via un sélecteur natif, qui ne
+// connaît que l'ISO (AAAA-MM-JJ). D'où l'aller-retour, local à cet écran.
+const frVersIso = (fr: string) => {
+  const m = fr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
+};
+const isoVersFr = (iso: string) => {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
+};
+
+export function Actes() {
+  const [onglet, setOnglet] = React.useState<Onglet>("generer");
+  const [code, setCode] = React.useState<string>("");
+  const [employeId, setEmployeId] = React.useState<string>("");
+  const [periode, setPeriode] = React.useState(periodeCourante());
+  // Société émettrice. Vide = la société principale de l'employé ; à choisir pour un contrat
+  // d'embauche, où la fiche n'a pas encore de rattachement.
+  const [societe, setSociete] = React.useState<string>("");
+  // Signataire retenu quand l'acte en offre plusieurs (lot N4). Vide = le défaut du modèle.
+  const [signataireCle, setSignataireCle] = React.useState<string>("");
+  // Valeurs modifiées à la main : elles PRIMENT sur le pré-remplissage, sinon chaque
+  // rechargement de la préparation écraserait la saisie en cours.
+  const [saisies, setSaisies] = React.useState<Record<string, string>>({});
+
+  const catalogue = useQuery(api.actes.modeles, {});
+  const employes = useQuery(api.employes.liste, {});
+  const prepa = useQuery(
+    api.actes.preparer,
+    code
+      ? { code, employeId: (employeId || undefined) as any, periode,
+          societe: (societe || undefined) as any,
+          signataireCle: signataireCle || undefined }
+      : "skip",
+  );
+  const generer = useMutation(api.actes.generer);
+  const initModeles = useMutation(api.actes.initialiserModeles);
+  const pdfApercu = useAction(api.actesPdf.pdfApercu);
+
+  const modeles = catalogue?.modeles ?? [];
+  const modele = modeles.find((m) => m.code === code);
+
+  // Changer de modèle ou de salarié repart d'une saisie vierge : garder des valeurs d'un
+  // autre acte produirait un document faux sans que rien ne le signale.
+  React.useEffect(() => setSaisies({}), [code, employeId]);
+  // Changer d'acte remet le signataire au défaut : celui d'un autre modèle n'a pas de sens ici.
+  React.useEffect(() => setSignataireCle(""), [code]);
+
+  const valeurs = React.useMemo(
+    () => ({ ...(prepa?.valeurs ?? {}), ...saisies }),
+    [prepa?.valeurs, saisies],
+  );
+  const apercu = modele ? rendreActe(modele.corps, valeurs) : "";
+  const manquants = (modele?.champs ?? []).filter(
+    (c) => c.obligatoire && !(valeurs[c.nom] ?? "").trim(),
+  );
+
+  const parFamille = React.useMemo(() => {
+    const m = new Map<FamilleActe, typeof modeles>();
+    for (const x of modeles) {
+      const f = x.famille as FamilleActe;
+      m.set(f, [...(m.get(f) ?? []), x]);
+    }
+    return [...m.entries()];
+  }, [modeles]);
+
+  return (
+    <div className="space-y-4">
+      <PageEnTete
+        titre="Actes RH"
+        description="Attestations, notifications, accords de stage et contrats. Les montants et l'identité sont repris de la fiche et du bulletin : il ne reste à saisir que ce que le système ne peut pas savoir."
+        actions={
+          <Tabs value={onglet} onValueChange={(v) => setOnglet(v as Onglet)}>
+            <TabsList>
+              <TabsTrigger value="generer">Délivrer un acte</TabsTrigger>
+              <TabsTrigger value="historique">Actes délivrés</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        }
+      />
+
+      {catalogue?.source === "defaut" ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-dashed border-filet bg-bande px-4 py-3">
+          <InfoIcon className="h-5 w-5 shrink-0 text-ocean-ceruleen" aria-hidden="true" />
+          <p className="flex-1 text-sm">
+            Les modèles proviennent du catalogue livré. <strong>Chargez-les en base</strong> pour
+            pouvoir en corriger les formulations vous-même.
+          </p>
+          <BoutonAction
+            size="sm"
+            variant="outline"
+            onAction={() => initModeles({})}
+            succes={(r: any) => `${r.ajoutes} modèle(s) chargé(s) et désormais modifiables`}
+          >
+            Charger les modèles
+          </BoutonAction>
+        </div>
+      ) : null}
+
+      {onglet === "historique" ? <Historique /> : (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
+          {/* ---- Le formulaire ---- */}
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-filet bg-surface p-3 shadow-xs">
+              <label className="grid gap-1 text-xs">
+                Type d'acte
+                <Select value={code} onValueChange={setCode}>
+                  <SelectTrigger aria-label="Type d'acte">
+                    <SelectValue placeholder="Choisir un acte…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {parFamille.map(([famille, liste]) => (
+                      <React.Fragment key={famille}>
+                        <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-encre-pale">
+                          {LIBELLE_FAMILLE[famille]}
+                        </div>
+                        {liste.map((m) => (
+                          <SelectItem key={m.code} value={m.code}>{m.libelle}</SelectItem>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+
+              {modele ? (
+                <>
+                  <label className="mt-3 grid gap-1 text-xs">
+                    Salarié concerné
+                    <ChampAutocomplete
+                      strict
+                      valeur={employeId}
+                      ariaLabel="Salarié concerné"
+                      placeholder="Nom ou matricule…"
+                      options={(employes ?? []).map((e: any) => ({
+                        valeur: String(e._id),
+                        libelle: e.nom,
+                        note: e.matricule,
+                        recherche: `${e.fonction ?? ""} ${e.cnps ?? ""}`,
+                      }))}
+                      onChange={(v) => setEmployeId(v)}
+                    />
+                  </label>
+
+                  {/* Signataire au choix (lot N4) : n'apparaît que pour les actes qui en offrent
+                      plusieurs — aujourd'hui le seul certificat de fin de stage. */}
+                  {prepa?.signataires?.length ? (
+                    <label className="mt-3 grid gap-1 text-xs">
+                      Qui signe
+                      <select
+                        className="h-9 rounded-md border border-filet bg-surface px-2 text-sm"
+                        value={signataireCle || prepa.signataireRetenu}
+                        onChange={(ev) => setSignataireCle(ev.target.value)}
+                      >
+                        {prepa.signataires.map((x: any) => (
+                          <option key={x.cle} value={x.cle}>{x.libelle}</option>
+                        ))}
+                      </select>
+                      <span className="text-[11px] text-encre-pale">
+                        La qualité inscrite sur l'acte suit le signataire : il ne peut pas annoncer
+                        une fonction que la personne n'exerce pas.
+                      </span>
+                    </label>
+                  ) : null}
+
+                  {/* L'identité juridique n'apparaît que sur les contrats : inutile de demander
+                      la société pour une attestation de reprise de service. */}
+                  {modele.champs.some((c) => c.source.de === "entreprise" && c.source.cle !== "responsableRH") ? (
+                    <label className="mt-3 grid gap-1 text-xs">
+                      Société émettrice
+                      <select
+                        className="h-9 rounded-md border border-filet bg-surface px-2 text-sm"
+                        value={societe}
+                        onChange={(ev) => setSociete(ev.target.value)}
+                      >
+                        <option value="">{employeId ? "Société principale du salarié" : "Entreprise (par défaut)"}</option>
+                        {SOCIETES.map((x) => <option key={x} value={x}>{x}</option>)}
+                      </select>
+                      <span className="text-[11px] text-encre-pale">
+                        {prepa?.identite?.societe
+                          ? <>Le contrat portera l'identité de <strong>{prepa.identite.raisonSociale}</strong>{prepa.identite.herites.length ? ` — ${prepa.identite.herites.length} champ(s) repris de l'entreprise` : ""}.</>
+                          : "Chaque société signe ses propres contrats : le dirigeant et le n° de registre du commerce sont les siens."}
+                      </span>
+                    </label>
+                  ) : null}
+
+                  {modele.champs.some((c) => c.source.de === "bulletin") ? (
+                    <div className="mt-3 grid gap-1 text-xs">
+                      Période du bulletin
+                      <SelecteurPeriode valeur={periode} onChange={setPeriode} />
+                      <span className="text-[11px] text-encre-pale">
+                        Les montants de l'acte sont repris du bulletin de ce mois.
+                      </span>
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
+
+            {/* Un contrat sans n° de registre du commerce sort avec des pointillés à la place de
+                l'identification légale de l'employeur. Ça se dit AVANT la délivrance. */}
+            {prepa?.identite?.incomplete ? (
+              <div className="flex gap-2 rounded-xl border border-dashed border-carmin bg-carmin/5 px-3 py-2">
+                <TriangleAlertIcon className="h-4 w-4 shrink-0 text-carmin" aria-hidden="true" />
+                <p className="text-xs">
+                  L'identité juridique de {prepa.identite.raisonSociale} est incomplète : l'acte
+                  sortira avec des pointillés à la place de son identification légale. À renseigner
+                  dans <Link to="/parametres" className="underline underline-offset-2">Paramètres → Entreprise &amp; documents</Link>.
+                </p>
+              </div>
+            ) : null}
+
+            {prepa?.avertissement ? (
+              <div className="flex gap-2 rounded-xl border border-dashed border-ocre bg-ocre-clair/40 px-3 py-2">
+                <TriangleAlertIcon className="h-4 w-4 shrink-0 text-ocre" aria-hidden="true" />
+                <p className="text-xs">{prepa.avertissement}</p>
+              </div>
+            ) : null}
+
+            {modele ? (
+              <div className="space-y-2 rounded-2xl border border-filet bg-surface p-3 shadow-xs">
+                <h2 className="text-sm font-semibold">
+                  Champs
+                  <span className="ml-2 text-xs font-normal text-encre-pale">
+                    {modele.champs.length - manquants.length}/{modele.champs.length} renseigné(s)
+                  </span>
+                </h2>
+                {modele.champs.map((c) => {
+                  const propose = (prepa?.valeurs ?? {})[c.nom];
+                  const valeur = valeurs[c.nom] ?? "";
+                  const vide = c.obligatoire && !valeur.trim();
+                  return (
+                    <label key={c.nom} className="grid gap-0.5 text-xs">
+                      <span className="flex items-center gap-1.5">
+                        {c.libelle}
+                        {c.obligatoire ? <span className="text-carmin">*</span> : null}
+                        {propose && !saisies[c.nom] ? (
+                          <Flag variant="renseigne" size="xs">pré-rempli</Flag>
+                        ) : null}
+                      </span>
+                      {c.type === "zone" ? (
+                        <Textarea
+                          value={valeur}
+                          rows={2}
+                          aria-label={c.libelle}
+                          onChange={(e) => setSaisies((s) => ({ ...s, [c.nom]: e.target.value }))}
+                        />
+                      ) : c.type === "date" ? (
+                        // Sélecteur natif plutôt qu'un texte libre « en toutes lettres » (retour
+                        // RH) — le même composant que la fiche employé et le planning.
+                        <Input
+                          type="date"
+                          value={frVersIso(valeur)}
+                          aria-label={c.libelle}
+                          className={vide ? "border-ocre" : undefined}
+                          onChange={(e) => setSaisies((s) => ({ ...s, [c.nom]: isoVersFr(e.target.value) }))}
+                        />
+                      ) : (
+                        <Input
+                          value={valeur}
+                          aria-label={c.libelle}
+                          className={vide ? "border-ocre" : undefined}
+                          onChange={(e) => setSaisies((s) => ({ ...s, [c.nom]: e.target.value }))}
+                        />
+                      )}
+                      {c.aide ? <span className="text-[11px] text-encre-pale">{c.aide}</span> : null}
+                    </label>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
+
+          {/* ---- L'aperçu ---- */}
+          <div className="space-y-3">
+            {!modele ? (
+              <div className="rounded-2xl border border-dashed border-filet bg-bande p-8 text-center text-sm text-encre-pale">
+                Choisissez un type d'acte pour en voir l'aperçu.
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center gap-2">
+                  {manquants.length ? (
+                    <Flag variant="a-renseigner" size="sm">
+                      {manquants.length} champ(s) obligatoire(s) à renseigner
+                    </Flag>
+                  ) : (
+                    <Flag variant="renseigne" size="sm">Prêt à délivrer</Flag>
+                  )}
+                  <span className="flex-1" />
+                  <BoutonPdf
+                    variant="outline"
+                    titre="Aperçu PDF — à vérifier avant d'imprimer"
+                    generer={() => pdfApercu({ corps: apercu, titre: modele.libelle })}
+                  >
+                    Aperçu PDF
+                  </BoutonPdf>
+                  {/* Impression DIRECTE : les actes sortent sur des pro forma dont l'en-tête est
+                      déjà imprimé, et la marge haute de 125 pt le dégage. Passer par un
+                      téléchargement obligerait à retrouver le fichier pour l'imprimer. */}
+                  <BoutonPdf
+                    mode="imprimer"
+                    variant="outline"
+                    titre="Imprimer sur le papier à en-tête"
+                    generer={() => pdfApercu({ corps: apercu, titre: modele.libelle })}
+                  >
+                    Imprimer
+                  </BoutonPdf>
+                  <BoutonAction
+                    disabled={manquants.length > 0}
+                    onAction={() =>
+                      generer({
+                        code,
+                        employeId: (employeId || undefined) as any,
+                        periode: modele.champs.some((c) => c.source.de === "bulletin") ? periode : undefined,
+                        valeurs,
+                      })
+                    }
+                    succes={(r: any) => {
+                      setSaisies({});
+                      return `Acte délivré${r.reference ? ` — réf. ${r.reference}` : ""}`;
+                    }}
+                  >
+                    <FileTextIcon /> Délivrer et archiver
+                  </BoutonAction>
+                </div>
+
+                <div className="rounded-2xl border border-filet bg-surface p-6 shadow-xs">
+                  {/* La marge haute reproduit à l'écran l'espace que le papier à en-tête occupe
+                      sur le PDF : ce qu'elle voit ici est ce qui sortira de l'imprimante. */}
+                  <div className="mb-5 flex h-16 items-center justify-center rounded-lg border border-dashed border-filet bg-bande text-[11px] text-encre-pale">
+                    Emplacement réservé à l'en-tête imprimé (44 mm)
+                  </div>
+                  <pre className="whitespace-pre-wrap font-serif text-[13px] leading-relaxed text-encre">
+                    {apercu}
+                  </pre>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+function Historique() {
+  const actes = useQuery(api.actes.historique, {});
+  const annuler = useMutation(api.actes.annuler);
+  const pdf = useAction(api.actesPdf.pdfActe);
+  const fmt = (iso: string) => new Date(iso).toLocaleString("fr-FR");
+
+  return (
+    <div className="rounded-2xl border border-filet bg-surface shadow-xs">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Délivré le</TableHead>
+            <TableHead>Acte</TableHead>
+            <TableHead>Bénéficiaire</TableHead>
+            <TableHead>Référence</TableHead>
+            <TableHead>Par</TableHead>
+            <TableHead />
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {actes === undefined ? (
+            <TableVide colonnes={6}>Chargement…</TableVide>
+          ) : !actes.length ? (
+            <TableVide colonnes={6}>Aucun acte délivré.</TableVide>
+          ) : (
+            actes.map((a) => (
+              <TableRow key={String(a._id)} className={a.annuleLe ? "opacity-60" : undefined}>
+                <TableCell className="whitespace-nowrap text-xs">{fmt(a.genereLe)}</TableCell>
+                <TableCell>
+                  {a.modeleLibelle}
+                  {a.annuleLe ? <Flag variant="verrou" size="xs" className="ml-1.5">annulé</Flag> : null}
+                </TableCell>
+                <TableCell>{a.nomBeneficiaire}</TableCell>
+                <TableCell className="font-mono text-xs">{a.reference ?? "—"}</TableCell>
+                <TableCell className="text-xs text-encre-pale">{a.genereParNom ?? "—"}</TableCell>
+                <TableCell>
+                  <div className="flex items-center justify-end gap-1">
+                    <BoutonPdf mode="imprimer" variant="outline" titre="Réimprimer sur le papier à en-tête" generer={() => pdf({ id: a._id })}>
+                      Imprimer
+                    </BoutonPdf>
+                    <BoutonPdf variant="outline" titre="Télécharger" generer={() => pdf({ id: a._id })}>
+                      PDF
+                    </BoutonPdf>
+                    {!a.annuleLe ? (
+                      <BoutonAction
+                        size="sm"
+                        variant="ghost"
+                        onAction={() => {
+                          const motif = window.prompt("Motif de l'annulation ?");
+                          if (!motif) throw new Error("Annulation abandonnée : un motif est obligatoire.");
+                          return annuler({ id: a._id, motif });
+                        }}
+                        succes="Acte annulé — il reste consultable"
+                      >
+                        Annuler
+                      </BoutonAction>
+                    ) : null}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}

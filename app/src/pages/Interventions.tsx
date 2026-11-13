@@ -30,6 +30,7 @@ import { Champ, ChampNombre, GrilleFormulaire } from "@/components/app/champs";
 import { SqueletteTableau } from "@/components/app/chargement";
 import { EtatVide } from "@/components/app/etat-vide";
 import { SelecteurLignes, useLignesVisibles } from "@/components/app/lignes-visibles";
+import { useDefilerVersDetail } from "@/components/app/defilement-detail";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -82,6 +83,7 @@ export function Interventions() {
   const [recherche, setRecherche] = React.useState("");
   const lignesVisibles = useLignesVisibles("interventions");
   const [sel, setSel] = React.useState<string | null>(null);
+  const refDetail = useDefilerVersDetail<HTMLDivElement>(sel);
   const [ouvrirCreation, setOuvrirCreation] = React.useState(false);
 
   const toutes = (liste ?? []) as any[];
@@ -239,7 +241,9 @@ export function Interventions() {
         </div>
 
         {sel ? (
-          <DetailIntervention id={sel} peutArbitrer={peutArbitrer} onFermer={() => setSel(null)} />
+          <div ref={refDetail} className="w-full lg:w-[27.5rem] lg:shrink-0">
+            <DetailIntervention id={sel} peutArbitrer={peutArbitrer} onFermer={() => setSel(null)} />
+          </div>
         ) : (
           <aside className="hidden w-[27.5rem] shrink-0 items-center justify-center rounded-xl border border-dashed border-filet bg-surface/60 p-6 text-center text-sm text-encre-douce lg:flex">
             Sélectionnez une intervention pour voir son parcours, ses photos et son chiffrage.

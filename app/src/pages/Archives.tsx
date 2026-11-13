@@ -54,7 +54,7 @@ export function Archives() {
   const bulletins = ((detail ?? []) as any[]).filter((b) => !q || sansAccents(`${b.nom} ${b.matricule} ${b.societe}`).includes(q));
   const totalBulletins = liste.reduce((s, m) => s + m.nombre, 0);
   const pdfManquants = liste.reduce((s, m) => s + (m.nombre - m.pdfs), 0);
-  const apercu = apercuDe ? ((snapshots?.bulletins ?? []) as any[]).find((b) => String(b.employeId) === apercuDe) ?? null : null;
+  const apercu = apercuDe ? ((snapshots?.bulletins ?? []) as any[]).find((b) => b.cle === apercuDe) ?? null : null;
 
   return (
     <div className="space-y-4">
@@ -185,7 +185,7 @@ export function Archives() {
                         </td>
                         <td className="px-2 py-2 text-right whitespace-nowrap">
                           <span className="inline-flex items-center gap-0.5">
-                            <Button variant="ghost" size="icon-sm" aria-label={`Aperçu du bulletin — ${b.nom}`} title="Aperçu du bulletin figé" onClick={() => setApercuDe(String(b.employeId))}><EyeIcon /></Button>
+                            <Button variant="ghost" size="icon-sm" aria-label={`Aperçu du bulletin — ${b.nom}`} title="Aperçu du bulletin figé" onClick={() => setApercuDe(b.cle)}><EyeIcon /></Button>
                             {b.pdfUrl
                               ? <Button variant="ghost" size="icon-sm" asChild aria-label={`Télécharger le PDF — ${b.nom}`} title="Télécharger le PDF archivé"><a href={b.pdfUrl} target="_blank" rel="noreferrer"><DownloadIcon /></a></Button>
                               : <span className="inline-flex h-7 w-7 items-center justify-center text-encre-pale/50" title="PDF non généré"><DownloadIcon className="h-3.5 w-3.5" /></span>}

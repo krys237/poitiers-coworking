@@ -1,0 +1,993 @@
+[
+ {
+  "id": "RH-01",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Employés",
+  "module": "/employes",
+  "compte": "rh",
+  "titre": "Fiche employé : contrat et échéance, enfin saisissables",
+  "objectif": "« Type de contrat » et « Fin de contrat » existaient en base mais n'étaient saisissables nulle part : il n'y avait donc rien sur quoi alerter. Vérifier que les deux champs se créent et que le contrôle de durée AVERTIT sans bloquer.",
+  "prealable": "Aucune fiche RH01 à RH04 n'existe (sinon, les retirer d'abord).",
+  "etapes": [
+   "Dans /employes, « Nouvel employé » : Matricule « RH02 », Noms et prénoms « recette rh deux », Société SOFINA, Salaire de base 150 000.",
+   "Type de contrat « CDD », Date d'entrée 01/11/2025, Fin de contrat 01/11/2026.",
+   "Lire le message qui apparaît sous les deux champs, sans cocher « Ce contrat est déjà un renouvellement ».",
+   "Cocher la case, relire le message.",
+   "Créer la fiche."
+  ],
+  "attendu": [
+   "Sans la case cochée : « 12 mois d'un seul trait dépassent les 6 mois d'un CDD initial. S'il s'agit d'un renouvellement, cochez-le ; sinon la durée est irrégulière. » — aucun blocage, le bouton « Créer l'employé » reste actif.",
+   "Case cochée : « Marqué renouvelé pour 12 mois : plus aucun renouvellement ne sera possible ensuite. »",
+   "La fiche se crée dans les deux cas (le contrôle avertit, il ne bloque pas).",
+   "Remarque à signaler si ce n'est pas voulu : le contrôle de durée s'applique même si « Type de contrat » n'est pas CDD — un CDI avec une date de fin lointaine recevrait le même avertissement."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "employes",
+   "contrat",
+   "echeances",
+   "controle"
+  ]
+ },
+ {
+  "id": "RH-02",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Employés",
+  "module": "/employes",
+  "compte": "rh",
+  "titre": "Panneau « Échéances de contrat » : apparition et cadence des rappels",
+  "objectif": "Le panneau doit s'ouvrir de lui-même dès qu'un rappel tombe, et montrer la cadence exacte demandée : un avis à un mois, puis chaque semaine, puis chaque jour la dernière semaine.",
+  "prealable": "RH02 créé (RH-01). Aucune fiche RH01 n'existe encore.",
+  "etapes": [
+   "Créer « Nouvel employé » : Matricule « RH01 », Noms et prénoms « recette rh un », Société SGC, Salaire de base 180 000, Type de contrat « CDD », Date d'entrée = la date du jour.",
+   "Régler Fin de contrat = la date du jour + 28 jours. Créer la fiche.",
+   "Ouvrir /employes : lire le panneau « Échéances de contrat ».",
+   "Rouvrir la fiche de RH01, régler Fin de contrat = la date du jour + 5 jours. Enregistrer.",
+   "Recharger /employes.",
+   "Rouvrir la fiche, régler Fin de contrat = la date du jour − 2 jours. Enregistrer, recharger /employes."
+  ],
+  "attendu": [
+   "À +28 jours : le panneau est DÉPLIÉ de lui-même (un rappel hebdomadaire tombe pile à 28 jours). Ligne RH01 : « Reste » 28 j, badge « Rappel hebdomadaire », la colonne « Ce qu'il faut savoir » dit « 28 jours avant l'échéance : rappel hebdomadaire. »",
+   "À +5 jours : badge « Rappel quotidien », mention « aujourd'hui » à côté du badge, raison « Plus que 5 jour(s) : rappel quotidien. »",
+   "À −2 jours : RH01 reste en TÊTE de liste (les échues ne disparaissent jamais), « Reste » affiche « 2 j de retard » en rouge gras, badge « Échéance dépassée », raison « Échéance dépassée de 2 jour(s) : sans décision, le contrat se poursuit de fait. »",
+   "Les compteurs du bandeau du panneau (dépassée(s) / cette semaine / suivi(s) / rappel(s) aujourd'hui) reflètent chaque état."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "employes",
+   "echeances",
+   "cadence"
+  ]
+ },
+ {
+  "id": "RH-03",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Paramètres — Fonctionnement",
+  "module": "/employes",
+  "compte": "dg",
+  "titre": "Réglage de la cadence des rappels, et contrôle de l'ordre des trois seuils",
+  "objectif": "La cadence est configurable, mais les trois seuils doivent rester ordonnés : un quotidien plus large que l'hebdomadaire rendrait ce dernier inatteignable.",
+  "prealable": "Réglages par défaut (30 / 30 / 7). RH01 existant avec une échéance proche (RH-02).",
+  "etapes": [
+   "Dans Paramètres → Fonctionnement, régler « Rappels quotidiens à partir de » à 40 (plus large que « Rappels hebdomadaires à partir de », resté à 30).",
+   "Cliquer « Enregistrer ».",
+   "Corriger : remettre « Rappels quotidiens » à 7, régler « Premier avis d'échéance » à 60.",
+   "Enregistrer, puis ouvrir /employes."
+  ],
+  "attendu": [
+   "Premier essai refusé : « Les rappels quotidiens doivent démarrer APRÈS les hebdomadaires, pas avant : sinon l'hebdomadaire ne tombe jamais. »",
+   "Second essai accepté (premier avis élargi à 60, cohérent : 60 ≥ 30 ≥ 7).",
+   "Sur /employes, la phrase de bas de panneau reprend les nouveaux seuils : « premier avis à 60 jours, puis un rappel par semaine en deçà de 30 jours, puis un par jour en deçà de 7. »"
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "parametres",
+   "echeances",
+   "controle"
+  ]
+ },
+ {
+  "id": "RH-04",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Employés",
+  "module": "/employes",
+  "compte": "rh",
+  "titre": "Rattacher une société supplémentaire DÈS la création",
+  "objectif": "Les rattachements se saisissent désormais en une seule transaction à la création : si l'un est refusé, la fiche entière n'est pas créée.",
+  "prealable": "Aucune fiche RH03.",
+  "etapes": [
+   "« Nouvel employé » : Matricule « RH03 », Noms et prénoms « recette rh trois », Société SESAME, Salaire de base 140 000.",
+   "Dans « Autres sociétés qui la rémunèrent », cocher SOFINA, sans saisir de salaire pour elle.",
+   "Créer l'employé.",
+   "Ouvrir la fiche de RH03 et consulter ses rattachements (bouton/zone « Sociétés » ou équivalent de la fiche)."
+  ],
+  "attendu": [
+   "La fiche se crée avec SESAME en société principale.",
+   "SOFINA apparaît comme société rattachée, avec un salaire de base de 140 000 par défaut (reprise du salaire principal, faute de montant propre saisi).",
+   "Le récapitulatif salaires de SOFINA (si consulté pour le mois courant) fait apparaître RH03."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "employes",
+   "rattachement",
+   "multi-societe"
+  ]
+ },
+ {
+  "id": "RH-05",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Employés",
+  "module": "/employes",
+  "compte": "rh",
+  "titre": "Référentiel des fonctions : reprise depuis les fiches, puis gestion",
+  "objectif": "« Je constate que les fonctions soient vides » : le référentiel doit pouvoir s'amorcer avec ce qui existe déjà en texte libre, puis se gérer sans retaper.",
+  "prealable": "Référentiel des fonctions vide (sinon, le constat « reprendre » ne s'affichera pas — passer directement à l'étape 3).",
+  "etapes": [
+   "Depuis /employes, ouvrir « Fonctions ».",
+   "Si le référentiel est vide, cliquer « Reprendre les fonctions des fiches ».",
+   "Ajouter une fonction : libellé « Agent d'accueil test », catégorie « C », échelon « 2 ».",
+   "Modifier son échelon à « 3 », enregistrer.",
+   "Tenter de la supprimer."
+  ],
+  "attendu": [
+   "La reprise annonce « n fonction(s) reprise(s) », avec le compte des fiches sans fonction si applicable.",
+   "La nouvelle fonction apparaît dans la liste et devient proposée dans le champ « Fonction » de la fiche employé (saisie assistée, la saisie libre restant acceptée).",
+   "L'échelon se met à jour sans recharger la page.",
+   "Si aucune fiche ne la porte : suppression effective. Si une fiche la porte : « Désactivée — n fiche(s) la portent encore », et elle disparaît des propositions sans effacer la fonction déjà inscrite sur la fiche concernée."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "employes",
+   "fonctions",
+   "autocomplete"
+  ]
+ },
+ {
+  "id": "RH-06",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Employés",
+  "module": "/employes",
+  "compte": "rh",
+  "titre": "Immatriculation aux impôts : bulletin ou récapitulatif",
+  "objectif": "Un employé non immatriculé doit recevoir un « Récapitulatif de paie », pas un bulletin de paie, et ne pas apparaître au DIPE.",
+  "prealable": "RH01 existant (RH-02).",
+  "etapes": [
+   "Ouvrir la fiche de RH01, régler « Immatriculé aux impôts » sur « Non — récapitulatif de paie ». Enregistrer.",
+   "Ouvrir /paie/bulletins pour le mois courant et lire le document de RH01.",
+   "Ouvrir /paie/dipe pour le même mois.",
+   "Remettre RH01 sur « Oui — bulletin de paie »."
+  ],
+  "attendu": [
+   "Le document de RH01 porte le titre « RÉCAPITULATIF DE PAIE » et non « BULLETIN DE PAIE », sans les mentions réservées au bulletin officiel.",
+   "RH01 n'apparaît pas dans l'état DIPE du mois.",
+   "Après remise à « Oui », RH01 réapparaît au DIPE et son document redevient un bulletin standard."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "employes",
+   "immatriculation",
+   "dipe"
+  ]
+ },
+ {
+  "id": "RH-07",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Planning annuel",
+  "module": "/paie/planning",
+  "compte": "rh",
+  "titre": "Colonne « Allocation » : la formule au 1/16, et le plafond de 16 mois",
+  "objectif": "L'allocation de congé affichée dans la frise suit désormais la formule légale (N × assiette ÷ 16), plafonnée à 16 mois de période de référence — et non plus la simple proratisation jours × journalier.",
+  "prealable": "Aucune fiche RH04. Calendrier des jours fériés 2026 initialisé (bandeau de l'écran, sinon le proposer).",
+  "etapes": [
+   "Créer « RH04 » / « recette rh quatre », société SGC, salaire de base 175 000, Date d'entrée 01/01/2025.",
+   "Dans l'onglet « Planning annuel », poser un congé pour RH04 : Départ 07/12/2026, 18 jours ouvrables.",
+   "Lire la ligne de RH04 dans le tableau : colonnes Principal / Supplément. / Total / Allocation.",
+   "Survoler (ou cliquer) le montant de la colonne Allocation pour lire l'infobulle de détail."
+  ],
+  "attendu": [
+   "Retour calculé au 29/12/2026 (18 jours ouvrables, aucun jour férié dans l'intervalle).",
+   "Colonne Allocation : 175 000 FCFA, avec le signe ✱ (période écrêtée) — la période de référence (du 01/01/2025 à la veille du départ) fait 23 mois et quelques jours, ramenés à 16 mois.",
+   "Détail en infobulle : « N = 23 mois entiers + 6 j ÷ 31 = 23,1935 mois » puis « Plafond atteint : N ramené de 23,1935 à 16 mois », « Droit : 1,5 j × 16,0000 mois = 24 j », « Allocation : 16,0000 × 175 000 ÷ 16 = 175 000 FCFA », « Taux journalier : 175 000 ÷ 24 = 7 292 FCFA/jour ».",
+   "Le montant affiché est explicitement une ESTIMATION (l'ancienneté, absente ici, n'entre pas dans ce calcul d'écran) : le bulletin du mois du départ fait foi pour le montant définitif."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "planning",
+   "allocation",
+   "conges",
+   "calcul"
+  ]
+ },
+ {
+  "id": "RH-08",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Planning annuel",
+  "module": "/paie/planning",
+  "compte": "rh",
+  "titre": "Le droit n'est pas encore ouvert (23 mois de service), mais l'allocation se calcule quand même — à trancher",
+  "objectif": "Signaler un cas limite trouvé en construisant le lot : un employé qui n'a pas encore 24 mois de service se voit tout de même proposer un montant d'allocation complet.",
+  "prealable": "RH04 et son congé du 07/12/2026 existent (RH-07).",
+  "etapes": [
+   "Lire l'infobulle de détail de l'allocation de RH04 (RH-07) jusqu'à la dernière ligne.",
+   "Vérifier la date d'entrée de RH04 (01/01/2025) et la date de départ en congé (07/12/2026)."
+  ],
+  "attendu": [
+   "La dernière ligne du détail dit : « ⚠️ Premier congé non encore ouvert : 23 mois de service sur 24 requis (décision du 05/11/2026). »",
+   "Malgré cet avertissement, la colonne Allocation affiche tout de même 175 000 FCFA, et non un tiret ou un blocage.",
+   "Point à signaler à la Direction : faut-il empêcher la pose d'un congé payé — ou au moins son allocation — avant les 24 mois, ou le calcul reste-t-il correct même pour un congé anticipé accordé par exception ?"
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "planning",
+   "allocation",
+   "conformite-droits"
+  ]
+ },
+ {
+  "id": "RH-09",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Planning annuel",
+  "module": "/paie/planning",
+  "compte": "rh",
+  "titre": "Décréter un jour férié EN COURS D'ANNÉE décale un congé déjà posé",
+  "objectif": "Un jour férié décrété au milieu d'un congé déjà posé doit prolonger ce congé (le salarié garde son nombre de jours, c'est sa date de retour qui recule) — et le dire, avec l'avant et l'après.",
+  "prealable": "Le congé de RH04 du 07/12/2026 (18 j ouvrables, retour calculé au 29/12/2026) existe — RH-07.",
+  "etapes": [
+   "Ouvrir le panneau « Jours fériés 2026 » (en tête de la Planning annuel) et le déplier.",
+   "Décréter : Date 11/12/2026, Libellé « Journée test de deuil national », Motif « Test de recette — décret exceptionnel ».",
+   "Cliquer « Décréter et décaler les congés ».",
+   "Lire le rapport affiché, puis relire la ligne de RH04 dans le tableau de la frise."
+  ],
+  "attendu": [
+   "Sans motif, le bouton reste désactivé.",
+   "Après décret : rapport « 1 congé décalé. » avec une ligne RH04 : Départ 07/12, dernier jour barré 28/12 → 29/12, retour barré 29/12 → 30/12, décalage « +1 j ».",
+   "Dans la frise, le retour de RH04 est maintenant au 30/12/2026 ; le droit en jours ouvrables de RH04 reste inchangé (24 j) — seule la date bouge, pas le nombre de jours.",
+   "Le 11/12/2026 apparaît dans la liste des jours fériés avec l'origine « décrété en cours d'année » et le motif saisi."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "planning",
+   "feries",
+   "conges",
+   "irreversible"
+  ]
+ },
+ {
+  "id": "RH-10",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Planning annuel",
+  "module": "/paie/planning",
+  "compte": "rh",
+  "titre": "Retirer un jour férié décrété raccourcit symétriquement le même congé",
+  "objectif": "La suppression d'un jour férié doit jouer le même mécanisme en sens inverse : un congé déjà prolongé par ce jour doit redevenir ce qu'il était avant.",
+  "prealable": "Le jour férié du 11/12/2026 vient d'être décrété et a décalé le retour de RH04 à 30/12/2026 (RH-09).",
+  "etapes": [
+   "Dans la liste des jours fériés 2026, repérer la ligne du 11/12/2026 et cliquer « Retirer ».",
+   "Lire le rapport affiché.",
+   "Relire la ligne de RH04 dans la frise."
+  ],
+  "attendu": [
+   "Rapport : « 1 congé décalé. », avec RH04 : dernier jour barré 29/12 → 28/12, retour barré 30/12 → 29/12, décalage « −1 j ».",
+   "La frise affiche à nouveau RH04 avec un retour au 29/12/2026, exactement l'état d'avant le décret (RH-07).",
+   "Le 11/12/2026 ne figure plus dans la liste des jours fériés 2026."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "planning",
+   "feries",
+   "conges"
+  ]
+ },
+ {
+  "id": "RH-11",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Paramètres — Entreprise & documents",
+  "module": "/actes",
+  "compte": "dg",
+  "titre": "Identité juridique par société : le repli sur l'entreprise, visible",
+  "objectif": "SESAME, SOFINA et SGC sont des personnes morales distinctes ; une case laissée vide doit reprendre l'entreprise, et le dire — jamais inventer un numéro.",
+  "prealable": "Aucune identité propre saisie pour SOFINA. « Dirigeant » et « N° registre du commerce » renseignés au niveau de l'entreprise.",
+  "etapes": [
+   "Ouvrir Paramètres → Entreprise & documents, repérer le bloc « Identité par société ».",
+   "Lire la carte SOFINA : compter les champs vides.",
+   "Saisir uniquement le NIU de SOFINA (laisser les cinq autres champs vides). Enregistrer.",
+   "Rouvrir la page."
+  ],
+  "attendu": [
+   "Avant saisie : la carte SOFINA affiche « tout repris de l'entreprise », et chaque placeholder de case montre la valeur de l'entreprise qui s'appliquerait.",
+   "Après saisie du seul NIU : la carte affiche « 5 champ(s) repris de l'entreprise ».",
+   "Le NIU de SOFINA reste le sien après rechargement ; les cinq autres champs restent vides et continuent d'afficher le placeholder de l'entreprise."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "parametres",
+   "identite-societe",
+   "actes"
+  ]
+ },
+ {
+  "id": "RH-12",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Actes RH",
+  "module": "/actes",
+  "compte": "rh",
+  "titre": "Identité incomplète : l'avertissement AVANT la délivrance, pas après",
+  "objectif": "Un contrat sans numéro de registre du commerce ne doit jamais sortir en silence avec des pointillés : l'écran doit le dire avant de délivrer.",
+  "prealable": "Aucun « N° registre du commerce » renseigné, ni au niveau de l'entreprise ni pour SESAME. Modèles chargés (RH-15 ou bouton « Charger les modèles »).",
+  "etapes": [
+   "Sur /actes, choisir « Contrat de travail à durée indéterminée ».",
+   "Choisir RH03 (société SESAME) comme salarié concerné.",
+   "Lire le bandeau au-dessus de l'aperçu."
+  ],
+  "attendu": [
+   "Un bandeau rouge apparaît : « L'identité juridique de … est incomplète : l'acte sortira avec des pointillés à la place de son identification légale. À renseigner dans Paramètres → Entreprise & documents. », avec un lien cliquable vers cette page.",
+   "L'acte reste délivrable (l'avertissement n'empêche pas de continuer) ; l'aperçu montre effectivement des pointillés à la place du numéro."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "actes",
+   "identite-societe",
+   "controle"
+  ]
+ },
+ {
+  "id": "RH-13",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Actes RH",
+  "module": "/actes",
+  "compte": "rh",
+  "titre": "Charger les modèles, puis délivrer une attestation de salaire pré-remplie",
+  "objectif": "Les 13 modèles doivent se charger en un clic ; l'attestation de salaire doit reprendre les montants du bulletin sans ressaisie.",
+  "prealable": "Modèles non encore chargés en base (bandeau « Chargez-les en base » visible). ABAMI (E001) a un bulletin validé sur un mois clôturé, ou tout employé du mois courant.",
+  "etapes": [
+   "Sur /actes, cliquer « Charger les modèles ».",
+   "Choisir « Attestation de salaire » dans « Type d'acte ».",
+   "Choisir un salarié avec bulletin, puis la période correspondante.",
+   "Compter les champs restant à saisir."
+  ],
+  "attendu": [
+   "Le bandeau disparaît après le chargement ; les 13 modèles sont désormais proposés, groupés par famille.",
+   "Dès la période choisie, les champs se pré-remplissent avec une étiquette « pré-rempli » (ou équivalent visuel) sur chacun des seize montants du bulletin.",
+   "Un seul champ reste à saisir à la main : « Situation ». L'aperçu se met à jour à la frappe."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "actes",
+   "bulletin",
+   "pdf"
+  ]
+ },
+ {
+  "id": "RH-14",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Actes RH",
+  "module": "/actes",
+  "compte": "rh",
+  "titre": "Aperçu PDF puis Imprimer : aucun en-tête, impression directe",
+  "objectif": "Les actes sortent sur des pro forma dont l'en-tête est déjà imprimé : il ne doit y avoir ni en-tête ni pied de page sur le PDF, et l'impression doit partir directement, sans fichier à retrouver.",
+  "prealable": "Un acte en cours de préparation avec tous les champs obligatoires remplis (RH-13).",
+  "etapes": [
+   "Cliquer « Aperçu PDF » : lire le document.",
+   "Cliquer « Imprimer »."
+  ],
+  "attendu": [
+   "Le PDF téléchargé par « Aperçu PDF » ne porte aucun logo ni filigrane en haut de page ; le texte commence à 44 mm du haut (marge réservée au bandeau pré-imprimé).",
+   "« Imprimer » ouvre directement la boîte de dialogue d'impression du navigateur (ou, à défaut, un nouvel onglet avec le PDF) sans passer par un téléchargement de fichier à ouvrir soi-même."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "actes",
+   "pdf",
+   "impression"
+  ]
+ },
+ {
+  "id": "RH-15",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Actes RH",
+  "module": "/actes",
+  "compte": "rh",
+  "titre": "Certificat de fin de stage : signataire au choix, et la qualité qui suit",
+  "objectif": "Son modèle Word désigne le Directeur Général ; la RH doit pouvoir le signer aussi — et la QUALITÉ inscrite sur l'acte doit suivre le signataire choisi.",
+  "prealable": "Modèles chargés (RH-13).",
+  "etapes": [
+   "Choisir « Certificat de fin de stage ».",
+   "Lire le sélecteur « Qui signe » et sa valeur par défaut.",
+   "Lire l'aperçu : repérer la phrase « Je soussigné(e), …, … de la Polyclinique de Poitiers ».",
+   "Changer « Qui signe » sur « Responsable RH ».",
+   "Relire l'aperçu."
+  ],
+  "attendu": [
+   "Par défaut : « Directeur Général », et l'aperçu dit « … Directeur Général de la Polyclinique … ».",
+   "Après le changement : l'aperçu dit « … Responsable des Ressources Humaines de la Polyclinique … » — la qualité a changé avec le signataire.",
+   "Aucun autre acte du catalogue n'affiche ce sélecteur « Qui signe » (c'est le seul modèle à offrir ce choix)."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "actes",
+   "signataire"
+  ]
+ },
+ {
+  "id": "RH-16",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Actes RH",
+  "module": "/actes",
+  "compte": "rh",
+  "titre": "Historique : réimpression, et annulation motivée",
+  "objectif": "Un acte délivré doit rester consultable et réimprimable ; son annulation ne doit jamais le supprimer et doit toujours porter un motif.",
+  "prealable": "Au moins un acte délivré (RH-13 ou RH-14).",
+  "etapes": [
+   "Ouvrir l'onglet « Actes délivrés ».",
+   "Sur la ligne de l'acte délivré, cliquer « Réimprimer sur le papier à en-tête ».",
+   "Cliquer « Annuler » (ou action équivalente) sans saisir de motif, puis en en saisissant un."
+  ],
+  "attendu": [
+   "L'historique liste Acte / Bénéficiaire / Référence / date de délivrance, et le PDF réimprimé est identique à celui délivré (même texte figé, même référence).",
+   "Sans motif : l'annulation est refusée avec un message explicite (« … un motif est obligatoire. »).",
+   "Avec motif : l'acte reste dans l'historique (jamais supprimé) et apparaît annulé, avec le motif consultable."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "actes",
+   "historique",
+   "irreversible"
+  ]
+ },
+ {
+  "id": "RH-17",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Actes RH",
+  "module": "/actes",
+  "compte": "comptable",
+  "titre": "Le comptable consulte l'historique des actes, mais ne peut pas en délivrer",
+  "objectif": "/actes est voir niveau 3, faire niveau 4 : le comptable doit voir, pas agir.",
+  "prealable": "Droits par défaut sur le compte comptable.",
+  "etapes": [
+   "Se connecter en comptable.test@poitiers.local.",
+   "Ouvrir /actes, onglet « Actes délivrés ».",
+   "Tenter d'ouvrir l'onglet « Délivrer un acte » et d'y saisir quelque chose."
+  ],
+  "attendu": [
+   "L'historique est consultable normalement (téléchargement/réimpression inclus).",
+   "Signaler l'écart si la saisie d'un nouvel acte n'est pas explicitement bloquée à l'écran : le droit « Faire » est absent pour ce compte (niveau 3 < 4 requis), toute tentative de délivrance doit donc être refusée au moins côté serveur."
+  ],
+  "gravite": "mineur",
+  "tags": [
+   "actes",
+   "droits",
+   "conformite-droits"
+  ]
+ },
+ {
+  "id": "RH-18",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Retenue médecins",
+  "module": "/retenues-medecins",
+  "compte": "rh",
+  "titre": "Saisie d'une retenue : l'aperçu vivant avant d'enregistrer",
+  "objectif": "La base n'est pas le chiffre d'affaires du médecin : c'est l'intégralité de l'assurance plus 30 % des espèces — et cela doit se voir avant d'enregistrer.",
+  "prealable": "Aucune ligne pour « Dr Recette Test » sur le mois courant.",
+  "etapes": [
+   "Ouvrir /retenues-medecins, période du mois courant.",
+   "Dans « Ajouter un médecin » : Médecin « Dr Recette Test », Taux décidé 5 %, CA assurance 1 000 000, CA espèces 500 000.",
+   "Lire l'aperçu qui apparaît sous les champs.",
+   "Cliquer « Ajouter »."
+  ],
+  "attendu": [
+   "Le sélecteur de taux affiche « 5 % → 5,5 % appliqué » dans son option.",
+   "L'aperçu détaille : CA assurance 1 000 000 retenu en entier ; CA espèces 500 000 × 30 % = 150 000 ; Base 1 000 000 + 150 000 = 1 150 000 ; Taux 5 % + 10 % de centimes additionnels = 5,5 % ; Retenue 1 150 000 × 5,5 % = 63 250 FCFA.",
+   "Après « Ajouter » : la ligne apparaît dans le tableau avec exactement ces montants, et la tuile « Retenue à verser » les inclut."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "retenue-medecins",
+   "calcul"
+  ]
+ },
+ {
+  "id": "RH-19",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Retenue médecins",
+  "module": "/retenues-medecins",
+  "compte": "rh",
+  "titre": "Un médecin deux fois dans le même mois est refusé à la saisie",
+  "objectif": "Un doublon fausserait la déclaration sans qu'aucun total ne paraisse anormal : il doit être bloqué à l'écriture, pas seulement signalé après coup.",
+  "prealable": "« Dr Recette Test » existe déjà sur le mois courant (RH-18).",
+  "etapes": [
+   "Dans « Ajouter un médecin », saisir à nouveau « dr recette test » (en minuscules, avec des espaces en trop) comme nom, un taux et un CA quelconques.",
+   "Cliquer « Ajouter »."
+  ],
+  "attendu": [
+   "Refus explicite : « Dr Recette Test figure déjà dans cette période : modifiez sa ligne. » — la détection ignore la casse et les espaces.",
+   "Aucune seconde ligne n'apparaît dans le tableau."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "retenue-medecins",
+   "controle"
+  ]
+ },
+ {
+  "id": "RH-20",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Retenue médecins",
+  "module": "/retenues-medecins",
+  "compte": "rh",
+  "titre": "Ventilation par taux, et export CSV",
+  "objectif": "La ventilation doit séparer les deux taux possibles ; l'export doit reprendre exactement les montants affichés à l'écran.",
+  "prealable": "« Dr Recette Test » à 5 % existe (RH-18). Ajouter un second médecin à 10 %.",
+  "etapes": [
+   "Ajouter « Dr Recette Dix », Taux 10 %, CA assurance 2 000 000, CA espèces 0.",
+   "Lire le bloc « Ventilation par taux ».",
+   "Cliquer « Exporter en CSV » et ouvrir le fichier."
+  ],
+  "attendu": [
+   "Deux cartes : « 5 % annoncé → 5,5 % appliqué » (1 médecin, base 1 150 000, retenue 63 250) et « 10 % annoncé → 11 % appliqué » (1 médecin, base 2 000 000, retenue 220 000).",
+   "Le CSV contient une ligne par médecin (séparateur point-virgule), une colonne « Part espèces (30%) », et une ligne TOTAL dont la retenue vaut 63 250 + 220 000 = 283 250."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "retenue-medecins",
+   "export",
+   "calcul"
+  ]
+ },
+ {
+  "id": "RH-21",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Retenue médecins",
+  "module": "/retenues-medecins",
+  "compte": "comptable",
+  "titre": "Le comptable consulte la déclaration, sans pouvoir la modifier",
+  "objectif": "/retenues-medecins est voir niveau 3, faire niveau 4.",
+  "prealable": "Au moins une ligne existe sur le mois courant (RH-18).",
+  "etapes": [
+   "Se connecter en comptable.test@poitiers.local.",
+   "Ouvrir /retenues-medecins.",
+   "Chercher un moyen de modifier ou d'ajouter une ligne."
+  ],
+  "attendu": [
+   "Le tableau, les tuiles, la ventilation et l'export sont consultables normalement.",
+   "Signaler l'écart si le formulaire « Ajouter un médecin » n'est pas masqué ou désactivé à l'écran pour ce compte."
+  ],
+  "gravite": "mineur",
+  "tags": [
+   "retenue-medecins",
+   "droits",
+   "conformite-droits"
+  ]
+ },
+ {
+  "id": "RH-22",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Tickets",
+  "module": "/tickets",
+  "compte": "employe",
+  "titre": "Ouvrir un ticket avec une capture d'écran",
+  "objectif": "Tout membre doit pouvoir signaler un dysfonctionnement sans détour, avec une pièce jointe. Une description trop courte doit être refusée avant l'envoi.",
+  "prealable": "Aucun ticket préexistant pour ce compte (sans conséquence si il y en a).",
+  "etapes": [
+   "Se connecter en employe.test@poitiers.local, ouvrir /tickets.",
+   "Choisir « Quelque chose ne marche pas », Titre « Test de recette », Description « ça ne marche pas » (volontairement courte).",
+   "Lire le message sous la description.",
+   "Compléter la description pour dépasser 30 caractères (ex. « Le bouton Télécharger ne répond pas sur mon bulletin de septembre. »).",
+   "Ajouter une image (PNG ou JPEG) via « Ajouter une capture ».",
+   "Cliquer « Envoyer au Directeur et au développeur »."
+  ],
+  "attendu": [
+   "Avec la description courte : le bouton d'envoi reste désactivé, et un compteur indique « Encore n caractère(s) — « ça ne marche pas » ne permet pas de reproduire le problème. »",
+   "Une fois la description assez longue, le message devient « Merci, c'est assez précis pour être repris. » et le bouton s'active.",
+   "Après dépôt de l'image : elle apparaît comme pièce jointe nommée, avec une croix pour la retirer.",
+   "Après envoi : notification « Ticket ouvert — Le Directeur et le développeur le voient dès maintenant. », le ticket apparaît dans la liste « Mes tickets » avec le statut « En attente d'arbitrage » et « Nouveau »."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "tickets",
+   "pieces-jointes",
+   "controle"
+  ]
+ },
+ {
+  "id": "RH-23",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Tickets",
+  "module": "/tickets",
+  "compte": "employe",
+  "titre": "Confidentialité : un employé ne voit que ses propres tickets",
+  "objectif": "Un ticket peut décrire un cas nominatif : un employé ne doit jamais voir les tickets ouverts par d'autres.",
+  "prealable": "Le ticket de RH-22 existe (compte employe). Un autre compte (ex. chef) ouvre aussi un ticket.",
+  "etapes": [
+   "Depuis chef.test@poitiers.local, ouvrir un ticket quelconque.",
+   "Se reconnecter en employe.test@poitiers.local, ouvrir /tickets.",
+   "Compter les tickets visibles."
+  ],
+  "attendu": [
+   "employe.test ne voit que SON propre ticket (celui de RH-22), jamais celui ouvert par chef.test.",
+   "Aucune tuile de comptage global (« Ouverts », « À arbitrer », « À traiter ») ne s'affiche pour ce compte — ces tuiles sont réservées à qui arbitre ou traite."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "tickets",
+   "confidentialite",
+   "droits"
+  ]
+ },
+ {
+  "id": "RH-24",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Tickets",
+  "module": "/tickets/arbitrage",
+  "compte": "dg",
+  "titre": "Le Directeur arbitre : retenir / ne pas retenir, et le motif obligatoire du refus",
+  "objectif": "Le Directeur juge la PERTINENCE, indépendamment de l'état technique. Un refus doit toujours dire pourquoi.",
+  "prealable": "Le ticket de RH-22 existe, non encore arbitré.",
+  "etapes": [
+   "Se connecter en dg.test@poitiers.local, ouvrir /tickets.",
+   "Compter les tickets visibles (tous les comptes, pas seulement les siens).",
+   "Sur le ticket de RH-22, cliquer « Ne pas retenir » et annuler la fenêtre de motif sans rien taper.",
+   "Recommencer en saisissant un motif, ex. « Doublon d'un ticket déjà traité (test) »."
+  ],
+  "attendu": [
+   "Le DG voit TOUS les tickets de tous les comptes, avec les tuiles de comptage global.",
+   "Sans motif : l'action est annulée, aucun changement n'est enregistré.",
+   "Avec motif : le ticket passe en « Jugé non pertinent », le motif et son auteur (dg) apparaissent sous forme de note horodatée, et le ticket descend dans la liste (sans disparaître)."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "tickets",
+   "arbitrage",
+   "controle"
+  ]
+ },
+ {
+  "id": "RH-25",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Tickets",
+  "module": "/tickets/traitement",
+  "compte": "superadmin",
+  "titre": "Le super administrateur traite : en cours / résolu / abandonné, et la note de l'abandon",
+  "objectif": "Le développeur juge la RÉALISATION, séparément de l'avis du Directeur. Un ticket peut être traité sans arbitrage.",
+  "prealable": "Un second ticket ouvert (employe ou chef), non arbitré par le DG.",
+  "etapes": [
+   "Se connecter en superadmin.test@poitiers.local, ouvrir /tickets.",
+   "Sur un ticket non arbitré, cliquer « En cours », puis « Résolu ».",
+   "Sur un autre ticket, cliquer « Abandonner » sans saisir d'explication, puis en en saisissant une."
+  ],
+  "attendu": [
+   "Le passage à « En cours » puis « Résolu » fonctionne sans attendre un avis du Directeur (« Jugé pertinent » peut rester « En attente d'arbitrage »).",
+   "Un ticket « Résolu » (ou « Abandonné ») compte comme CLOS, même sans avis rendu.",
+   "Abandon sans explication : refusé. Avec explication : le ticket passe « Abandonné », la note et son auteur (superadmin) apparaissent horodatés."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "tickets",
+   "traitement",
+   "controle"
+  ]
+ },
+ {
+  "id": "RH-26",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Coquille — menu",
+  "module": "/tickets",
+  "compte": "dg",
+  "titre": "La pastille du menu Tickets compte ce qui attend MA décision",
+  "objectif": "« Envoyé à deux personnes » se traduit par un acheminement visible au menu, pas par un courriel.",
+  "prealable": "Au moins un ticket « En attente d'arbitrage » et non clos existe.",
+  "etapes": [
+   "Connecté en dg.test@poitiers.local, observer l'entrée « Tickets » du menu latéral (dépliée et repliée).",
+   "Arbitrer tous les tickets en attente (RH-24 ou équivalent).",
+   "Recharger le menu."
+  ],
+  "attendu": [
+   "Avant arbitrage : une pastille numérique rouge (ou un point dans la barre repliée) apparaît sur l'entrée « Tickets », avec une infobulle « n ticket(s) en attente de votre décision ».",
+   "Après arbitrage de tous les tickets en attente : la pastille disparaît (même si des tickets restent « En cours » côté traitement, puisque le DG ne traite pas — seul le super administrateur en a la charge).",
+   "Un compte sans droit d'arbitrage ni de traitement (ex. employe) ne voit jamais cette pastille."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "tickets",
+   "menu",
+   "droits"
+  ]
+ },
+ {
+  "id": "RH-27",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Tickets",
+  "module": "/tickets",
+  "compte": "auditeur",
+  "titre": "L'auditeur voit l'écran Tickets mais ne peut pas en ouvrir",
+  "objectif": "/tickets est ouvert à tous en « Voir » comme en « Faire » (niveau 1), mais l'auditeur externe est orthogonal : il obtient « Voir » partout sauf exceptions, jamais « Faire ».",
+  "prealable": "Droits par défaut sur le compte auditeur.",
+  "etapes": [
+   "Se connecter en auditeur.test@poitiers.local, ouvrir /tickets.",
+   "Remplir le formulaire d'ouverture avec un titre et une description valides, puis cliquer « Envoyer au Directeur et au développeur »."
+  ],
+  "attendu": [
+   "L'écran s'affiche normalement (l'auditeur voit le module).",
+   "Signaler l'écart : le formulaire n'est actuellement PAS masqué pour ce compte ; l'envoi échoue côté serveur avec un message de refus générique (droit « Faire » absent). Il est attendu que l'auditeur ne puisse pas ouvrir de ticket, mais le bouton devrait idéalement être masqué plutôt que de renvoyer une erreur au clic."
+  ],
+  "gravite": "mineur",
+  "tags": [
+   "tickets",
+   "droits",
+   "conformite-droits"
+  ]
+ },
+ {
+  "id": "RH-28",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Barème",
+  "module": "/bareme",
+  "compte": "rh",
+  "titre": "Vue RH : le calcul expliqué en clair, sur un exemple réel",
+  "objectif": "La RH doit pouvoir vérifier les chiffres du moteur sans passer par nous : la Vue RH ne doit recopier aucune règle, tout doit venir du moteur réel.",
+  "prealable": "Un barème s'applique au mois courant.",
+  "etapes": [
+   "Sur /bareme, cliquer « Vue RH ».",
+   "Lire l'onglet « Les quatre assiettes ».",
+   "Ouvrir l'onglet « Un cas déroulé » et lire « Les éléments de départ »."
+  ],
+  "attendu": [
+   "La fenêtre s'intitule « Comment la paie est calculée — <mois en cours> », avec la version du barème applicable affichée.",
+   "Quatre blocs d'assiette, chacun avec sa définition, à quoi il sert, et la liste de ses rubriques.",
+   "Les éléments de départ de l'exemple : Salaire de base 110 000, Prime d'ancienneté 38 655, Prime de transport 2 550, Prime d'assiduité 2 500, Indemnité de logement 2 200, Jours travaillés 30 sur 30 — et le tableau « Étape / Comment on l'obtient / Montant » déroule le calcul jusqu'au net, sans aucun montant à zéro inexpliqué."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "bareme",
+   "vue-rh"
+  ]
+ },
+ {
+  "id": "RH-29",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Bulletins du mois",
+  "module": "/paie/bulletins",
+  "compte": "rh",
+  "titre": "« du … au … » à côté des jours de congé pris",
+  "objectif": "Un nombre de jours seul ne se vérifie pas ; la période de congé doit apparaître à côté, sur le bulletin écran, le PDF et les deux récapitulatifs.",
+  "prealable": "RH04 a un congé posé sur le mois courant (ex. reprendre RH-07 sur le mois en cours plutôt que décembre, ou utiliser tout employé avec un congé en cours).",
+  "etapes": [
+   "Ouvrir le bulletin écran de l'employé concerné pour le mois de son congé.",
+   "Repérer la ligne « Congés pris ».",
+   "Télécharger le PDF du même bulletin et comparer.",
+   "Ouvrir le récapitulatif « tout visible » pour le même mois et le même employé."
+  ],
+  "attendu": [
+   "Bulletin écran : sous le nombre de jours, une ligne discrète « du JJ/MM au JJ/MM ».",
+   "PDF : la même information apparaît à côté de « Congés pris », sous une forme compacte (ex. « 18 j · du 07/12 au 28/12 »).",
+   "Récapitulatif tout visible : le sous-titre de la case primes/congés reprend la période en plus du nombre de jours."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "bulletin",
+   "conges",
+   "recap"
+  ]
+ },
+ {
+  "id": "RH-30",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Récapitulatif salaires",
+  "module": "/paie/saisie",
+  "compte": "rh",
+  "titre": "Augmentation d'ancienneté proposée depuis le mois précédent",
+  "objectif": "La case « Dont augmentation (indicatif) » ne doit jamais être écrite d'office, mais une augmentation calculable doit être proposée pour éviter la soustraction à la main.",
+  "prealable": "Un employé avec une « Ancienneté (montant total) » de 30 000 saisie le mois précédent.",
+  "etapes": [
+   "Ouvrir la fiche de saisie de cet employé pour le mois courant.",
+   "Monter « Ancienneté (montant total) » à 32 000.",
+   "Lire ce qui apparaît sous le groupe « Gains »."
+  ],
+  "attendu": [
+   "Un encadré « Reporter l'augmentation : 2 000 FCFA » apparaît, avec l'explication « La prime passe de 30 000 à 32 000 FCFA, soit 2 000 FCFA de plus. »",
+   "Rien n'est écrit automatiquement dans « Dont augmentation (indicatif) » tant que l'encadré n'est pas cliqué.",
+   "Après clic : la case se remplit à 2 000, et AUCUN autre chiffre du bulletin (brut, net, IRPP, CNPS) ne change — c'est purement indicatif."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "recap",
+   "anciennete",
+   "calcul"
+  ]
+ },
+ {
+  "id": "RH-31",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Récapitulatif salaires",
+  "module": "/paie/saisie",
+  "compte": "rh",
+  "titre": "Les deux cases d'ancienneté inversées : l'alerte, pas le silence",
+  "objectif": "Depuis la correction du 05/11/2026, inverser les deux cases fait DISPARAÎTRE le montant du brut au lieu de le doubler : un message doit rattraper l'erreur.",
+  "prealable": "Un employé sans ancienneté saisie ce mois.",
+  "etapes": [
+   "Saisir « Ancienneté (montant total) » à 1 000 et « Dont augmentation (indicatif) » à 3 000 (l'augmentation dépasse le total : cases inversées).",
+   "Lire le message sous le groupe « Gains »."
+  ],
+  "attendu": [
+   "Message explicite : « L'augmentation (3 000) dépasse le total (1 000) : les deux cases sont probablement inversées. Le total est ce qui est payé ; l'augmentation n'en est qu'une part. »",
+   "Le brut reste calculé sur les 1 000 de « montant total » (pas sur 3 000, pas sur 4 000) : l'erreur, si elle n'est pas corrigée, amputerait réellement l'ancienneté payée."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "recap",
+   "anciennete",
+   "controle"
+  ]
+ },
+ {
+  "id": "RH-32",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Courrier de paie",
+  "module": "/paie/courrier",
+  "compte": "rh",
+  "titre": "« Chacun par sa voie » : le routage ligne à ligne de l'envoi",
+  "objectif": "Dès que la sélection mêle deux méthodes d'envoi forcées différentes, l'option de routage par fiche doit apparaître ; sinon, elle doit rester cachée.",
+  "prealable": "Un employé A avec « Méthode d'envoi » = E-mail sur sa fiche, un employé B avec WhatsApp, tous deux sélectionnables sur le mois courant.",
+  "etapes": [
+   "Sur /paie/courrier, ne sélectionner QUE l'employé A : observer la zone d'actions.",
+   "Sélectionner A ET B ensemble : observer de nouveau.",
+   "Cocher « Chacun par sa voie » et envoyer (en simulation si les canaux réels ne sont pas actifs)."
+  ],
+  "attendu": [
+   "Avec seulement A : aucune case « Chacun par sa voie » — le sélecteur de canal global suffit déjà.",
+   "Avec A et B ensemble : la case apparaît, avec l'infobulle « Chaque bulletin part par la voie forcée sur sa fiche. Les fiches en « auto » suivent le canal choisi. »",
+   "Après envoi avec la case cochée : le Journal des envois montre A parti par e-mail et B par WhatsApp dans le même envoi, chacun sous son propre mode (réel ou simulation)."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "courrier",
+   "routage"
+  ]
+ },
+ {
+  "id": "RH-33",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Employés",
+  "module": "/employes",
+  "compte": "rh",
+  "titre": "Remise en état après la recette RH",
+  "objectif": "Les données de recette créées pour ce cahier doivent disparaître avant toute clôture, pour ne pas figer de faux bulletins ni de faux actes.",
+  "prealable": "Scénarios RH-01 à RH-32 et RH-34 à RH-37 terminés.",
+  "etapes": [
+   "Dans /paie/planning, supprimer le(s) congé(s) de RH04 et, si décrété de nouveau pour un test, tout jour férié de test du calendrier 2026.",
+   "Dans /employes, retirer RH01, RH02, RH03 et RH04 de l'effectif.",
+   "Dans /retenues-medecins, retirer les lignes « Dr Recette Test » et « Dr Recette Dix » du mois utilisé, avec motif.",
+   "Dans /actes, laisser l'historique de test en l'état (il ne se supprime jamais) mais noter les références créées pour information.",
+   "Dans /tickets, laisser les tickets de test visibles (ils n'ont pas vocation à être supprimés) ou les faire passer « Abandonné » avec la note « Ticket de recette ».",
+   "Retirer les congés posés pour RH-34 (chevauchement) et les rattachements secondaires créés pour RH-36."
+  ],
+  "attendu": [
+   "Chaque suppression affiche sa notification et recalcule la paie du mois concerné.",
+   "RH01 à RH04 restent consultables en « Inactifs ».",
+   "Le récapitulatif du mois concerné revient à son effectif d'avant la recette RH."
+  ],
+  "gravite": "mineur",
+  "tags": [
+   "nettoyage"
+  ]
+ },
+ {
+  "id": "RH-34",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Planning annuel",
+  "module": "/paie/planning",
+  "compte": "rh",
+  "titre": "Chevauchement des congés : l'alerte se déclenche au 2ᵉ absent du MÊME service",
+  "objectif": "La détection de chevauchement s'applique service par service, avec un seuil de 2 personnes simultanément absentes (`detecterChevauchements`, seuil par défaut 2). Deux points n'ont jamais été exercés contre des données : que le seuil se déclenche bien à 2 et non à 3, et qu'il ne confonde pas deux services différents.",
+  "prealable": "Le calendrier des jours fériés de l'année et les services sont initialisés (bandeaux du Planning annuel). Trois employés : deux rattachés au MÊME service, un troisième dans un AUTRE service.",
+  "etapes": [
+   "Poser un congé payé pour l'employé A du service 1, du 10 au 20 d'un mois à venir.",
+   "Poser un congé payé pour l'employé B du MÊME service 1, du 15 au 25 — donc chevauchant celui de A.",
+   "Observer la frise du Planning annuel et le bandeau d'alerte.",
+   "Poser un congé payé pour l'employé C d'un AUTRE service, du 15 au 25 lui aussi.",
+   "Observer de nouveau : l'alerte du service 1 ne doit pas changer, et aucune alerte ne doit apparaître pour le service de C.",
+   "Retirer le congé de B et vérifier que l'alerte du service 1 disparaît."
+  ],
+  "attendu": [
+   "À deux congés chevauchants dans le même service, l'alerte apparaît — pas à partir de trois.",
+   "L'intervalle signalé est bien du 15 au 20, l'intersection des deux congés, et non l'union.",
+   "Le congé de l'employé C, seul absent de son service, ne déclenche aucune alerte : le seuil se compte PAR service, jamais sur l'effectif entier.",
+   "Le congé reste posé : l'alerte avertit, elle ne bloque pas.",
+   "À la suppression du congé de B, l'alerte du service 1 disparaît."
+  ],
+  "gravite": "majeur",
+  "tags": [
+   "planning",
+   "chevauchement",
+   "jamais exercé"
+  ]
+ },
+ {
+  "id": "RH-35",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Récapitulatif salaires",
+  "module": "/paie/saisie",
+  "compte": "rh",
+  "titre": "Ancienneté : l'augmentation de l'année ne doit pas s'ajouter au montant global",
+  "objectif": "Deux montants d'ancienneté coexistent : `anciennete`, le montant global qui entre dans le Total 1, et `ancienneteSeparee`, l'AUGMENTATION de l'année, affichée pour mémoire dans sa propre colonne. Le défaut corrigé le 10/11 les additionnait. Vérifier sur un bulletin réel que le Total 1 n'en compte qu'une.",
+  "prealable": "Un employé avec un salaire de base connu, sur un mois NON clôturé.",
+  "etapes": [
+   "Dans /paie/saisie, saisir pour cet employé une ancienneté globale de 30 000 et une augmentation d'ancienneté de 10 000.",
+   "Relever le Total 1 affiché dans le Récapitulatif salaires.",
+   "Ouvrir le bulletin de l'employé (/paie/bulletins) et relever la ligne codée 66116 « Ancienneté ».",
+   "Recalculer à la main : Total 1 = salaire de base + primes fixes + indemnité de congés + heures sup + ancienneté."
+  ],
+  "attendu": [
+   "La ligne 66116 du bulletin porte 30 000, le montant global — pas 40 000.",
+   "Le Total 1 recalculé à la main tombe juste : l'augmentation de 10 000 n'y figure PAS.",
+   "La colonne d'augmentation du récapitulatif affiche bien 10 000, pour mémoire.",
+   "Mettre l'augmentation à 0 ne change ni le Total 1 ni le net."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "paie",
+   "ancienneté",
+   "jamais exercé"
+  ]
+ },
+ {
+  "id": "RH-36",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "Bulletins du mois",
+  "module": "/paie/bulletins",
+  "compte": "rh",
+  "titre": "Employé rattaché à deux sociétés : deux bulletins indépendants, sans consolidation",
+  "objectif": "« SESAME déclare de son côté » (décision du 20/10/2026) : chaque société est un employeur distinct. Un employé rattaché à deux sociétés doit produire DEUX bulletins, chacun ne portant que ce que sa société a versé. Conséquence assumée : plafond CNPS et tranches d'IRPP s'appliquent par employeur, sans consolidation — à ne jamais « corriger ».",
+  "prealable": "Un employé disposant de DEUX rattachements actifs (fiche employé → bloc Rattachements), par exemple SESAME 150 000 et SGC 100 000, chacun avec ses propres matricule, NIU et numéro CNPS. Mois non clôturé.",
+  "etapes": [
+   "Dans /paie/bulletins pour ce mois, filtrer sur l'employé.",
+   "Vérifier qu'il apparaît DEUX fois, une fois par société.",
+   "Ouvrir chacun des deux bulletins et relever : salaire de base, Total 1, CNPS, IRPP, net.",
+   "Additionner les deux salaires de base et vérifier qu'aucun bulletin ne porte le total.",
+   "Vérifier l'en-tête de chaque bulletin : raison sociale, NIU et n° CNPS de SA société.",
+   "Vérifier la mention « Payé par : SALAIRE <société> » au pied de chaque bulletin."
+  ],
+  "attendu": [
+   "Deux bulletins distincts, un par société, jamais un bulletin unique à 250 000.",
+   "Chaque bulletin ne porte que la rémunération de sa société.",
+   "La CNPS cumulée des deux bulletins est SUPÉRIEURE à celle d'un calcul consolidé, et l'IRPP cumulé INFÉRIEUR. C'est le résultat attendu, verrouillé par `npm run test:societes` — ne pas le « corriger » en additionnant les rémunérations.",
+   "Chaque en-tête porte l'identité déclarante de sa propre société."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "paie",
+   "multi-société",
+   "jamais exercé"
+  ]
+ },
+ {
+  "id": "RH-37",
+  "groupe": "RH — chantier de novembre 2026",
+  "ecran": "DIPE",
+  "module": "/paie/bulletins",
+  "compte": "rh",
+  "titre": "DIPE : une déclaration PAR société déclarante, jamais une déclaration unique",
+  "objectif": "Chaque société dépose son propre DIPE, sous son propre NIU et son propre numéro CNPS, et n'y reprend que ce qu'elle a versé. Vérifier qu'un effectif réparti sur plusieurs sociétés produit autant de déclarations que de sociétés, et que le repli fonctionne quand l'identité déclarante n'est pas renseignée.",
+  "prealable": "RH-36 déroulé : au moins un employé sur deux sociétés, et des employés sur une seule. Identité déclarante renseignée pour au moins une société (Paramètres → Entreprise), et volontairement VIDE pour une autre.",
+  "etapes": [
+   "Ouvrir l'état DIPE du mois sans filtrer sur une société.",
+   "Relever le nombre de déclarations et les sociétés couvertes.",
+   "Filtrer ensuite société par société et relever, pour chacune, l'effectif déclaré et le total des retenues.",
+   "Vérifier l'identité déclarante en tête de chaque déclaration (raison sociale, NIU, n° CNPS).",
+   "Pour la société dont l'identité est vide, vérifier sur quoi la déclaration retombe.",
+   "Additionner les effectifs déclarés société par société et comparer au nombre de bulletins du mois."
+  ],
+  "attendu": [
+   "Autant de déclarations que de sociétés ayant versé une rémunération ce mois-là — jamais une déclaration unique consolidée.",
+   "Un employé rattaché à deux sociétés figure dans DEUX déclarations, chacune ne reprenant que la part de sa société.",
+   "Chaque déclaration porte le NIU et le n° CNPS de SA société.",
+   "Pour la société sans identité déclarante renseignée, la déclaration retombe sur le NIU et le n° CNPS de l'entreprise — sans erreur ni déclaration vide.",
+   "La somme des effectifs déclarés égale le nombre de bulletins du mois."
+  ],
+  "gravite": "bloquant",
+  "tags": [
+   "dipe",
+   "multi-société",
+   "jamais exercé"
+  ]
+ }
+]
