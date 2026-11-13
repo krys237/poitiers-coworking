@@ -347,8 +347,14 @@ motif la couvre.**
 
 ### Bloquant pour une fusion vers `clean`
 
-- **Le chantier RH jamais exercé** — le seul blocage restant, détaillé au § 5. La recette est
-  maintenant vivante et peuplée : plus rien n'empêche de le lever.
+- **Le chantier RH jamais exercé** — détaillé au § 5. Les quatre points sont désormais **écrits
+  comme scénarios exerçables** dans le cahier de recette : **RH-34** (seuil de 2 absents par
+  service), **RH-35** (double ancienneté), **RH-36** (deux sociétés, deux bulletins) et **RH-37**
+  (DIPE par société), dans `design/recette/scenarios-rh.json`. Trois sont marqués *bloquant*.
+  ⚠️ **Ils n'ont pas été déroulés avant la fusion vers `clean` du 13/11**, faite sur décision du
+  propriétaire. Le risque est contenu — la production ne porte aucune fiche employé ni bulletin,
+  le module RH y arrive donc sur une base vide — mais il n'est pas nul : ces quatre règles n'ont
+  toujours jamais tourné contre des données.
 - À **re-vérifier juste avant la fusion** : que la production ne porte toujours ni fiche employé ni
   bulletin (§ 1). Si elle en porte, le renommage `salaireBase` redevient un déroulé en trois temps.
 
