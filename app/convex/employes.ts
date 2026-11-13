@@ -5,6 +5,7 @@ import { lireReglages } from "./parametres";
 import { normaliserTelephone, erreurTelephone, avecIndicatif } from "./lib/telephone";
 import { erreurRattachement, rattachementsEffectifs, type Societe } from "./lib/societes";
 import { LIBELLE_CADENCE, aSuivre, echeances, resumerEcheances } from "./lib/echeancesContrat";
+import { prochainMatricule as calculerProchainMatricule } from "./lib/matricule";
 
 const SOCIETE = v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"));
 
@@ -42,6 +43,20 @@ export const liste = query({
       return await ctx.db.query("employes").withIndex("by_societe", (q) => q.eq("societe", societe)).collect();
     }
     return await ctx.db.query("employes").collect();
+  },
+});
+
+/**
+ * Suggestion de matricule pour une nouvelle fiche (lot 6) : le numéro suivant le plus haut trouvé,
+ * dans le même format que le dernier matricule connu. La fiche la pré-remplit mais le champ reste
+ * modifiable — ce n'est qu'une proposition.
+ */
+export const prochainMatricule = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireDroit(ctx, "/employes");
+    const employes = await ctx.db.query("employes").collect();
+    return calculerProchainMatricule(employes.map((e) => e.matricule));
   },
 });
 
