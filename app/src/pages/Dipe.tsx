@@ -46,6 +46,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableVide,
 } from "@/components/ui/table";
+import { Pagination, usePagination } from "@/components/app/pagination";
 
 type Onglet = "etat" | "recapitulatif" | "ecarts";
 type Declarante = "SESAME" | "SOFINA" | "SGC";
@@ -72,6 +73,7 @@ export function Dipe() {
   const vue = useQuery(api.dipe.etat, societe === "toutes" ? { periode } : { periode, societe });
   const lignes = vue?.lignes ?? [];
   const recap = vue?.recapitulatif;
+  const pagination = usePagination(lignes, "dipe-etat", 25);
 
   const comparaison = React.useMemo(
     () => (sien && lignes.length ? comparerDipe(lignes as LigneDipe[], sien) : null),
@@ -282,7 +284,7 @@ export function Dipe() {
                     Aucun bulletin pour cette période.
                   </TableVide>
                 ) : (
-                  lignes.map((l) => (
+                  pagination.visibles.map((l) => (
                     <TableRow key={l.cle}>
                       <TableCell className="tabular-nums">{l.no}</TableCell>
                       <TableCell className="font-medium">{l.matricule}</TableCell>
@@ -304,6 +306,11 @@ export function Dipe() {
               </TableBody>
             </Table>
           </div>
+          <Pagination
+            page={pagination.page} nbPages={pagination.nbPages} onPage={pagination.setPage}
+            total={pagination.total} debut={pagination.debut} nbVisibles={pagination.visibles.length}
+            taille={pagination.taille} onTaille={pagination.setTaille}
+          />
         </div>
       ) : null}
 

@@ -25,7 +25,7 @@ import { SelecteurPeriode } from "@/components/app/selecteur-periode";
 import { BoutonConfirmation } from "@/components/app/bouton-action";
 import { BoutonImprimer } from "@/components/app/imprimer";
 import { SqueletteTableau } from "@/components/app/chargement";
-import { SelecteurLignes, useLignesVisibles } from "@/components/app/lignes-visibles";
+import { Pagination, usePagination } from "@/components/app/pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow, TableVide } from "@/components/ui/table";
@@ -42,7 +42,6 @@ export function ListeSalaires() {
   const paie = useQuery(api.payroll.bulletinsDuMois, { periode });
   const entreprise = useQuery(api.parametres.get);
   const generer = useMutation(api.payroll.genererEtCloturer);
-  const lignesVisibles = useLignesVisibles("liste-salaires", 20);
   const [societe, setSociete] = React.useState<Societe | "toutes">("toutes");
   const [recherche, setRecherche] = React.useState("");
 
@@ -51,6 +50,7 @@ export function ListeSalaires() {
   const primesDe = (b: any) => b.details?.primes ?? 0;
   const q = sansAccents(recherche.trim());
   const lignes = toutes.filter((b) => (societe === "toutes" || b.societe === societe) && (!q || sansAccents(`${b.nom} ${b.matricule} ${b.fonction ?? ""}`).includes(q)));
+  const pagination = usePagination(lignes, "liste-salaires", 25);
   const totalSociete = (rows: any[], s: string) => rows.filter((b) => b.societe === s).reduce((t, b) => t + b.net, 0);
   const totalPrimes = (rows: any[]) => rows.reduce((t, b) => t + primesDe(b), 0);
   const totalNet = (rows: any[]) => rows.reduce((t, b) => t + b.net, 0);
@@ -101,7 +101,6 @@ export function ListeSalaires() {
           })}
         </div>
         <span className="flex-1" />
-        <SelecteurLignes valeur={lignesVisibles.lignes} onChange={lignesVisibles.setLignes} />
         <div className="relative w-56">
           <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-encre-pale" aria-hidden="true" />
           <Input type="search" value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Nom, matricule, fonction…" aria-label="Rechercher un employé" className="h-8 pl-8" />
@@ -122,7 +121,7 @@ export function ListeSalaires() {
         {paie === undefined ? (
           <SqueletteTableau colonnes={8} lignes={8} />
         ) : (
-          <Table classNameConteneur="rounded-xl" hauteurMax={lignesVisibles.hauteurMax(49, 40, 44)}>
+          <Table classNameConteneur="rounded-xl">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-10">N°</TableHead>
@@ -134,9 +133,9 @@ export function ListeSalaires() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {lignes.map((b, i) => (
+              {pagination.visibles.map((b, i) => (
                 <TableRow key={b.cle}>
-                  <TableCell className="font-mono text-xs text-encre-pale">{i + 1}</TableCell>
+                  <TableCell className="font-mono text-xs text-encre-pale">{pagination.debut + i + 1}</TableCell>
                   <TableCell className="leading-tight">
                     <div className="whitespace-nowrap text-[13px] font-semibold">{b.nom}</div>
                     <div className="whitespace-nowrap text-2xs text-encre-pale">{b.matricule}{b.fonction ? ` · ${b.fonction}` : ""}</div>
@@ -165,6 +164,13 @@ export function ListeSalaires() {
               </TableFooter>
             )}
           </Table>
+        )}
+        {paie !== undefined && (
+          <Pagination
+            page={pagination.page} nbPages={pagination.nbPages} onPage={pagination.setPage}
+            total={pagination.total} debut={pagination.debut} nbVisibles={pagination.visibles.length}
+            taille={pagination.taille} onTaille={pagination.setTaille}
+          />
         )}
       </div>
 
