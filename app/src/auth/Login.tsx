@@ -70,6 +70,7 @@ export function Login() {
             <label>
               Adresse e-mail
               <input
+                className="auth-champ"
                 type="email"
                 value={email}
                 autoComplete="username"
@@ -93,6 +94,7 @@ export function Login() {
             Mot de passe
             <span className="auth-champ-mdp">
               <input
+                className="auth-champ"
                 type={voir ? "text" : "password"}
                 value={motDePasse}
                 required

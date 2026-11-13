@@ -226,6 +226,11 @@
 .auth-scene {
   position: relative;
   min-height: 100vh;
+  /* `dvh` suit la hauteur VISIBLE réelle : sur mobile, le clavier virtuel réduit cette
+     hauteur sans que `vh` (hauteur de la fenêtre de mise en page) ne bouge, ce qui laissait
+     la modale ancrée en bas (`align-items: flex-end` ci-dessous) partiellement masquée par
+     le clavier. Déclaration en second : navigateurs sans `dvh` gardent le repli `vh`. */
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -301,7 +306,10 @@
   border-color: #e2e8f0;
   border-radius: 10px;
   padding: 10px 12px;
-  font-size: 14px;
+  /* 16px minimum : en dessous, Safari iOS zoome automatiquement sur le champ au focus,
+     et ne revient pas en arrière tout seul à la saisie suivante — la mise en page reste
+     déformée. */
+  font-size: 16px;
 }
 
 .auth-modale .auth-form input:focus {
