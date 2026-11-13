@@ -7,26 +7,17 @@
 // facture réelle — il occupe 125 pt (44 mm) en haut d'une page A4. Le corps commence donc sous
 // cette hauteur, pour qu'aucune ligne ne passe sous le logo imprimé.
 //
-// ⚠️ Les polices standard du PDF n'encodent que le Latin-1. `clean()` est repris de `paiePdf.ts`
-// pour la même raison : les modèles sont pleins de tirets longs, de points de suspension, de
-// guillemets français et de l'espace fine insécable des montants. Sans ce nettoyage, pdf-lib
-// lève sur le premier caractère non encodable.
+// ⚠️ Les polices standard du PDF n'encodent que le Latin-1. `nettoyerPourPdf()` (dans
+// `lib/actes.ts`, testable isolément) est repris de `paiePdf.ts` pour la même raison : les
+// modèles sont pleins de tirets longs, de points de suspension, de guillemets français et de
+// l'espace fine insécable des montants. Sans ce nettoyage, pdf-lib lève sur le premier caractère
+// non encodable.
 
 import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 import { PDFDocument, StandardFonts, rgb, PDFFont } from "pdf-lib";
-import { MARGE_BASSE, MARGE_HAUTE_ENTETE, MARGE_LATERALE } from "./lib/actes";
-
-const clean = (s: string) =>
-  (s ?? "")
-    .normalize("NFC")
-    .replace(/[–—]/g, "-")
-    .replace(/…/g, "...")
-    .replace(/[   ]/g, " ")
-    .replace(/[«»]/g, '"')
-    .replace(/[‘’]/g, "'")
-    .replace(/[^\x20-\x7E\xA0-\xFF]/g, "?");
+import { MARGE_BASSE, MARGE_HAUTE_ENTETE, MARGE_LATERALE, nettoyerPourPdf, paragraphesActe } from "./lib/actes";
 
 const A4 = { w: 595.28, h: 841.89 };
 const ENCRE = rgb(0.04, 0.07, 0.17);
@@ -75,7 +66,7 @@ export async function construireActePdf(args: {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.TimesRoman);
   const gras = await doc.embedFont(StandardFonts.TimesRomanBold);
-  if (args.titreOnglet) doc.setTitle(clean(args.titreOnglet));
+  if (args.titreOnglet) doc.setTitle(nettoyerPourPdf(args.titreOnglet));
 
   const margeHaute = args.margeHaute ?? MARGE_HAUTE_ENTETE;
   const largeur = A4.w - 2 * MARGE_LATERALE;
@@ -92,15 +83,11 @@ export async function construireActePdf(args: {
     y = A4.h - 60;
   };
 
-  for (const paragraphe of clean(args.corps).split("\n")) {
+  for (const { texte: paragraphe, estTitre } of paragraphesActe(args.corps)) {
     if (!paragraphe.trim()) {
       y -= ESPACE_PARA;
       continue;
     }
-    // Une ligne courte et entièrement en capitales est un titre : c'est ainsi que ses modèles
-    // Word les écrivent (« ATTESTATION DE SALAIRE »).
-    const estTitre =
-      paragraphe.length < 70 && paragraphe === paragraphe.toUpperCase() && /[A-Z]{4}/.test(paragraphe);
     const f = estTitre ? gras : font;
     const taille = estTitre ? TAILLE + 1.5 : TAILLE;
 
