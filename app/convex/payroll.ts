@@ -16,6 +16,18 @@ export const bulletinsDuMois = query({
   },
 });
 
+// Même calcul, sur un INTERVALLE de périodes (export Liste des salaires sur plusieurs mois) : un
+// résultat par mois, dans l'ordre demandé, chacun mois ouvert ou clôturé selon son propre état.
+export const bulletinsIntervalle = query({
+  args: { periodes: v.array(v.string()) },
+  handler: async (ctx, { periodes }) => {
+    await requireUnDesDroits(ctx, ["/paie/bulletins", "/paie/liste", "/paie/saisie", "/paie/archives", "/paie/courrier"]);
+    const resultats = [];
+    for (const periode of periodes) resultats.push({ periode, ...(await bulletinsPourPeriode(ctx, periode)) });
+    return resultats;
+  },
+});
+
 // Génère et FIGE les bulletins du mois, puis clôture (verrou), comme le grand livre financier.
 export const genererEtCloturer = mutation({
   args: { periode: v.string() },

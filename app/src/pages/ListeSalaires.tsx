@@ -21,7 +21,7 @@ import { PageEnTete } from "@/components/app/en-tete";
 import { GrilleTuiles, Tuile } from "@/components/app/tuile";
 import { Montant } from "@/components/app/montant";
 import { StatutMois } from "@/components/app/statut";
-import { SelecteurPeriode } from "@/components/app/selecteur-periode";
+import { SelecteurPeriode, SelecteurIntervallePeriode, decalerPeriode, periodesEntre } from "@/components/app/selecteur-periode";
 import { BoutonConfirmation } from "@/components/app/bouton-action";
 import { BoutonImprimer } from "@/components/app/imprimer";
 import { SqueletteTableau } from "@/components/app/chargement";
@@ -44,18 +44,30 @@ export function ListeSalaires() {
   const generer = useMutation(api.payroll.genererEtCloturer);
   const [societe, setSociete] = React.useState<Societe | "toutes">("toutes");
   const [recherche, setRecherche] = React.useState("");
+  // Export sur un INTERVALLE de mois (demande RH, épic 8) : un axe en plus de l'écran, qui reste
+  // par défaut sur le mois unique — l'intervalle ne pilote que l'impression/export, pas le tableau.
+  const [modeExport, setModeExport] = React.useState<"mois" | "intervalle">("mois");
+  const [intervalle, setIntervalle] = React.useState(() => ({ debut: decalerPeriode(periodeCourante(), -2), fin: periodeCourante() }));
+  const periodesIntervalle = React.useMemo(() => periodesEntre(intervalle.debut, intervalle.fin), [intervalle]);
+  const paieIntervalle = useQuery(api.payroll.bulletinsIntervalle, modeExport === "intervalle" ? { periodes: periodesIntervalle } : "skip");
 
   const cloture = paie?.cloture ?? false;
   const toutes = (paie?.bulletins ?? []) as any[];
   const primesDe = (b: any) => b.details?.primes ?? 0;
   const q = sansAccents(recherche.trim());
-  const lignes = toutes.filter((b) => (societe === "toutes" || b.societe === societe) && (!q || sansAccents(`${b.nom} ${b.matricule} ${b.fonction ?? ""}`).includes(q)));
+  const filtrerLignes = (bruts: any[]) => bruts.filter((b) => (societe === "toutes" || b.societe === societe) && (!q || sansAccents(`${b.nom} ${b.matricule} ${b.fonction ?? ""}`).includes(q)));
+  const lignes = filtrerLignes(toutes);
   const pagination = usePagination(lignes, "liste-salaires", 25);
   const totalSociete = (rows: any[], s: string) => rows.filter((b) => b.societe === s).reduce((t, b) => t + b.net, 0);
   const totalPrimes = (rows: any[]) => rows.reduce((t, b) => t + primesDe(b), 0);
   const totalNet = (rows: any[]) => rows.reduce((t, b) => t + b.net, 0);
   const nomEntreprise = entreprise?.nom ?? "POITIERS COWORKING";
   const filtre = societe !== "toutes" || q;
+  // Mois de l'intervalle ayant au moins une ligne (après filtres société/recherche) : utile pour
+  // savoir si l'export a quelque chose à imprimer, et quoi afficher par mois.
+  const moisIntervalle = (paieIntervalle ?? []).map((p) => ({ ...p, lignes: filtrerLignes((p.bulletins ?? []) as any[]) }));
+  const intervallePret = modeExport === "mois" || paieIntervalle !== undefined;
+  const intervalleAImprimer = moisIntervalle.some((m) => m.lignes.length > 0);
 
   return (
     <div className="space-y-4">
@@ -67,8 +79,15 @@ export function ListeSalaires() {
           <>
             <Button variant="outline" size="sm" asChild><Link to={`/paie/bulletins?periode=${periode}`}><FileCheck2Icon /> Bulletins du mois</Link></Button>
             <Button variant="outline" size="sm" asChild><Link to="/employes"><UsersIcon /> Employés</Link></Button>
-            <BoutonImprimer entreprise={nomEntreprise} document="Liste des salaires" periode={libellePeriode(periode)} desactive={!lignes.length} />
-            {!cloture && toutes.length > 0 ? (
+            <BoutonImprimer
+              entreprise={nomEntreprise}
+              document="Liste des salaires"
+              periode={modeExport === "mois" ? libellePeriode(periode) : `${libellePeriode(intervalle.debut)} a ${libellePeriode(intervalle.fin)}`}
+              desactive={modeExport === "mois" ? !lignes.length : !intervallePret || !intervalleAImprimer}
+            >
+              {modeExport === "mois" ? "Imprimer" : `Imprimer (${periodesIntervalle.length} mois)`}
+            </BoutonImprimer>
+            {modeExport === "mois" && !cloture && toutes.length > 0 ? (
               <BoutonConfirmation
                 variant="default"
                 size="sm"
@@ -86,8 +105,24 @@ export function ListeSalaires() {
       />
 
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-filet bg-surface px-3 py-2 shadow-xs print:hidden">
-        <SelecteurPeriode valeur={periode} onChange={setPeriode} />
-        <span className="text-sm font-semibold">{libellePeriode(periode)}</span>
+        <div role="tablist" aria-label="Mois ou intervalle" className="flex items-center gap-1 rounded-xl border border-filet bg-slate-100/80 p-1">
+          <button role="tab" aria-selected={modeExport === "mois"} onClick={() => setModeExport("mois")}
+            className={cn("rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors", modeExport === "mois" ? "bg-ocean-profond text-white shadow-xs" : "text-encre-douce hover:bg-white hover:text-encre")}>
+            Un mois
+          </button>
+          <button role="tab" aria-selected={modeExport === "intervalle"} onClick={() => setModeExport("intervalle")}
+            className={cn("rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors", modeExport === "intervalle" ? "bg-ocean-profond text-white shadow-xs" : "text-encre-douce hover:bg-white hover:text-encre")}>
+            Plusieurs mois
+          </button>
+        </div>
+        {modeExport === "mois" ? (
+          <>
+            <SelecteurPeriode valeur={periode} onChange={setPeriode} />
+            <span className="text-sm font-semibold">{libellePeriode(periode)}</span>
+          </>
+        ) : (
+          <SelecteurIntervallePeriode debut={intervalle.debut} fin={intervalle.fin} onChange={(debut, fin) => setIntervalle({ debut, fin })} />
+        )}
         <span className="hidden h-6 w-px bg-filet sm:block" aria-hidden="true" />
         <div role="tablist" aria-label="Société" className="flex items-center gap-1 rounded-xl border border-filet bg-slate-100/80 p-1">
           {([["toutes", "Toutes"], ...SOCIETES.map((s) => [s, s])] as [Societe | "toutes", string][]).map(([k, l]) => {
@@ -174,45 +209,62 @@ export function ListeSalaires() {
         )}
       </div>
 
-      {/* Impression : la feuille A4 seule */}
+      {/* Impression : la feuille A4 seule (mode "mois"), ou un document par mois regroupé dans le
+          même aperçu d'impression (mode "intervalle") — le même mécanisme de saut de page que les
+          bulletins du mois, un `<Feuille>` par mois plutôt qu'un `<Feuille>` par salarié. */}
       <div className="hidden print:block">
-        <Feuille provisoire={!cloture}>
-          <EnTeteDocument
-            raisonSociale={nomEntreprise}
-            coordonnees={[entreprise?.adresse, entreprise?.niu ? `NIU ${entreprise.niu}` : null, entreprise?.numeroCnps ? `N° CNPS ${entreprise.numeroCnps}` : null].filter(Boolean).join(" · ")}
-            nature="Liste des salaires"
-            periode={`Récapitulatif général salaire et primes perçus — ${libellePeriode(periode)}${societe !== "toutes" ? ` · ${societe}` : ""}`}
-          />
-          <TableauDocument>
-            <thead>
-              <tr><th>N°</th><th>Noms et prénoms</th>{SOCIETES.map((s) => <th key={s} className="num">{s}</th>)}<th className="num">Primes</th><th className="num">Total perçu</th></tr>
-            </thead>
-            <tbody>
-              {lignes.map((b, i) => (
-                <tr key={b.cle}>
-                  <td>{i + 1}</td><td>{b.nom}</td>
-                  {SOCIETES.map((s) => <td key={s} className="num">{b.societe === s ? num(b.net) : "—"}</td>)}
-                  <td className="num">{primesDe(b) ? num(primesDe(b)) : "—"}</td>
-                  <td className="num"><b>{num(b.net)}</b></td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colSpan={2}><b>TOTAUX ({lignes.length} employés)</b></td>
-                {SOCIETES.map((s) => <td key={s} className="num"><b>{num(totalSociete(lignes, s))}</b></td>)}
-                <td className="num"><b>{num(totalPrimes(lignes))}</b></td>
-                <td className="num"><b>{num(totalNet(lignes))}</b></td>
-              </tr>
-            </tfoot>
-          </TableauDocument>
-          <CasesDocument>
-            <CaseDocument intitule={`Établi par${entreprise?.responsableRH ? ` — ${entreprise.responsableRH}` : " (RH)"}`} />
-            <CaseDocument intitule="Visa de la Direction" />
-          </CasesDocument>
-          <MentionDocument valide={cloture} />
-        </Feuille>
+        {modeExport === "mois"
+          ? feuilleSalaires({ periode, cloture, lignes, nomEntreprise, entreprise, societe, totalSociete, totalPrimes, totalNet, primesDe })
+          : moisIntervalle.map((m) => feuilleSalaires({
+              periode: m.periode, cloture: m.cloture ?? false, lignes: m.lignes, nomEntreprise, entreprise, societe, totalSociete, totalPrimes, totalNet, primesDe,
+            }))}
       </div>
     </div>
+  );
+}
+
+// Un document « Liste des salaires » pour UN mois — factorisé pour servir aussi bien au mois
+// unique qu'à chaque mois de l'export sur intervalle (un `<Feuille>` par mois, clé = periode).
+function feuilleSalaires({ periode, cloture, lignes, nomEntreprise, entreprise, societe, totalSociete, totalPrimes, totalNet, primesDe }: {
+  periode: string; cloture: boolean; lignes: any[]; nomEntreprise: string; entreprise: any; societe: Societe | "toutes";
+  totalSociete: (rows: any[], s: string) => number; totalPrimes: (rows: any[]) => number; totalNet: (rows: any[]) => number; primesDe: (b: any) => number;
+}) {
+  return (
+    <Feuille key={periode} provisoire={!cloture}>
+      <EnTeteDocument
+        raisonSociale={nomEntreprise}
+        coordonnees={[entreprise?.adresse, entreprise?.niu ? `NIU ${entreprise.niu}` : null, entreprise?.numeroCnps ? `N° CNPS ${entreprise.numeroCnps}` : null].filter(Boolean).join(" · ")}
+        nature="Liste des salaires"
+        periode={`Récapitulatif général salaire et primes perçus — ${libellePeriode(periode)}${societe !== "toutes" ? ` · ${societe}` : ""}`}
+      />
+      <TableauDocument>
+        <thead>
+          <tr><th>N°</th><th>Noms et prénoms</th>{SOCIETES.map((s) => <th key={s} className="num">{s}</th>)}<th className="num">Primes</th><th className="num">Total perçu</th></tr>
+        </thead>
+        <tbody>
+          {lignes.map((b, i) => (
+            <tr key={b.cle}>
+              <td>{i + 1}</td><td>{b.nom}</td>
+              {SOCIETES.map((s) => <td key={s} className="num">{b.societe === s ? num(b.net) : "—"}</td>)}
+              <td className="num">{primesDe(b) ? num(primesDe(b)) : "—"}</td>
+              <td className="num"><b>{num(b.net)}</b></td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colSpan={2}><b>TOTAUX ({lignes.length} employés)</b></td>
+            {SOCIETES.map((s) => <td key={s} className="num"><b>{num(totalSociete(lignes, s))}</b></td>)}
+            <td className="num"><b>{num(totalPrimes(lignes))}</b></td>
+            <td className="num"><b>{num(totalNet(lignes))}</b></td>
+          </tr>
+        </tfoot>
+      </TableauDocument>
+      <CasesDocument>
+        <CaseDocument intitule={`Établi par${entreprise?.responsableRH ? ` — ${entreprise.responsableRH}` : " (RH)"}`} />
+        <CaseDocument intitule="Visa de la Direction" />
+      </CasesDocument>
+      <MentionDocument valide={cloture} />
+    </Feuille>
   );
 }
