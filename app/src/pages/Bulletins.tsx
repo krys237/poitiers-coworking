@@ -28,6 +28,7 @@ import { usePeut } from "../auth/useMe";
 import { SqueletteTableau } from "@/components/app/chargement";
 import { EtatVide } from "@/components/app/etat-vide";
 import { SelecteurLignes, useLignesVisibles } from "@/components/app/lignes-visibles";
+import { useDefilerVersDetail } from "@/components/app/defilement-detail";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Flag } from "@/components/ui/flag";
@@ -53,6 +54,7 @@ export function Bulletins() {
   const imprimer = useImpression();
   // « Imprimer seul » : on limite d'abord l'impression au salarié (adresse), puis on imprime une fois le filtre appliqué.
   const [imprimerSeul, setImprimerSeul] = React.useState<string | null>(null);
+  const refDetail = useDefilerVersDetail<HTMLDivElement>(ouvert);
 
   const tous = (paie?.bulletins ?? []) as any[];
   const qq = sansAccents(q.trim());
@@ -188,7 +190,7 @@ export function Bulletins() {
           </div>
 
           {/* Aperçu du bulletin sélectionné : la feuille A4 réduite pour tenir dans le volet. */}
-          <aside className="flex w-full flex-col overflow-hidden rounded-xl border border-filet bg-surface xl:w-[30rem] xl:shrink-0">
+          <aside ref={refDetail} className="flex w-full flex-col overflow-hidden rounded-xl border border-filet bg-surface xl:w-[30rem] xl:shrink-0">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-filet px-4 py-3">
               <div>
                 <div className="text-sm font-semibold">{selection ? selection.nom : "Bulletin"}</div>

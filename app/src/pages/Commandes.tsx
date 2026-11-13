@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Flag, FlagVariant } from "@/components/ui/flag";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SelecteurLignes, useLignesVisibles } from "@/components/app/lignes-visibles";
+import { useDefilerVersDetail } from "@/components/app/defilement-detail";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -102,6 +103,7 @@ function CommandesContenu() {
   const fournisseurs = useQuery(api.fournisseurs.liste, {});
 
   const [sel, setSel] = useState<string | null>(null);
+  const refDetail = useDefilerVersDetail<HTMLTableRowElement>(sel);
   const detail = useQuery(api.commandes.detail, sel ? { commandeId: sel as any } : "skip");
   // Récupération des antécédents d'achats en BD (Option 1 : verrouillage automatique / Option 3 : saisie libre si base vide)
   const antecedentsCreation = useQuery(api.commandes.derniersAchats, { type });
@@ -1346,7 +1348,7 @@ function CommandesContenu() {
 
                       {/* Fiche détaillée dépliable directement sous la ligne sélectionnée */}
                       {estSelectionne && (
-                        <tr className="border-b border-filet bg-papier">
+                        <tr ref={refDetail} className="border-b border-filet bg-papier">
                           {/* `w-px min-w-full` : sans ça, la largeur NATURELLE de la fiche dépliée
                               (elle contient elle-même un tableau, le registre d'articles) remontait
                               à la cellule, donc à la TABLE entière — le tableau de liste s'élargissait
