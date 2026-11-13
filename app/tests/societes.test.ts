@@ -54,13 +54,15 @@ check("chaque rattachement porte SON salaire de base, pas celui de la fiche",
   && effectifs.find((r) => r.societe === "SESAME")?.salaireBase === 48000, effectifs);
 check("l'origine des lignes explicites est « table »", effectifs.every((r) => r.origine === "table"));
 
-// Un rattachement déclaré sans montant sur une société AUTRE que celle de la fiche vaut 0 : la RH
-// peut déclarer l'appartenance avant de chiffrer. Le bulletin correspondant sera donc à zéro —
-// c'est voulu, mais il faut le savoir.
+// Un rattachement déclaré sans montant sur une société AUTRE que celle de la fiche retombe sur le
+// salaire de base de la fiche — exactement ce que l'écran de saisie annonce (« Sans montant, c'est
+// le salaire de base ci-dessus qui s'applique »). La RH peut donc déclarer l'appartenance d'abord
+// et chiffrer ensuite, sans produire un bulletin à zéro entre-temps.
 const sansMontant = rattachementsEffectifs(fiche, [
   { _id: "r4", societe: "SESAME", salaireBase: undefined, actif: true },
 ]);
-check("appartenance déclarée sans montant : salaire de base à 0", sansMontant[0].salaireBase === 0, sansMontant);
+check("appartenance déclarée sans montant sur une société secondaire : salaire de base de la fiche",
+  sansMontant[0].salaireBase === fiche.salaireBase, sansMontant);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. Société porteuse et rattachement des lignes antérieures
