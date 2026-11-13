@@ -92,8 +92,13 @@ export function Planning() {
           titre="Planning annuel des congés"
           description="Droit à congé calculé, date de retour en jours ouvrables, remplaçant et observation — avec alerte quand un service se dégarnit."
           actions={
-            <Tabs value={onglet} onValueChange={(v) => setOnglet(v as Onglet)}>
-              <TabsList>
+            // `min-w-0` sur Tabs : sans ca, le item flex refuse de retrecir sous la largeur de son
+            // contenu (min-width:auto par defaut) et `max-w-full overflow-x-auto` sur la TabsList
+            // ne sert a rien — c'est toute la page qui partait en defilement horizontal sur mobile
+            // a cause des trois libelles de la TabsList (meme symptome que les onglets de Commandes,
+            // cause differente : la, c'etait un simple flex sans contrainte de retrecissement).
+            <Tabs value={onglet} onValueChange={(v) => setOnglet(v as Onglet)} className="min-w-0">
+              <TabsList className="max-w-full overflow-x-auto">
                 <TabsTrigger value="annee">Planning annuel</TabsTrigger>
                 <TabsTrigger value="absences">Absences du mois</TabsTrigger>
                 <TabsTrigger value="soldes">Soldes & jours travaillés</TabsTrigger>
@@ -139,8 +144,11 @@ export function Planning() {
           <SearchIcon className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-encre-pale" aria-hidden="true" />
           <Input type="search" value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Employé, motif…" aria-label="Rechercher" className="h-8 pl-8" />
         </div>
-        <Tabs value={onglet} onValueChange={(v) => setOnglet(v as Onglet)}>
-          <TabsList>
+        {/* `min-w-0` : voir le meme correctif sur la vue annuelle ci-dessus — sans ca, c'est toute
+            la page qui defilait horizontalement sur mobile a cause des trois libelles de la
+            TabsList. */}
+        <Tabs value={onglet} onValueChange={(v) => setOnglet(v as Onglet)} className="min-w-0">
+          <TabsList className="max-w-full overflow-x-auto">
             <TabsTrigger value="annee">Planning annuel</TabsTrigger>
             <TabsTrigger value="absences">Absences du mois</TabsTrigger>
             <TabsTrigger value="soldes">Soldes & jours travaillés</TabsTrigger>
