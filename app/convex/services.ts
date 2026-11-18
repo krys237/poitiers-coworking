@@ -34,7 +34,25 @@ export const liste = query({
     await requireUnDesDroits(ctx, ["/paie/planning", "/employes"]);
     const lignes = await ctx.db.query("services").collect();
     lignes.sort((a, b) => a.ordre - b.ordre || a.nom.localeCompare(b.nom));
-    return lignes;
+    // Les chefs sont stockés par identifiant ; l'écran a besoin de noms. On les résout ICI plutôt
+    // que de laisser la page interroger la liste des membres : la consulter demande un droit que
+    // le planning n'exige pas, et un écran de services n'a pas à réclamer l'accès aux membres
+    // pour afficher deux noms. Un chef supprimé entre-temps est simplement omis.
+    const membres = new Map<string, string>();
+    for (const l of lignes) {
+      for (const c of l.chefs ?? []) {
+        if (membres.has(c)) continue;
+        const u = await ctx.db.get(c);
+        if (u) membres.set(c, u.nom ?? u.email);
+      }
+    }
+    return lignes.map((l) => ({
+      ...l,
+      chefsDetail: (l.chefs ?? []).flatMap((c) => {
+        const nom = membres.get(c);
+        return nom ? [{ _id: c, nom }] : [];
+      }),
+    }));
   },
 });
 
@@ -74,8 +92,9 @@ export const enregistrer = mutation({
     nom: v.string(),
     couleur: v.optional(v.string()),
     actif: v.optional(v.boolean()),
+    chefs: v.optional(v.array(v.id("users"))),
   },
-  handler: async (ctx, { id, nom, couleur, actif }) => {
+  handler: async (ctx, { id, nom, couleur, actif, chefs }) => {
     await requireDroit(ctx, "/paie/planning", "faire");
     const propre = normaliser(nom);
     if (!propre) throw new Error("Le nom du service est obligatoire.");
@@ -86,6 +105,19 @@ export const enregistrer = mutation({
     );
     if (homonyme) throw new Error(`Le service « ${homonyme.nom} » existe déjà.`);
 
+    // Un ou deux chefs, pas davantage : au-delà, « le chef du service » ne désigne plus personne
+    // et le routage des comptes rendus n'a plus de destinataire unique. Le doublon est refusé
+    // plutôt que dédupliqué en silence — deux fois la même personne est une erreur de saisie.
+    if (chefs !== undefined) {
+      if (chefs.length > 2) throw new Error("Un service compte au plus deux chefs.");
+      if (new Set(chefs).size !== chefs.length) throw new Error("Le même membre est désigné deux fois comme chef.");
+      for (const c of chefs) {
+        const membre = await ctx.db.get(c);
+        if (!membre) throw new Error("Membre introuvable parmi les chefs désignés.");
+        if (!membre.isActive) throw new Error(`${membre.nom ?? membre.email} est désactivé : il ne peut pas être chef de service.`);
+      }
+    }
+
     if (id) {
       const s = await ctx.db.get(id);
       if (!s) throw new Error("Service introuvable.");
@@ -93,6 +125,7 @@ export const enregistrer = mutation({
         nom: propre,
         couleur: couleur ?? s.couleur,
         actif: actif ?? s.actif,
+        chefs: chefs ?? s.chefs,
       });
       return { id, cree: false };
     }
@@ -103,6 +136,7 @@ export const enregistrer = mutation({
       couleur: couleur ?? couleurServiceParDefaut(ordre),
       ordre,
       actif: actif ?? true,
+      chefs: chefs ?? [],
     });
     return { id: nouveau, cree: true };
   },

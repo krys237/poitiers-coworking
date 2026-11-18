@@ -133,6 +133,16 @@ export default defineSchema({
     couleur: v.string(),              // hex "#rrggbb"
     ordre: v.number(),
     actif: v.boolean(),
+    /**
+     * Chefs du service — **un ou deux**, référencés et non saisis au clavier.
+     *
+     * C'est le socle du circuit voulu par le propriétaire : l'employé rend son compte rendu à son
+     * chef de service, qui en tient compte dans le sien, lequel remonte à la direction. Router
+     * exige de connaître le chef comme une IDENTITÉ. `interventions.chefService` était une chaîne
+     * de texte libre : on peut l'afficher, pas lui adresser quoi que ce soit. Le champ texte y
+     * reste pour ne pas réécrire l'historique des demandes déjà déposées.
+     */
+    chefs: v.optional(v.array(v.id("users"))),
   }).index("by_nom", ["nom"]),
 
   // Référentiel des FONCTIONS (lot R10). `employes.fonction` était un champ texte libre, d'où
