@@ -69,6 +69,16 @@ export default defineSchema({
     droitsPerso: v.optional(v.array(v.object({ module: v.string(), voir: v.boolean(), faire: v.boolean() }))),
     // Fiche employé du membre (« Mes bulletins ») ; à défaut, rapprochement par e-mail.
     employeId: v.optional(v.id("employes")),
+    /**
+     * Service de rattachement du MEMBRE, pour router son compte rendu vers son chef de service.
+     *
+     * Le service existait déjà sur la fiche employé (`employes.serviceId`), mais un compte rendu
+     * est écrit par un membre, et tout membre n'a pas de fiche : passer par elle laisserait sans
+     * chef quiconque n'en a pas. Le champ est donc porté ici, et repris de la fiche quand elle
+     * existe — `services.serviceDuMembre` applique ce repli, pour que les deux cohabitent sans
+     * qu'on ait à choisir lequel fait foi au cas par cas.
+     */
+    serviceId: v.optional(v.id("services")),
     // Mot de passe provisoire posé par la Direction (création ou réinitialisation) : l'interface impose
     // de le changer avant toute autre chose (décision du 13/10/2026, lib/motDePasse.ts).
     doitChangerMotDePasse: v.optional(v.boolean()),

@@ -1,7 +1,8 @@
 // Services d'affectation (lot R1). Reprend la colonne SERVICE du planning de congé de la RH et
 // y ajoute la couleur qu'elle demandait, pour repérer d'un coup d'œil quel service se vide.
 
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation, type QueryCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { requireDroit, requireUnDesDroits } from "./lib/authz";
 import { couleurServiceParDefaut, PALETTE_SERVICES } from "./lib/planningAnnuel";
@@ -57,6 +58,38 @@ export const liste = query({
 });
 
 /**
+ * Service d'un membre : le sien d'abord, celui de sa fiche employé à défaut.
+ *
+ * Deux champs portent la même notion pour deux raisons distinctes — `employes.serviceId` sert au
+ * planning des congés, `users.serviceId` au routage des comptes rendus. Les faire cohabiter ici,
+ * dans une seule fonction, évite que chaque appelant choisisse lequel fait foi : la réponse est
+ * toujours « celui du membre, et sa fiche en repli ».
+ */
+export async function serviceDuMembre(
+  ctx: QueryCtx,
+  membre: { serviceId?: Id<"services">; employeId?: Id<"employes"> },
+): Promise<Id<"services"> | null> {
+  if (membre.serviceId) return membre.serviceId;
+  if (!membre.employeId) return null;
+  const fiche = await ctx.db.get(membre.employeId);
+  return fiche?.serviceId ?? null;
+}
+
+/**
+ * Chefs à qui adresser le compte rendu d'un membre. Vide si le membre n'a pas de service, si le
+ * service n'a pas de chef, ou s'il en est lui-même le chef — un chef ne se rend pas de compte.
+ */
+export async function chefsDuMembre(
+  ctx: QueryCtx,
+  membre: { _id: Id<"users">; serviceId?: Id<"services">; employeId?: Id<"employes"> },
+): Promise<Id<"users">[]> {
+  const serviceId = await serviceDuMembre(ctx, membre);
+  if (!serviceId) return [];
+  const service = await ctx.db.get(serviceId);
+  return (service?.chefs ?? []).filter((c) => c !== membre._id);
+}
+
+/**
  * Membres pouvant être désignés chefs d'un service : identifiant, nom, et poste en repère.
  *
  * Volontairement SÉPARÉE de `users.liste`, qui exige le droit « Membres » et rend la fiche
@@ -75,6 +108,32 @@ export const membresAssignables = query({
       .filter((m) => m.isActive)
       .map((m) => ({ _id: m._id, nom: m.nom ?? m.email, poste: m.poste ?? "" }))
       .sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+  },
+});
+
+/**
+ * Reprend le service des fiches employés sur les membres qui n'en ont pas encore.
+ *
+ * `internalMutation` et non `mutation` gardée : les deux migrations RH de novembre étaient
+ * publiques mais protégées par `requireDroit`, donc sans interface ET hors d'atteinte du CLI
+ * (`convex run` n'ouvre pas de session) — inappelables, elles ont bloqué une fusion trois
+ * semaines. Celle-ci se lance en une ligne, rend compte de ce qu'elle a fait, et ne touche
+ * jamais un membre qui a déjà son propre service : le rattachement explicite prime.
+ */
+export const reprendreServicesDepuisFiches = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const membres = await ctx.db.query("users").collect();
+    let repris = 0, dejaRattaches = 0, sansFiche = 0, ficheSansService = 0;
+    for (const m of membres) {
+      if (m.serviceId) { dejaRattaches++; continue; }
+      if (!m.employeId) { sansFiche++; continue; }
+      const fiche = await ctx.db.get(m.employeId);
+      if (!fiche?.serviceId) { ficheSansService++; continue; }
+      await ctx.db.patch(m._id, { serviceId: fiche.serviceId });
+      repris++;
+    }
+    return { membres: membres.length, repris, dejaRattaches, sansFiche, ficheSansService };
   },
 });
 
