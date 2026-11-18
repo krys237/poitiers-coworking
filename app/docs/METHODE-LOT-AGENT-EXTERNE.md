@@ -58,8 +58,40 @@ explicitement **ce qu'il n'a pas pu vérifier**.
 
 ## Intégration
 
-1. `git apply --3way` sur une branche locale, depuis le commit de base noté dans la fiche ;
-2. relecture du **diff**, pas du compte rendu ;
+### Appliquer le patch — deux pièges payés au premier lot
+
+Le lot est monté depuis `app/`, mais le dépôt a ce préfixe. Les chemins du patch disent donc
+`convex/lib/…` là où le dépôt dit `app/convex/lib/…`. Il faut **`--directory=app`** :
+
+```bash
+git apply --3way --directory=app --stat  livraisons/lot-X/lot-X.patch   # d'abord lire
+git apply --3way --directory=app         livraisons/lot-X/lot-X.patch   # puis appliquer
+```
+
+⚠️ **Sans le bon préfixe, `git apply` rend un succès en n'appliquant RIEN.** Pas d'erreur, pas de
+message : zéro fichier touché. Toujours lire le `--stat` **avant**, et vérifier `git status`
+**après**. Un patch qui ne change aucun fichier est un échec, pas une réussite.
+
+### Vérifier que la base de l'agent est bien celle qu'on a envoyée
+
+Son dépôt est isolé et reconstruit à la main ; rien ne garantit a priori que son commit `base`
+corresponde à ce qu'on lui a transmis. Le contrôle coûte dix secondes et doit être systématique :
+
+```bash
+git show base:<fichier> | git hash-object --stdin     # chez lui
+git show <sha-de-la-fiche>:app/<fichier> | git hash-object --stdin   # chez nous
+```
+
+Les empreintes doivent être identiques, fichier par fichier.
+
+### Puis
+
+1. le patch appliqué sur une branche locale, depuis le commit de base noté dans la fiche ;
+2. relecture du **diff**, pas du compte rendu — c'est là que se voient les effets de bord
+   qu'un agent sans le reste du projet ne peut pas anticiper. Au lot C1, trois ont été trouvés à
+   la relecture : un validateur Convex désynchronisé, un tableau partagé avec le défaut du module,
+   et une comparaison par référence qui polluait le journal d'audit. Aucun n'était une faute de
+   l'agent ; tous auraient cassé la production ;
 3. typecheck, build et **toutes** les suites de tests, **ici** — l'environnement de l'agent diverge
    du nôtre, plusieurs pièges de ce projet ne se manifestent que sous Windows ;
 4. fusion dans `dev`, déploiement en recette, validation contre des données ;
