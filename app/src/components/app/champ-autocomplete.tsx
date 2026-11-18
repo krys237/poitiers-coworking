@@ -39,6 +39,7 @@ export function ChampAutocomplete({
   options,
   onChange,
   strict = false,
+  messageSansSuggestion,
   placeholder,
   ariaLabel,
   disabled,
@@ -50,6 +51,15 @@ export function ChampAutocomplete({
   options: OptionAutocomplete[];
   onChange: (valeur: string, option?: OptionAutocomplete) => void;
   strict?: boolean;
+  /**
+   * Remplace le message affiché quand la saisie ne correspond à aucune option.
+   *
+   * Le texte par défaut du mode non strict annonce que la saisie sera conservée telle quelle —
+   * vrai pour une fonction d'employé, FAUX quand l'appelant n'accepte en réalité qu'une option
+   * de la liste et n'utilise le mode non strict que pour observer la frappe. Sans cette
+   * échappatoire, l'écran afficherait deux messages contradictoires (chefs de service, lot A).
+   */
+  messageSansSuggestion?: string;
   placeholder?: string;
   ariaLabel?: string;
   disabled?: boolean;
@@ -198,9 +208,10 @@ export function ChampAutocomplete({
 
       {ouvert && !suggestions.length && q ? (
         <p className="absolute z-50 mt-1 w-full rounded-xl border border-filet bg-surface px-3 py-2 text-xs text-encre-pale shadow-lg">
-          {strict
-            ? "Aucun résultat — seules les valeurs de la liste sont acceptées."
-            : "Aucune suggestion : votre saisie sera conservée telle quelle."}
+          {messageSansSuggestion ??
+            (strict
+              ? "Aucun résultat — seules les valeurs de la liste sont acceptées."
+              : "Aucune suggestion : votre saisie sera conservée telle quelle.")}
         </p>
       ) : null}
     </div>
