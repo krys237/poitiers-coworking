@@ -18,6 +18,18 @@ const ROLE = v.union(
 
 const SOCIETE = v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"));
 
+/**
+ * Fenêtre de dépôt des comptes rendus propre à un poste (lot C1).
+ *
+ * EXPORTÉ exprès, et réutilisé tel quel par le validateur d'arguments de
+ * `parametres.enregistrerReglages` : les deux décrivent la même donnée, et les laisser diverger
+ * est précisément le défaut qui a fait échouer toute clôture de paie en novembre — un validateur
+ * de schéma oubliait quatre champs que le calcul produisait, et chaque insertion était rejetée.
+ */
+export const regleFenetrePosteV = v.object({
+  poste: v.string(), ouverture: v.number(), fermeture: v.number(), samedi: v.boolean(),
+});
+
 export default defineSchema({
   // Tables de Convex Auth : authSessions, authAccounts, authRefreshTokens,
   // authVerificationCodes, authVerifiers, authRateLimits — et `users`, que l'on REDÉFINIT
@@ -84,6 +96,7 @@ export default defineSchema({
     jourPaiement: v.optional(v.number()),     // jour de paiement du mois suivant (déf. 5)
     reglages: v.optional(v.object({           // réglages de fonctionnement — voir lib/reglages.ts (défauts = anciennes constantes)
       crHeureOuverture: v.optional(v.number()), crHeureFermeture: v.optional(v.number()), crSamedi: v.optional(v.boolean()),
+      crFenetresParPoste: v.optional(v.array(regleFenetrePosteV)),
       verrouFinancierMin: v.optional(v.number()), verrouCaisseMin: v.optional(v.number()),
       envoiReelActive: v.optional(v.boolean()), whatsappReelActive: v.optional(v.boolean()), iaDocumentsActive: v.optional(v.boolean()), pdfAutoCloture: v.optional(v.boolean()),
       joursBaseDefaut: v.optional(v.number()), plafondSaisie: v.optional(v.number()),

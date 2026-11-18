@@ -76,3 +76,47 @@ export function dureeLisible(ms: number): string {
   const h = Math.floor(total / 60), m = total % 60;
   return h ? `${h}h ${String(m).padStart(2, "0")}min` : `${m}min`;
 }
+
+// --- Lot C1 : fenêtre réglable par poste ----------------------------------------------------
+// Jusqu'ici la fenêtre était unique pour toute l'entreprise. Le propriétaire veut qu'un poste
+// puisse avoir son propre créneau (un agent d'accueil et un technicien de garde n'ont pas les
+// mêmes horaires) sans perdre la dispense de niveau, qui doit continuer à primer sur tout.
+
+/** Une fenêtre horaire propre à un poste (texte libre, voir normaliserPoste). */
+export interface RegleFenetrePoste { poste: string; ouverture: number; fermeture: number; samedi: boolean }
+
+// `users.poste` est un texte libre saisi à la main, sans référentiel : deux saisies comme
+// "Agent d'accueil" et "agent d’accueil" (apostrophe typographique) doivent désigner la même
+// règle. On normalise donc avant toute comparaison plutôt que d'imposer une liste fermée de postes.
+export function normaliserPoste(s: string | undefined | null): string {
+  if (!s) return "";
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // accents retirés (décomposés par normalize("NFD") ci-dessus)
+    .replace(/’/g, "'") // apostrophe typographique -> apostrophe droite
+    .replace(/\s+/g, " ") // espaces multiples réduits à un seul
+    .trim();
+}
+
+// La fenêtre applicable à un poste : sa règle si elle existe, sinon la fenêtre générale. Un poste
+// vide ou absent ne correspond à aucune règle (§2.3 de la fiche) : il retombe toujours sur `defaut`.
+export function fenetrePour(poste: string | undefined | null, defaut: Fenetre, regles: RegleFenetrePoste[]): Fenetre {
+  const cle = normaliserPoste(poste);
+  if (!cle) return defaut;
+  const regle = regles.find((r) => normaliserPoste(r.poste) === cle);
+  return regle ? { ouverture: regle.ouverture, fermeture: regle.fermeture, samedi: regle.samedi } : defaut;
+}
+
+// Point d'entrée UNIQUE de la décision fenêtre + dispense : toute la précédence du §2.1 (le
+// niveau prime sur toute règle de poste) vit ICI, pour qu'un futur appelant ne puisse pas, par
+// erreur, évaluer la fenêtre de poste avant la dispense de niveau.
+export function evaluerFenetre(
+  d: Date,
+  membre: { niveau: number; poste?: string | null },
+  reglage: { defaut: Fenetre; regles: RegleFenetrePoste[] },
+): { dispense: boolean; fenetre: Fenetre; horsFenetre: boolean } {
+  const fenetre = fenetrePour(membre.poste, reglage.defaut, reglage.regles);
+  if (dispenseDeFenetre(membre.niveau)) return { dispense: true, fenetre, horsFenetre: false };
+  return { dispense: false, fenetre, horsFenetre: !estDansFenetre(d, fenetre) };
+}
