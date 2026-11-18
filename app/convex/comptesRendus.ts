@@ -2,7 +2,7 @@ import { query, mutation, type MutationCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { requireDroit, droitsDuMembre } from "./lib/authz";
-import { dateDouala, estDansFenetre, finFenetre, prochaineOuverture, pointsPour, pointsDuJour, heureDouala, dispenseDeFenetre, type Fenetre } from "./lib/fenetre";
+import { dateDouala, estDansFenetre, finFenetre, prochaineOuverture, pointsPour, pointsDuJour, heureDouala, evaluerFenetre, type Fenetre } from "./lib/fenetre";
 import { lireReglages } from "./parametres";
 import { NIVEAU, Role } from "./rbac";
 
@@ -11,10 +11,13 @@ const STATUT = v.union(v.literal("brouillon"), v.literal("en_relecture"), v.lite
 const DROIT_PLUSIEURS = "/comptes-rendus/plusieurs-par-jour";
 const heure = (iso: string) => { const h = heureDouala(new Date(iso)); return `${String(h.h).padStart(2, "0")}:${String(h.min).padStart(2, "0")}`; };
 
-// La fenêtre vient des réglages (heures d'ouverture / fermeture, samedi) ; l'écran reçoit ses bornes.
-async function fenetreDe(ctx: Parameters<typeof lireReglages>[0]): Promise<Fenetre> {
+// Réglage de fenêtre complet (générale + règles par poste), tel que le lit `evaluerFenetre` — le
+// point d'entrée UNIQUE de la précédence niveau ≥ 5 → dispensé (lib/fenetre.ts). Chaque appelant
+// doit passer le poste DU MEMBRE CONCERNÉ, jamais celui de l'utilisateur connecté : `vueSuperviseur`
+// parcourt des membres qui n'ont pas tous le même poste que le superviseur qui consulte l'écran.
+async function reglageFenetreDe(ctx: Parameters<typeof lireReglages>[0]) {
   const r = await lireReglages(ctx);
-  return { ouverture: r.crHeureOuverture, fermeture: r.crHeureFermeture, samedi: r.crSamedi };
+  return { defaut: { ouverture: r.crHeureOuverture, fermeture: r.crHeureFermeture, samedi: r.crSamedi } as Fenetre, regles: r.crFenetresParPoste };
 }
 // Comptes rendus d'un membre pour une journée, dans l'ordre des dépôts : c'est cet ordre qui décide
 // lequel porte le point de présence (voir lib/fenetre.pointsDuJour).
@@ -46,8 +49,10 @@ export const monEspace = query({
   handler: async (ctx) => {
     const user = await requireDroit(ctx, "/comptes-rendus");
     const niveau = NIVEAU[user.role as Role] ?? 0;
-    const dispense = dispenseDeFenetre(niveau);
-    const fen = etatFenetre(await fenetreDe(ctx));
+    // evaluerFenetre encapsule la précédence (niveau prime sur toute règle de poste) ET renvoie la
+    // fenêtre DE SON POSTE — l'écran affiche désormais celle du membre connecté, pas la générale.
+    const { dispense, fenetre } = evaluerFenetre(new Date(), { niveau, poste: user.poste }, await reglageFenetreDe(ctx));
+    const fen = etatFenetre(fenetre);
     if (dispense) {
       fen.ouverte = true;
     }
@@ -94,9 +99,11 @@ export const soumettre = mutation({
     if (existant?.statut === "valide") throw new Error("Ce compte rendu a été validé : il n'est plus modifiable.");
 
     const niveau = NIVEAU[user.role as Role] ?? 0;
-    const dispense = dispenseDeFenetre(niveau);
-    // Dans la fenêtre si dispensé OU si (jour soumis est aujourd'hui ET heure dans le créneau).
-    const horsFenetre = dispense ? false : !(jour === dateDouala(now) && estDansFenetre(now, await fenetreDe(ctx)));
+    // evaluerFenetre tranche dispense + fenêtre (celle DU POSTE de l'auteur) en un seul appel.
+    const { dispense, horsFenetre: horsCreneauMaintenant } = evaluerFenetre(now, { niveau, poste: user.poste }, await reglageFenetreDe(ctx));
+    // Dans la fenêtre si dispensé OU si (jour soumis est aujourd'hui ET heure dans le créneau) : un
+    // rattrapage sur une date passée reste hors créneau même si l'instant présent y est.
+    const horsFenetre = dispense ? false : !(jour === dateDouala(now) && !horsCreneauMaintenant);
     const doc = { contenu: contenu.trim(), soumisA: now.toISOString(), horsFenetre, points: pointsPour(horsFenetre), statut: "en_relecture" as const };
     let id: Id<"comptesRendus">;
     if (existant) { await ctx.db.patch(existant._id, doc); id = existant._id; }
@@ -136,6 +143,8 @@ export const vueSuperviseur = query({
   handler: async (ctx, { date }) => {
     await requireDroit(ctx, "/comptes-rendus", "faire");
     const jour = date ?? dateDouala();
+    const now = new Date();
+    const reglage = await reglageFenetreDe(ctx);
     const membres = (await ctx.db.query("users").collect()).filter((u) => u.isActive);
     // Décision du 22/10/2026 : un membre peut avoir plusieurs comptes rendus pour la journée. On les
     // regroupe par auteur dans l'ordre des dépôts ; aucun nombre attendu n'est suivi — `soumis` reste
@@ -150,7 +159,10 @@ export const vueSuperviseur = query({
       // La ligne porte le DERNIER dépôt (heure, statut, actions) ; le panneau déplié montre les autres.
       const c = siens[siens.length - 1] ?? null;
       const tous = await ctx.db.query("comptesRendus").withIndex("by_auteur", (q) => q.eq("auteurId", m._id)).collect();
-      const dispense = dispenseDeFenetre(NIVEAU[m.role as Role] ?? 0);
+      // Chaque membre a SON poste : on évalue sa dispense avec SES réglages, jamais ceux du membre
+      // qui consulte cette vue — sinon un surlignage réutilisant le poste du superviseur fausserait
+      // tous les scores de l'équipe.
+      const { dispense } = evaluerFenetre(now, { niveau: NIVEAU[m.role as Role] ?? 0, poste: m.poste }, reglage);
       lignes.push({
         membreId: m._id, nom: m.nom ?? m.email, email: m.email, role: m.role,
         score: tous.reduce((t, x) => t + x.points, 0),
@@ -165,11 +177,13 @@ export const vueSuperviseur = query({
     }
     const soumis = lignes.filter((l) => l.soumis).length;
     return {
-      date: jour, fenetre: etatFenetre(await fenetreDe(ctx)), membres: membres.length, soumis, taux: membres.length ? Math.round((soumis / membres.length) * 100) : 0,
+      // Fenêtre générale affichée en bandeau : une information d'ensemble, pas une décision pour
+      // un membre précis — chaque ligne et chaque contenu ci-dessous porte SA PROPRE dispense.
+      date: jour, fenetre: etatFenetre(reglage.defaut), membres: membres.length, soumis, taux: membres.length ? Math.round((soumis / membres.length) * 100) : 0,
       lignes: lignes.sort((a, b) => Number(b.soumis) - Number(a.soumis) || a.nom.localeCompare(b.nom)),
       contenus: duJour.map((c) => {
         const m = membres.find((mem) => mem._id === c.auteurId);
-        const dispense = dispenseDeFenetre(NIVEAU[m?.role as Role] ?? 0);
+        const { dispense } = evaluerFenetre(now, { niveau: NIVEAU[m?.role as Role] ?? 0, poste: m?.poste }, reglage);
         return {
           _id: c._id,
           auteur: m?.nom ?? "?",

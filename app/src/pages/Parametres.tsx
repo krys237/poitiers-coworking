@@ -18,10 +18,11 @@ import * as React from "react";
 import { useMutation, useQuery } from "convex/react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { Building2Icon, LockIcon, RotateCcwIcon, SaveIcon, ShieldCheckIcon, XIcon } from "lucide-react";
+import { Building2Icon, LockIcon, PlusIcon, RotateCcwIcon, SaveIcon, ShieldCheckIcon, XIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
 import { DESCRIPTION, LIBELLE, MODULES, NIVEAU, ROLES_ORDONNES, droitsEffectifs, estVerrouille, normaliser, type Action, type Cellule, type Exception, type Module, type Role, type SurchargeRole } from "../../convex/rbac";
 import { REGLAGES_DEFAUT, reglagesDe, validerReglages, type Reglages } from "../../convex/lib/reglages";
+import { normaliserPoste, type RegleFenetrePoste } from "../../convex/lib/fenetre";
 import { MODELE_DEFAUT } from "../../convex/lib/courrier";
 import { SOCIETES } from "../../convex/lib/societes";
 import { messageErreur, num } from "@/lib/format";
@@ -32,6 +33,7 @@ import { Statut } from "@/components/app/statut";
 import { fmtDateHeure, relatif } from "@/components/app/journal";
 import { Champ, ChampNombre } from "@/components/app/champs";
 import { SqueletteTexte } from "@/components/app/chargement";
+import { ChampAutocomplete, type OptionAutocomplete } from "@/components/app/champ-autocomplete";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,6 +42,7 @@ import { Flag } from "@/components/ui/flag";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // --- Vocabulaire ----------------------------------------------------------------
 
@@ -56,6 +59,12 @@ const ONGLETS = ["entreprise", "paie", "courrier", "fonctionnement", "roles", "d
 type Onglet = typeof ONGLETS[number];
 
 const memes = (a: object, b: object) => JSON.stringify(a) === JSON.stringify(b);
+// Comparaison par VALEUR d'un réglage isolé. Depuis `crFenetresParPoste`, un réglage peut être un
+// TABLEAU ; `!==` sur deux tableaux est toujours vrai (deux références distinctes), même identiques
+// en contenu — `reglagesDe` en renvoie d'ailleurs une copie fraîche à chaque appel (voir son
+// commentaire dans lib/reglages.ts). Sans cette comparaison, la tuile « Réglages personnalisés » et
+// les indicateurs « modifié » compteraient ce réglage comme personnalisé même vide/inchangé.
+const memeReglage = (a: unknown, b: unknown) => (Array.isArray(a) || Array.isArray(b) ? JSON.stringify(a) === JSON.stringify(b) : a === b);
 
 // --- Identités par société --------------------------------------------------------
 //
@@ -122,7 +131,7 @@ export function Parametres() {
   const modifsD = dR ? Object.keys(baseD).filter((k) => !memeCellule(dR[k], baseD[k])).length : 0;
   const modifsSoc = soc ? soc.flatMap((x, i) => CHAMPS_SOCIETE.filter(([c]) => x[c] !== baseSoc[i][c])).length : 0;
   const nbModifs = (e ? (Object.keys(e) as (keyof Entreprise)[]).filter((k) => e[k] !== baseE[k]).length : 0)
-    + (r ? (Object.keys(r) as (keyof Reglages)[]).filter((k) => r[k] !== baseR[k]).length : 0) + modifsD + modifsSoc;
+    + (r ? (Object.keys(r) as (keyof Reglages)[]).filter((k) => !memeReglage(r[k], baseR[k])).length : 0) + modifsD + modifsSoc;
   const erreursR = r ? validerReglages(r) : [];
   const erreursE = e ? [
     ...(!e.nom.trim() ? ["Le nom de l'entreprise est obligatoire."] : []),
@@ -158,7 +167,47 @@ export function Parametres() {
   const majE = <K extends keyof Entreprise>(k: K, v: Entreprise[K]) => setE((x) => (x ? { ...x, [k]: v } : x));
   const majR = <K extends keyof Reglages>(k: K, v: Reglages[K]) => setR((x) => (x ? { ...x, [k]: v } : x));
   const modifieE = (k: keyof Entreprise) => !!e && e[k] !== baseE[k];
-  const modifieR = (k: keyof Reglages) => !!r && r[k] !== baseR[k];
+  const modifieR = (k: keyof Reglages) => !!r && !memeReglage(r[k], baseR[k]);
+
+  // --- Fenêtres par poste (Lot C2) ------------------------------------------------
+  // `users.poste` est un texte libre sans référentiel : le champ précharge les postes RÉELLEMENT
+  // utilisés en base (requête `postesUtilises`, Lot C2) plutôt qu'une liste écrite en dur.
+  const postesUtilises = useQuery(api.parametres.postesUtilises);
+  const optionsPostes = React.useMemo<OptionAutocomplete[]>(
+    () => (postesUtilises ?? []).map((poste) => ({ valeur: poste, libelle: poste })),
+    [postesUtilises],
+  );
+  const majRegle = (i: number, patch: Partial<RegleFenetrePoste>) =>
+    setR((x) => (x ? { ...x, crFenetresParPoste: x.crFenetresParPoste.map((g, j) => (j === i ? { ...g, ...patch } : g)) } : x));
+  // Une règle nouvellement ajoutée démarre sur les horaires généraux actuels : il n'y a alors
+  // plus qu'à choisir le poste, sans retomber dans l'erreur « fermeture avant ouverture ».
+  const ajouterRegle = () =>
+    setR((x) => (x ? { ...x, crFenetresParPoste: [...x.crFenetresParPoste, { poste: "", ouverture: x.crHeureOuverture, fermeture: x.crHeureFermeture, samedi: x.crSamedi }] } : x));
+  const retirerRegle = (i: number) =>
+    setR((x) => (x ? { ...x, crFenetresParPoste: x.crFenetresParPoste.filter((_, j) => j !== i) } : x));
+
+  // Un poste qui ne figure dans AUCUNE liste produirait une règle qui ne s'applique jamais, en
+  // silence (faute de frappe) : on demande confirmation avant de l'accepter (§2.2 FICHE). Le
+  // contrôle se fait à la perte de focus du champ (pas à chaque frappe, non strict) ; `postesConfirmes`
+  // évite de redemander pour une valeur déjà acceptée tant qu'elle n'est pas modifiée.
+  const [confirmationPoste, setConfirmationPoste] = React.useState<{ index: number; poste: string } | null>(null);
+  const [postesConfirmes, setPostesConfirmes] = React.useState<Set<string>>(new Set());
+  const verifierPoste = (i: number) => {
+    const poste = r?.crFenetresParPoste[i]?.poste.trim();
+    if (!r || !poste || postesUtilises === undefined) return; // liste pas encore chargée : rien à comparer
+    const cle = normaliserPoste(poste);
+    const connu = postesUtilises.some((p) => normaliserPoste(p) === cle);
+    if (!connu && !postesConfirmes.has(cle)) setConfirmationPoste({ index: i, poste });
+  };
+  const annulerConfirmationPoste = () => {
+    // Refusé : on efface plutôt que de laisser une valeur non confirmée traîner silencieusement.
+    if (confirmationPoste) majRegle(confirmationPoste.index, { poste: "" });
+    setConfirmationPoste(null);
+  };
+  const confirmerPoste = () => {
+    if (confirmationPoste) setPostesConfirmes((s) => new Set(s).add(normaliserPoste(confirmationPoste.poste)));
+    setConfirmationPoste(null);
+  };
 
   return (
     <div className="space-y-4">
@@ -182,7 +231,7 @@ export function Parametres() {
       <GrilleTuiles>
         <Tuile libelle="Entreprise" valeur={p === undefined ? undefined : <span className="truncate text-lg">{baseE.nom || "—"}</span>} note={baseE.adresse || "adresse à renseigner"} vedette compact />
         <Tuile libelle="Courrier de paie" valeur={modeCourrier === undefined ? undefined : <Statut etat={modeCourrier.reel ? "configure" : "non_saisi"}>{modeCourrier.reel ? "Envoi réel" : "Simulation"}</Statut>} note={modeCourrier?.reel ? "les e-mails partent réellement" : !modeCourrier?.cleConfiguree ? "clé RESEND_API_KEY absente" : "interrupteur d'envoi réel fermé"} compact />
-        <Tuile libelle="Réglages personnalisés" valeur={p === undefined ? undefined : (Object.keys(REGLAGES_DEFAUT) as (keyof Reglages)[]).filter((k) => baseR[k] !== REGLAGES_DEFAUT[k]).length} note={`sur ${Object.keys(REGLAGES_DEFAUT).length} réglages de fonctionnement`} />
+        <Tuile libelle="Réglages personnalisés" valeur={p === undefined ? undefined : (Object.keys(REGLAGES_DEFAUT) as (keyof Reglages)[]).filter((k) => !memeReglage(baseR[k], REGLAGES_DEFAUT[k])).length} note={`sur ${Object.keys(REGLAGES_DEFAUT).length} réglages de fonctionnement`} />
         <Tuile libelle="Dernier enregistrement" valeur={dernierEnreg === undefined ? undefined : dernierEnreg[0] ? relatif(dernierEnreg[0].date) : "jamais"} note={dernierEnreg?.[0] ? `${fmtDateHeure(dernierEnreg[0].date)} · ${dernierEnreg[0].auteurNom ?? "système"}` : "aucune modification journalisée"} compact />
       </GrilleTuiles>
 
@@ -194,7 +243,7 @@ export function Parametres() {
               ["entreprise", "Entreprise & documents", (["nom", "adresse", "niu", "numeroCnps", "dirigeant", "registreCommerce", "logoUrl", "couleurEntete", "filigrane"] as (keyof Entreprise)[]).some(modifieE)],
               ["paie", "Paie & congés", (["responsableRH", "jourPaiement", "congesParMois"] as (keyof Entreprise)[]).some(modifieE) || (["joursBaseDefaut", "plafondSaisie", "pdfAutoCloture", "rappelPremierAvisJours", "rappelHebdoDepuisJours", "rappelQuotidienDepuisJours"] as (keyof Reglages)[]).some(modifieR)],
               ["courrier", "Courrier & e-mail", (["emailExpediteur", "modeleCourrier"] as (keyof Entreprise)[]).some(modifieE) || modifieR("envoiReelActive") || modifieR("whatsappReelActive")],
-              ["fonctionnement", "Fonctionnement", (["crHeureOuverture", "crHeureFermeture", "crSamedi", "verrouFinancierMin", "verrouCaisseMin", "iaDocumentsActive"] as (keyof Reglages)[]).some(modifieR)],
+              ["fonctionnement", "Fonctionnement", (["crHeureOuverture", "crHeureFermeture", "crSamedi", "crFenetresParPoste", "verrouFinancierMin", "verrouCaisseMin", "iaDocumentsActive"] as (keyof Reglages)[]).some(modifieR)],
               ["roles", "Rôles & accès", modifsD > 0],
               ...(superAdmin ? [["deploiement", "Déploiement", false] as const] : []),
             ] as [Onglet, string, boolean][]).map(([k, l, modifie]) => (
@@ -360,6 +409,59 @@ export function Parametres() {
                   <ChampNombre libelle="Fermeture" aide="exclue" unite="h" valeur={r.crHeureFermeture} onChange={(v) => majR("crHeureFermeture", v)} className={modif(modifieR("crHeureFermeture"))} />
                 </Grille>
                 <Interrupteur libelle="Ouvrir aussi le samedi" aide="Par défaut, lundi à vendredi." valeur={r.crSamedi} onChange={(v) => majR("crSamedi", v)} modifie={modifieR("crSamedi")} />
+
+                {/* Fenêtres par poste (Lot C1 : logique ; Lot C2 : cet écran). Une règle de poste
+                    REMPLACE la fenêtre générale pour ce poste, elle ne s'y ajoute pas ; le niveau
+                    ≥ 5 reste dispensé quelle que soit la règle (convex/lib/fenetre.evaluerFenetre). */}
+                <div className="mt-4 space-y-2 border-t border-filet pt-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-xs font-semibold text-encre">Fenêtres par poste</h3>
+                      <p className="text-2xs text-encre-douce">Remplace la fenêtre générale ci-dessus pour ce poste. Niveau ≥ 5 : toujours dispensé.</p>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={ajouterRegle}>
+                      <PlusIcon /> Ajouter une règle
+                    </Button>
+                  </div>
+
+                  {r.crFenetresParPoste.length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-filet bg-papier/50 p-3 text-2xs text-encre-pale">
+                      Aucune règle : tous les postes suivent la fenêtre générale.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {r.crFenetresParPoste.map((regle, i) => (
+                        <div key={i} className="grid grid-cols-[1fr_5rem_5rem_auto_auto] items-end gap-2 rounded-lg border border-filet bg-papier/40 p-2.5">
+                          <div onBlur={() => verifierPoste(i)}>
+                            <label className="mb-1 block text-2xs font-semibold text-encre-douce">Poste</label>
+                            <ChampAutocomplete
+                              valeur={regle.poste}
+                              options={optionsPostes}
+                              onChange={(v) => majRegle(i, { poste: v })}
+                              placeholder="Ex. Agent d'accueil"
+                              ariaLabel={`Poste de la règle ${i + 1}`}
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-2xs font-semibold text-encre-douce">Ouverture</label>
+                            <Input type="number" min={0} max={23} value={regle.ouverture} onChange={(ev) => majRegle(i, { ouverture: Number(ev.target.value) })} className="font-mono" />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-2xs font-semibold text-encre-douce">Fermeture</label>
+                            <Input type="number" min={1} max={24} value={regle.fermeture} onChange={(ev) => majRegle(i, { fermeture: Number(ev.target.value) })} className="font-mono" />
+                          </div>
+                          <label className="flex items-center gap-1.5 pb-2 text-2xs font-semibold text-encre-douce">
+                            <Switch checked={regle.samedi} onCheckedChange={(v) => majRegle(i, { samedi: v })} aria-label={`Samedi pour le poste ${regle.poste || i + 1}`} />
+                            Samedi
+                          </label>
+                          <Button type="button" variant="ghost" size="icon-sm" onClick={() => retirerRegle(i)} aria-label={`Retirer la règle du poste ${regle.poste || i + 1}`} title="Retirer cette règle">
+                            <XIcon className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </Bloc>
               <Bloc titre="Grand livre financier" description="Un membre qui saisit une journée la verrouille pour les autres.">
                 <Grille>
@@ -409,6 +511,24 @@ export function Parametres() {
           </TabsContent>
         )}
       </Tabs>
+
+      {/* Confirmation d'un poste absent de toute liste (§2.2 FICHE) : accepter en silence ferait
+          le lit d'une règle qui ne s'applique jamais, à cause d'une simple faute de frappe. */}
+      <Dialog open={!!confirmationPoste} onOpenChange={(o) => { if (!o) annulerConfirmationPoste(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-ocean-nuit">Poste inconnu</DialogTitle>
+            <DialogDescription className="text-xs text-encre-douce">
+              Aucun membre n'occupe le poste « {confirmationPoste?.poste} ». Si c'est une faute de frappe, cette
+              règle ne s'appliquera jamais, en silence. Créer quand même cette règle ?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" size="sm" onClick={annulerConfirmationPoste}>Annuler</Button>
+            <Button type="button" size="sm" onClick={confirmerPoste}>Créer quand même</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { requireLevel, DEV_BYPASS, requireDroit } from "./lib/authz";
 import { journaliser } from "./lib/journal";
 import { reglagesDe, validerReglages, type Reglages } from "./lib/reglages";
+import { normaliserPoste } from "./lib/fenetre";
 import { LIBELLE, MODULE_PAR_CLE, NIVEAU, celluleParDefaut, droitsEffectifs, estVerrouille, normaliser, type Role, type SurchargeRole } from "./rbac";
 import { erreurIdentiteSociete } from "./lib/societes";
 import { regleFenetrePosteV } from "./schema";
@@ -110,6 +111,32 @@ export async function lireReglages(ctx: QueryCtx | MutationCtx): Promise<Reglage
 export const reglagesInternes = internalQuery({
   args: {},
   handler: async (ctx): Promise<Reglages> => await lireReglages(ctx),
+});
+
+// Postes réellement utilisés par les membres (écran Paramètres → Fonctionnement, Lot C2) : le
+// champ « poste » d'une règle de fenêtre précharge CETTE liste plutôt qu'un référentiel écrit en
+// dur — `users.poste` est un texte libre (voir lib/fenetre.normaliserPoste), il n'existe aucune
+// liste fermée de postes à proposer à sa place.
+export const postesUtilises = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireDroit(ctx, "/parametres");
+    const membres = await ctx.db.query("users").collect();
+    // Dédoublonné par poste NORMALISÉ (casse, accents, apostrophe) pour ne pas proposer deux fois
+    // "Agent d'accueil" et "agent d’accueil" — mais on garde la première graphie rencontrée, plus
+    // lisible qu'une forme normalisée (sans accents, tout en minuscules) dans la liste déroulante.
+    const vus = new Set<string>();
+    const postes: string[] = [];
+    for (const m of membres) {
+      const poste = (m.poste ?? "").trim();
+      if (!poste) continue;
+      const cle = normaliserPoste(poste);
+      if (vus.has(cle)) continue;
+      vus.add(cle);
+      postes.push(poste);
+    }
+    return postes.sort((a, b) => a.localeCompare(b, "fr"));
+  },
 });
 
 const reglagesV = v.object({
