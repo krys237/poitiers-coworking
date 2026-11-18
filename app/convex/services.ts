@@ -56,6 +56,28 @@ export const liste = query({
   },
 });
 
+/**
+ * Membres pouvant être désignés chefs d'un service : identifiant, nom, et poste en repère.
+ *
+ * Volontairement SÉPARÉE de `users.liste`, qui exige le droit « Membres » et rend la fiche
+ * entière — rôle, société, exceptions de droits, état du compte. Un responsable du planning n'a
+ * pas ce droit, et il n'en a pas besoin : désigner un chef demande de choisir un nom, pas de
+ * consulter des dossiers. On expose donc le strict nécessaire, sous le droit du planning.
+ *
+ * Le poste sert à départager deux homonymes ; il est déjà visible partout où l'on voit un membre.
+ */
+export const membresAssignables = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireUnDesDroits(ctx, ["/paie/planning", "/employes"]);
+    const membres = await ctx.db.query("users").collect();
+    return membres
+      .filter((m) => m.isActive)
+      .map((m) => ({ _id: m._id, nom: m.nom ?? m.email, poste: m.poste ?? "" }))
+      .sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+  },
+});
+
 /** Crée les services du classeur. Idempotent : un nom déjà présent n'est pas touché. */
 export const initialiser = mutation({
   args: {},
