@@ -15,7 +15,10 @@
  * Saisie en série (skill §7) : ligne de saisie permanente en tête du tableau
  * (matricule, nom, fonction, société, brut, date d'entrée) ; la fiche complète
  * (CNPS, NIU, adresse, e-mail, congés initiaux, retrait) s'ouvre sur la ligne.
- * L'import CSV / Excel reste la vraie saisie de masse (upsert par matricule).
+ * L'import CSV reste la vraie saisie de masse (upsert par matricule). Il ne lit PAS les
+ * classeurs Excel : aucune bibliothèque de tableur n'est embarquée, et le bouton a longtemps
+ * annoncé « CSV / Excel » sans que ce soit vrai. Un classeur sélectionné reçoit la marche à
+ * suivre pour l'enregistrer en CSV.
  */
 import * as React from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
@@ -27,7 +30,7 @@ import { MOT_DE_PASSE_PROVISOIRE } from "../../convex/lib/motDePasse";
 import { formaterTelephone } from "../../convex/lib/telephone";
 import { BoutonConfirmation } from "@/components/app/bouton-action";
 import { api } from "../../convex/_generated/api";
-import { parseCsv, toFcfa } from "@/lib/csv";
+import { estClasseurTableur, parseCsv, toFcfa, valeurColonne as lire } from "@/lib/csv";
 import { messageErreur, num } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageEnTete } from "@/components/app/en-tete";
@@ -130,23 +133,65 @@ export function Employes() {
   const pluriEmployes = actifs.filter((e) => ratsDe(String(e._id)).length > 1).length;
 
   const onImport = async (file: File) => {
-    const rows = parseCsv(await file.text());
-    const lignes = rows
-      .map((r) => ({
-        matricule: r.matricule ?? "", nom: r.nom ?? r["nom_et_prénoms"] ?? r.noms ?? "",
-        fonction: r.fonction || undefined, adresse: r.adresse || undefined,
-        cnps: r.cnps || undefined, niu: r.niu || undefined, email: r.email || undefined, whatsapp: r.whatsapp || undefined,
-        societe: (SOCIETES.includes((r.societe ?? "").toUpperCase() as Societe) ? r.societe.toUpperCase() : "SGC") as Societe,
-        // `salaire_brut` reste accepté : c'est l'ancien en-tête des fichiers déjà diffusés.
-        salaireBase: toFcfa(r.salaire_base ?? r.salairebase ?? r.salaire_brut ?? r.salairebrut ?? r.brut ?? "0"),
-        dateDebut: /^\d{4}-\d{2}-\d{2}$/.test(r.date_debut ?? "") ? r.date_debut : undefined,
-      }))
-      .filter((l) => l.matricule && l.nom);
-    if (!lignes.length) { toast.error("Aucune ligne valide dans ce fichier", { description: "Colonnes attendues : matricule ; nom ; fonction ; societe ; salaire_base ; date_debut ; cnps ; email ; whatsapp" }); return; }
     try {
+      // Un classeur Excel n'est pas du texte : le lire comme tel ne produit que du binaire illisible.
+      // Le projet n'embarque aucune bibliothèque de tableur — autant le dire franchement et donner
+      // la marche à suivre, plutôt que de laisser croire à une panne.
+      const debut = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+      if (estClasseurTableur(file.name, debut)) {
+        toast.error("Les classeurs Excel ne sont pas lus", {
+          description: "Dans Excel : Fichier → Enregistrer sous → « CSV UTF-8 (délimité par des points-virgules) », puis importez ce fichier .csv.",
+        });
+        return;
+      }
+
+      const texte = await file.text();
+      const rows = parseCsv(texte);
+      if (!rows.length) {
+        toast.error("Fichier vide ou sans ligne de données", {
+          description: "La première ligne doit porter les noms de colonnes, et il faut au moins une ligne en dessous.",
+        });
+        return;
+      }
+
+      const lignes = rows
+        .map((r) => ({
+          matricule: lire(r, "matricule", "mle", "n_matricule"),
+          nom: lire(r, "nom", "noms", "nom_et_prenoms", "noms_et_prenoms", "nom_prenoms", "nom_complet"),
+          fonction: lire(r, "fonction", "poste") || undefined,
+          adresse: lire(r, "adresse") || undefined,
+          cnps: lire(r, "cnps", "n_cnps", "numero_cnps") || undefined,
+          niu: lire(r, "niu") || undefined,
+          email: lire(r, "email", "e_mail", "mail") || undefined,
+          whatsapp: lire(r, "whatsapp", "telephone", "tel") || undefined,
+          societe: (SOCIETES.includes(lire(r, "societe").toUpperCase() as Societe) ? lire(r, "societe").toUpperCase() : "SGC") as Societe,
+          // `salaire_brut` reste accepté : c'est l'ancien en-tête des fichiers déjà diffusés.
+          salaireBase: toFcfa(lire(r, "salaire_base", "salairebase", "salaire_brut", "salairebrut", "brut", "salaire") || "0"),
+          dateDebut: (() => { const d = lire(r, "date_debut", "date_entree", "date_embauche"); return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : undefined; })(),
+        }))
+        .filter((l) => l.matricule && l.nom);
+
+      if (!lignes.length) {
+        // On dit ce qu'on A LU, pas seulement ce qu'on attendait : sans ça, l'utilisateur ne peut
+        // pas savoir si c'est le séparateur, l'encodage ou le nom d'une colonne qui cloche.
+        const trouvees = Object.keys(rows[0] ?? {}).filter(Boolean);
+        toast.error(`Aucune ligne exploitable (${rows.length} ligne(s) lue(s))`, {
+          description: `Colonnes trouvées : ${trouvees.join(" · ") || "aucune"}. Il faut au minimum « matricule » et « nom ». Si tout tient dans une seule colonne, le séparateur n'est pas reconnu : enregistrez en CSV avec des points-virgules.`,
+        });
+        return;
+      }
+
+      const ignorees = rows.length - lignes.length;
       const r = await importer({ lignes });
-      toast.success(`Import terminé : ${r.crees} créé(s), ${r.majs} mis à jour`, { description: "Reconnaissance par matricule · les bulletins du mois se recalculent" });
-    } catch (e) { toast.error("Import refusé", { description: messageErreur(e) }); }
+      toast.success(`Import terminé : ${r.crees} créé(s), ${r.majs} mis à jour`, {
+        description: `Reconnaissance par matricule · les bulletins du mois se recalculent${ignorees ? ` · ${ignorees} ligne(s) ignorée(s), sans matricule ou sans nom` : ""}`,
+      });
+    } catch (e) {
+      // Tout chemin d'échec aboutit ICI. Auparavant, une lecture de fichier impossible — classeur
+      // resté ouvert dans Excel, fichier déplacé depuis la sélection — rejetait une promesse que
+      // personne n'écoutait : ni erreur, ni import, rien à l'écran.
+      toast.error("Import impossible", { description: messageErreur(e) });
+    }
   };
 
   const fiche = (e: any): EmployeFiche => ({
@@ -162,10 +207,13 @@ export function Employes() {
         statut={sansDate || sansCnps ? <Flag variant="a-renseigner" size="sm" title="À compléter dans la fiche">{[sansDate ? `${sansDate} sans date d'entrée` : "", sansCnps ? `${sansCnps} sans n° CNPS` : ""].filter(Boolean).join(" · ")}</Flag> : null}
         actions={
           <>
-            <input ref={fichierRef} type="file" accept=".csv,text/csv" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void onImport(f); e.target.value = ""; }} />
+            {/* Les classeurs restent SÉLECTIONNABLES exprès. Les filtrer ici les rendait invisibles
+                dans la boîte de dialogue, et l'utilisateur concluait à une panne ; on préfère les
+                accepter pour pouvoir expliquer, dans `onImport`, pourquoi ils ne sont pas lus. */}
+            <input ref={fichierRef} type="file" accept=".csv,text/csv,.xlsx,.xls,.ods" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void onImport(f); e.target.value = ""; }} />
             <GestionFonctions />
             <Button variant="outline" size="sm" onClick={() => fichierRef.current?.click()} title="Colonnes : matricule ; nom ; fonction ; societe ; salaire_base ; date_debut ; cnps ; email — mise à jour par matricule">
-              <UploadIcon /> Importer CSV / Excel
+              <UploadIcon /> Importer un CSV
             </Button>
             {!persistant ? <FicheEmploye creer={creer as any} modifier={modifier as any} /> : null}
             <BoutonPersistance actif={persistant} onChange={setPersistant} />

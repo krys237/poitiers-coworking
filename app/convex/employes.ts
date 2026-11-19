@@ -172,7 +172,8 @@ export const modifier = mutation({
   },
 });
 
-// Import Excel/CSV : upsert par matricule (sinon par nom). Recalcul réactif automatique ensuite.
+// Import CSV : upsert par matricule (sinon par nom). Recalcul réactif automatique ensuite.
+// L'écran ne lit pas les classeurs Excel — aucune bibliothèque de tableur n'est embarquée.
 export const importer = mutation({
   args: {
     lignes: v.array(v.object({
