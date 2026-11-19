@@ -184,6 +184,16 @@ export const importer = mutation({
       dateDebut: v.optional(v.string()),
       /** Nom du service d'affectation, tel qu'écrit dans le fichier. Créé s'il n'existe pas. */
       service: v.optional(v.string()),
+      /**
+       * Montant versé PAR société (colonnes `salaire_sesame`, `salaire_sofina`, `salaire_sgc`).
+       *
+       * « Chaque société fait son paiement, donc un montant par société » — arbitrage du
+       * propriétaire du 19/11/2026. Le montant est donc OBLIGATOIRE pour rattacher : un
+       * rattachement sans lui retombe sur le salaire entier de la fiche
+       * (`lib/societes.rattachementsEffectifs`), ce qui produirait un second bulletin à plein
+       * salaire. L'écran refuse de rattacher une société dont le fichier ne chiffre pas la part.
+       */
+      rattachements: v.optional(v.array(v.object({ societe: SOCIETE, salaireBase: v.number() }))),
     })),
   },
   handler: async (ctx, { lignes }) => {
@@ -213,9 +223,9 @@ export const importer = mutation({
       ordre++;
     }
 
-    let crees = 0, majs = 0, avecService = 0, sansService = 0;
+    let crees = 0, majs = 0, avecService = 0, sansService = 0, rattachementsPoses = 0, rattachementsMajs = 0;
     for (const brute of lignes) {
-      const { service, ...champs } = brute;
+      const { service, rattachements: parts, ...champs } = brute;
       // Une colonne vide ne doit RIEN effacer : dans un patch Convex, un champ `undefined` supprime la
       // valeur existante (e-mail, CNPS, NIU… perdus à la réimportation d'un fichier partiel).
       const l = Object.fromEntries(Object.entries({ ...champs, whatsapp: numeroWhatsapp(champs.whatsapp) }).filter(([, v]) => v !== undefined && v !== "")) as typeof champs;
@@ -226,10 +236,40 @@ export const importer = mutation({
         .query("employes")
         .withIndex("by_matricule", (q) => q.eq("matricule", l.matricule))
         .unique();
-      if (existant) { await ctx.db.patch(existant._id, avecAffectation); majs++; }
-      else { await ctx.db.insert("employes", { ...avecAffectation, joursBase, actif: true }); crees++; }
+      let employeId;
+      if (existant) { await ctx.db.patch(existant._id, avecAffectation); employeId = existant._id; majs++; }
+      else { employeId = await ctx.db.insert("employes", { ...avecAffectation, joursBase, actif: true }); crees++; }
+
+      // --- Rattachements multi-société -------------------------------------------------------
+      // Un import ne SUPPRIME jamais un employeur : il pose ceux que le fichier chiffre et
+      // met à jour leur montant. Retirer un rattachement reste un geste délibéré, fait dans la
+      // fiche — un fichier partiel ne doit pas faire disparaître une société qui paie.
+      if (parts?.length) {
+        const creeLe = new Date().toISOString();
+        const existants = await ctx.db.query("rattachements").withIndex("by_employe", (q) => q.eq("employeId", employeId)).collect();
+        const parSociete = new Map(existants.map((r) => [r.societe, r]));
+        // La société de la FICHE est la principale, et doit exister dès qu'une autre apparaît :
+        // sans elle, elle disparaîtrait de la paie à la première ligne explicite.
+        const aPoser = parts.some((p) => p.societe === l.societe)
+          ? parts
+          : [...parts, { societe: l.societe, salaireBase: l.salaireBase }];
+        for (const p of aPoser) {
+          const deja = parSociete.get(p.societe);
+          if (deja) {
+            if (deja.salaireBase !== p.salaireBase) { await ctx.db.patch(deja._id, { salaireBase: p.salaireBase }); rattachementsMajs++; }
+            continue;
+          }
+          await ctx.db.insert("rattachements", {
+            employeId, societe: p.societe, principal: p.societe === l.societe, actif: true, creeLe,
+            salaireBase: p.salaireBase, joursBase,
+            matriculeEmployeur: l.matricule, cnpsEmployeur: l.cnps, niuEmployeur: l.niu,
+            dateDebut: l.dateDebut,
+          });
+          rattachementsPoses++;
+        }
+      }
     }
-    return { crees, majs, servicesCrees, avecService, sansService };
+    return { crees, majs, servicesCrees, avecService, sansService, rattachementsPoses, rattachementsMajs };
   },
 });
 

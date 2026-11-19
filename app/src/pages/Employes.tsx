@@ -167,6 +167,14 @@ export function Employes() {
           // Le service conditionne le planning des congés et la détection de chevauchement :
           // l'ignorer obligeait à ressaisir l'affectation de tout l'effectif à la main.
           service: lire(r, "service", "affectation", "departement") || undefined,
+          // « Chaque société fait son paiement, donc un montant par société » (19/11/2026) :
+          // on ne rattache QUE les sociétés dont le fichier chiffre la part. Rattacher sans
+          // montant retomberait sur le salaire entier de la fiche, soit un second bulletin à
+          // plein salaire — la masse salariale doublerait sans que rien ne l'annonce.
+          rattachements: SOCIETES.flatMap((soc) => {
+            const montant = toFcfa(lire(r, `salaire_${soc.toLowerCase()}`, `salaire ${soc}`, soc) || "0");
+            return montant > 0 ? [{ societe: soc, salaireBase: montant }] : [];
+          }),
         }))
         .filter((l) => l.matricule && l.nom);
 
@@ -184,20 +192,30 @@ export function Employes() {
       // « AUTRES SOCIÉTÉS » est LU mais volontairement pas importé : un rattachement sans montant
       // retombe sur le salaire entier de la fiche (lib/societes), donc le créer d'office
       // produirait un second bulletin à plein salaire. On compte, on signale, on laisse décider.
-      const autresSocietes = rows.filter((r) => lire(r, "autres_societes", "autre_societe", "societes_secondaires")).length;
+      // Une seconde société NOMMÉE mais non chiffrée ne peut pas être rattachée : on la compte
+      // pour le dire, plutôt que d'inventer un montant.
+      // Recalculé depuis `rows` et non depuis `lignes` : ce dernier est filtré, ses index ne
+      // correspondent donc plus à ceux du fichier.
+      const secondesNonChiffrees = rows.filter((r) => {
+        const nommee = lire(r, "autres_societes", "autre_societe", "societes_secondaires").toUpperCase();
+        if (!nommee) return false;
+        return SOCIETES.some((soc) => nommee.includes(soc) && toFcfa(lire(r, `salaire_${soc.toLowerCase()}`, `salaire ${soc}`, soc) || "0") <= 0);
+      }).length;
       const r = await importer({ lignes });
       const details = [
         "Reconnaissance par matricule · les bulletins du mois se recalculent",
         r.avecService ? `${r.avecService} affectation(s) de service` : "",
         r.servicesCrees.length ? `services créés : ${r.servicesCrees.join(", ")}` : "",
         r.sansService ? `${r.sansService} fiche(s) sans service` : "",
+        r.rattachementsPoses ? `${r.rattachementsPoses} rattachement(s) de société posé(s)` : "",
+        r.rattachementsMajs ? `${r.rattachementsMajs} montant(s) par société mis à jour` : "",
         ignorees ? `${ignorees} ligne(s) ignorée(s), sans matricule ou sans nom` : "",
       ].filter(Boolean);
       toast.success(`Import terminé : ${r.crees} créé(s), ${r.majs} mis à jour`, { description: details.join(" · ") });
-      if (autresSocietes) {
-        toast.warning(`${autresSocietes} ligne(s) portent une seconde société`, {
-          description: "Elles n'ont PAS été rattachées : le fichier ne dit pas quelle part du salaire chaque société verse, et un rattachement sans montant produirait un second bulletin à plein salaire. À saisir dans la fiche, société par société.",
-          duration: 12000,
+      if (secondesNonChiffrees) {
+        toast.warning(`${secondesNonChiffrees} ligne(s) nomment une société sans en chiffrer la part`, {
+          description: "Chaque société verse son propre montant : sans colonne « salaire_sesame », « salaire_sofina » ou « salaire_sgc », le rattachement n'est pas créé — il retomberait sur le salaire entier de la fiche et produirait un second bulletin à plein salaire. Ajoutez la colonne, ou saisissez la part dans la fiche.",
+          duration: 14000,
         });
       }
     } catch (e) {
