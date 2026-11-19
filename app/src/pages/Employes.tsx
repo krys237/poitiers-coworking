@@ -187,10 +187,20 @@ export function Employes() {
         description: `Reconnaissance par matricule · les bulletins du mois se recalculent${ignorees ? ` · ${ignorees} ligne(s) ignorée(s), sans matricule ou sans nom` : ""}`,
       });
     } catch (e) {
-      // Tout chemin d'échec aboutit ICI. Auparavant, une lecture de fichier impossible — classeur
-      // resté ouvert dans Excel, fichier déplacé depuis la sélection — rejetait une promesse que
-      // personne n'écoutait : ni erreur, ni import, rien à l'écran.
-      toast.error("Import impossible", { description: messageErreur(e) });
+      // Tout chemin d'échec aboutit ICI. Auparavant, une lecture de fichier impossible rejetait
+      // une promesse que personne n'écoutait : ni erreur, ni import, rien à l'écran.
+      //
+      // `NotReadableError` est de loin la plus fréquente sous Windows, et son texte d'origine
+      // (« permission problems that have occurred after a reference to a file was acquired »)
+      // ne dit pas quoi faire. Elle survient quand le fichier change ou se verrouille ENTRE la
+      // sélection et la lecture : classeur resté ouvert dans Excel, resynchronisation OneDrive,
+      // fichier déplacé. On traduit donc en geste concret plutôt qu'en diagnostic technique.
+      const illisible = e instanceof DOMException && e.name === "NotReadableError";
+      toast.error(illisible ? "Le fichier n'a pas pu être lu" : "Import impossible", {
+        description: illisible
+          ? "Il a changé ou s'est verrouillé depuis que vous l'avez choisi. Fermez-le dans Excel, ou copiez-le sur le bureau, puis réessayez."
+          : messageErreur(e),
+      });
     }
   };
 
