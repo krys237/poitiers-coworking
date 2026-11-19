@@ -6,6 +6,7 @@ import { normaliserTelephone, erreurTelephone, avecIndicatif } from "./lib/telep
 import { erreurRattachement, rattachementsEffectifs, type Societe } from "./lib/societes";
 import { LIBELLE_CADENCE, aSuivre, echeances, resumerEcheances } from "./lib/echeancesContrat";
 import { prochainMatricule as calculerProchainMatricule } from "./lib/matricule";
+import { couleurServiceParDefaut } from "./lib/planningAnnuel";
 
 const SOCIETE = v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"));
 
@@ -181,24 +182,54 @@ export const importer = mutation({
       adresse: v.optional(v.string()), cnps: v.optional(v.string()), niu: v.optional(v.string()),
       email: v.optional(v.string()), whatsapp: v.optional(v.string()), societe: SOCIETE, salaireBase: v.number(),
       dateDebut: v.optional(v.string()),
+      /** Nom du service d'affectation, tel qu'écrit dans le fichier. Créé s'il n'existe pas. */
+      service: v.optional(v.string()),
     })),
   },
   handler: async (ctx, { lignes }) => {
     await requireDroit(ctx, "/employes", "faire");
     const joursBase = (await lireReglages(ctx)).joursBaseDefaut;
-    let crees = 0, majs = 0;
+
+    // --- Services : rapprochement par nom, création des manquants -----------------------------
+    // Le classeur de l'effectif porte une colonne SERVICE que l'import ignorait, si bien que les
+    // 87 fiches arrivaient sans affectation — et le planning des congés comme la détection de
+    // chevauchement reposent dessus. Les noms sont saisis à la main : on rapproche sur une forme
+    // normalisée (casse, accents, espaces), sinon « IMAGERIE RADIO » et « Imagerie Radio »
+    // créeraient deux services pour le même.
+    const cleService = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
+    const services = await ctx.db.query("services").collect();
+    const parNom = new Map(services.map((s) => [cleService(s.nom), s._id]));
+    let ordre = services.reduce((m, s) => Math.max(m, s.ordre), -1) + 1;
+    const servicesCrees: string[] = [];
+    for (const l of lignes) {
+      const nom = (l.service ?? "").trim();
+      if (!nom || parNom.has(cleService(nom))) continue;
+      // Créé plutôt qu'ignoré : un service absent ferait silencieusement perdre l'affectation,
+      // et c'est exactement le genre de perte invisible qu'on ne veut plus. Le compte rendu les
+      // nomme, pour qu'une faute de frappe dans le fichier se voie tout de suite.
+      const id = await ctx.db.insert("services", { nom, couleur: couleurServiceParDefaut(ordre), ordre, actif: true, chefs: [] });
+      parNom.set(cleService(nom), id);
+      servicesCrees.push(nom);
+      ordre++;
+    }
+
+    let crees = 0, majs = 0, avecService = 0, sansService = 0;
     for (const brute of lignes) {
+      const { service, ...champs } = brute;
       // Une colonne vide ne doit RIEN effacer : dans un patch Convex, un champ `undefined` supprime la
       // valeur existante (e-mail, CNPS, NIU… perdus à la réimportation d'un fichier partiel).
-      const l = Object.fromEntries(Object.entries({ ...brute, whatsapp: numeroWhatsapp(brute.whatsapp) }).filter(([, v]) => v !== undefined && v !== "")) as typeof brute;
+      const l = Object.fromEntries(Object.entries({ ...champs, whatsapp: numeroWhatsapp(champs.whatsapp) }).filter(([, v]) => v !== undefined && v !== "")) as typeof champs;
+      const serviceId = service?.trim() ? parNom.get(cleService(service)) : undefined;
+      if (serviceId) avecService++; else sansService++;
+      const avecAffectation = serviceId ? { ...l, serviceId } : l;
       const existant = await ctx.db
         .query("employes")
         .withIndex("by_matricule", (q) => q.eq("matricule", l.matricule))
         .unique();
-      if (existant) { await ctx.db.patch(existant._id, l); majs++; }
-      else { await ctx.db.insert("employes", { ...l, joursBase, actif: true }); crees++; }
+      if (existant) { await ctx.db.patch(existant._id, avecAffectation); majs++; }
+      else { await ctx.db.insert("employes", { ...avecAffectation, joursBase, actif: true }); crees++; }
     }
-    return { crees, majs };
+    return { crees, majs, servicesCrees, avecService, sansService };
   },
 });
 

@@ -164,6 +164,9 @@ export function Employes() {
           // `salaire_brut` reste accepté : c'est l'ancien en-tête des fichiers déjà diffusés.
           salaireBase: toFcfa(lire(r, "salaire_base", "salairebase", "salaire_brut", "salairebrut", "brut", "salaire") || "0"),
           dateDebut: (() => { const d = lire(r, "date_debut", "date_entree", "date_embauche"); return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : undefined; })(),
+          // Le service conditionne le planning des congés et la détection de chevauchement :
+          // l'ignorer obligeait à ressaisir l'affectation de tout l'effectif à la main.
+          service: lire(r, "service", "affectation", "departement") || undefined,
         }))
         .filter((l) => l.matricule && l.nom);
 
@@ -178,10 +181,25 @@ export function Employes() {
       }
 
       const ignorees = rows.length - lignes.length;
+      // « AUTRES SOCIÉTÉS » est LU mais volontairement pas importé : un rattachement sans montant
+      // retombe sur le salaire entier de la fiche (lib/societes), donc le créer d'office
+      // produirait un second bulletin à plein salaire. On compte, on signale, on laisse décider.
+      const autresSocietes = rows.filter((r) => lire(r, "autres_societes", "autre_societe", "societes_secondaires")).length;
       const r = await importer({ lignes });
-      toast.success(`Import terminé : ${r.crees} créé(s), ${r.majs} mis à jour`, {
-        description: `Reconnaissance par matricule · les bulletins du mois se recalculent${ignorees ? ` · ${ignorees} ligne(s) ignorée(s), sans matricule ou sans nom` : ""}`,
-      });
+      const details = [
+        "Reconnaissance par matricule · les bulletins du mois se recalculent",
+        r.avecService ? `${r.avecService} affectation(s) de service` : "",
+        r.servicesCrees.length ? `services créés : ${r.servicesCrees.join(", ")}` : "",
+        r.sansService ? `${r.sansService} fiche(s) sans service` : "",
+        ignorees ? `${ignorees} ligne(s) ignorée(s), sans matricule ou sans nom` : "",
+      ].filter(Boolean);
+      toast.success(`Import terminé : ${r.crees} créé(s), ${r.majs} mis à jour`, { description: details.join(" · ") });
+      if (autresSocietes) {
+        toast.warning(`${autresSocietes} ligne(s) portent une seconde société`, {
+          description: "Elles n'ont PAS été rattachées : le fichier ne dit pas quelle part du salaire chaque société verse, et un rattachement sans montant produirait un second bulletin à plein salaire. À saisir dans la fiche, société par société.",
+          duration: 12000,
+        });
+      }
     } catch (e) {
       // Tout chemin d'échec aboutit ICI. Auparavant, une lecture de fichier impossible rejetait
       // une promesse que personne n'écoutait : ni erreur, ni import, rien à l'écran.
