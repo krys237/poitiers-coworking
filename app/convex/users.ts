@@ -98,8 +98,11 @@ export const modifier = mutation({
     phone: v.optional(v.string()),
     // Fiche employé liée (« Mes bulletins ») ; null = retirer le lien.
     employeId: v.optional(v.union(v.id("employes"), v.null())),
+    // Service du membre, pour router son compte rendu ; null = retirer le rattachement et
+    // retomber sur celui de sa fiche employé s'il en a une (services.serviceDuMembre).
+    serviceId: v.optional(v.union(v.id("services"), v.null())),
   },
-  handler: async (ctx, { userId, employeId, ...patch }) => {
+  handler: async (ctx, { userId, employeId, serviceId, ...patch }) => {
     const me = await requireDroit(ctx, "/membres", "faire");
     const cible = await ctx.db.get(userId);
     if (!cible) throw new Error("Membre introuvable.");
@@ -111,6 +114,12 @@ export const modifier = mutation({
     await verifierDernierDg(ctx, cible, patch);
     const propre = Object.fromEntries(Object.entries(patch).filter(([, val]) => val !== undefined));
     await ctx.db.patch(userId, propre);
+    if (serviceId !== undefined && String(serviceId ?? "") !== String(cible.serviceId ?? "")) {
+      if (serviceId && !(await ctx.db.get(serviceId))) throw new Error("Service introuvable.");
+      await ctx.db.patch(userId, { serviceId: serviceId ?? undefined });
+      const svc = serviceId ? await ctx.db.get(serviceId) : null;
+      await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "membre_modification", cible: cible.nom ?? cible.email, detail: svc ? `service : ${svc.nom}` : "service retiré" });
+    }
     if (employeId !== undefined && String(employeId ?? "") !== String(cible.employeId ?? "")) {
       if (employeId && !(await ctx.db.get(employeId))) throw new Error("Fiche employé introuvable.");
       await ctx.db.patch(userId, { employeId: employeId ?? undefined });

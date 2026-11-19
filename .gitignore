@@ -33,3 +33,10 @@ modele/
 
 # Archives du grand livre (données comptables réelles)
 archives/
+# Lots envoyés aux agents externes (artefacts, reconstructibles depuis git)
+livraisons/
+
+# Documents de travail du propriétaire déposés à la racine : classeurs de paie (noms et salaires
+# réels), relevés, captures. Les trois fichiers déjà suivis le restent — .gitignore ne désuit
+# rien ; la règle empêche seulement qu'un nouveau dépôt y parte par mégarde dans un commit.
+/docs/

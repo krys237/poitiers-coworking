@@ -351,7 +351,13 @@ export function ComptesRendus() {
             </Flag>
           </div>
           <p className="text-xs sm:text-sm text-encre-douce">
-            Validation quotidienne des activités et assiduité · Fenêtre officielle de {fen?.ouverture ?? 16}h00 à {fen?.fermeture ?? 20}h00
+            {/* `fen` est désormais celle DU POSTE du membre connecté (ou la générale, à défaut de
+                règle) : un dispensé (niveau ≥ 5) n'a plus de créneau qui le concerne, on le dit
+                plutôt que d'afficher un horaire qui ne s'applique pas à lui. */}
+            Validation quotidienne des activités et assiduité ·{" "}
+            {estDispense
+              ? "dépôt libre, sans créneau horaire (Direction & Encadrement)"
+              : `fenêtre applicable de ${fen?.ouverture ?? 16}h00 à ${fen?.fermeture ?? 20}h00`}
           </p>
         </div>
 

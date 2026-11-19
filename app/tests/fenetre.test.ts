@@ -1,4 +1,4 @@
-import { estJourOuvrable, estDansFenetre, finFenetre, prochaineOuverture, instantDouala, dateDouala, pointsPour, pointsDuJour, heureDouala, dispenseDeFenetre, NIVEAU_DISPENSE_FENETRE } from "../convex/lib/fenetre.ts";
+import { estJourOuvrable, estDansFenetre, finFenetre, prochaineOuverture, instantDouala, dateDouala, pointsPour, pointsDuJour, heureDouala, dispenseDeFenetre, NIVEAU_DISPENSE_FENETRE, normaliserPoste, fenetrePour, evaluerFenetre, FENETRE_DEFAUT, type RegleFenetrePoste } from "../convex/lib/fenetre.ts";
 
 let echecs = 0;
 const check = (nom: string, cond: boolean, detail?: unknown) => { if (cond) console.log(`  ok  ${nom}`); else { console.error(`  KO  ${nom}`, detail ?? ""); echecs++; } };
@@ -48,5 +48,46 @@ check("hors créneau puis dans le créneau : la journée gagne son point", total
 check("dans le créneau puis hors créneau : le point reste acquis", total([false, true]) === 1 && pointsDuJour([false, true])[0] === 1);
 check("trois dépôts : jamais plus d'un point", total([true, false, false]) === 1);
 check("journée sans dépôt : aucun point", pointsDuJour([]).length === 0);
+
+// --- Lot C1 : fenêtre réglable par poste ----------------------------------------------------
+
+// 1. Normalisation (§2.3) : casse, accents, apostrophe typographique, espaces multiples, bords.
+check("normalisation : casse", normaliserPoste("Agent d'accueil") === "agent d'accueil");
+check("normalisation : accents", normaliserPoste("Técnicien de Garde") === "tecnicien de garde", normaliserPoste("Técnicien de Garde"));
+check("normalisation : apostrophe typographique", normaliserPoste("Agent d’accueil") === "agent d'accueil", normaliserPoste("Agent d’accueil"));
+check("normalisation : espaces multiples et bords", normaliserPoste("  agent    d'accueil  ") === "agent d'accueil", normaliserPoste("  agent    d'accueil  "));
+check("normalisation : poste absent/vide = chaîne vide", normaliserPoste(undefined) === "" && normaliserPoste(null) === "" && normaliserPoste("") === "" && normaliserPoste("   ") === "");
+
+// 2. fenetrePour : règle du poste si elle correspond, sinon la générale ; poste vide/absent -> générale.
+const regles: RegleFenetrePoste[] = [{ poste: "Agent d'accueil", ouverture: 8, fermeture: 22, samedi: true }];
+check("fenetrePour : poste avec règle reçoit SA fenêtre", JSON.stringify(fenetrePour("agent d’accueil", FENETRE_DEFAUT, regles)) === JSON.stringify({ ouverture: 8, fermeture: 22, samedi: true }));
+check("fenetrePour : poste sans règle reçoit la générale", JSON.stringify(fenetrePour("Technicien de garde", FENETRE_DEFAUT, regles)) === JSON.stringify(FENETRE_DEFAUT));
+check("fenetrePour : poste vide reçoit la générale", JSON.stringify(fenetrePour("", FENETRE_DEFAUT, regles)) === JSON.stringify(FENETRE_DEFAUT));
+check("fenetrePour : poste absent reçoit la générale", JSON.stringify(fenetrePour(undefined, FENETRE_DEFAUT, regles)) === JSON.stringify(FENETRE_DEFAUT));
+
+// 3. La précédence (§2.1) : niveau >= 5 toujours dispensé, quelle que soit la règle de poste —
+// même à 3h du matin un dimanche, hors de toute fenêtre imaginable.
+const dim3h = instantDouala(2026, 9, 13, 3, 0); // dimanche 13 septembre 2026, 3h Douala
+const reglage = { defaut: FENETRE_DEFAUT, regles };
+const dafAccueil = evaluerFenetre(dim3h, { niveau: 5, poste: "agent d'accueil" }, reglage);
+check("précédence : niveau 5 dispensé même hors de toute fenêtre", dafAccueil.dispense === true && dafAccueil.horsFenetre === false, dafAccueil);
+
+// 4. Le même poste, à la même heure, mais niveau 1 : bien hors fenêtre (ni la règle de poste
+// 8h-22h ni la générale ne couvrent 3h du matin un dimanche).
+const employeAccueil = evaluerFenetre(dim3h, { niveau: 1, poste: "agent d'accueil" }, reglage);
+check("précédence : niveau 1 au même poste/heure est hors fenêtre", employeAccueil.dispense === false && employeAccueil.horsFenetre === true, employeAccueil);
+
+// 5. Le samedi : la règle de poste l'ouvre quand la générale ne l'ouvre pas, et réciproquement.
+const sam9h = instantDouala(2026, 9, 12, 9, 0); // samedi 12 septembre 2026, 9h Douala
+const posteSamediOui = evaluerFenetre(sam9h, { niveau: 1, poste: "agent d'accueil" }, reglage);
+check("samedi : règle de poste (samedi: true) ouvre le samedi", posteSamediOui.horsFenetre === false, posteSamediOui);
+const reglesSamediNon: RegleFenetrePoste[] = [{ poste: "Agent d'accueil", ouverture: 8, fermeture: 22, samedi: false }];
+const posteSamediNon = evaluerFenetre(sam9h, { niveau: 1, poste: "agent d'accueil" }, { defaut: FENETRE_DEFAUT, regles: reglesSamediNon });
+check("samedi : réciproquement, règle de poste (samedi: false) ferme le samedi", posteSamediNon.horsFenetre === true, posteSamediNon);
+const genSamediOui = evaluerFenetre(sam9h, { niveau: 1, poste: "poste sans règle" }, { defaut: { ...FENETRE_DEFAUT, ouverture: 8, fermeture: 22, samedi: true }, regles });
+check("samedi : la générale peut ouvrir le samedi quand le poste n'a pas de règle", genSamediOui.horsFenetre === false, genSamediOui);
+
+// evaluerFenetre renvoie la fenêtre qui se serait appliquée même quand dispensé (usage indicatif).
+check("evaluerFenetre : fenêtre renvoyée même en dispense = celle qui se serait appliquée", JSON.stringify(dafAccueil.fenetre) === JSON.stringify({ ouverture: 8, fermeture: 22, samedi: true }), dafAccueil.fenetre);
 
 if (echecs) { console.error(`\n${echecs} test(s) en échec`); process.exit(1); } else console.log("\nTous les tests passent.");

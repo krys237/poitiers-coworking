@@ -3,8 +3,10 @@ import { v } from "convex/values";
 import { requireLevel, DEV_BYPASS, requireDroit } from "./lib/authz";
 import { journaliser } from "./lib/journal";
 import { reglagesDe, validerReglages, type Reglages } from "./lib/reglages";
+import { normaliserPoste } from "./lib/fenetre";
 import { LIBELLE, MODULE_PAR_CLE, NIVEAU, celluleParDefaut, droitsEffectifs, estVerrouille, normaliser, type Role, type SurchargeRole } from "./rbac";
 import { erreurIdentiteSociete } from "./lib/societes";
+import { regleFenetrePosteV } from "./schema";
 
 // Même convention que les autres modules : un validateur local, aligné sur `lib/societes.SOCIETES`.
 const SOCIETE = v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"));
@@ -111,8 +113,37 @@ export const reglagesInternes = internalQuery({
   handler: async (ctx): Promise<Reglages> => await lireReglages(ctx),
 });
 
+// Postes réellement utilisés par les membres (écran Paramètres → Fonctionnement, Lot C2) : le
+// champ « poste » d'une règle de fenêtre précharge CETTE liste plutôt qu'un référentiel écrit en
+// dur — `users.poste` est un texte libre (voir lib/fenetre.normaliserPoste), il n'existe aucune
+// liste fermée de postes à proposer à sa place.
+export const postesUtilises = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireDroit(ctx, "/parametres");
+    const membres = await ctx.db.query("users").collect();
+    // Dédoublonné par poste NORMALISÉ (casse, accents, apostrophe) pour ne pas proposer deux fois
+    // "Agent d'accueil" et "agent d’accueil" — mais on garde la première graphie rencontrée, plus
+    // lisible qu'une forme normalisée (sans accents, tout en minuscules) dans la liste déroulante.
+    const vus = new Set<string>();
+    const postes: string[] = [];
+    for (const m of membres) {
+      const poste = (m.poste ?? "").trim();
+      if (!poste) continue;
+      const cle = normaliserPoste(poste);
+      if (vus.has(cle)) continue;
+      vus.add(cle);
+      postes.push(poste);
+    }
+    return postes.sort((a, b) => a.localeCompare(b, "fr"));
+  },
+});
+
 const reglagesV = v.object({
   crHeureOuverture: v.number(), crHeureFermeture: v.number(), crSamedi: v.boolean(),
+  // Même validateur que le schéma, importé et non recopié : deux descriptions de la même donnée
+  // finissent toujours par diverger, et Convex rejette alors l'écriture sans que rien ne l'annonce.
+  crFenetresParPoste: v.array(regleFenetrePosteV),
   verrouFinancierMin: v.number(), verrouCaisseMin: v.number(),
   envoiReelActive: v.boolean(), whatsappReelActive: v.boolean(), iaDocumentsActive: v.boolean(), pdfAutoCloture: v.boolean(),
   joursBaseDefaut: v.number(), plafondSaisie: v.number(),
@@ -130,9 +161,14 @@ export const enregistrerReglages = mutation({
     const existant = await ctx.db.query("parametresEntreprise").first();
     if (!existant) throw new Error("Paramètres entreprise non initialisés.");
     const avant = reglagesDe(existant.reglages);
-    const changes = (Object.keys(reglages) as (keyof Reglages)[]).filter((k) => avant[k] !== reglages[k]);
+    // Comparaison par VALEUR : depuis `crFenetresParPoste`, un réglage peut être un tableau, et
+    // `!==` sur deux tableaux est toujours vrai. Sans ça, chaque enregistrement journaliserait une
+    // modification fictive, avec « [object Object] → [object Object] » pour tout détail — le
+    // journal d'activité est une piste d'audit, il ne doit pas se remplir de faux positifs.
+    const lisible = (x: unknown) => (typeof x === "object" && x !== null ? JSON.stringify(x) : String(x));
+    const changes = (Object.keys(reglages) as (keyof Reglages)[]).filter((k) => lisible(avant[k]) !== lisible(reglages[k]));
     await ctx.db.patch(existant._id, { reglages });
-    if (changes.length) await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "parametres_modification", cible: "réglages", detail: changes.map((k) => `${k} : ${String(avant[k])} → ${String(reglages[k])}`).join(" · ") });
+    if (changes.length) await journaliser(ctx, { auteurId: me._id, auteurNom: me.nom ?? me.email, action: "parametres_modification", cible: "réglages", detail: changes.map((k) => `${k} : ${lisible(avant[k])} → ${lisible(reglages[k])}`).join(" · ") });
   },
 });
 

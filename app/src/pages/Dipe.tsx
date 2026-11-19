@@ -69,11 +69,26 @@ export function Dipe() {
   const [importMsg, setImportMsg] = React.useState<string | null>(null);
   // Société déclarante : « toutes » = vue d'ensemble, jamais un document à déposer.
   const [societe, setSociete] = React.useState<Declarante | "toutes">("toutes");
+  // Ligne du tableau « État du mois » surlignée pour ne pas la perdre en comparant les colonnes.
+  // Purement visuel : ne filtre rien, ne relance aucune requête, n'est pas conservée.
+  const [ligneChoisie, setLigneChoisie] = React.useState<string | number | null>(null);
 
   const vue = useQuery(api.dipe.etat, societe === "toutes" ? { periode } : { periode, societe });
   const lignes = vue?.lignes ?? [];
   const recap = vue?.recapitulatif;
   const pagination = usePagination(lignes, "dipe-etat", 25);
+
+  // Une ligne surlignée qui ne correspond plus à ce qui est affiché serait pire que pas de
+  // surlignage : on l'efface dès que la période ou la société déclarante change.
+  React.useEffect(() => {
+    setLigneChoisie(null);
+  }, [periode, societe]);
+
+  // Bascule : cliquer la ligne déjà sélectionnée la désélectionne. C'est un surlignage de
+  // lecture (on suit un salarié), pas un choix qu'il faudrait annuler ailleurs.
+  function choisirLigne(cle: string | number) {
+    setLigneChoisie((c) => (c === cle ? null : cle));
+  }
 
   const comparaison = React.useMemo(
     () => (sien && lignes.length ? comparerDipe(lignes as LigneDipe[], sien) : null),
@@ -285,7 +300,15 @@ export function Dipe() {
                   </TableVide>
                 ) : (
                   pagination.visibles.map((l) => (
-                    <TableRow key={l.cle}>
+                    <TableRow
+                      key={l.cle}
+                      active={ligneChoisie === l.cle}
+                      aria-selected={ligneChoisie === l.cle}
+                      className="cursor-pointer print:data-[active]:bg-transparent print:data-[active]:shadow-none"
+                      tabIndex={0}
+                      onClick={() => choisirLigne(l.cle)}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choisirLigne(l.cle); } }}
+                    >
                       <TableCell className="tabular-nums">{l.no}</TableCell>
                       <TableCell className="font-medium">{l.matricule}</TableCell>
                       <TableCell figee className="whitespace-nowrap">{l.nom}</TableCell>

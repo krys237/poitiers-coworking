@@ -68,6 +68,13 @@ export function FriseAnnuelle() {
   const [employeImprime, setEmployeImprime] = React.useState<string>("tous");
 
   const vue = useQuery(api.planning.vueAnnuelle, { annee, seuilChevauchement: seuil });
+  // Membres désignables comme chefs de service. Requête dédiée, sous le droit du planning : la
+  // liste complète des membres exige le droit « Membres », qu'un responsable du planning n'a pas.
+  const membres = useQuery(api.services.membresAssignables);
+  const optionsChefs = React.useMemo(
+    () => (membres ?? []).map((m) => ({ valeur: m._id, libelle: m.nom, note: m.poste || undefined })),
+    [membres],
+  );
   const enregistrer = useMutation(api.planning.enregistrerCongeAnnuel);
   const initFeries = useMutation(api.joursFeries.initialiserAnnee);
   const initServices = useMutation(api.services.initialiser);
@@ -206,7 +213,7 @@ export function FriseAnnuelle() {
           aria-label="Rechercher"
           className="h-8 w-52"
         />
-        <GestionServices services={vue?.services} />
+        <GestionServices services={vue?.services} optionsChefs={optionsChefs} />
         <BoutonPersistance actif={persistant} onChange={setPersistant} />
         <Button size="sm" variant="outline" onClick={() => window.print()}>
           <PrinterIcon /> Imprimer

@@ -18,6 +18,18 @@ const ROLE = v.union(
 
 const SOCIETE = v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"));
 
+/**
+ * Fenêtre de dépôt des comptes rendus propre à un poste (lot C1).
+ *
+ * EXPORTÉ exprès, et réutilisé tel quel par le validateur d'arguments de
+ * `parametres.enregistrerReglages` : les deux décrivent la même donnée, et les laisser diverger
+ * est précisément le défaut qui a fait échouer toute clôture de paie en novembre — un validateur
+ * de schéma oubliait quatre champs que le calcul produisait, et chaque insertion était rejetée.
+ */
+export const regleFenetrePosteV = v.object({
+  poste: v.string(), ouverture: v.number(), fermeture: v.number(), samedi: v.boolean(),
+});
+
 export default defineSchema({
   // Tables de Convex Auth : authSessions, authAccounts, authRefreshTokens,
   // authVerificationCodes, authVerifiers, authRateLimits — et `users`, que l'on REDÉFINIT
@@ -57,6 +69,16 @@ export default defineSchema({
     droitsPerso: v.optional(v.array(v.object({ module: v.string(), voir: v.boolean(), faire: v.boolean() }))),
     // Fiche employé du membre (« Mes bulletins ») ; à défaut, rapprochement par e-mail.
     employeId: v.optional(v.id("employes")),
+    /**
+     * Service de rattachement du MEMBRE, pour router son compte rendu vers son chef de service.
+     *
+     * Le service existait déjà sur la fiche employé (`employes.serviceId`), mais un compte rendu
+     * est écrit par un membre, et tout membre n'a pas de fiche : passer par elle laisserait sans
+     * chef quiconque n'en a pas. Le champ est donc porté ici, et repris de la fiche quand elle
+     * existe — `services.serviceDuMembre` applique ce repli, pour que les deux cohabitent sans
+     * qu'on ait à choisir lequel fait foi au cas par cas.
+     */
+    serviceId: v.optional(v.id("services")),
     // Mot de passe provisoire posé par la Direction (création ou réinitialisation) : l'interface impose
     // de le changer avant toute autre chose (décision du 13/10/2026, lib/motDePasse.ts).
     doitChangerMotDePasse: v.optional(v.boolean()),
@@ -84,6 +106,7 @@ export default defineSchema({
     jourPaiement: v.optional(v.number()),     // jour de paiement du mois suivant (déf. 5)
     reglages: v.optional(v.object({           // réglages de fonctionnement — voir lib/reglages.ts (défauts = anciennes constantes)
       crHeureOuverture: v.optional(v.number()), crHeureFermeture: v.optional(v.number()), crSamedi: v.optional(v.boolean()),
+      crFenetresParPoste: v.optional(v.array(regleFenetrePosteV)),
       verrouFinancierMin: v.optional(v.number()), verrouCaisseMin: v.optional(v.number()),
       envoiReelActive: v.optional(v.boolean()), whatsappReelActive: v.optional(v.boolean()), iaDocumentsActive: v.optional(v.boolean()), pdfAutoCloture: v.optional(v.boolean()),
       joursBaseDefaut: v.optional(v.number()), plafondSaisie: v.optional(v.number()),
@@ -120,6 +143,16 @@ export default defineSchema({
     couleur: v.string(),              // hex "#rrggbb"
     ordre: v.number(),
     actif: v.boolean(),
+    /**
+     * Chefs du service — **un ou deux**, référencés et non saisis au clavier.
+     *
+     * C'est le socle du circuit voulu par le propriétaire : l'employé rend son compte rendu à son
+     * chef de service, qui en tient compte dans le sien, lequel remonte à la direction. Router
+     * exige de connaître le chef comme une IDENTITÉ. `interventions.chefService` était une chaîne
+     * de texte libre : on peut l'afficher, pas lui adresser quoi que ce soit. Le champ texte y
+     * reste pour ne pas réécrire l'historique des demandes déjà déposées.
+     */
+    chefs: v.optional(v.array(v.id("users"))),
   }).index("by_nom", ["nom"]),
 
   // Référentiel des FONCTIONS (lot R10). `employes.fonction` était un champ texte libre, d'où

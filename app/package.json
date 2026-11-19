@@ -23,7 +23,10 @@
     "test:echeances": "node --experimental-strip-types tests/echeancesContrat.test.ts",
     "test:absences": "node --experimental-strip-types tests/absencesLegales.test.ts",
     "test:tresorerie": "node --experimental-strip-types tests/tresorerie.test.ts",
+    "test:csv": "node --experimental-strip-types tests/csv.test.ts",
+    "test:classeur": "node --experimental-strip-types tests/classeur.test.ts",
     "test:fenetre": "node --experimental-strip-types tests/fenetre.test.ts",
+    "test:reglages": "node --experimental-strip-types tests/reglages.test.ts",
     "test:commandes": "node --experimental-strip-types tests/commandes.test.ts",
     "test:stats": "node --experimental-strip-types tests/stats.test.ts",
     "test:audit": "node --experimental-strip-types tests/audit.test.ts",
@@ -55,6 +58,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
+    "read-excel-file": "^9.3.17",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
     "tailwindcss-animate": "^1.0.7"
