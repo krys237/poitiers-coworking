@@ -15,10 +15,10 @@
  * Saisie en série (skill §7) : ligne de saisie permanente en tête du tableau
  * (matricule, nom, fonction, société, brut, date d'entrée) ; la fiche complète
  * (CNPS, NIU, adresse, e-mail, congés initiaux, retrait) s'ouvre sur la ligne.
- * L'import CSV reste la vraie saisie de masse (upsert par matricule). Il ne lit PAS les
- * classeurs Excel : aucune bibliothèque de tableur n'est embarquée, et le bouton a longtemps
- * annoncé « CSV / Excel » sans que ce soit vrai. Un classeur sélectionné reçoit la marche à
- * suivre pour l'enregistrer en CSV.
+ * L'import reste la vraie saisie de masse (upsert par matricule). Il lit les classeurs .xlsx
+ * directement depuis le 19/11/2026 (lib/classeur.ts) : passer par un export CSV était la source
+ * d'échecs la plus coûteuse, une feuille à l'étendue déclarée démesurée produisant un CSV de
+ * plusieurs gigaoctets de séparateurs vides.
  */
 import * as React from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
@@ -31,6 +31,7 @@ import { formaterTelephone } from "../../convex/lib/telephone";
 import { BoutonConfirmation } from "@/components/app/bouton-action";
 import { api } from "../../convex/_generated/api";
 import { estClasseurTableur, parseCsv, toFcfa, valeurColonne as lire } from "@/lib/csv";
+import { ErreurClasseur, lireClasseur } from "@/lib/classeur";
 import { messageErreur, num } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageEnTete } from "@/components/app/en-tete";
@@ -134,19 +135,14 @@ export function Employes() {
 
   const onImport = async (file: File) => {
     try {
-      // Un classeur Excel n'est pas du texte : le lire comme tel ne produit que du binaire illisible.
-      // Le projet n'embarque aucune bibliothèque de tableur — autant le dire franchement et donner
-      // la marche à suivre, plutôt que de laisser croire à une panne.
-      const debut = new Uint8Array(await file.slice(0, 4).arrayBuffer());
-      if (estClasseurTableur(file.name, debut)) {
-        toast.error("Les classeurs Excel ne sont pas lus", {
-          description: "Dans Excel : Fichier → Enregistrer sous → « CSV UTF-8 (délimité par des points-virgules) », puis importez ce fichier .csv.",
-        });
-        return;
-      }
-
-      const texte = await file.text();
-      const rows = parseCsv(texte);
+      // Les classeurs se lisent directement depuis le 19/11/2026. Passer par un export CSV était
+      // la source d'échecs la plus coûteuse : une feuille dont l'étendue déclarée dépasse
+      // largement ses données — « A1:XET1048442 » pour 93 lignes réelles, constaté sur le fichier
+      // de l'effectif — fait produire à Excel un CSV de PLUSIEURS GIGAOCTETS de séparateurs vides.
+      const debut = new Uint8Array(await file.slice(0, 8).arrayBuffer());
+      const rows = estClasseurTableur(file.name, debut)
+        ? await lireClasseur(file, debut)
+        : parseCsv(await file.text());
       if (!rows.length) {
         toast.error("Fichier vide ou sans ligne de données", {
           description: "La première ligne doit porter les noms de colonnes, et il faut au moins une ligne en dessous.",
@@ -196,6 +192,7 @@ export function Employes() {
       // sélection et la lecture : classeur resté ouvert dans Excel, resynchronisation OneDrive,
       // fichier déplacé. On traduit donc en geste concret plutôt qu'en diagnostic technique.
       const illisible = e instanceof DOMException && e.name === "NotReadableError";
+      if (e instanceof ErreurClasseur) { toast.error("Classeur illisible", { description: e.message }); return; }
       toast.error(illisible ? "Le fichier n'a pas pu être lu" : "Import impossible", {
         description: illisible
           ? "Il a changé ou s'est verrouillé depuis que vous l'avez choisi. Fermez-le dans Excel, ou copiez-le sur le bureau, puis réessayez."
@@ -223,7 +220,7 @@ export function Employes() {
             <input ref={fichierRef} type="file" accept=".csv,text/csv,.xlsx,.xls,.ods" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void onImport(f); e.target.value = ""; }} />
             <GestionFonctions />
             <Button variant="outline" size="sm" onClick={() => fichierRef.current?.click()} title="Colonnes : matricule ; nom ; fonction ; societe ; salaire_base ; date_debut ; cnps ; email — mise à jour par matricule">
-              <UploadIcon /> Importer un CSV
+              <UploadIcon /> Importer Excel ou CSV
             </Button>
             {!persistant ? <FicheEmploye creer={creer as any} modifier={modifier as any} /> : null}
             <BoutonPersistance actif={persistant} onChange={setPersistant} />
