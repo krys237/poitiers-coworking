@@ -50,6 +50,7 @@ S6 étend son adressage.
 | `app/convex/commandes.ts` | modifié — 4 lignes d'émission |
 | `app/convex/interventions.ts` | modifié — 3 lignes d'émission |
 | `app/convex/comptesRendus.ts` | modifié — 2 lignes d'émission |
+| `app/convex/tickets.ts` | modifié — 3 lignes d'émission |
 | `app/convex/documents.ts` | modifié — 1 ligne d'émission |
 | `app/convex/auth.ts` | modifié — 1 ligne d'émission |
 | `app/tests/notifications.test.ts` | **nouveau** — suite de tests |
@@ -101,11 +102,15 @@ export type TypeEvenement = {
   /** Le propriétaire du dossier (son créateur) est-il prévenu de cet événement ? */
   previentLeProprietaire: boolean;
   /**
-   * Portée par objet : sans CE droit, l'objet n'est visible que de son propriétaire.
-   * Encode la décision du 13/10/2026 sur les interventions. Absent = objet visible de
-   * tous ceux qui ont `module` en Voir.
+   * Portée par objet : sans AU MOINS UN de ces droits, l'objet n'est visible que de son
+   * propriétaire. Encode la décision du 13/10/2026 sur les interventions, et le périmètre
+   * « ses propres tickets » de `/tickets`. Absent = objet visible de tous ceux qui ont
+   * `module` en Voir.
+   *
+   * C'est une LISTE parce que deux droits distincts peuvent ouvrir la vue d'ensemble :
+   * un ticket est visible en entier par l'arbitrage OU par le traitement technique.
    */
-  portee?: string;
+  portee?: string[];
   /** Rendu du titre affiché. Figé à l'émission (voir §5). */
   titre: (c: ContexteRendu) => string;
   /** Rendu du corps, optionnel. */
@@ -113,7 +118,7 @@ export type TypeEvenement = {
 };
 ```
 
-### Les treize types de S1
+### Les seize types de S1
 
 ```ts
 export const TYPES: TypeEvenement[] = [
@@ -177,7 +182,7 @@ export const TYPES: TypeEvenement[] = [
     importance: "a_traiter",
     cible: { module: "/interventions", action: "faire" },
     previentLeProprietaire: false,
-    portee: "/interventions/toutes",
+    portee: ["/interventions/toutes"],
     titre: (c) => `Intervention ${c.reference} à arbitrer`,
     corps: (c) => [c.libelle, c.acteurNom && `déposée par ${c.acteurNom}`].filter(Boolean).join(" — ") || undefined,
   },
@@ -188,7 +193,7 @@ export const TYPES: TypeEvenement[] = [
     importance: "info",
     cible: null,                      // seul le demandeur est concerné
     previentLeProprietaire: true,
-    portee: "/interventions/toutes",
+    portee: ["/interventions/toutes"],
     titre: (c) => `Intervention ${c.reference} : suite donnée`,
     corps: (c) => c.motif,
   },
@@ -199,7 +204,7 @@ export const TYPES: TypeEvenement[] = [
     importance: "info",
     cible: null,
     previentLeProprietaire: true,
-    portee: "/interventions/toutes",
+    portee: ["/interventions/toutes"],
     titre: (c) => `Intervention ${c.reference} clôturée`,
   },
   {
@@ -209,7 +214,7 @@ export const TYPES: TypeEvenement[] = [
     importance: "info",
     cible: null,
     previentLeProprietaire: true,
-    portee: "/interventions/toutes",
+    portee: ["/interventions/toutes"],
     titre: (c) => `Commentaire sur l'intervention ${c.reference}`,
     corps: (c) => (c.acteurNom ? `${c.acteurNom} : ${c.extrait ?? ""}`.trim() : c.extrait),
   },
@@ -245,6 +250,44 @@ export const TYPES: TypeEvenement[] = [
     previentLeProprietaire: false,
     titre: (c) => `Document partagé : ${c.libelle ?? "sans titre"}`,
     corps: (c) => (c.acteurNom ? `Déposé par ${c.acteurNom}` : undefined),
+  },
+
+  // ---------------- Tickets (retours d'usage de la plateforme) ----------------
+  {
+    cle: "ticket_ouvert",
+    libelle: "Ticket ouvert",
+    module: "/tickets",
+    importance: "a_traiter",
+    cible: { module: "/tickets/arbitrage", action: "faire" },
+    previentLeProprietaire: false,
+    // Deux droits distincts ouvrent la vue d'ensemble : l'arbitrage et le traitement technique.
+    portee: ["/tickets/arbitrage", "/tickets/traitement"],
+    titre: (c) => `Nouveau ticket : ${c.libelle ?? ""}`.trim(),
+    corps: (c) => (c.acteurNom ? `Ouvert par ${c.acteurNom}` : undefined),
+  },
+  {
+    cle: "ticket_arbitre",
+    libelle: "Pertinence d'un ticket jugée",
+    module: "/tickets",
+    importance: "info",
+    // Jugé pertinent : le traitement technique doit le savoir. Jugé non pertinent : seul
+    // l'auteur est concerné, et c'est l'emetteur qui omet la cible dans ce cas (voir §7).
+    cible: { module: "/tickets/traitement", action: "faire" },
+    previentLeProprietaire: true,
+    portee: ["/tickets/arbitrage", "/tickets/traitement"],
+    titre: (c) => `Ticket ${c.libelle ?? ""} : ${c.motif ? "refusé" : "jugé pertinent"}`.trim(),
+    corps: (c) => c.motif,          // motif obligatoire côté serveur sur un refus
+  },
+  {
+    cle: "ticket_avance",
+    libelle: "État d'un ticket modifié",
+    module: "/tickets",
+    importance: "info",
+    cible: null,                    // seul l'auteur du ticket
+    previentLeProprietaire: true,
+    portee: ["/tickets/arbitrage", "/tickets/traitement"],
+    titre: (c) => `Ticket ${c.libelle ?? ""} : ${c.extrait ?? "état modifié"}`.trim(),
+    corps: (c) => c.motif,
   },
 
   // ---------------- Membres ----------------
@@ -334,8 +377,9 @@ export function destinataires(
     const m = parId.get(id);
     if (!m || !m.actif || m.enAttente) return false;
     if (!m.droits[type.module]?.voir) return false;
-    // Portée par objet : sans le droit d'ensemble, on ne voit que son propre dossier.
-    if (type.portee && !m.droits[type.portee]?.voir && id !== e.proprietaireId) return false;
+    // Portée par objet : sans AUCUN des droits d'ensemble, on ne voit que son propre dossier.
+    if (type.portee?.length && id !== e.proprietaireId
+        && !type.portee.some((d) => m.droits[d]?.voir)) return false;
     return true;
   });
 }
@@ -564,6 +608,29 @@ caractères du texte.
 - **`changerStatut`** — seulement si `statut === "valide"` : `type: "cr_valide"`,
   `proprietaireId: c.auteurId`.
 
+### `convex/tickets.ts`
+
+Module ajouté au projet depuis la première rédaction de cette spec : les **tickets** sont les
+retours d'usage que les membres déposent sur la plateforme elle-même. Deux pistes parallèles
+sur le même objet — la Direction juge la **pertinence** (`avis`), le développeur fait avancer
+l'**état** (`etat`) — d'où trois émissions.
+
+- **`ouvrir`** — `type: "ticket_ouvert"`, `proprietaireId: user._id`,
+  `objet: { table: "tickets", id }`, `lien: "/tickets"`, `rendu.libelle` = le titre.
+- **`arbitrer`** — `type: "ticket_arbitre"`, `proprietaireId: t.auteurId`,
+  `rendu.motif` = le motif, **renseigné seulement sur un refus** : c'est lui qui distingue les
+  deux titres rendus.
+  ⚠️ **Sur `non_pertinent`, n'informe que l'auteur.** Le traitement technique n'a rien à faire
+  d'un ticket écarté. La forme est à toi (ne pas passer la cible, ou un drapeau à l'émetteur),
+  le comportement est imposé.
+- **`avancer`** — `type: "ticket_avance"`, `proprietaireId: t.auteurId`,
+  `rendu.extrait` = le libellé d'état (`LIBELLE_ETAT[etat]`, déjà présent dans le fichier),
+  `rendu.motif` = la note.
+
+> `tickets.ts` **journalise déjà** ses deux transitions (`journaliser`, avec `cible: t.titre`).
+> Ne touche pas à ces appels et n'en ajoute pas : la notification s'ajoute à côté, elle ne
+> remplace rien.
+
 ### `convex/documents.ts`
 
 - **`deposer`** — **seulement si la liste `destinataires` est non vide** :
@@ -610,20 +677,24 @@ retiré au comptable.
 | 9 | Membre sans `voir` sur le module de l'événement | **jamais** destinataire — invariant 2 |
 | 10 | Même personne ciblée par droit **et** propriétaire | **une seule** entrée (dédoublonnage) |
 | 11 | `cible: null` et pas de propriétaire | liste vide, aucune erreur levée |
-| 12 | `rendre` sur les 13 types | titre non vide, pas de `undefined` dans la chaîne |
-| 13 | Toutes les clés de `TYPES` | uniques, et tous les `module` / `cible.module` / `portee` existent dans `rbac.MODULE_PAR_CLE` |
+| 12 | `rendre` sur les 16 types | titre non vide, pas de `undefined` dans la chaîne |
+| 13 | `ticket_ouvert`, membre n'ayant que `/tickets` | **absent** : il ne voit que ses propres tickets |
+| 14 | `ticket_ouvert`, membre ayant `/tickets/traitement` | **présent** : la portée accepte l'un **ou** l'autre droit |
+| 15 | `ticket_arbitre` jugé `non_pertinent` | **seul l'auteur** ; pas le traitement technique |
+| 16 | Toutes les clés de `TYPES` | uniques, et tous les `module` / `cible.module` / **chaque entrée de `portee`** existent dans `rbac.MODULE_PAR_CLE` |
 
-Le cas 13 est un **garde-fou** : il empêche qu'une faute de frappe dans une clé de module
+Le cas 16 est un **garde-fou** : il empêche qu'une faute de frappe dans une clé de module
 rende un événement silencieusement inadressable.
 
 ---
 
 ## 9. Un trou constaté, volontairement laissé ouvert
 
-En câblant les dix points d'émission, tu constateras que `journalActivite` **ne trace
-aujourd'hui aucune** de ces transitions : un bon de commande validé, une intervention
-clôturée, un litige ouvert n'apparaissent pas dans le journal d'audit du niveau 7. C'est un
-trou réel pour un ERP qui manipule de l'argent.
+En câblant les points d'émission, tu constateras une **asymétrie** : `tickets.ts` journalise
+ses transitions, mais `commandes.ts`, `interventions.ts` et `comptesRendus.ts` **non**. Un bon
+de commande validé, une intervention clôturée, un litige ouvert n'apparaissent **pas** dans le
+journal d'audit du niveau 7. C'est un trou réel pour un ERP qui manipule de l'argent — et le
+module le plus récent prouve que la maison sait le combler.
 
 **Ne le comble pas dans S1.** Le journal et les notifications sont deux objets différents —
 l'un immuable et destiné à l'audit, l'autre adressé, périssable et marquable comme lu. Les
@@ -659,6 +730,10 @@ Convex, onglet Data).
    Remets le droit ensuite.
 4. En `employe.test@poitiers.local`, dépose une demande d'intervention. Depuis un autre compte
    employé, vérifie qu'**aucune** ligne n'a été créée pour ce second employé.
+
+5. En `employe.test`, ouvre un ticket → les détenteurs de `/tickets/arbitrage:faire` sont
+   notifiés. Depuis un autre compte employé, vérifie qu'**aucune** ligne n'a été créée pour
+   lui : un membre ne voit que ses propres tickets.
 
 > Comptes de test : `<role>.test@poitiers.local`, mot de passe commun `Poitiers2026`. La table
 > complète des comptes est dans `cahier-de-recette.html` à la racine du dépôt.
