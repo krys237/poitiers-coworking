@@ -210,5 +210,11 @@ Dit explicitement, pour qu'aucun lot ne dérive :
 | S6 · Services | livré | 2026-11-20 | Routage responsable de service (repli sur services.chefs[0]) ; assainissement données Membres/Services à finaliser en prod |
 | S7 · Pense-bête | livré | 2026-11-20 | Table penseBetes, cron 15 min, onglet Mes rappels et composant BoutonPenseBete |
 
+### Correctifs
+
+| Lot | État | Livré le | Remarques |
+|---|---|---|---|
+| C1 · Correctifs | livré | 2026-11-20 | Tickets au catalogue (16 types), `portee` en liste, `services.chefs` source unique, couture `canauxPour`. Vérifié ici : 35/35 suites, typecheck et build propres |
+
 L'agent met cette table à jour à chaque livraison, et consigne dans la colonne « Remarques »
 tout écart entre la spec et ce qui a été fait.
