@@ -202,13 +202,13 @@ Dit explicitement, pour qu'aucun lot ne dérive :
 
 | Lot | État | Livré le | Remarques |
 |---|---|---|---|
-| S1 · Noyau | à faire | | |
-| S2 · Centre | à faire | | |
-| S3 · Hub WhatsApp | à faire | | bloqué par l'approbation des modèles |
-| S4 · Firebase | à faire | | bloqué par la fourniture du projet Firebase |
-| S5 · Rappels | à faire | | |
-| S6 · Services | à faire | | porte un chantier de données |
-| S7 · Pense-bête | à faire | | |
+| S1 · Noyau | livré | 2026-11-20 | 13 types, 10 points d'émission (dont auth.ts), index by_lu_date ajouté pour la purge |
+| S2 · Centre | livré | 2026-11-20 | Cloche réactive, panneau 15 récentes, écran /notifications et préférences |
+| S3 · Hub WhatsApp | livré (simulation) | 2026-11-20 | Mode simulation actif ; en attente des modèles Meta et clés hub. Migration paiePdf.ts (UltraMsg/PDF) laissée ouverte (§10) |
+| S4 · Firebase | livré (simulation) | 2026-11-20 | SW unique injectManifest (src/sw.ts), FCM HTTP v1 via jose, guide iOS PWA ; en attente du projet Firebase |
+| S5 · Rappels | livré | 2026-11-20 | Crons Douala UTC+1, relance/escalade 24/48/72 h, rappels verrous financier & caisse |
+| S6 · Services | livré | 2026-11-20 | Routage responsable de service (repli sur services.chefs[0]) ; assainissement données Membres/Services à finaliser en prod |
+| S7 · Pense-bête | livré | 2026-11-20 | Table penseBetes, cron 15 min, onglet Mes rappels et composant BoutonPenseBete |
 
 L'agent met cette table à jour à chaque livraison, et consigne dans la colonne « Remarques »
 tout écart entre la spec et ce qui a été fait.

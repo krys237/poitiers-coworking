@@ -6,10 +6,10 @@ import {
   Menu,
   Calendar,
   Search,
-  Bell,
   BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ClocheNotifications } from "@/components/app/cloche-notifications";
 
 const TITRES_PAGES: Record<string, { titre: string; sousTitre: string }> = {
   "/": { titre: "Tableau de bord", sousTitre: "Cockpit et vue d'ensemble" },
@@ -17,6 +17,7 @@ const TITRES_PAGES: Record<string, { titre: string; sousTitre: string }> = {
   "/documents": { titre: "Documents", sousTitre: "Pièces justificatives et archivage" },
   "/comptes-rendus": { titre: "Comptes rendus", sousTitre: "Activité et présences quotidiennes" },
   "/mes-bulletins": { titre: "Mes bulletins", sousTitre: "Bulletins de paie des mois clôturés" },
+  "/notifications": { titre: "Mes notifications", sousTitre: "Alertes, préférences et rappels personnels" },
   "/mon-compte": { titre: "Mon compte", sousTitre: "Identifiants et mot de passe" },
   "/commandes": { titre: "Commandes", sousTitre: "Gestion des commandes clients" },
   "/interventions": { titre: "Interventions", sousTitre: "Prestations et suivi terrain" },
@@ -119,16 +120,8 @@ export function Header({ onOpenMobileMenu }: { onOpenMobileMenu?: () => void }) 
           <span className="hidden md:inline">Guide des Rôles & Calculs</span>
         </a>
 
-        {/* Cloche d'alertes */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative h-9 w-9 text-encre-douce hover:bg-papier hover:text-encre"
-          aria-label="Alertes et notifications"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-ocean-ceruleen" />
-        </Button>
+        {/* Cloche de notifications réactive (lot S2) */}
+        <ClocheNotifications />
 
         {/* Avatar Profil compact */}
         <div className="flex items-center gap-2 pl-1 sm:border-l sm:border-filet sm:pl-3">

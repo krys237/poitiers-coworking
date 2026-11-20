@@ -39,6 +39,7 @@ import {
   PanelLeftClose,
   FileSpreadsheet,
   FileSignature,
+  Bell,
 } from "lucide-react";
 import { useMe } from "../auth/useMe";
 import "../auth/auth.css";
@@ -95,6 +96,7 @@ const NAV: { grp: string; items: NavItem[] }[] = [
       { to: "/documents", label: "Documents", perm: "/documents", icon: FolderOpen },
       { to: "/comptes-rendus", label: "Comptes rendus", perm: "/comptes-rendus", icon: ClipboardCheck },
       { to: "/mes-bulletins", label: "Mes bulletins", perm: "/mes-bulletins", icon: FileText },
+      { to: "/notifications", label: "Mes notifications", perm: "/notifications", icon: Bell },
       { to: "/commandes", label: "Commandes", perm: "/commandes", icon: ShoppingBag },
       { to: "/interventions", label: "Interventions", perm: "/interventions", icon: Wrench },
       { to: "/caisse", label: "Caisse du mois", perm: "/caisse", icon: TrendingUp },

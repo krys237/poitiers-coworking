@@ -32,7 +32,7 @@ export const liste = query({
   args: {},
   handler: async (ctx) => {
     // Le planning et les fiches employés ont tous deux besoin de la liste.
-    await requireUnDesDroits(ctx, ["/paie/planning", "/employes"]);
+    await requireUnDesDroits(ctx, ["/paie/planning", "/employes", "/commandes", "/interventions", "/membres", "/parametres"]);
     const lignes = await ctx.db.query("services").collect();
     lignes.sort((a, b) => a.ordre - b.ordre || a.nom.localeCompare(b.nom));
     // Les chefs sont stockés par identifiant ; l'écran a besoin de noms. On les résout ICI plutôt
@@ -174,8 +174,9 @@ export const enregistrer = mutation({
     couleur: v.optional(v.string()),
     actif: v.optional(v.boolean()),
     chefs: v.optional(v.array(v.id("users"))),
+    responsableId: v.optional(v.id("users")),
   },
-  handler: async (ctx, { id, nom, couleur, actif, chefs }) => {
+  handler: async (ctx, { id, nom, couleur, actif, chefs, responsableId }) => {
     await requireDroit(ctx, "/paie/planning", "faire");
     const propre = normaliser(nom);
     if (!propre) throw new Error("Le nom du service est obligatoire.");
@@ -207,6 +208,7 @@ export const enregistrer = mutation({
         couleur: couleur ?? s.couleur,
         actif: actif ?? s.actif,
         chefs: chefs ?? s.chefs,
+        ...(responsableId !== undefined ? { responsableId } : {}),
       });
       return { id, cree: false };
     }
@@ -218,6 +220,7 @@ export const enregistrer = mutation({
       ordre,
       actif: actif ?? true,
       chefs: chefs ?? [],
+      ...(responsableId !== undefined ? { responsableId } : {}),
     });
     return { id: nouveau, cree: true };
   },

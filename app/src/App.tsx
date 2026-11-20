@@ -15,6 +15,7 @@ import { Primes } from "./pages/Primes";
 import { Dipe } from "./pages/Dipe";
 import { Archives } from "./pages/Archives";
 import { MesBulletins } from "./pages/MesBulletins";
+import { Notifications } from "./pages/Notifications";
 import { MonCompte } from "./pages/MonCompte";
 import { ListeSalaires } from "./pages/ListeSalaires";
 import { Financier } from "./pages/Financier";
@@ -55,6 +56,7 @@ const ROUTES: { path: string; perm: string; element: JSX.Element }[] = [
   { path: "/paie/dipe", perm: "/paie/dipe", element: <Dipe /> },
   { path: "/paie/archives", perm: "/paie/archives", element: <Archives /> },
   { path: "/mes-bulletins", perm: "/mes-bulletins", element: <MesBulletins /> },
+  { path: "/notifications", perm: "/notifications", element: <Notifications /> },
   { path: "/financier", perm: "/financier", element: <Financier /> },
   { path: "/documents", perm: "/documents", element: <Documents /> },
   { path: "/commandes", perm: "/commandes", element: <Commandes /> },

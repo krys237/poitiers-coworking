@@ -6,6 +6,7 @@ import { journaliser } from "./lib/journal";
 
 import { calculerSoldes, recetteTotale, periodeDe, Mouvements, Soldes } from "./lib/tresorerie";
 import { lireReglages } from "./parametres";
+import { internal } from "./_generated/api";
 
 type Ctx = QueryCtx | MutationCtx;
 
@@ -133,7 +134,11 @@ export const prendreVerrou = mutation({
     if (j?.cloture) throw new Error("Journée clôturée : immuable.");
     const verrou = await lireVerrou(ctx, date);
     if (verrou && verrou.parId !== me._id) throw new Error(`Tableau verrouillé par ${verrou.parNom}.`);
-    await poserVerrou(ctx, date, me._id, me.nom ?? me.email ?? "?", new Date().toISOString());
+    const at = new Date().toISOString();
+    await poserVerrou(ctx, date, me._id, me.nom ?? me.email ?? "?", at);
+    const reglages = await lireReglages(ctx);
+    const delaiMs = Math.max(60_000, (reglages.verrouFinancierMin - 3) * 60_000);
+    await ctx.scheduler.runAfter(delaiMs, internal.rappels.verrouBientotExpire, { date, membreId: me._id, at });
     return { cree: false };
   },
 });

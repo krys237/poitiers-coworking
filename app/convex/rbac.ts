@@ -104,6 +104,7 @@ export const MODULES: Module[] = [
   { cle: "/tickets/traitement", libelle: "Tickets : traitement technique", categorie: "Exploitation", voir: "Voir tous les tickets", faire: "Faire avancer l'état (en cours, résolu, abandonné)", niveauVoir: 8, niveauFaire: 8 },
   { cle: "/primes-medecins/deverrouillage", libelle: "Primes médecins : modifier après le délai", categorie: "Exploitation", voir: null, faire: "Corriger ou supprimer une prime verrouillée (délai réglé dans Paramètres)", niveauVoir: 7, niveauFaire: 7 },
   { cle: "/mes-bulletins", libelle: "Mes bulletins", categorie: "Paie", voir: "Consulter et télécharger ses propres bulletins (mois clôturés)", faire: null, niveauVoir: 1, niveauFaire: 1 },
+  { cle: "/notifications", libelle: "Mes notifications", categorie: "Exploitation", voir: "Consulter ses notifications et régler ses préférences", faire: null, niveauVoir: 1, niveauFaire: 1 },
   { cle: "/paie/saisie", libelle: "Récapitulatif salaires", categorie: "Paie", voir: "Consulter", faire: "Saisir le mois", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/paie/bulletins", libelle: "Bulletins du mois", categorie: "Paie", voir: "Consulter, imprimer, PDF", faire: "Générer et clôturer le mois", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/paie/liste", libelle: "Liste des salaires", categorie: "Paie", voir: "Consulter, imprimer", faire: null, niveauVoir: 4, niveauFaire: 4 },
