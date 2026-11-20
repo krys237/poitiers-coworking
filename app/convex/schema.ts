@@ -164,8 +164,6 @@ export default defineSchema({
      * reste pour ne pas réécrire l'historique des demandes déjà déposées.
      */
     chefs: v.optional(v.array(v.id("users"))),
-    // Responsable du service pour le routage des notifications (lot S6).
-    responsableId: v.optional(v.id("users")),
   }).index("by_nom", ["nom"]),
 
   // Référentiel des FONCTIONS (lot R10). `employes.fonction` était un champ texte libre, d'où

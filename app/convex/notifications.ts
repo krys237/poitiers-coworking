@@ -16,7 +16,7 @@ import {
   type Importance,
   type MembreAdressable,
 } from "./lib/notifications";
-import { serviceDeLObjet, responsableDuService } from "./lib/servicesNotifs";
+import { serviceDeLObjet, chefsDuService } from "./lib/servicesNotifs";
 import { droitsEffectifs, type Role } from "./rbac";
 
 const OBJET_V = v.object({
@@ -39,6 +39,8 @@ export type ArgsEmission = {
   acteurNom?: string;
   proprietaireId?: Id<"users">;
   destinatairesExplicites?: Id<"users">[];
+  /** Ignore `type.cible` (ex. ticket jugé non pertinent : seul l'auteur est prévenu, C1.1). */
+  ignorerCible?: boolean;
   /** Service rattaché à l'objet (lot S6) : `serviceId` prioritaire, sinon texte libre normalisé. */
   serviceId?: Id<"services">;
   serviceNom?: string;
@@ -73,6 +75,7 @@ export const emettre = internalMutation({
     acteurNom: v.optional(v.string()),
     proprietaireId: v.optional(v.id("users")),
     destinatairesExplicites: v.optional(v.array(v.id("users"))),
+    ignorerCible: v.optional(v.boolean()),
     serviceId: v.optional(v.id("services")),
     serviceNom: v.optional(v.string()),
     moduleSurcharge: v.optional(v.string()),
@@ -95,8 +98,8 @@ export const emettre = internalMutation({
       const surcharges = parametres?.droitsRoles ?? [];
       const utilisateurs = await ctx.db.query("users").collect();
 
-      // Lot S6 : résolution du responsable du service concerné en une seule lecture de `services`.
-      let serviceResponsableId: string | undefined;
+      // Lot S6 / correctif C1.3 : résolution des chefs du service en une seule lecture de `services`.
+      let serviceChefsIds: string[] = [];
       if (type.previentLeServiceConcerne && (a.serviceId || a.serviceNom)) {
         const services = await ctx.db.query("services").collect();
         const service = serviceDeLObjet(
@@ -104,11 +107,10 @@ export const emettre = internalMutation({
           services.map((s) => ({
             id: String(s._id),
             nom: s.nom,
-            responsableId: s.responsableId ? String(s.responsableId) : undefined,
             chefs: (s.chefs ?? []).map((c) => String(c)),
           })),
         );
-        serviceResponsableId = responsableDuService(service);
+        serviceChefsIds = chefsDuService(service);
       }
 
       const membres: MembreAdressable[] = utilisateurs.map((u) => ({
@@ -125,7 +127,8 @@ export const emettre = internalMutation({
           acteurId: a.acteurId ? String(a.acteurId) : undefined,
           acteurNom: a.acteurNom,
           proprietaireId: a.proprietaireId ? String(a.proprietaireId) : undefined,
-          serviceResponsableId,
+          serviceChefsIds,
+          ignorerCible: a.ignorerCible,
           destinatairesExplicites: a.destinatairesExplicites?.map((id) => String(id)),
           moduleSurcharge: a.moduleSurcharge,
           rendu: a.rendu,

@@ -1,8 +1,8 @@
-// Tests du routage par service (lot S6 — 10 cas).
+// Tests du routage par service (lot S6 + correctif C1.3 : services.chefs source unique).
 // Lancer : npm run test:servicesNotifs
 import { TYPE_PAR_CLE, destinataires, type MembreAdressable } from "../convex/lib/notifications.ts";
 import {
-  responsableDuService,
+  chefsDuService,
   serviceDeLObjet,
   serviceDuMembre,
   type ServiceRef,
@@ -15,7 +15,7 @@ function verifie(nom: string, cond: boolean) {
 }
 
 const SERVICES: ServiceRef[] = [
-  { id: "svc_labo", nom: "LABORATOIRE", responsableId: "resp_labo" },
+  { id: "svc_labo", nom: "LABORATOIRE", chefs: ["chef_labo_1", "chef_labo_2"] },
   { id: "svc_tech", nom: "TECHNIQUE", chefs: ["chef_tech"] },
   { id: "svc_vide", nom: "ADMIN" },
 ];
@@ -36,11 +36,18 @@ verifie("4. texte '  laboratoire ' rapproché de LABORATOIRE", serviceDeLObjet({
 // 5. Texte ne correspondant à aucun service → undefined, aucune erreur.
 verifie("5. texte inconnu → undefined", serviceDeLObjet({ service: "INCONNU" }, SERVICES) === undefined);
 
+// C1-12 & C1-13 : chefsDuService avec deux chefs / sans chef / service absent.
+const deuxChefs = chefsDuService(SERVICES[0]);
+verifie("C1-12. chefsDuService avec deux chefs renvoie les deux ids", deuxChefs.length === 2 && deuxChefs.includes("chef_labo_1") && deuxChefs.includes("chef_labo_2"));
+verifie("C1-13. chefsDuService sans chef renvoie []", chefsDuService(SERVICES[2]).length === 0);
+verifie("C1-13. chefsDuService avec service absent renvoie []", chefsDuService(undefined).length === 0);
+
 function construireEquipe(surcharges: SurchargeRole[] = []): MembreAdressable[] {
   const specs: { id: string; role: Role }[] = [
     { id: "comptable", role: "comptable" },
-    { id: "resp_labo", role: "comptable" }, // a /commandes:voir
-    { id: "resp_sans_droit", role: "employe" }, // n'a PAS /commandes:voir
+    { id: "chef_labo_1", role: "comptable" }, // a /commandes:voir
+    { id: "chef_labo_2", role: "comptable" }, // a /commandes:voir
+    { id: "chef_sans_droit", role: "employe" }, // n'a PAS /commandes:voir
     { id: "daf", role: "da1" },
     { id: "dg", role: "dg" },
   ];
@@ -54,71 +61,70 @@ function construireEquipe(surcharges: SurchargeRole[] = []): MembreAdressable[] 
 
 const equipe = construireEquipe();
 
-// 6. Responsable prévenu → présent dans les destinataires.
+// 6. Tous les chefs du service prévenus → présents dans les destinataires.
 const c6 = destinataires(
   TYPE_PAR_CLE["commande_soumise"],
   {
     type: "commande_soumise",
     acteurId: "comptable",
     proprietaireId: "comptable",
-    serviceResponsableId: responsableDuService(SERVICES[0]),
+    serviceChefsIds: chefsDuService(SERVICES[0]),
   },
   equipe,
 );
-verifie("6. responsable du service présent en plus des validateurs", c6.includes("resp_labo") && c6.includes("daf") && c6.includes("dg"));
+verifie("6. les deux chefs du service présents en plus des validateurs", c6.includes("chef_labo_1") && c6.includes("chef_labo_2") && c6.includes("daf") && c6.includes("dg"));
 
-// 7. Responsable SANS droit de voir le module → absent (invariant 2 tient).
+// 7 & C1-14. Chef de service SANS droit de voir le module → absent (invariant 2 tient).
 const c7 = destinataires(
   TYPE_PAR_CLE["commande_soumise"],
   {
     type: "commande_soumise",
     acteurId: "comptable",
     proprietaireId: "comptable",
-    serviceResponsableId: "resp_sans_droit",
+    serviceChefsIds: ["chef_sans_droit"],
   },
   equipe,
 );
-verifie("7. responsable sans droit voir sur /commandes exclu", !c7.includes("resp_sans_droit"));
+verifie("C1-14. chef de service sans droit voir sur /commandes exclu", !c7.includes("chef_sans_droit"));
 
-// 8. Responsable = acteur → absent (invariant 1 tient).
+// 8 & C1-15. Chef de service = acteur → absent (invariant 1 tient).
 const c8 = destinataires(
   TYPE_PAR_CLE["commande_soumise"],
   {
     type: "commande_soumise",
-    acteurId: "resp_labo",
-    proprietaireId: "resp_labo",
-    serviceResponsableId: "resp_labo",
+    acteurId: "chef_labo_1",
+    proprietaireId: "chef_labo_1",
+    serviceChefsIds: chefsDuService(SERVICES[0]),
   },
   equipe,
 );
-verifie("8. responsable = acteur exclu", !c8.includes("resp_labo"));
+verifie("C1-15. chef de service = acteur exclu, l'autre chef reste présent", !c8.includes("chef_labo_1") && c8.includes("chef_labo_2"));
 
-// 9. Responsable = propriétaire du dossier → une seule entrée (dédoublonnage).
+// 9 & C1-16. Chef de service = propriétaire du dossier → une seule entrée (dédoublonnage).
 const c9 = destinataires(
   TYPE_PAR_CLE["commande_validee"],
   {
     type: "commande_validee",
     acteurId: "dg",
-    proprietaireId: "resp_labo",
-    serviceResponsableId: "resp_labo",
+    proprietaireId: "chef_labo_1",
+    serviceChefsIds: chefsDuService(SERVICES[0]),
   },
   equipe,
 );
-verifie("9. responsable = propriétaire dédoublonné", c9.filter((x) => x === "resp_labo").length === 1);
+verifie("C1-16. chef de service = propriétaire dédoublonné", c9.filter((x) => x === "chef_labo_1").length === 1);
 
-// 10. Service sans responsable → aucun ajout, aucune erreur.
-verifie("10. service sans responsable → undefined", responsableDuService(SERVICES[2]) === undefined);
+// 10. Service sans chef → aucun ajout, aucune erreur.
 const c10 = destinataires(
   TYPE_PAR_CLE["commande_soumise"],
   {
     type: "commande_soumise",
     acteurId: "comptable",
     proprietaireId: "comptable",
-    serviceResponsableId: responsableDuService(SERVICES[2]),
+    serviceChefsIds: chefsDuService(SERVICES[2]),
   },
   equipe,
 );
-verifie("10. aucun ajout ni erreur si service sans responsable", c10.includes("daf") && c10.includes("dg"));
+verifie("10. aucun ajout ni erreur si service sans chef", c10.includes("daf") && c10.includes("dg"));
 
 console.log(`servicesNotifs : ${ok} contrôles OK, ${ko} échec(s)`);
 if (ko) process.exit(1);

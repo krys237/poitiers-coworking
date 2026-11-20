@@ -174,9 +174,8 @@ export const enregistrer = mutation({
     couleur: v.optional(v.string()),
     actif: v.optional(v.boolean()),
     chefs: v.optional(v.array(v.id("users"))),
-    responsableId: v.optional(v.id("users")),
   },
-  handler: async (ctx, { id, nom, couleur, actif, chefs, responsableId }) => {
+  handler: async (ctx, { id, nom, couleur, actif, chefs }) => {
     await requireDroit(ctx, "/paie/planning", "faire");
     const propre = normaliser(nom);
     if (!propre) throw new Error("Le nom du service est obligatoire.");
@@ -208,7 +207,6 @@ export const enregistrer = mutation({
         couleur: couleur ?? s.couleur,
         actif: actif ?? s.actif,
         chefs: chefs ?? s.chefs,
-        ...(responsableId !== undefined ? { responsableId } : {}),
       });
       return { id, cree: false };
     }
@@ -220,7 +218,6 @@ export const enregistrer = mutation({
       ordre,
       actif: actif ?? true,
       chefs: chefs ?? [],
-      ...(responsableId !== undefined ? { responsableId } : {}),
     });
     return { id: nouveau, cree: true };
   },

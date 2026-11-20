@@ -1,4 +1,4 @@
-// Logique pure du routage par service (lot S6).
+// Logique pure du routage par service (lot S6, correctif C1.3).
 // PUR : aucun import serveur, 100 % testable isolément.
 
 /** Normalisation alignée sur `convex/services.ts` : trim, espaces réduits, majuscules. */
@@ -9,7 +9,6 @@ export function normaliserNomService(nom: string | undefined | null): string {
 export type ServiceRef = {
   id: string;
   nom: string;
-  responsableId?: string;
   chefs?: string[];
 };
 
@@ -44,11 +43,12 @@ export function serviceDeLObjet(
 }
 
 /**
- * Responsable du service à notifier (spec S6 §3.2).
- * Utilise `responsableId` en priorité, avec repli sur le premier chef (`chefs[0]`) déjà
- * présent dans le référentiel des services.
+ * Chefs du service à notifier (correctif C1.3).
+ *
+ * `services.chefs` est la source unique : un ou deux chefs, référencés comme identités.
+ * On notifie TOUS les chefs — le schéma en prévoit deux, et n'en prévenir qu'un ferait
+ * dépendre le routage de l'ordre d'un tableau.
  */
-export function responsableDuService(service: ServiceRef | undefined): string | undefined {
-  if (!service) return undefined;
-  return service.responsableId ?? service.chefs?.[0] ?? undefined;
+export function chefsDuService(service: ServiceRef | undefined): string[] {
+  return service?.chefs?.filter(Boolean) ?? [];
 }

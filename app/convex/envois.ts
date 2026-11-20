@@ -4,7 +4,7 @@
 import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
-import { TYPE_PAR_CLE, type ContexteRendu } from "./lib/notifications";
+import { TYPE_PAR_CLE, canauxPour, type ContexteRendu } from "./lib/notifications";
 import {
   REPRISES_MS,
   avancerStatut,
@@ -66,8 +66,11 @@ export const preparer = internalMutation({
       // Les préférences ne retirent pas la ligne d'historique, mais coupent les canaux sortants (S2 §6).
       if ((user.notifsSilencieuses ?? []).includes(type.cle)) continue;
 
+      // Couture C1.4 : résolution des canaux sortants par type et par membre.
+      const canaux = canauxPour(type, { id: String(destinataireId) });
+
       // 1. Canal WhatsApp (lot S3)
-      if (type.canaux.includes("whatsapp") && type.whatsapp) {
+      if (canaux.includes("whatsapp") && type.whatsapp) {
         let telephone = user.phone?.trim();
         if (!telephone && user.employeId) {
           const fiche = await ctx.db.get(user.employeId);
@@ -109,7 +112,7 @@ export const preparer = internalMutation({
       }
 
       // 2. Canal Push système Firebase (lot S4)
-      if (type.canaux.includes("push")) {
+      if (canaux.includes("push")) {
         const appareils = await ctx.db
           .query("appareils")
           .withIndex("by_membre", (q) => q.eq("membreId", destinataireId))

@@ -1,7 +1,8 @@
-// Catalogue, adressage et préférences des notifications (lots S1 & S2).
+// Catalogue, adressage, préférences et tickets (lots S1, S2 & correctifs C1.1 / C1.2).
 // Lancer : npm run test:notifications
 import { MODULE_PAR_CLE, droitsEffectifs, type Role, type SurchargeRole } from "../convex/rbac.ts";
 import {
+  CLES_S1,
   TYPES,
   TYPE_PAR_CLE,
   destinataires,
@@ -26,6 +27,7 @@ function construireEquipe(surcharges: SurchargeRole[] = []): MembreAdressable[] 
     { id: "rh", role: "gestionnaire_rh" },
     { id: "daf", role: "da1" },
     { id: "dg", role: "dg" },
+    { id: "dev", role: "super_admin" },
     { id: "inactif", role: "dg", actif: false },
     { id: "attente", role: "da1", actif: false, enAttente: true },
   ];
@@ -68,6 +70,7 @@ const c3 = destinataires(
 verifie("3. commande_validee : propriétaire (comptable) présent", c3.includes("comptable"));
 verifie("3. commande_validee : acteur (DG) absent", !c3.includes("dg"));
 
+// Cas 4 & C1.2-8 : intervention_creee avec portee en liste → comportement inchangé.
 const c4 = destinataires(
   TYPE_PAR_CLE["intervention_creee"],
   { type: "intervention_creee", acteurId: "emp1", proprietaireId: "emp1" },
@@ -129,7 +132,8 @@ const c11 = destinataires(
 );
 verifie("11. cible null sans propriétaire → liste vide", c11.length === 0);
 
-verifie("12. catalogue compte 20 types (13 S1 + 6 S5 + 1 S7)", TYPES.length === 20);
+// 12 & C1-11 : catalogue compte 23 types (16 S1 + 6 S5 + 1 S7), rendre sans undefined.
+verifie("12. catalogue compte 23 types (16 S1 + 6 S5 + 1 S7)", TYPES.length === 23);
 for (const t of TYPES) {
   const { titre, corps } = rendre(t, {
     reference: "CMD-2026-001",
@@ -144,15 +148,17 @@ for (const t of TYPES) {
   verifie(`12. rendre(${t.cle}, {}) : titre sans undefined`, vide.titre.length > 0 && !vide.titre.includes("undefined"));
 }
 
+// 13 & C1-9 / C1-10 : clés uniques, CLES_S1 à 16 entrées, chaque entrée de portee dans MODULE_PAR_CLE.
 const cles = new Set(TYPES.map((t) => t.cle));
 verifie("13. toutes les clés de TYPES sont uniques", cles.size === TYPES.length);
+verifie("C1-9. CLES_S1 compte 16 entrées uniques", CLES_S1.length === 16 && new Set(CLES_S1).size === 16);
 for (const t of TYPES) {
   verifie(`13. module ${t.module} existe dans MODULE_PAR_CLE`, Boolean(MODULE_PAR_CLE[t.module]));
   if (t.cible) {
     verifie(`13. cible.module ${t.cible.module} existe dans MODULE_PAR_CLE`, Boolean(MODULE_PAR_CLE[t.cible.module]));
   }
-  if (t.portee) {
-    verifie(`13. portee ${t.portee} existe dans MODULE_PAR_CLE`, Boolean(MODULE_PAR_CLE[t.portee]));
+  for (const d of t.portee ?? []) {
+    verifie(`C1-10. portee ${d} de ${t.cle} existe dans MODULE_PAR_CLE`, Boolean(MODULE_PAR_CLE[d]));
   }
 }
 
@@ -172,6 +178,72 @@ const vOk = validerPreferencesSilencieuses(["commande_commentaire", "commande_co
 verifie("S2. clés connues acceptées et dédoublonnées", vOk.ok && vOk.normalisees.length === 1);
 const vKo = validerPreferencesSilencieuses(["commande_commentaire", "type_inexistant"]);
 verifie("S2. clé inconnue refusée", !vKo.ok && vKo.inconnues.includes("type_inexistant"));
+
+// C1.1 & C1.2 — Tickets (cas 1 à 8 de C1-CORRECTIFS.md)
+const equipeTickets = construireEquipe([
+  // Donne uniquement `/tickets/traitement` (sans `/tickets/arbitrage`) au chef d'équipe pour tester le OU de `portee`.
+  { role: "chef_equipe", module: "/tickets/traitement", voir: true, faire: true },
+]);
+
+// C1-1, C1-2, C1-3, C1-4 : ticket_ouvert
+const tOuvert = destinataires(
+  TYPE_PAR_CLE["ticket_ouvert"],
+  {
+    type: "ticket_ouvert",
+    acteurId: "emp1",
+    proprietaireId: "emp1",
+    destinatairesExplicites: ["emp2", "chef"],
+  },
+  equipeTickets,
+);
+verifie("C1-1. ticket_ouvert : membre n'ayant que /tickets (emp2) absent", !tOuvert.includes("emp2"));
+verifie("C1-2. ticket_ouvert : membre ayant /tickets/arbitrage (dg) présent", tOuvert.includes("dg"));
+verifie("C1-3. ticket_ouvert : membre ayant /tickets/traitement seul (chef) présent (portee OU)", tOuvert.includes("chef"));
+verifie("C1-4. ticket_ouvert : auteur (emp1) absent (invariant 1)", !tOuvert.includes("emp1"));
+
+// C1-5 : ticket_arbitre avec ignorerCible: true (non pertinent) → seul l'auteur, pas le traitement technique.
+const tRefuse = destinataires(
+  TYPE_PAR_CLE["ticket_arbitre"],
+  {
+    type: "ticket_arbitre",
+    acteurId: "dg",
+    proprietaireId: "emp1",
+    ignorerCible: true,
+  },
+  equipeTickets,
+);
+verifie("C1-5. ticket_arbitre (ignorerCible=true) : seul l'auteur, pas le traitement", tRefuse.length === 1 && tRefuse[0] === "emp1");
+
+// C1-6 : ticket_arbitre sans ignorerCible (pertinent) → auteur ET traitement technique.
+const tPertinent = destinataires(
+  TYPE_PAR_CLE["ticket_arbitre"],
+  {
+    type: "ticket_arbitre",
+    acteurId: "dg",
+    proprietaireId: "emp1",
+  },
+  equipeTickets,
+);
+verifie("C1-6. ticket_arbitre (pertinent) : auteur et traitement présents", tPertinent.includes("emp1") && tPertinent.includes("dev") && tPertinent.includes("chef") && !tPertinent.includes("dg"));
+
+// C1-7 : ticket_avance → seul l'auteur du ticket.
+const tAvance = destinataires(
+  TYPE_PAR_CLE["ticket_avance"],
+  {
+    type: "ticket_avance",
+    acteurId: "dev",
+    proprietaireId: "emp1",
+  },
+  equipeTickets,
+);
+verifie("C1-7. ticket_avance : seul l'auteur du ticket", tAvance.length === 1 && tAvance[0] === "emp1");
+
+// Vérification explicite : aucun canal WhatsApp/push sur les 3 types de tickets.
+verifie("C1.1. pas de canaux sortants sur les 3 types de tickets",
+  !TYPE_PAR_CLE["ticket_ouvert"].canaux &&
+  !TYPE_PAR_CLE["ticket_arbitre"].canaux &&
+  !TYPE_PAR_CLE["ticket_avance"].canaux,
+);
 
 console.log(`notifications : ${ok} contrôles OK, ${ko} échec(s)`);
 if (ko) process.exit(1);

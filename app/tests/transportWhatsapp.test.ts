@@ -2,7 +2,7 @@ import { webcrypto } from "node:crypto";
 if (!globalThis.crypto) (globalThis as any).crypto = webcrypto;
 // Tests du transport sortant et du hub WhatsApp (lot S3) — 100 % pur, sans réseau.
 // Lancer : npm run test:transport
-import { CLES_S1, TYPE_PAR_CLE } from "../convex/lib/notifications.ts";
+import { CLES_S1, TYPE_PAR_CLE, canauxPour } from "../convex/lib/notifications.ts";
 import {
   MOTIF_VIDE_REPLI,
   avancerStatut,
@@ -96,6 +96,15 @@ verifie("8. étalement 3 → 3600 ms", delaiEtalementMs(3) === 3600);
 verifie("9. lu puis delivre reste lu", avancerStatut("lu", "delivre") === "lu");
 verifie("9. accepte puis delivre avance à delivre", avancerStatut("accepte", "delivre") === "delivre");
 verifie("9. echec est final", avancerStatut("echec", "lu") === "echec");
+
+// C1.4 — Couture canauxPour (cas 17 et 18 de C1-CORRECTIFS.md)
+verifie("C1-17. canauxPour sur un type sans canaux renvoie []", canauxPour(TYPE_PAR_CLE["ticket_ouvert"], { id: "u1" }).length === 0);
+const canauxCmd = canauxPour(TYPE_PAR_CLE["commande_soumise"], { id: "u1" });
+const canauxCmd2 = canauxPour(TYPE_PAR_CLE["commande_soumise"], { id: "u2" });
+verifie(
+  "C1-18. canauxPour sur un type à deux canaux renvoie les deux quel que soit le membre",
+  canauxCmd.length === 2 && canauxCmd.includes("whatsapp") && canauxCmd.includes("push") && canauxCmd2.length === 2,
+);
 
 // 10. Vérification de signature HMAC-SHA256 : corps modifié d'un octet refusé.
 async function testerSignature() {

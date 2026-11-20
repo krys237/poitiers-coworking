@@ -42,11 +42,14 @@ export type TypeEvenement = {
   /** Le responsable du service concerné par l'objet est-il prévenu ? (lot S6) */
   previentLeServiceConcerne?: boolean;
   /**
-   * Portée par objet : sans CE droit, l'objet n'est visible que de son propriétaire.
-   * Encode la décision du 13/10/2026 sur les interventions. Absent = objet visible de
-   * tous ceux qui ont `module` en Voir.
+   * Portée par objet : sans AU MOINS UN de ces droits, l'objet n'est visible que de son
+   * propriétaire. Encode la décision du 13/10/2026 sur les interventions, et le périmètre
+   * « ses propres tickets » de `/tickets`.
+   *
+   * C'est une LISTE parce que deux droits distincts peuvent ouvrir la vue d'ensemble :
+   * un ticket est visible en entier par l'arbitrage OU par le traitement technique.
    */
-  portee?: string;
+  portee?: string[];
   /** Canaux sortants actifs pour ce type (S3 WhatsApp, S4 Push). */
   canaux?: Canal[];
   /** Modèle WhatsApp et construction de ses paramètres, si le type part sur WhatsApp (S3). */
@@ -155,7 +158,7 @@ export const TYPES: TypeEvenement[] = [
     cible: { module: "/interventions", action: "faire" },
     previentLeProprietaire: false,
     previentLeServiceConcerne: true,
-    portee: "/interventions/toutes",
+    portee: ["/interventions/toutes"],
     canaux: ["whatsapp", "push"],
     whatsapp: {
       modele: "poitiers_intervention_a_arbitrer",
@@ -176,7 +179,7 @@ export const TYPES: TypeEvenement[] = [
     cible: null,
     previentLeProprietaire: true,
     previentLeServiceConcerne: true,
-    portee: "/interventions/toutes",
+    portee: ["/interventions/toutes"],
     canaux: ["whatsapp", "push"],
     whatsapp: {
       modele: "poitiers_intervention_suite",
@@ -197,7 +200,7 @@ export const TYPES: TypeEvenement[] = [
     cible: null,
     previentLeProprietaire: true,
     previentLeServiceConcerne: true,
-    portee: "/interventions/toutes",
+    portee: ["/interventions/toutes"],
     titre: (c) => `Intervention ${c.reference ?? ""} clôturée`.replace(/\s+/g, " ").trim(),
   },
   {
@@ -207,7 +210,7 @@ export const TYPES: TypeEvenement[] = [
     importance: "info",
     cible: null,
     previentLeProprietaire: true,
-    portee: "/interventions/toutes",
+    portee: ["/interventions/toutes"],
     titre: (c) => `Commentaire sur l'intervention ${c.reference ?? ""}`.replace(/\s+/g, " ").trim(),
     corps: (c) => (c.acteurNom ? `${c.acteurNom} : ${c.extrait ?? ""}`.trim() : c.extrait),
   },
@@ -263,6 +266,44 @@ export const TYPES: TypeEvenement[] = [
     cible: { module: "/membres", action: "faire" },
     previentLeProprietaire: false,
     titre: (c) => `Compte à autoriser : ${c.libelle ?? ""}`.trim(),
+  },
+
+  // ---------------- Tickets (retours d'usage de la plateforme — correctif C1.1) ----------------
+  {
+    cle: "ticket_ouvert",
+    libelle: "Ticket ouvert",
+    module: "/tickets",
+    importance: "a_traiter",
+    cible: { module: "/tickets/arbitrage", action: "faire" },
+    previentLeProprietaire: false,
+    // Deux droits ouvrent la vue d'ensemble : l'arbitrage et le traitement technique.
+    portee: ["/tickets/arbitrage", "/tickets/traitement"],
+    titre: (c) => `Nouveau ticket : ${c.libelle ?? ""}`.trim(),
+    corps: (c) => (c.acteurNom ? `Ouvert par ${c.acteurNom}` : undefined),
+  },
+  {
+    cle: "ticket_arbitre",
+    libelle: "Pertinence d'un ticket jugée",
+    module: "/tickets",
+    importance: "info",
+    // Jugé pertinent : le traitement technique doit le savoir. Jugé NON pertinent :
+    // seul l'auteur est concerné — l'émetteur passe `ignorerCible: true`.
+    cible: { module: "/tickets/traitement", action: "faire" },
+    previentLeProprietaire: true,
+    portee: ["/tickets/arbitrage", "/tickets/traitement"],
+    titre: (c) => `Ticket ${c.libelle ?? ""} : ${c.motif ? "refusé" : "jugé pertinent"}`.trim(),
+    corps: (c) => c.motif,
+  },
+  {
+    cle: "ticket_avance",
+    libelle: "État d'un ticket modifié",
+    module: "/tickets",
+    importance: "info",
+    cible: null, // seul l'auteur du ticket
+    previentLeProprietaire: true,
+    portee: ["/tickets/arbitrage", "/tickets/traitement"],
+    titre: (c) => `Ticket ${c.libelle ?? ""} : ${c.extrait ?? "état modifié"}`.trim(),
+    corps: (c) => c.motif,
   },
 
   // ---------------- Rappels automatiques (lot S5) ----------------
@@ -380,6 +421,9 @@ export const CLES_S1 = [
   "cr_valide",
   "document_adresse",
   "compte_en_attente",
+  "ticket_ouvert",
+  "ticket_arbitre",
+  "ticket_avance",
 ] as const;
 
 /** Ce que l'émetteur sait de l'événement en cours. */
@@ -388,7 +432,9 @@ export type Evenement = {
   acteurId?: string;                  // qui a agi (absent sur inscription / cron)
   acteurNom?: string;
   proprietaireId?: string;            // créateur du dossier (commandes.creePar, …)
-  serviceResponsableId?: string;      // responsable du service concerné (lot S6)
+  serviceChefsIds?: string[];         // chefs du service concerné (lot S6, correctif C1.3)
+  /** Ignore `type.cible` à l'émission (ex. ticket jugé non pertinent : auteur seul, C1.1). */
+  ignorerCible?: boolean;
   destinatairesExplicites?: string[]; // documents nominatifs, rappels ciblés S5
   /** Surcharge de module pour un type polymorphe (ex. rappel_dossier_en_attente). */
   moduleSurcharge?: string;
@@ -419,16 +465,16 @@ export function destinataires(
   const moduleEffectif = e.moduleSurcharge ?? type.module;
 
   // 1. Par droit — l'adressage normal, déduit de la matrice du DG.
-  if (type.cible) {
+  if (type.cible && !e.ignorerCible) {
     for (const m of membres) {
       if (m.droits[type.cible.module]?.[type.cible.action]) retenus.add(m.id);
     }
   }
   // 2. Le propriétaire du dossier, s'il suit cet événement.
   if (type.previentLeProprietaire && e.proprietaireId) retenus.add(e.proprietaireId);
-  // 2 bis. Le responsable du service concerné par le dossier (lot S6).
-  if (type.previentLeServiceConcerne && e.serviceResponsableId) {
-    retenus.add(e.serviceResponsableId);
+  // 2 bis. Les chefs du service concerné par le dossier (lot S6, correctif C1.3).
+  if (type.previentLeServiceConcerne) {
+    for (const id of e.serviceChefsIds ?? []) retenus.add(id);
   }
   // 3. Les destinataires nominatifs (documents, rappels ciblés).
   for (const id of e.destinatairesExplicites ?? []) retenus.add(id);
@@ -441,8 +487,9 @@ export function destinataires(
     const m = parId.get(id);
     if (!m || !m.actif || m.enAttente) return false;
     if (!m.droits[moduleEffectif]?.voir) return false;
-    // Portée par objet : sans le droit d'ensemble, on ne voit que son propre dossier.
-    if (type.portee && !m.droits[type.portee]?.voir && id !== e.proprietaireId) return false;
+    // Portée par objet : sans AUCUN des droits d'ensemble, on ne voit que son propre dossier.
+    if (type.portee?.length && id !== e.proprietaireId
+        && !type.portee.some((d) => m.droits[d]?.voir)) return false;
     return true;
   });
 }
@@ -499,4 +546,21 @@ export function importanceDominante(
     }
   }
   return max;
+}
+
+// ---------------- Couture de sélection des canaux (correctif C1.4) ----------------
+
+/**
+ * Canaux sortants retenus pour ce type et ce membre.
+ *
+ * Aujourd'hui : les canaux déclarés par le type, sans condition. Les canaux ne se
+ * substituent PAS l'un à l'autre — un membre sans appareil capable de recevoir un push
+ * (iPhone sans PWA installée, permission refusée, jeton périmé sans qu'on le sache) n'aurait
+ * plus AUCUN canal hors application si WhatsApp dépendait de l'absence de push.
+ *
+ * Le paramètre `membre` n'est pas encore utilisé : il est là pour qu'un réglage futur
+ * n'exige pas de rouvrir `envois.ts`.
+ */
+export function canauxPour(type: TypeEvenement, _membre?: { id: string }): Canal[] {
+  return type.canaux ?? [];
 }
