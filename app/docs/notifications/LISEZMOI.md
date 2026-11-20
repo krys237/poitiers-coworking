@@ -141,11 +141,31 @@ qui poussent depuis deux branches écrasent mutuellement leur schéma.
 - `npx convex dev` ne doit tourner que dans **un seul dossier à la fois** (deux instances se
   poussent en boucle l'une sur l'autre).
 - **Les sept lots modifient `convex/schema.ts`** (nouvelle table ou nouveau champ optionnel).
-  Avant de pousser un changement de schéma, **demande la fenêtre** : le chantier `rh` a
-  souvent du travail en cours.
 - Ajouter une table est **additif** : aucune migration, aucun risque sur l'existant. C'est le
   cas de tous les changements de schéma de ce programme. Ne renomme ni ne supprime **jamais**
   un champ existant sans consigne écrite.
+
+### La procédure de poussée du schéma, à suivre à la lettre
+
+Le danger n'est pas le contenu du changement, c'est la **concurrence** : un `deploy` parti de
+`notif` écrase le schéma de `rh`, et inversement. D'où ces quatre étapes, à chaque lot qui
+touche `schema.ts` :
+
+1. **Vérifie que personne n'a de travail en cours** :
+   ```bash
+   git worktree list                              # qui occupe quoi
+   git -C ../poitiers-coworking-rh status --short  # doit être VIDE
+   ```
+2. **Reporte `dev` sur `notif`** (`git merge dev`) pour partir du schéma le plus à jour.
+   Si `rh` a été fusionné dans `dev` entre-temps, c'est ainsi que tu récupères ses tables.
+3. **Annonce la poussée** au propriétaire et attends son accord. C'est lui qui sait si un
+   autre chantier est en vol.
+4. **Après la poussée**, dis-le : l'autre chantier doit reporter `dev` avant son prochain
+   `deploy`.
+
+> **État au 6 novembre 2026** : l'arbre `rh` est **propre** (commit `cf5b265`, rien en cours).
+> La fenêtre est donc ouverte — c'est le bon moment pour pousser le schéma de S1. Revérifie
+> quand même avec les commandes de l'étape 1 : cette note vieillira.
 
 ### Secrets
 
@@ -343,6 +363,8 @@ Un lot n'est livré que si **tout** ceci est vrai :
 |---|---|
 | Ordre des lots, dépendances, délais externes | `PROGRAMME.md` |
 | Spécifications | `S1-NOYAU.md` … `S7-PENSE-BETE.md` |
+| Démarches du propriétaire (hub, Firebase) — **pas de ton ressort** | `DEMARCHES-EXTERNES.md` |
+| Dépôt et suivi des modèles WhatsApp | `outils/deposer-modeles.mjs` |
 | Contrat d'API du hub WhatsApp | `reference/HUB-WHATSAPP-API.md` |
 | Guide technique du dépôt | `app/CLAUDE.md` |
 | Journal des décisions du propriétaire (daté) | `app/DECISIONS.md` |

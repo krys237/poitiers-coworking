@@ -170,7 +170,27 @@ Détection : `window.matchMedia("(display-mode: standalone)").matches`, ou
 > **Dis-le au propriétaire sans l'enjoliver** : sur les iPhone de l'effectif, le push
 > n'arrivera qu'après installation manuelle de la PWA, appareil par appareil. C'est une
 > limite d'Apple, pas un défaut d'implémentation. Sur Android et Chrome, ça fonctionne sans
-> cette contrainte. C'est aussi ce qui rend le canal WhatsApp de S3 précieux.
+> cette contrainte.
+
+### Ce que ça impose à la politique de canal
+
+**Le push ne remplace jamais WhatsApp.** La règle est posée dans `S3-HUB-WHATSAPP.md` §7 et
+tu dois la respecter ici : un type `a_traiter` ou `urgent` part sur WhatsApp **même si** le
+destinataire a un appareil capable de recevoir un push. Les deux canaux sont indépendants.
+
+La raison est concrète : si WhatsApp ne partait qu'en l'absence de push, un membre dont le
+jeton est périmé sans qu'on le sache — ou qui a désinstallé la PWA — se retrouverait sans
+**aucun** canal hors application, silencieusement. C'est exactement le genre de panne qu'on ne
+découvre qu'après avoir manqué une validation urgente.
+
+**Ce qui est en revanche attendu de ce lot** : rendre visible qui est joignable. L'écran de
+préférences affiche, pour chaque membre, ses appareils enregistrés ; et une colonne « Push »
+dans l'écran Membres dit qui n'en a aucun. Le propriétaire peut alors aller voir les
+intéressés, plutôt que de le découvrir par un dossier bloqué.
+
+Si, plus tard, il veut économiser des messages WhatsApp pour les membres réellement joignables
+en push, ce sera un **réglage** à ajouter — pas une réécriture, puisque `canauxPour(type,
+membre)` reçoit déjà le membre.
 
 ---
 

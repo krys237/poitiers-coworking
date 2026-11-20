@@ -114,6 +114,12 @@ seule.
 Deux lots dépendent de démarches qui ne sont pas du code et qui prennent du temps. **Elles
 doivent partir avant que le développement du lot concerné commence**, sinon le lot attend.
 
+> **Le mode opératoire complet est dans `DEMARCHES-EXTERNES.md`** : le message à envoyer à
+> l'administrateur du hub, les commandes `convex env set`, le parcours Firebase écran par
+> écran, et l'outil `outils/deposer-modeles.mjs` qui dépose les huit modèles et suit leur
+> approbation. **Ces deux démarches sont à la charge du propriétaire, pas de l'agent** :
+> elles exigent des identifiants et la création de comptes externes.
+
 ### Pour S3 — les modèles WhatsApp (jusqu'à 24 h de revue Meta, par modèle)
 
 Le hub **n'envoie que des modèles approuvés par Meta. Le texte libre n'est pas supporté.**

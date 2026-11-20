@@ -305,6 +305,34 @@ Partent sur WhatsApp **uniquement** les types dont l'importance est `a_traiter` 
 pour le i-ème destinataire d'un même événement. À 50 envois par minute maximum, on reste sous
 le plafond du hub même en pleine rafale. **Ne lance jamais une rafale sans décalage.**
 
+### WhatsApp est le filet de sécurité des appareils sans push
+
+Une règle à implémenter **dès ce lot**, même si S4 n'existe pas encore.
+
+Sur iPhone, le push système n'arrive **que si la PWA est installée sur l'écran d'accueil**
+(limite d'Apple, voir `S4-FIREBASE-PUSH.md` §5). Beaucoup de membres ne l'installeront jamais.
+Pour eux, le push ne remplacera donc jamais rien : **WhatsApp est leur seul canal hors
+application.**
+
+Conséquence sur la politique : pour un type `a_traiter` ou `urgent`, l'envoi WhatsApp **n'est
+jamais désactivé au motif que le push existe**. Les deux canaux sont indépendants, et aucun ne
+sert de repli conditionnel à l'autre.
+
+Écris cette règle dans une fonction pure `canauxPour(type, membre)` de
+`lib/notifications.ts` :
+
+```ts
+// Les canaux ne se substituent pas l'un à l'autre : un membre sans appareil capable de
+// recevoir un push (iPhone sans PWA installée, navigateur ayant refusé la permission)
+// n'aurait plus AUCUN canal hors application si WhatsApp dépendait de l'absence de push.
+// D'où la règle : WhatsApp part selon le type et les préférences, jamais selon les appareils.
+```
+
+En S3, `membre` n'est pas encore utilisé — mais la signature est en place, et S4 n'aura rien à
+rouvrir. C'est aussi ce qui permettra au propriétaire, plus tard, de décider d'économiser des
+messages WhatsApp pour les membres réellement joignables en push : ce sera un **réglage**, pas
+une réécriture.
+
 ### Interrupteur et réglages
 
 Ajoute dans `convex/lib/reglages.ts` (et à `REGLAGES_DEFAUT`, à **`false`**) :
@@ -387,19 +415,41 @@ manquant.
 
 ---
 
-## 10. La migration du courrier de paie — en dernier, et prudemment
+## 10. Le courrier de paie reste sur UltraMsg — et ce n'est pas un oubli
 
 `convex/paiePdf.ts` appelle UltraMsg **en dur** (`envoyerWhatsapp`, ligne ~233) pour envoyer
-les bulletins. C'est exactement ce que l'interface `Transport` est censée empêcher.
+les bulletins, avec le **PDF en pièce jointe**. C'est exactement ce que l'interface
+`Transport` est censée empêcher, et on pourrait croire qu'il suffit de substituer l'appel.
 
-**Ne t'en occupe qu'une fois tout le reste de S3 livré et stable.** Et sache ceci avant de
-commencer : le courrier de paie envoie un **PDF en pièce jointe**, alors que le hub n'envoie
-que des **modèles de texte**. Ce n'est donc pas une simple substitution d'appel — il faut
-d'abord savoir ce que le hub permet pour les documents.
+**Non. Le hub ne sait pas envoyer de document.** Vérifié dans tout le contrat d'API
+(`reference/HUB-WHATSAPP-API.md`) : les modèles n'acceptent qu'un `header` **texte** de
+60 caractères, un `body`, un `footer` et des boutons ; les paramètres d'envoi sont
+exclusivement `{"type": "text", "text": "…"}`. Aucun type `document`, `image` ou `media`
+n'existe. Le §13 confirme par ailleurs que les messages libres ne sont pas supportés.
 
-**Action attendue de ta part** : poser la question au propriétaire, et **ne rien migrer tant
-que la réponse n'est pas là**. Signale-le comme un point ouvert. Le courrier de paie continue
-de fonctionner par UltraMsg pendant ce temps : il n'est pas cassé.
+**Donc : ne migre pas le courrier de paie dans ce lot, ni dans aucun autre, en l'état.** Il
+continue de fonctionner par UltraMsg. Il n'est pas cassé, et le laisser est la bonne décision
+tant que le hub ne porte pas de document.
+
+### Ce qui est faisable, et qui tranche
+
+Trois options, toutes à l'arbitrage du **propriétaire** — tu ne choisis pas à sa place :
+
+1. **Statu quo** : le bulletin part par UltraMsg (WhatsApp, PDF joint) et par Resend
+   (e-mail, PDF joint). Les notifications passent par le hub. Deux fournisseurs WhatsApp
+   coexistent — inélégant, mais ça fonctionne et ça ne coûte rien.
+2. **Demander au hub de porter les documents.** La question a été posée à l'administrateur
+   (voir `DEMARCHES-EXTERNES.md` §1.1). Si la réponse est oui, la migration redevient une
+   substitution d'appel derrière l'interface `Transport`, et UltraMsg disparaît.
+3. **Un modèle de notification + l'e-mail pour le PDF** : le hub envoie « votre bulletin de
+   *{{1}}* est disponible », et le PDF part par Resend, qui marche déjà. Cela supprime
+   UltraMsg sans attendre le hub, **mais** prive du bulletin les employés sans e-mail — et
+   beaucoup n'en ont pas, c'est précisément la raison d'être du canal WhatsApp
+   (décision du 13/10/2026). À ne retenir que si le propriétaire l'accepte en connaissance de
+   cause.
+
+**Ce que tu fais** : rien sur `paiePdf.ts`, et tu signales ce point au propriétaire avec ces
+trois options quand tu livres S3.
 
 ---
 
