@@ -1,4 +1,4 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireDroit, requireUnDesDroits } from "./lib/authz";
 import { lireReglages } from "./parametres";
@@ -575,5 +575,51 @@ export const echeancesContrats = query({
       resume: resumerEcheances(liste),
       libelles: LIBELLE_CADENCE,
     };
+  },
+});
+
+/**
+ * Retire des fiches employés importées par erreur, désignées par leur matricule.
+ *
+ * `internalMutation` : elle s'appelle depuis le CLI, sous le regard de l'agent de déploiement.
+ * Supprimer quatre-vingts fiches ne doit pas être à portée de clic.
+ *
+ * Elle REFUSE toute fiche qui a déjà servi — saisie mensuelle, bulletin, ou compte de connexion
+ * rattaché — plutôt que d'emporter un historique de paie, et rend compte de chaque refus avec sa
+ * raison. Les rattachements de société, eux, n'existent que par la fiche : ils partent avec elle,
+ * sinon ils resteraient orphelins et `rattachementsEffectifs` lirait une référence morte.
+ *
+ * Posée le 23/11/2026. Un import de production portait des matricules numériques (« 1 », « 2 »…)
+ * que le fichier définitif remplace par « PP1 », « PP2 »… Le matricule étant la clé de
+ * reconnaissance, un second import aurait créé des doublons au lieu de mettre à jour.
+ */
+export const supprimerFichesImportees = internalMutation({
+  args: { matricules: v.array(v.string()) },
+  handler: async (ctx, { matricules }) => {
+    const supprimees: string[] = [];
+    const refusees: { matricule: string; raison: string }[] = [];
+    let rattachementsSupprimes = 0;
+    const membres = await ctx.db.query("users").collect();
+
+    for (const brut of matricules) {
+      const matricule = brut.trim();
+      const fiche = await ctx.db.query("employes").withIndex("by_matricule", (q) => q.eq("matricule", matricule)).unique();
+      if (!fiche) { refusees.push({ matricule, raison: "aucune fiche à ce matricule" }); continue; }
+
+      const saisie = await ctx.db.query("saisiesMensuelles").withIndex("by_employe_periode", (q) => q.eq("employeId", fiche._id)).first();
+      if (saisie) { refusees.push({ matricule, raison: `porte une saisie mensuelle (${saisie.periode})` }); continue; }
+      const bulletin = await ctx.db.query("bulletins").withIndex("by_employe_periode", (q) => q.eq("employeId", fiche._id)).first();
+      if (bulletin) { refusees.push({ matricule, raison: `porte un bulletin (${bulletin.periode})` }); continue; }
+      const membre = membres.find((u) => String(u.employeId ?? "") === String(fiche._id));
+      if (membre) { refusees.push({ matricule, raison: `compte de connexion rattaché (${membre.nom ?? membre.email})` }); continue; }
+
+      for (const r of await ctx.db.query("rattachements").withIndex("by_employe", (q) => q.eq("employeId", fiche._id)).collect()) {
+        await ctx.db.delete(r._id);
+        rattachementsSupprimes++;
+      }
+      await ctx.db.delete(fiche._id);
+      supprimees.push(matricule);
+    }
+    return { demandees: matricules.length, supprimees: supprimees.length, rattachementsSupprimes, refusees };
   },
 });
