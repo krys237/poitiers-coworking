@@ -330,8 +330,16 @@ function RailLateral({
         className="pointer-events-none absolute inset-0 bg-gradient-to-b from-blue-600 via-[#0077b6] to-[#0077b6]"
         aria-hidden="true"
       />
-      <div className="relative z-10 flex flex-col items-center gap-1.5 px-3 pt-3.5">
-        <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-md ring-1 ring-black/5">
+      {/* `min-h-0` et le défilement ne sont pas décoratifs : le conteneur du rail est en
+          `overflow-hidden` + `justify-between`, et un compte qui voit beaucoup de modules — le
+          super administrateur en a 27 — remplit la colonne au-delà de la hauteur d'écran. Sans
+          eux, le bloc du haut pousse le pied HORS du cadre, où il est rogné : le bouton
+          « Déplier » devient invisible et inatteignable, et la barre reste repliée pour toujours.
+          Panne constatée en production le 23/11/2026. La barre dépliée, elle, défile depuis
+          toujours (`flex-1 overflow-y-auto`) — c'est cette asymétrie qui a laissé passer le
+          défaut. */}
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center gap-1.5 overflow-y-auto px-3 pt-3.5">
+        <div className="mb-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-md ring-1 ring-black/5">
           <img src={logoCowork} alt="POITIERS COWORKING" className="h-6 w-auto object-contain" />
         </div>
         <nav className="flex flex-col gap-1" aria-label="Navigation principale (repliée)">
@@ -369,7 +377,9 @@ function RailLateral({
           })}
         </nav>
       </div>
-      <div className="relative z-10 flex flex-col items-center gap-2 border-t border-ocean-profond/40 bg-ocean-nuit py-3">
+      {/* `shrink-0` : le pied porte la SEULE sortie du mode replié. Il ne doit jamais céder sa
+          hauteur au bloc de navigation, quel que soit le nombre de modules visibles. */}
+      <div className="relative z-10 flex shrink-0 flex-col items-center gap-2 border-t border-ocean-profond/40 bg-ocean-nuit py-3">
         <button
           type="button"
           onClick={onDeplier}
