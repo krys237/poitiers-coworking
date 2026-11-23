@@ -142,6 +142,11 @@ export const modifier = mutation({
     methodeEnvoi: v.optional(v.union(v.literal("auto"), v.literal("email"), v.literal("whatsapp"))),
     dateDebut: v.optional(v.string()), dateFin: v.optional(v.string()), congesInitial: v.optional(v.number()),
     categorie: v.optional(v.string()), echelon: v.optional(v.string()),
+    // `contrat` était accepté à la CRÉATION mais absent ici : toute modification d'une fiche
+    // portant un type de contrat était donc rejetée par Convex, avec pour seul message un dump de
+    // validateur. Panne constatée en production le 20/11/2026 — création possible, modification
+    // impossible. Les deux mutations décrivent la même fiche : leurs champs ne doivent pas diverger.
+    contrat: v.optional(v.string()),
     contratRenouvele: v.optional(v.boolean()),
   },
   handler: async (ctx, { employeId, ...patch }) => {
