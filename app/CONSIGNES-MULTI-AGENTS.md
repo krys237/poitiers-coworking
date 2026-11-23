@@ -192,6 +192,22 @@ Chaque agent ajoute une ligne quand il touche à une zone frontière ou termine 
     les annonce committés. Ils ne sont donc **pas** partis dans la fusion. Je n'ai pas commité les
     fichiers d'un autre agent : à vous de les verser.
 
+- **2026-11-23 — DÉPLOIEMENT** : `notif-s1s7` (7 lots de notifications, ~10 600 lignes) fusionnée
+  dans `dev` puis dans `clean`. `dev` et `clean` portent désormais **tout** : RH, notifications,
+  import Excel. 36 suites de tests, typecheck et build au vert sur les deux branches.
+  - ⚠️ **`firebase` est une nouvelle dépendance.** Les worktrees partagent un `node_modules` par
+    jonction : lancer `npm install` depuis le worktree dont le `package.json` la déclare, sinon le
+    typecheck échoue sur `Cannot find module 'firebase/app'`. C'est de l'environnement, pas du code.
+  - ⚠️ **Le service worker devient sur mesure** (`src/sw.ts`, build en `injectManifest`). À vérifier
+    sur un appareil réellement installé : un client installé sert l'ancien service worker, et
+    `Ctrl+Shift+R` n'y suffit pas — il faut *Unregister* puis *Clear site data*.
+  - **Deux correctifs de production** portés directement sur `clean` puis reportés sur `dev`, parce
+    que des fonctions étaient hors service : `employes.modifier` refusait le champ `contrat` (créer
+    passait, modifier jamais), et la barre latérale repliée ne pouvait plus être rouverte (son pied
+    était rogné hors du cadre dès 27 modules visibles).
+  - **Un nouveau skill de projet** : `.agents/skills/lot-agent-externe/SKILL.md` — la méthode de
+    travail avec un exécutant qui n'a pas accès au dépôt. À lire avant de préparer un lot.
+
 ## Demandes
 
 *(FRONT → AUTH : nouvelles routes à enregistrer. Format : `chemin` — libellé de menu — niveau min.)*

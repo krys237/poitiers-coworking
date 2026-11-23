@@ -16,10 +16,17 @@
 |---|---|
 | **Production** | `poitiers-clean.vercel.app` ← projet Vercel `poitiers-coworking` ← branche `clean` ← Convex `focused-chipmunk-580` |
 | **Recette** | `poitiers-coworking.vercel.app` ← projet Vercel **`poitiers-recette`** ← branche `dev` ← Convex **`coordinated-clam-865`** — déploiement de **production**, donc durable |
-| **Chantier RH** | **intégralement fusionné dans `dev`** le 10/11 (`eb8b1ad`), toujours jamais exercé contre des données |
-| `clean` | `0d12ae7` — poussée le 10/11, saine |
-| `dev` | `eb8b1ad` — poussée le 10/11, en service sur la recette, **contient tout `rh`** |
-| `rh` | `77876d1` — poussée le 10/11, désormais entièrement contenue dans `dev` |
+| **Chantier RH** | fusionné dans `dev` puis dans `clean`. Les quatre validations de fond (§ 5) restent **non déroulées** |
+| **Chantier NOTIFICATIONS** | branches `notif` et `notif-s1s7`, 7 lots + correctifs, **fusionné dans `dev` le 23/11 puis dans `clean`** |
+| `clean` | `399a4b3` — 23/11. Porte TOUT, notifications comprises |
+| `dev` | `2ff0e5c` — 23/11 |
+| `rh` | `cf5b265` — entièrement contenue dans `dev` |
+| `notif-s1s7` | `2eb6353` — entièrement contenue dans `dev` |
+
+⚠️ **Dépendance à installer avant tout typecheck/build** : le chantier notifications déclare
+`firebase`. Les worktrees partagent un `node_modules` par **jonction** ; `npm install` doit être
+lancé depuis le worktree dont le `package.json` la déclare, sinon le typecheck échoue sur
+`Cannot find module 'firebase/app'` — un symptôme d'environnement, pas de code.
 
 Les branches mortes ont été retirées le 10/11 : `role` (contenue dans `clean`, `dev` et `rh`) et
 `features`, qui portait **un commit absent partout ailleurs** — archivé sous l'étiquette
@@ -340,6 +347,32 @@ nouveau ; celle en service n'a jamais transité par une conversation. **Leçon :
 passer une valeur de clé par la ligne de commande ni par un affichage — la lire d'un fichier dans
 une variable shell, et filtrer les sorties en remplaçant la valeur connue, pas en espérant qu'un
 motif la couvre.**
+
+---
+
+## 7 bis. Ce qui a été livré du 19 au 23/11, et ce qu'il faut en retenir
+
+**L'import des employés a été repris trois fois**, et chaque reprise a révélé un défaut de la
+précédente. C'est le chantier qui a le plus appris sur ce projet.
+
+- **Le silence tue.** Toute erreur de lecture rejetait une promesse que personne n'écoutait : ni
+  import, ni message. Rendre l'échec visible a immédiatement révélé la vraie cause.
+- **Excel exporte l'étendue DÉCLARÉE, pas les données.** Une feuille déclarant `A1:XET1048442`
+  pour 93 lignes réelles produit un CSV de 4 Gio de points-virgules. Lire le classeur contourne
+  tout : `lib/classeur.ts`, avec `read-excel-file` et non SheetJS.
+- **Un classeur protégé par mot de passe est un conteneur OLE2** : aucune bibliothèque JavaScript
+  ne le déchiffre côté navigateur. Détecté aux premiers octets, et expliqué.
+- **Le matricule est la clé de l'upsert.** Changer son format impose de supprimer l'import
+  précédent, sinon le passage suivant duplique au lieu de mettre à jour.
+
+**Trois validateurs désynchronisés en trois semaines** — réglages, clôture de paie, puis
+`employes.modifier` où `contrat` manquait. **Traiter cela comme une classe de bug** : chaque fois
+que deux endroits décrivent la même donnée, ils finissent par diverger. Le remède appliqué au lot
+C1 est le bon : **un validateur unique, exporté et importé**, jamais recopié.
+
+**Et les messages d'erreur sont désormais traduits** (`lib/format.messageErreur`, 12 contrôles).
+Une erreur de validation ne doit jamais se présenter comme une faute de saisie : elle nomme le
+champ et dit que c'est un défaut de l'application.
 
 ---
 
