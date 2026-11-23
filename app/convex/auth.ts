@@ -16,6 +16,7 @@ import { PENDING_PREFIX } from "./lib/authz";
 import { journaliser } from "./lib/journal";
 import { LIBELLE, Role } from "./rbac";
 import { erreurMotDePasse } from "./lib/motDePasse";
+import { notifier } from "./notifications";
 
 // Les callbacks reçoivent un contexte générique (AnyDataModel) : on le ramène au modèle du
 // projet pour garder `ctx.db` typé et pouvoir réutiliser `journaliser`.
@@ -68,6 +69,12 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
       await journaliser(c, {
         action: "membre_creation", cible: email,
         detail: "inscription spontanée · en attente d'autorisation",
+      });
+      await notifier(c, {
+        type: "compte_en_attente",
+        objet: { table: "users", id },
+        lien: "/membres",
+        rendu: { libelle: email },
       });
       return id;
     },

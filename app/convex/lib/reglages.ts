@@ -50,6 +50,17 @@ export interface Reglages {
   rappelPremierAvisJours: number;
   rappelHebdoDepuisJours: number;
   rappelQuotidienDepuisJours: number;
+  /** Notifications WhatsApp (lot S3) : simulées sans cet interrupteur. */
+  whatsappNotifsActive: boolean;
+  /** Notifications push Firebase (lot S4) : simulées sans cet interrupteur. */
+  pushReelActive: boolean;
+  /** Relances dossiers en attente (lot S5, en heures). */
+  relanceCommandeH: number;
+  relanceInterventionH: number;
+  relanceInterventionHauteH: number;
+  relanceLitigeH: number;
+  relanceCrH: number;
+  escaladeH: number;
 }
 
 export const REGLAGES_DEFAUT: Reglages = {
@@ -70,6 +81,14 @@ export const REGLAGES_DEFAUT: Reglages = {
   rappelPremierAvisJours: 30,
   rappelHebdoDepuisJours: 30,
   rappelQuotidienDepuisJours: 7,
+  whatsappNotifsActive: false,
+  pushReelActive: false,
+  relanceCommandeH: 24,
+  relanceInterventionH: 48,
+  relanceInterventionHauteH: 72,
+  relanceLitigeH: 48,
+  relanceCrH: 72,
+  escaladeH: 24,
 };
 
 /** Réglages effectifs : ce qui est stocké, complété par les défauts. */

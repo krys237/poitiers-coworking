@@ -6,6 +6,7 @@ import { normaliserTelephone, erreurTelephone, avecIndicatif } from "./lib/telep
 import { erreurRattachement, rattachementsEffectifs, type Societe } from "./lib/societes";
 import { LIBELLE_CADENCE, aSuivre, echeances, resumerEcheances } from "./lib/echeancesContrat";
 import { prochainMatricule as calculerProchainMatricule } from "./lib/matricule";
+import { couleurServiceParDefaut } from "./lib/planningAnnuel";
 
 const SOCIETE = v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"));
 
@@ -66,6 +67,7 @@ export const creer = mutation({
     adresse: v.optional(v.string()), cnps: v.optional(v.string()), niu: v.optional(v.string()),
     email: v.optional(v.string()), whatsapp: v.optional(v.string()), societe: SOCIETE, salaireBase: v.number(), contrat: v.optional(v.string()),
     serviceId: v.optional(v.id("services")), immatriculeImpots: v.optional(v.boolean()), dateEntreeCnps: v.optional(v.string()),
+    matriculeCnps: v.optional(v.string()),
     methodeEnvoi: v.optional(v.union(v.literal("auto"), v.literal("email"), v.literal("whatsapp"))),
     dateDebut: v.optional(v.string()), dateFin: v.optional(v.string()), congesInitial: v.optional(v.number()),
     categorie: v.optional(v.string()), echelon: v.optional(v.string()),
@@ -138,6 +140,7 @@ export const modifier = mutation({
     cnps: v.optional(v.string()), niu: v.optional(v.string()), societe: v.optional(SOCIETE),
     salaireBase: v.optional(v.number()), actif: v.optional(v.boolean()),
     serviceId: v.optional(v.id("services")), immatriculeImpots: v.optional(v.boolean()), dateEntreeCnps: v.optional(v.string()),
+    matriculeCnps: v.optional(v.string()),
     methodeEnvoi: v.optional(v.union(v.literal("auto"), v.literal("email"), v.literal("whatsapp"))),
     dateDebut: v.optional(v.string()), dateFin: v.optional(v.string()), congesInitial: v.optional(v.number()),
     categorie: v.optional(v.string()), echelon: v.optional(v.string()),
@@ -186,24 +189,98 @@ export const importer = mutation({
       adresse: v.optional(v.string()), cnps: v.optional(v.string()), niu: v.optional(v.string()),
       email: v.optional(v.string()), whatsapp: v.optional(v.string()), societe: SOCIETE, salaireBase: v.number(),
       dateDebut: v.optional(v.string()),
+      /** Date d'entrée à la CNPS (colonne « DATE D'AFFILIATION » du fichier de l'effectif). */
+      dateEntreeCnps: v.optional(v.string()),
+      /** Matricule CNPS — distinct du numéro CNPS, voir le schéma. */
+      matriculeCnps: v.optional(v.string()),
+      /** Nom du service d'affectation, tel qu'écrit dans le fichier. Créé s'il n'existe pas. */
+      service: v.optional(v.string()),
+      /**
+       * Montant versé PAR société (colonnes `salaire_sesame`, `salaire_sofina`, `salaire_sgc`).
+       *
+       * « Chaque société fait son paiement, donc un montant par société » — arbitrage du
+       * propriétaire du 19/11/2026. Le montant est donc OBLIGATOIRE pour rattacher : un
+       * rattachement sans lui retombe sur le salaire entier de la fiche
+       * (`lib/societes.rattachementsEffectifs`), ce qui produirait un second bulletin à plein
+       * salaire. L'écran refuse de rattacher une société dont le fichier ne chiffre pas la part.
+       */
+      rattachements: v.optional(v.array(v.object({ societe: SOCIETE, salaireBase: v.number() }))),
     })),
   },
   handler: async (ctx, { lignes }) => {
     await requireDroit(ctx, "/employes", "faire");
     const joursBase = (await lireReglages(ctx)).joursBaseDefaut;
-    let crees = 0, majs = 0;
+
+    // --- Services : rapprochement par nom, création des manquants -----------------------------
+    // Le classeur de l'effectif porte une colonne SERVICE que l'import ignorait, si bien que les
+    // 87 fiches arrivaient sans affectation — et le planning des congés comme la détection de
+    // chevauchement reposent dessus. Les noms sont saisis à la main : on rapproche sur une forme
+    // normalisée (casse, accents, espaces), sinon « IMAGERIE RADIO » et « Imagerie Radio »
+    // créeraient deux services pour le même.
+    const cleService = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
+    const services = await ctx.db.query("services").collect();
+    const parNom = new Map(services.map((s) => [cleService(s.nom), s._id]));
+    let ordre = services.reduce((m, s) => Math.max(m, s.ordre), -1) + 1;
+    const servicesCrees: string[] = [];
+    for (const l of lignes) {
+      const nom = (l.service ?? "").trim();
+      if (!nom || parNom.has(cleService(nom))) continue;
+      // Créé plutôt qu'ignoré : un service absent ferait silencieusement perdre l'affectation,
+      // et c'est exactement le genre de perte invisible qu'on ne veut plus. Le compte rendu les
+      // nomme, pour qu'une faute de frappe dans le fichier se voie tout de suite.
+      const id = await ctx.db.insert("services", { nom, couleur: couleurServiceParDefaut(ordre), ordre, actif: true, chefs: [] });
+      parNom.set(cleService(nom), id);
+      servicesCrees.push(nom);
+      ordre++;
+    }
+
+    let crees = 0, majs = 0, avecService = 0, sansService = 0, rattachementsPoses = 0, rattachementsMajs = 0;
     for (const brute of lignes) {
+      const { service, rattachements: parts, ...champs } = brute;
       // Une colonne vide ne doit RIEN effacer : dans un patch Convex, un champ `undefined` supprime la
       // valeur existante (e-mail, CNPS, NIU… perdus à la réimportation d'un fichier partiel).
-      const l = Object.fromEntries(Object.entries({ ...brute, whatsapp: numeroWhatsapp(brute.whatsapp) }).filter(([, v]) => v !== undefined && v !== "")) as typeof brute;
+      const l = Object.fromEntries(Object.entries({ ...champs, whatsapp: numeroWhatsapp(champs.whatsapp) }).filter(([, v]) => v !== undefined && v !== "")) as typeof champs;
+      const serviceId = service?.trim() ? parNom.get(cleService(service)) : undefined;
+      if (serviceId) avecService++; else sansService++;
+      const avecAffectation = serviceId ? { ...l, serviceId } : l;
       const existant = await ctx.db
         .query("employes")
         .withIndex("by_matricule", (q) => q.eq("matricule", l.matricule))
         .unique();
-      if (existant) { await ctx.db.patch(existant._id, l); majs++; }
-      else { await ctx.db.insert("employes", { ...l, joursBase, actif: true }); crees++; }
+      let employeId;
+      if (existant) { await ctx.db.patch(existant._id, avecAffectation); employeId = existant._id; majs++; }
+      else { employeId = await ctx.db.insert("employes", { ...avecAffectation, joursBase, actif: true }); crees++; }
+
+      // --- Rattachements multi-société -------------------------------------------------------
+      // Un import ne SUPPRIME jamais un employeur : il pose ceux que le fichier chiffre et
+      // met à jour leur montant. Retirer un rattachement reste un geste délibéré, fait dans la
+      // fiche — un fichier partiel ne doit pas faire disparaître une société qui paie.
+      if (parts?.length) {
+        const creeLe = new Date().toISOString();
+        const existants = await ctx.db.query("rattachements").withIndex("by_employe", (q) => q.eq("employeId", employeId)).collect();
+        const parSociete = new Map(existants.map((r) => [r.societe, r]));
+        // La société de la FICHE est la principale, et doit exister dès qu'une autre apparaît :
+        // sans elle, elle disparaîtrait de la paie à la première ligne explicite.
+        const aPoser = parts.some((p) => p.societe === l.societe)
+          ? parts
+          : [...parts, { societe: l.societe, salaireBase: l.salaireBase }];
+        for (const p of aPoser) {
+          const deja = parSociete.get(p.societe);
+          if (deja) {
+            if (deja.salaireBase !== p.salaireBase) { await ctx.db.patch(deja._id, { salaireBase: p.salaireBase }); rattachementsMajs++; }
+            continue;
+          }
+          await ctx.db.insert("rattachements", {
+            employeId, societe: p.societe, principal: p.societe === l.societe, actif: true, creeLe,
+            salaireBase: p.salaireBase, joursBase,
+            matriculeEmployeur: l.matricule, cnpsEmployeur: l.cnps, niuEmployeur: l.niu,
+            dateDebut: l.dateDebut,
+          });
+          rattachementsPoses++;
+        }
+      }
     }
-    return { crees, majs };
+    return { crees, majs, servicesCrees, avecService, sansService, rattachementsPoses, rattachementsMajs };
   },
 });
 

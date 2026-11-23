@@ -5,6 +5,7 @@ import { requireDroit, droitsDuMembre } from "./lib/authz";
 import { dateDouala, estDansFenetre, finFenetre, prochaineOuverture, pointsPour, pointsDuJour, heureDouala, evaluerFenetre, type Fenetre } from "./lib/fenetre";
 import { lireReglages } from "./parametres";
 import { NIVEAU, Role } from "./rbac";
+import { notifier } from "./notifications";
 
 const STATUT = v.union(v.literal("brouillon"), v.literal("en_relecture"), v.literal("valide"));
 // Droit « plusieurs comptes rendus pour une même journée » (matrice des droits, rbac.MODULES).
@@ -229,6 +230,17 @@ export const changerStatut = mutation({
       valideParId: statut === "valide" ? user._id : undefined,
       commentaires: commentaires.length ? commentaires : undefined,
     });
+    if (statut === "valide") {
+      await notifier(ctx, {
+        type: "cr_valide",
+        acteurId: user._id,
+        acteurNom: auteur,
+        proprietaireId: c.auteurId,
+        objet: { table: "comptesRendus", id: compteRenduId },
+        lien: "/comptes-rendus",
+        rendu: { acteurNom: auteur },
+      });
+    }
   },
 });
 
@@ -254,6 +266,15 @@ export const ajouterCommentaire = mutation({
     const existants = c.commentaires ?? [];
     await ctx.db.patch(compteRenduId, {
       commentaires: [...existants, nouveau],
+    });
+    await notifier(ctx, {
+      type: "cr_remarque",
+      acteurId: user._id,
+      acteurNom: auteur,
+      proprietaireId: c.auteurId,
+      objet: { table: "comptesRendus", id: compteRenduId },
+      lien: "/comptes-rendus",
+      rendu: { acteurNom: auteur, extrait: texte.trim().slice(0, 120) },
     });
     return nouveau;
   },

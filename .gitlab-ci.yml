@@ -45,6 +45,11 @@ test_job:
     - npm run test:proxy
     - npm run test:droits
     - npm run test:telephone
+    - npm run test:notifications
+    - npm run test:transport
+    - npm run test:push
+    - npm run test:rappels
+    - npm run test:servicesNotifs
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event" || $CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "main"'
 

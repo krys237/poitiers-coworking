@@ -133,6 +133,18 @@ export function Employes() {
     }).length;
   const pluriEmployes = actifs.filter((e) => ratsDe(String(e._id)).length > 1).length;
 
+  /**
+   * Comme `lire`, mais traite « 0 » comme une colonne VIDE.
+   *
+   * Le fichier de l'effectif porte un zéro résiduel dans NIU, E-MAIL, WHATSAPP et FIN DE CONTRAT —
+   * une seule ligne sur 88, vestige de tableur. Importé tel quel, un employé recevrait « 0 » comme
+   * adresse e-mail. Décision du propriétaire du 23/11/2026 : on filtre.
+   */
+  const lireUtile = (r: Record<string, string>, ...noms: string[]) => {
+    const v = lire(r, ...noms);
+    return v === "0" ? "" : v;
+  };
+
   const onImport = async (file: File) => {
     try {
       // Les classeurs se lisent directement depuis le 19/11/2026. Passer par un export CSV était
@@ -156,14 +168,29 @@ export function Employes() {
           nom: lire(r, "nom", "noms", "nom_et_prenoms", "noms_et_prenoms", "nom_prenoms", "nom_complet"),
           fonction: lire(r, "fonction", "poste") || undefined,
           adresse: lire(r, "adresse") || undefined,
-          cnps: lire(r, "cnps", "n_cnps", "numero_cnps") || undefined,
-          niu: lire(r, "niu") || undefined,
-          email: lire(r, "email", "e_mail", "mail") || undefined,
-          whatsapp: lire(r, "whatsapp", "telephone", "tel") || undefined,
+          cnps: lireUtile(r, "cnps", "n_cnps", "numero_cnps", "no_cnps") || undefined,
+          // Distinct du numéro CNPS : court, il sert à la déclaration CNPS de la RH.
+          matriculeCnps: lireUtile(r, "matricule_cnps") || undefined,
+          niu: lireUtile(r, "niu") || undefined,
+          email: lireUtile(r, "email", "e_mail", "mail") || undefined,
+          whatsapp: lireUtile(r, "whatsapp", "telephone", "tel") || undefined,
           societe: (SOCIETES.includes(lire(r, "societe").toUpperCase() as Societe) ? lire(r, "societe").toUpperCase() : "SGC") as Societe,
           // `salaire_brut` reste accepté : c'est l'ancien en-tête des fichiers déjà diffusés.
           salaireBase: toFcfa(lire(r, "salaire_base", "salairebase", "salaire_brut", "salairebrut", "brut", "salaire") || "0"),
           dateDebut: (() => { const d = lire(r, "date_debut", "date_entree", "date_embauche"); return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : undefined; })(),
+          // Le service conditionne le planning des congés et la détection de chevauchement :
+          // l'ignorer obligeait à ressaisir l'affectation de tout l'effectif à la main.
+          service: lireUtile(r, "service", "affectation", "departement") || undefined,
+          // « DATE D'AFFILIATION » = date d'entrée à la CNPS (arbitrage du 23/11/2026).
+          dateEntreeCnps: (() => { const d = lireUtile(r, "date_affiliation", "date_d_affiliation", "date_entree_cnps"); return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : undefined; })(),
+          // « Chaque société fait son paiement, donc un montant par société » (19/11/2026) :
+          // on ne rattache QUE les sociétés dont le fichier chiffre la part. Rattacher sans
+          // montant retomberait sur le salaire entier de la fiche, soit un second bulletin à
+          // plein salaire — la masse salariale doublerait sans que rien ne l'annonce.
+          rattachements: SOCIETES.flatMap((soc) => {
+            const montant = toFcfa(lire(r, `salaire_${soc.toLowerCase()}`, `salaire ${soc}`, soc) || "0");
+            return montant > 0 ? [{ societe: soc, salaireBase: montant }] : [];
+          }),
         }))
         .filter((l) => l.matricule && l.nom);
 
@@ -178,10 +205,35 @@ export function Employes() {
       }
 
       const ignorees = rows.length - lignes.length;
+      // « AUTRES SOCIÉTÉS » est LU mais volontairement pas importé : un rattachement sans montant
+      // retombe sur le salaire entier de la fiche (lib/societes), donc le créer d'office
+      // produirait un second bulletin à plein salaire. On compte, on signale, on laisse décider.
+      // Une seconde société NOMMÉE mais non chiffrée ne peut pas être rattachée : on la compte
+      // pour le dire, plutôt que d'inventer un montant.
+      // Recalculé depuis `rows` et non depuis `lignes` : ce dernier est filtré, ses index ne
+      // correspondent donc plus à ceux du fichier.
+      const secondesNonChiffrees = rows.filter((r) => {
+        const nommee = lire(r, "autres_societes", "autre_societe", "societes_secondaires").toUpperCase();
+        if (!nommee) return false;
+        return SOCIETES.some((soc) => nommee.includes(soc) && toFcfa(lire(r, `salaire_${soc.toLowerCase()}`, `salaire ${soc}`, soc) || "0") <= 0);
+      }).length;
       const r = await importer({ lignes });
-      toast.success(`Import terminé : ${r.crees} créé(s), ${r.majs} mis à jour`, {
-        description: `Reconnaissance par matricule · les bulletins du mois se recalculent${ignorees ? ` · ${ignorees} ligne(s) ignorée(s), sans matricule ou sans nom` : ""}`,
-      });
+      const details = [
+        "Reconnaissance par matricule · les bulletins du mois se recalculent",
+        r.avecService ? `${r.avecService} affectation(s) de service` : "",
+        r.servicesCrees.length ? `services créés : ${r.servicesCrees.join(", ")}` : "",
+        r.sansService ? `${r.sansService} fiche(s) sans service` : "",
+        r.rattachementsPoses ? `${r.rattachementsPoses} rattachement(s) de société posé(s)` : "",
+        r.rattachementsMajs ? `${r.rattachementsMajs} montant(s) par société mis à jour` : "",
+        ignorees ? `${ignorees} ligne(s) ignorée(s), sans matricule ou sans nom` : "",
+      ].filter(Boolean);
+      toast.success(`Import terminé : ${r.crees} créé(s), ${r.majs} mis à jour`, { description: details.join(" · ") });
+      if (secondesNonChiffrees) {
+        toast.warning(`${secondesNonChiffrees} ligne(s) nomment une société sans en chiffrer la part`, {
+          description: "Chaque société verse son propre montant : sans colonne « salaire_sesame », « salaire_sofina » ou « salaire_sgc », le rattachement n'est pas créé — il retomberait sur le salaire entier de la fiche et produirait un second bulletin à plein salaire. Ajoutez la colonne, ou saisissez la part dans la fiche.",
+          duration: 14000,
+        });
+      }
     } catch (e) {
       // Tout chemin d'échec aboutit ICI. Auparavant, une lecture de fichier impossible rejetait
       // une promesse que personne n'écoutait : ni erreur, ni import, rien à l'écran.

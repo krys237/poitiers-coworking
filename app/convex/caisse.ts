@@ -6,6 +6,8 @@ import { v } from "convex/values";
 import { requireDroit } from "./lib/authz";
 import { controlerVerrou, etatVerrou, moisPrecedents } from "./lib/verrouSaisie";
 import { totalEspeces, chiffreAffaires, totauxCaisse } from "./lib/stats";
+import { internal } from "./_generated/api";
+import { lireReglages } from "./parametres";
 
 const DEVERROUILLAGE = "/caisse/deverrouillage";
 
@@ -38,7 +40,17 @@ export const enregistrerLigne = mutation({
       await controlerVerrou(ctx, me, avant, DEVERROUILLAGE, `caisse du ${avant.dateDebut} au ${avant.dateFin} (modification)`);
       await ctx.db.patch(ligneId, l); return ligneId;
     }
-    return await ctx.db.insert("statsCaisse", l);
+    const id = await ctx.db.insert("statsCaisse", l);
+    const doc = await ctx.db.get(id);
+    const reglages = await lireReglages(ctx);
+    if (doc && reglages.verrouCaisseMin > 10) {
+      await ctx.scheduler.runAfter(
+        (reglages.verrouCaisseMin - 10) * 60_000,
+        internal.rappels.delaiCaisseBientotExpire,
+        { ligneId: id, membreId: me._id, creationTime: doc._creationTime },
+      );
+    }
+    return id;
   },
 });
 

@@ -12,6 +12,11 @@
 > ⚠️ **Deux agents travaillent en parallèle sur ce dépôt.** Lire `CONSIGNES-MULTI-AGENTS.md`
 > (partage des fichiers, branches, worktrees) **avant** toute modification.
 
+> 📦 **Un chantier confié à un exécutant qui n'a pas le dépôt** (agent cloud, échange par archive) :
+> lire le skill `.agents/skills/lot-agent-externe/SKILL.md`. Il dit comment fabriquer un lot sans y
+> glisser de données sensibles, ce que l'exécutant ne peut pas prouver, et les sept pièges
+> d'intégration déjà payés — dont `git apply` qui rend un succès en n'appliquant rien.
+
 > 🚀 **Avant de toucher à un déploiement : lire `PASSATION-DEPLOIEMENT.md` en entier.** Il décrit
 > l'architecture réelle (projets Vercel et Convex, portée des trois clés de déploiement), le
 > chantier en cours, onze pièges déjà payés et les incidents causés en production. Rien de tout

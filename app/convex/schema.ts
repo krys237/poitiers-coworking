@@ -82,6 +82,8 @@ export default defineSchema({
     // Mot de passe provisoire posé par la Direction (création ou réinitialisation) : l'interface impose
     // de le changer avant toute autre chose (décision du 13/10/2026, lib/motDePasse.ts).
     doitChangerMotDePasse: v.optional(v.boolean()),
+    // Préférences de notification du membre (lot S2) : types mis en silence.
+    notifsSilencieuses: v.optional(v.array(v.string())),
   })
     .index("by_token", ["tokenIdentifier"])
     // `email` et `phone` sont les noms d'index EXIGÉS par Convex Auth
@@ -114,6 +116,15 @@ export default defineSchema({
       rappelPremierAvisJours: v.optional(v.number()),
       rappelHebdoDepuisJours: v.optional(v.number()),
       rappelQuotidienDepuisJours: v.optional(v.number()),
+      // Notifications & rappels (lots S3, S4, S5).
+      whatsappNotifsActive: v.optional(v.boolean()),
+      pushReelActive: v.optional(v.boolean()),
+      relanceCommandeH: v.optional(v.number()),
+      relanceInterventionH: v.optional(v.number()),
+      relanceInterventionHauteH: v.optional(v.number()),
+      relanceLitigeH: v.optional(v.number()),
+      relanceCrH: v.optional(v.number()),
+      escaladeH: v.optional(v.number()),
     })),
     // Droits VOIR / FAIRE par rôle et par module, quand ils diffèrent du défaut (rbac.droitsEffectifs).
     droitsRoles: v.optional(v.array(v.object({ role: v.string(), module: v.string(), voir: v.boolean(), faire: v.boolean() }))),
@@ -220,7 +231,13 @@ export default defineSchema({
     immatriculeImpots: v.optional(v.boolean()),
     // Date d'entrée à la CNPS, distincte de la date d'embauche — les deux diffèrent souvent et
     // l'attestation de présence effective réclame le matricule CNPS.
-    dateEntreeCnps: v.optional(v.string()),   // "YYYY-MM-DD"
+    dateEntreeCnps: v.optional(v.string()),
+    /**
+     * Matricule CNPS de l'employé — **distinct du numéro CNPS** (`cnps`, « 356-1045355-3 »).
+     * Court (« 34 »), il sert à la RH pour la déclaration auprès de la CNPS. Ajouté le 23/11/2026
+     * sur arbitrage du propriétaire : le fichier de l'effectif le portait, le modèle non.
+     */
+    matriculeCnps: v.optional(v.string()),   // "YYYY-MM-DD"
     // Méthode d'envoi du courrier de paie (lot R10). `auto` = comportement actuel, qui choisit
     // selon ce qui est renseigné ; `email` ou `whatsapp` forcent la voie. Absent = `auto`.
     methodeEnvoi: v.optional(v.union(v.literal("auto"), v.literal("email"), v.literal("whatsapp"))),
@@ -596,6 +613,7 @@ export default defineSchema({
     date: v.string(),                 // "YYYY-MM-DD"
     demandeur: v.string(),
     service: v.optional(v.string()),
+    serviceId: v.optional(v.id("services")),
     statut: v.union(
       v.literal("preparation"),
       v.literal("en_attente"),
@@ -655,6 +673,7 @@ export default defineSchema({
     priorite: v.union(v.literal("basse"), v.literal("moyenne"), v.literal("haute")),
     lieu: v.optional(v.string()),
     service: v.optional(v.string()),
+    serviceId: v.optional(v.id("services")),
     chefService: v.optional(v.string()),
     methode: v.optional(v.string()),  // email, téléphone, en personne…
     dateDemande: v.string(),
@@ -873,4 +892,102 @@ export default defineSchema({
   })
     .index("by_date", ["date"])
     .index("by_action", ["action", "date"]),
+
+  // ---- Notifications (lot S1) ----
+  // Une ligne PAR DESTINATAIRE, écrite à l'émission (fan-out à l'écriture — voir la spec S1).
+  // La ligne est la trace de qui a été prévenu, et quand : elle ne se réécrit pas si le
+  // directeur change la matrice des droits ensuite.
+  notifications: defineTable({
+    destinataireId: v.id("users"),
+    type: v.string(),                 // clé du catalogue (lib/notifications.TYPES)
+    titre: v.string(),                // figé à l'émission
+    corps: v.optional(v.string()),
+    importance: v.union(v.literal("info"), v.literal("a_traiter"), v.literal("urgent")),
+    lien: v.string(),                 // route applicative, ex. "/commandes?ref=CMD-2026-012"
+    // L'objet concerné : permet de regrouper à l'écran (S2) et de ne pas relancer
+    // deux fois la même chose (S5).
+    objet: v.object({
+      table: v.string(),
+      id: v.string(),
+      reference: v.optional(v.string()),
+    }),
+    acteurId: v.optional(v.id("users")),
+    acteurNom: v.optional(v.string()),
+    lu: v.boolean(),
+    luLe: v.optional(v.string()),
+    creeLe: v.string(),               // ISO
+  })
+    .index("by_destinataire_lu", ["destinataireId", "lu"])
+    .index("by_destinataire_date", ["destinataireId", "creeLe"])
+    .index("by_objet", ["objet.table", "objet.id"])
+    .index("by_lu_date", ["lu", "creeLe"]),
+
+  // ---- Journal unifié des envois de notifications (lot S3, réutilisé par S4) ----
+  envoisNotifications: defineTable({
+    notificationId: v.optional(v.id("notifications")),
+    destinataireId: v.id("users"),
+    canal: v.union(v.literal("whatsapp"), v.literal("push")),
+    adresse: v.string(),              // numéro +237…, ou jeton d'appareil
+    cleIdempotence: v.string(),       // unique par notification métier
+    modele: v.optional(v.string()),   // WhatsApp : nom du modèle Meta
+    parametres: v.optional(v.array(v.string())),
+    statut: v.union(
+      v.literal("a_envoyer"),
+      v.literal("accepte"),
+      v.literal("envoye"),
+      v.literal("delivre"),
+      v.literal("lu"),
+      v.literal("echec"),
+      v.literal("simule"),
+    ),
+    messageId: v.optional(v.string()),
+    codeEchec: v.optional(v.string()),
+    erreur: v.optional(v.string()),
+    essais: v.number(),
+    creeLe: v.string(),
+    majLe: v.string(),
+  })
+    .index("by_cle", ["cleIdempotence"])
+    .index("by_notification", ["notificationId"])
+    .index("by_message", ["messageId"])
+    .index("by_statut_date", ["statut", "creeLe"]),
+
+  // ---- Appareils enregistrés pour le push Firebase (lot S4) ----
+  appareils: defineTable({
+    membreId: v.id("users"),
+    jeton: v.string(),
+    libelle: v.optional(v.string()),
+    plateforme: v.optional(v.string()),
+    installeEnPwa: v.optional(v.boolean()),
+    creeLe: v.string(),
+    vuLe: v.string(),
+  })
+    .index("by_membre", ["membreId"])
+    .index("by_jeton", ["jeton"]),
+
+  // ---- Rappels déjà émis — garde-fou d'idempotence (lot S5) ----
+  rappelsEmis: defineTable({
+    cle: v.string(),
+    destinataireId: v.optional(v.id("users")),
+    emisLe: v.string(),
+  })
+    .index("by_cle", ["cle"])
+    .index("by_date", ["emisLe"]),
+
+  // ---- Pense-bêtes personnels (lot S7) ----
+  penseBetes: defineTable({
+    membreId: v.id("users"),
+    texte: v.string(),
+    echeance: v.string(),             // ISO
+    objet: v.optional(v.object({
+      table: v.string(),
+      id: v.string(),
+      reference: v.optional(v.string()),
+    })),
+    lien: v.optional(v.string()),
+    etat: v.union(v.literal("en_attente"), v.literal("declenche"), v.literal("annule")),
+    creeLe: v.string(),
+  })
+    .index("by_membre_etat", ["membreId", "etat"])
+    .index("by_echeance", ["etat", "echeance"]),
 });

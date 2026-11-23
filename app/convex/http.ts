@@ -5,6 +5,7 @@ import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { auth } from "./auth";
 import { comparaisonConstante, dateValide, parseEntites, reponseApi, ENTITES } from "./lib/apiSecurite";
+import { verifierSignatureWebhookHub } from "./lib/transport";
 
 const http = httpRouter();
 
@@ -46,4 +47,50 @@ http.route({
   }),
 });
 
+// Webhook de retour de statut du hub WhatsApp (lot S3 §8).
+// Ordre imposé par la sécurité : corps brut → signature HMAC-SHA256 temps constant + fenêtre 5 min → 200 rapide.
+http.route({
+  path: "/hooks/whatsapp",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const corpsBrut = await req.text();
+    const secret = process.env.NOTIFICATION_HUB_CALLBACK_SECRET ?? "";
+    const verif = await verifierSignatureWebhookHub(
+      corpsBrut,
+      req.headers.get("X-Hub-Timestamp"),
+      req.headers.get("X-Hub-Signature-256"),
+      secret,
+    );
+    if (!verif.ok) {
+      return json(401, { erreur: "Signature webhook invalide ou expirée." });
+    }
+
+    let payload: any;
+    try {
+      payload = JSON.parse(corpsBrut);
+    } catch {
+      return json(400, { erreur: "Corps JSON invalide." });
+    }
+
+    const typeEvenement = payload?.type ?? req.headers.get("X-Hub-Event") ?? "";
+    if (typeEvenement === "ping") {
+      return json(200, { ok: true, pong: true });
+    }
+
+    const data = payload?.data;
+    if (data && typeof data.status === "string") {
+      await ctx.runMutation(internal.envois.appliquerWebhookStatut, {
+        messageId: typeof data.message_id === "string" ? data.message_id : undefined,
+        cleIdempotence: typeof data.idempotency_key === "string" ? data.idempotency_key : undefined,
+        hubStatus: data.status,
+        codeEchec: typeof data.failure?.code === "string" ? data.failure.code : undefined,
+        erreur: typeof data.failure?.detail === "string" ? data.failure.detail : undefined,
+      });
+    }
+
+    return json(200, { ok: true });
+  }),
+});
+
 export default http;
+

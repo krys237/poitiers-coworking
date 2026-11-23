@@ -43,8 +43,13 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
+      // Bascule vers un service worker maison (lot S4) pour gérer le push FCM sans
+      // créer de second service worker `firebase-messaging-sw.js`.
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.ts",
       registerType: "autoUpdate",
-      workbox: {
+      injectManifest: {
         // Les polices sont ajoutees au pre-cache (workbox ne prend pas woff2
         // par defaut) : sans elles, l'application hors ligne retombe sur la
         // police systeme et toute la mise en page des tableaux se decale.

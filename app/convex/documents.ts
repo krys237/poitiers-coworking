@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { getCurrentUser, requireDroit, droitsDuMembre, lireConfidentiel } from "./lib/authz";
 import { canView, canDownload, NIVEAU, LIBELLE, Role } from "./rbac";
 import { Doc, Id } from "./_generated/dataModel";
+import { notifier } from "./notifications";
 
 const MODE = v.union(v.literal("ia"), v.literal("heuristique"), v.literal("manuel"));
 
@@ -36,10 +37,23 @@ export const deposer = mutation({
     if (a.destinataires && !a.destinataires.length) a.destinataires = undefined;
     if (!a.titre.trim()) throw new Error("Titre requis.");
     if (a.confidentiel && !(await droitsDuMembre(ctx, me))["/documents/confidentiels"].faire) throw new Error("Vous n'avez pas le droit de déposer un document confidentiel.");
-    return await ctx.db.insert("documents", {
+    const id = await ctx.db.insert("documents", {
       ...a, titre: a.titre.trim(), codeAcces: a.codeAcces?.trim() || undefined,
       uploadedBy: me._id, deposeLe: new Date().toISOString(),
     });
+    if (a.destinataires?.length) {
+      const auteur = me.nom ?? me.email;
+      await notifier(ctx, {
+        type: "document_adresse",
+        acteurId: me._id,
+        acteurNom: auteur,
+        destinatairesExplicites: a.destinataires,
+        objet: { table: "documents", id },
+        lien: "/documents",
+        rendu: { acteurNom: auteur, libelle: a.titre.trim() },
+      });
+    }
+    return id;
   },
 });
 

@@ -150,13 +150,22 @@ const reglagesV = v.object({
   // Rappels d'échéance de contrat (N2).
   rappelPremierAvisJours: v.number(), rappelHebdoDepuisJours: v.number(),
   rappelQuotidienDepuisJours: v.number(),
+  whatsappNotifsActive: v.optional(v.boolean()),
+  pushReelActive: v.optional(v.boolean()),
+  relanceCommandeH: v.optional(v.number()),
+  relanceInterventionH: v.optional(v.number()),
+  relanceInterventionHauteH: v.optional(v.number()),
+  relanceLitigeH: v.optional(v.number()),
+  relanceCrH: v.optional(v.number()),
+  escaladeH: v.optional(v.number()),
 });
 
 export const enregistrerReglages = mutation({
   args: { reglages: reglagesV },
   handler: async (ctx, { reglages }) => {
     const me = await requireDroit(ctx, "/parametres", "faire");
-    const erreurs = validerReglages(reglages);
+    const reglagesComplets = reglagesDe(reglages);
+    const erreurs = validerReglages(reglagesComplets);
     if (erreurs.length) throw new Error(erreurs.join(" "));
     const existant = await ctx.db.query("parametresEntreprise").first();
     if (!existant) throw new Error("Paramètres entreprise non initialisés.");
@@ -224,6 +233,10 @@ export const etatDeploiement = query({
         { cle: "FINANCIAL_API_KEY", definie: definie("FINANCIAL_API_KEY"), role: "Clé de l'API d'export financier (re-validée à chaque appel).", absence: "Tout appel de l'API répond 503." },
         { cle: "BAREME_SOURCE_URL", definie: definie("BAREME_SOURCE_URL"), role: "Source officielle du barème, contrôlée chaque jour à 06:00 UTC.", absence: "Le contrôle journalise « source non configurée » et conserve le barème actif." },
         { cle: "ANTHROPIC_API_KEY", definie: definie("ANTHROPIC_API_KEY"), role: "Extraction des métadonnées des documents par IA (claude-opus-5).", absence: "Repli heuristique : titre = nom du fichier, catégorie par mots-clés." },
+        { cle: "NOTIFICATION_HUB_URL", definie: definie("NOTIFICATION_HUB_URL"), role: "URL de base du hub interne WhatsApp (lot S3).", absence: "URL par défaut utilisée ; mode simulation tant que la clé est absente." },
+        { cle: "NOTIFICATION_HUB_API_KEY", definie: definie("NOTIFICATION_HUB_API_KEY"), role: "Clé API du hub interne WhatsApp (lot S3).", absence: "Notifications WhatsApp simulées (journal seul)." },
+        { cle: "NOTIFICATION_HUB_CALLBACK_SECRET", definie: definie("NOTIFICATION_HUB_CALLBACK_SECRET"), role: "Secret HMAC-SHA256 des webhooks retour du hub WhatsApp (lot S3).", absence: "Les webhooks retour de statut répondent 401 ; les envois restent au statut accepte." },
+        { cle: "FIREBASE_SERVICE_ACCOUNT", definie: definie("FIREBASE_SERVICE_ACCOUNT"), role: "Compte de service JSON pour l'envoi FCM HTTP v1 (lot S4).", absence: "Notifications push simulées (journal seul)." },
       ],
     };
   },

@@ -5,6 +5,7 @@ import { reference } from "./lib/commandes";
 import { dateDouala } from "./lib/fenetre";
 import { Doc } from "./_generated/dataModel";
 import { QueryCtx, MutationCtx } from "./_generated/server";
+import { notifier } from "./notifications";
 
 const PRIORITE = v.union(v.literal("basse"), v.literal("moyenne"), v.literal("haute"));
 const STATUT = v.union(v.literal("ouverte"), v.literal("en_cours"), v.literal("cloturee"), v.literal("rejetee"));
@@ -67,7 +68,7 @@ export const genererUploadUrl = mutation({
 
 export const creer = mutation({
   args: {
-    titre: v.string(), priorite: PRIORITE, lieu: v.optional(v.string()), service: v.optional(v.string()), chefService: v.optional(v.string()),
+    titre: v.string(), priorite: PRIORITE, lieu: v.optional(v.string()), service: v.optional(v.string()), serviceId: v.optional(v.id("services")), chefService: v.optional(v.string()),
     methode: v.optional(v.string()), demandeur: v.string(), photos: v.optional(v.array(v.id("_storage"))),
     lignes: v.optional(v.array(LIGNE)), commentaireInitial: v.optional(v.string()),
   },
@@ -81,10 +82,22 @@ export const creer = mutation({
     const existantes = await ctx.db.query("interventions").withIndex("by_date", (q) => q.gte("dateDemande", `${annee}-01-01`).lte("dateDemande", `${annee}-12-31`)).collect();
     const ref = reference("INT", annee, existantes.length + 1);
     const id = await ctx.db.insert("interventions", {
-      reference: ref, titre: a.titre.trim(), priorite: a.priorite, lieu: a.lieu?.trim() || undefined, service: a.service?.trim() || undefined,
+      reference: ref, titre: a.titre.trim(), priorite: a.priorite, lieu: a.lieu?.trim() || undefined, service: a.service?.trim() || (a.serviceId ? (await ctx.db.get(a.serviceId))?.nom : undefined), serviceId: a.serviceId,
       chefService: a.chefService?.trim() || undefined, methode: a.methode?.trim() || undefined, dateDemande,
       demandeur: a.demandeur.trim() || (user.nom ?? user.email), statut: "ouverte", photos: a.photos ?? [], lignes,
       commentaireInitial: a.commentaireInitial?.trim() || undefined, commentaires: [], creePar: user._id,
+    });
+    const auteur = user.nom ?? user.email;
+    await notifier(ctx, {
+      type: "intervention_creee",
+      acteurId: user._id,
+      acteurNom: auteur,
+      proprietaireId: user._id,
+      serviceId: a.serviceId,
+      serviceNom: a.service?.trim() || undefined,
+      objet: { table: "interventions", id, reference: ref },
+      lien: `/interventions?ref=${ref}`,
+      rendu: { reference: ref, acteurNom: auteur, libelle: a.titre.trim() },
     });
     return { id, reference: ref };
   },
@@ -110,6 +123,17 @@ export const changerStatut = mutation({
     const auteur = user.nom ?? user.email;
     const commentaires = commentaire?.trim() ? [...i.commentaires, { auteur, texte: commentaire.trim(), date: maintenant }] : i.commentaires;
     await ctx.db.patch(interventionId, { statut, commentaires, validePar: user._id, valideLe: maintenant });
+    await notifier(ctx, {
+      type: statut === "cloturee" ? "intervention_cloturee" : "intervention_arbitree",
+      acteurId: user._id,
+      acteurNom: auteur,
+      proprietaireId: i.creePar,
+      serviceId: i.serviceId,
+      serviceNom: i.service,
+      objet: { table: "interventions", id: interventionId, reference: i.reference },
+      lien: `/interventions?ref=${i.reference}`,
+      rendu: { reference: i.reference, acteurNom: auteur, motif: commentaire?.trim() },
+    });
   },
 });
 
@@ -118,6 +142,16 @@ export const commenter = mutation({
   handler: async (ctx, { interventionId, texte }) => {
     const { user, intervention: i } = await interventionVisible(ctx, interventionId);
     if (!texte.trim()) return;
-    await ctx.db.patch(interventionId, { commentaires: [...i.commentaires, { auteur: user.nom ?? user.email, texte: texte.trim(), date: new Date().toISOString() }] });
+    const auteur = user.nom ?? user.email;
+    await ctx.db.patch(interventionId, { commentaires: [...i.commentaires, { auteur, texte: texte.trim(), date: new Date().toISOString() }] });
+    await notifier(ctx, {
+      type: "intervention_commentaire",
+      acteurId: user._id,
+      acteurNom: auteur,
+      proprietaireId: i.creePar,
+      objet: { table: "interventions", id: interventionId, reference: i.reference },
+      lien: `/interventions?ref=${i.reference}`,
+      rendu: { reference: i.reference, acteurNom: auteur, extrait: texte.trim().slice(0, 120) },
+    });
   },
 });

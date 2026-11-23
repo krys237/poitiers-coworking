@@ -17,6 +17,7 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireDroit, droitsDuMembre } from "./lib/authz";
 import { journaliser } from "./lib/journal";
+import { notifier } from "./notifications";
 import {
   LIBELLE_AVIS, LIBELLE_ETAT, LIBELLE_NATURE, NATURES, PIECES_MAX,
   compter, controlerArbitrage, controlerEtat, controlerPiece, controlerTicket, estClos, trier,
@@ -75,6 +76,15 @@ export const ouvrir = mutation({
     await journaliser(ctx, {
       auteurId: me._id, auteurNom: me.nom ?? me.email, action: "ticket_ouverture",
       cible: a.titre.trim(), detail: `${LIBELLE_NATURE[a.nature]}${pieces.length ? ` · ${pieces.length} pièce(s)` : ""}`,
+    });
+    await notifier(ctx, {
+      type: "ticket_ouvert",
+      acteurId: me._id,
+      acteurNom: me.nom ?? me.email,
+      proprietaireId: me._id,
+      objet: { table: "tickets", id },
+      lien: "/tickets",
+      rendu: { libelle: a.titre.trim(), acteurNom: me.nom ?? me.email },
     });
     return id;
   },
@@ -160,6 +170,17 @@ export const arbitrer = mutation({
       auteurId: me._id, auteurNom: me.nom ?? me.email, action: "ticket_arbitrage",
       cible: t.titre, detail: `${LIBELLE_AVIS[avis]}${motif?.trim() ? ` — ${motif.trim()}` : ""}`,
     });
+    await notifier(ctx, {
+      type: "ticket_arbitre",
+      acteurId: me._id,
+      acteurNom: me.nom ?? me.email,
+      proprietaireId: t.auteurId,
+      objet: { table: "tickets", id: ticketId },
+      lien: "/tickets",
+      rendu: { libelle: t.titre, motif: avis === "non_pertinent" ? (motif?.trim() || "Refusé") : undefined },
+      // Un ticket écarté ne concerne QUE son auteur : le traitement technique n'a rien à en faire.
+      ignorerCible: avis === "non_pertinent",
+    });
   },
 });
 
@@ -183,6 +204,15 @@ export const avancer = mutation({
     await journaliser(ctx, {
       auteurId: me._id, auteurNom: me.nom ?? me.email, action: "ticket_traitement",
       cible: t.titre, detail: `${LIBELLE_ETAT[etat]}${note?.trim() ? ` — ${note.trim()}` : ""}`,
+    });
+    await notifier(ctx, {
+      type: "ticket_avance",
+      acteurId: me._id,
+      acteurNom: me.nom ?? me.email,
+      proprietaireId: t.auteurId,
+      objet: { table: "tickets", id: ticketId },
+      lien: "/tickets",
+      rendu: { libelle: t.titre, extrait: LIBELLE_ETAT[etat], motif: note?.trim() || undefined },
     });
   },
 });

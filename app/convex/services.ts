@@ -32,7 +32,7 @@ export const liste = query({
   args: {},
   handler: async (ctx) => {
     // Le planning et les fiches employés ont tous deux besoin de la liste.
-    await requireUnDesDroits(ctx, ["/paie/planning", "/employes"]);
+    await requireUnDesDroits(ctx, ["/paie/planning", "/employes", "/commandes", "/interventions", "/membres", "/parametres"]);
     const lignes = await ctx.db.query("services").collect();
     lignes.sort((a, b) => a.ordre - b.ordre || a.nom.localeCompare(b.nom));
     // Les chefs sont stockés par identifiant ; l'écran a besoin de noms. On les résout ICI plutôt

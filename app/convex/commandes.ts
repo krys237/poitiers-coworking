@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { Doc } from "./_generated/dataModel";
 import { requireDroit } from "./lib/authz";
 import { comparer, totalCommande, reference, normaliserCleProduit } from "./lib/commandes";
+import { notifier } from "./notifications";
 
 const TYPE = v.union(v.literal("medicale"), v.literal("fourniture"), v.literal("reactifs_labo"));
 const STATUT = v.union(
@@ -190,6 +191,7 @@ export const creer = mutation({
     date: v.string(),
     demandeur: v.string(),
     service: v.optional(v.string()),
+    serviceId: v.optional(v.id("services")),
     statut: v.optional(STATUT),
     lignes: v.array(LIGNE),
     commentaire: v.optional(v.string()),
@@ -283,7 +285,8 @@ export const creer = mutation({
       libelle: a.libelle?.trim() || undefined,
       date: a.date,
       demandeur: a.demandeur.trim() || auteur,
-      service: a.service?.trim() || undefined,
+      service: a.service?.trim() || (a.serviceId ? (await ctx.db.get(a.serviceId))?.nom : undefined),
+      serviceId: a.serviceId,
       statut: initialStatut,
       lignes,
       creePar: user._id,
@@ -441,6 +444,24 @@ export const changerStatut = mutation({
         : {}),
       ...(statut === "livree" || statut === "cloturee" ? { livreLe: maintenant } : {}),
     });
+
+    const typeNotif =
+      statut === "en_attente" ? "commande_soumise" :
+      statut === "validee"    ? "commande_validee" :
+      statut === "rejetee"    ? "commande_rejetee" : null;
+    if (typeNotif) {
+      await notifier(ctx, {
+        type: typeNotif,
+        acteurId: user._id,
+        acteurNom: auteur,
+        proprietaireId: c.creePar,
+        serviceId: c.serviceId,
+        serviceNom: c.service,
+        objet: { table: "commandes", id: commandeId, reference: c.reference },
+        lien: `/commandes?ref=${c.reference}`,
+        rendu: { reference: c.reference, acteurNom: auteur, libelle: c.libelle, motif: commentaire?.trim() },
+      });
+    }
   },
 });
 
@@ -450,7 +471,17 @@ export const commenter = mutation({
     const user = await requireDroit(ctx, "/commandes", "faire");
     const c = await ctx.db.get(commandeId);
     if (!c || !texte.trim()) return;
-    await ctx.db.patch(commandeId, { commentaires: [...c.commentaires, { auteur: user.nom ?? user.email, texte: texte.trim(), date: new Date().toISOString() }] });
+    const auteur = user.nom ?? user.email;
+    await ctx.db.patch(commandeId, { commentaires: [...c.commentaires, { auteur, texte: texte.trim(), date: new Date().toISOString() }] });
+    await notifier(ctx, {
+      type: "commande_commentaire",
+      acteurId: user._id,
+      acteurNom: auteur,
+      proprietaireId: c.creePar,
+      objet: { table: "commandes", id: commandeId, reference: c.reference },
+      lien: `/commandes?ref=${c.reference}`,
+      rendu: { reference: c.reference, acteurNom: auteur, extrait: texte.trim().slice(0, 120) },
+    });
   },
 });
 
@@ -497,6 +528,17 @@ export const signalerLitige = mutation({
         ...c.commentaires,
         { auteur, texte: commentaireLitige, date: maintenant },
       ],
+    });
+    await notifier(ctx, {
+      type: "commande_litige",
+      acteurId: user._id,
+      acteurNom: auteur,
+      proprietaireId: c.creePar,
+      serviceId: c.serviceId,
+      serviceNom: c.service,
+      objet: { table: "commandes", id: commandeId, reference: c.reference },
+      lien: `/commandes?ref=${c.reference}`,
+      rendu: { reference: c.reference, acteurNom: auteur, motif: description.trim() },
     });
   },
 });
