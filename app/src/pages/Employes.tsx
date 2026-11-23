@@ -133,6 +133,18 @@ export function Employes() {
     }).length;
   const pluriEmployes = actifs.filter((e) => ratsDe(String(e._id)).length > 1).length;
 
+  /**
+   * Comme `lire`, mais traite « 0 » comme une colonne VIDE.
+   *
+   * Le fichier de l'effectif porte un zéro résiduel dans NIU, E-MAIL, WHATSAPP et FIN DE CONTRAT —
+   * une seule ligne sur 88, vestige de tableur. Importé tel quel, un employé recevrait « 0 » comme
+   * adresse e-mail. Décision du propriétaire du 23/11/2026 : on filtre.
+   */
+  const lireUtile = (r: Record<string, string>, ...noms: string[]) => {
+    const v = lire(r, ...noms);
+    return v === "0" ? "" : v;
+  };
+
   const onImport = async (file: File) => {
     try {
       // Les classeurs se lisent directement depuis le 19/11/2026. Passer par un export CSV était
@@ -156,17 +168,21 @@ export function Employes() {
           nom: lire(r, "nom", "noms", "nom_et_prenoms", "noms_et_prenoms", "nom_prenoms", "nom_complet"),
           fonction: lire(r, "fonction", "poste") || undefined,
           adresse: lire(r, "adresse") || undefined,
-          cnps: lire(r, "cnps", "n_cnps", "numero_cnps") || undefined,
-          niu: lire(r, "niu") || undefined,
-          email: lire(r, "email", "e_mail", "mail") || undefined,
-          whatsapp: lire(r, "whatsapp", "telephone", "tel") || undefined,
+          cnps: lireUtile(r, "cnps", "n_cnps", "numero_cnps", "no_cnps") || undefined,
+          // Distinct du numéro CNPS : court, il sert à la déclaration CNPS de la RH.
+          matriculeCnps: lireUtile(r, "matricule_cnps") || undefined,
+          niu: lireUtile(r, "niu") || undefined,
+          email: lireUtile(r, "email", "e_mail", "mail") || undefined,
+          whatsapp: lireUtile(r, "whatsapp", "telephone", "tel") || undefined,
           societe: (SOCIETES.includes(lire(r, "societe").toUpperCase() as Societe) ? lire(r, "societe").toUpperCase() : "SGC") as Societe,
           // `salaire_brut` reste accepté : c'est l'ancien en-tête des fichiers déjà diffusés.
           salaireBase: toFcfa(lire(r, "salaire_base", "salairebase", "salaire_brut", "salairebrut", "brut", "salaire") || "0"),
           dateDebut: (() => { const d = lire(r, "date_debut", "date_entree", "date_embauche"); return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : undefined; })(),
           // Le service conditionne le planning des congés et la détection de chevauchement :
           // l'ignorer obligeait à ressaisir l'affectation de tout l'effectif à la main.
-          service: lire(r, "service", "affectation", "departement") || undefined,
+          service: lireUtile(r, "service", "affectation", "departement") || undefined,
+          // « DATE D'AFFILIATION » = date d'entrée à la CNPS (arbitrage du 23/11/2026).
+          dateEntreeCnps: (() => { const d = lireUtile(r, "date_affiliation", "date_d_affiliation", "date_entree_cnps"); return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : undefined; })(),
           // « Chaque société fait son paiement, donc un montant par société » (19/11/2026) :
           // on ne rattache QUE les sociétés dont le fichier chiffre la part. Rattacher sans
           // montant retomberait sur le salaire entier de la fiche, soit un second bulletin à

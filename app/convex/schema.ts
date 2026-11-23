@@ -231,7 +231,13 @@ export default defineSchema({
     immatriculeImpots: v.optional(v.boolean()),
     // Date d'entrée à la CNPS, distincte de la date d'embauche — les deux diffèrent souvent et
     // l'attestation de présence effective réclame le matricule CNPS.
-    dateEntreeCnps: v.optional(v.string()),   // "YYYY-MM-DD"
+    dateEntreeCnps: v.optional(v.string()),
+    /**
+     * Matricule CNPS de l'employé — **distinct du numéro CNPS** (`cnps`, « 356-1045355-3 »).
+     * Court (« 34 »), il sert à la RH pour la déclaration auprès de la CNPS. Ajouté le 23/11/2026
+     * sur arbitrage du propriétaire : le fichier de l'effectif le portait, le modèle non.
+     */
+    matriculeCnps: v.optional(v.string()),   // "YYYY-MM-DD"
     // Méthode d'envoi du courrier de paie (lot R10). `auto` = comportement actuel, qui choisit
     // selon ce qui est renseigné ; `email` ou `whatsapp` forcent la voie. Absent = `auto`.
     methodeEnvoi: v.optional(v.union(v.literal("auto"), v.literal("email"), v.literal("whatsapp"))),

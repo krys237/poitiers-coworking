@@ -67,6 +67,7 @@ export const creer = mutation({
     adresse: v.optional(v.string()), cnps: v.optional(v.string()), niu: v.optional(v.string()),
     email: v.optional(v.string()), whatsapp: v.optional(v.string()), societe: SOCIETE, salaireBase: v.number(), contrat: v.optional(v.string()),
     serviceId: v.optional(v.id("services")), immatriculeImpots: v.optional(v.boolean()), dateEntreeCnps: v.optional(v.string()),
+    matriculeCnps: v.optional(v.string()),
     methodeEnvoi: v.optional(v.union(v.literal("auto"), v.literal("email"), v.literal("whatsapp"))),
     dateDebut: v.optional(v.string()), dateFin: v.optional(v.string()), congesInitial: v.optional(v.number()),
     categorie: v.optional(v.string()), echelon: v.optional(v.string()),
@@ -139,6 +140,7 @@ export const modifier = mutation({
     cnps: v.optional(v.string()), niu: v.optional(v.string()), societe: v.optional(SOCIETE),
     salaireBase: v.optional(v.number()), actif: v.optional(v.boolean()),
     serviceId: v.optional(v.id("services")), immatriculeImpots: v.optional(v.boolean()), dateEntreeCnps: v.optional(v.string()),
+    matriculeCnps: v.optional(v.string()),
     methodeEnvoi: v.optional(v.union(v.literal("auto"), v.literal("email"), v.literal("whatsapp"))),
     dateDebut: v.optional(v.string()), dateFin: v.optional(v.string()), congesInitial: v.optional(v.number()),
     categorie: v.optional(v.string()), echelon: v.optional(v.string()),
@@ -187,6 +189,10 @@ export const importer = mutation({
       adresse: v.optional(v.string()), cnps: v.optional(v.string()), niu: v.optional(v.string()),
       email: v.optional(v.string()), whatsapp: v.optional(v.string()), societe: SOCIETE, salaireBase: v.number(),
       dateDebut: v.optional(v.string()),
+      /** Date d'entrée à la CNPS (colonne « DATE D'AFFILIATION » du fichier de l'effectif). */
+      dateEntreeCnps: v.optional(v.string()),
+      /** Matricule CNPS — distinct du numéro CNPS, voir le schéma. */
+      matriculeCnps: v.optional(v.string()),
       /** Nom du service d'affectation, tel qu'écrit dans le fichier. Créé s'il n'existe pas. */
       service: v.optional(v.string()),
       /**
