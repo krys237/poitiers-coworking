@@ -92,6 +92,16 @@ export function FicheEmploye({
   // toute proposition à la saisie (constat du 03/11/2026).
   const fonctions = useQuery(api.fonctions.liste, {});
   const [open, setOpen] = React.useState(false);
+  // Source de vérité des VALEURS du formulaire : la fiche lue au serveur. L'objet `employe` que
+  // passe l'écran ne sert plus qu'à l'affichage immédiat (titre, matricule, état actif) et de
+  // repli le temps que la query réponde. Les trois appelants en construisaient une version
+  // partielle, chacun la sienne, et les champs manquants s'affichaient vides alors qu'ils étaient
+  // renseignés — voir le commentaire de `employes.fiche`.
+  const ficheServeur = useQuery(
+    api.employes.fiche,
+    !creation && open ? { employeId: employe!.employeId as any } : "skip",
+  );
+  const source: EmployeFiche | undefined = ficheServeur ?? employe;
   const [f, setF] = React.useState<Champs>(() => depuis(employe));
 
   // Matricule suggéré (lot 6) : le prochain numéro disponible, pré-rempli mais modifiable — une
@@ -109,7 +119,20 @@ export function FicheEmploye({
     ? controlerDureeCdd({ dateDebut: f.dateDebut, dateFin: f.dateFin, renouvele: f.contratRenouvele })
     : null;
   const [enCours, setEnCours] = React.useState(false);
-  React.useEffect(() => { if (open) setF(depuis(employe)); }, [open, employe]);
+  // Amorçage du formulaire : UNE fois par ouverture, depuis la fiche du serveur. La version
+  // précédente dépendait de l'objet `employe`, que le parent reconstruit à chaque rendu
+  // (`employe={fiche(e)}`) : tout rafraîchissement réactif survenu pendant la saisie — la liste
+  // des employés, les rattachements, le compteur de tickets du bandeau — réécrasait ce qui venait
+  // d'être tapé. L'enregistrement renvoyait alors les valeurs d'origine, avec un message de succès.
+  const amorce = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!open) { amorce.current = null; return; }
+    const cle = employe?.employeId ?? "creation";
+    if (amorce.current === cle) return;
+    if (!creation && ficheServeur === undefined) return; // on attend la fiche du serveur
+    amorce.current = cle;
+    setF(depuis(creation ? undefined : source));
+  }, [open, creation, employe, ficheServeur, source]);
 
   const texte = (cle: keyof Champs, libelle: string, placeholder?: string, requis?: boolean, type = "text") => (
     <Champ libelle={libelle} requis={requis}>
@@ -125,14 +148,24 @@ export function FicheEmploye({
     const commun = {
       fonction: f.fonction || undefined, adresse: f.adresse || undefined, cnps: f.cnps || undefined, niu: f.niu || undefined,
       email: f.email || undefined, societe: f.societe, salaireBase: Math.round(f.salaireBase), dateDebut: f.dateDebut || undefined,
-      serviceId: f.serviceId || undefined, immatriculeImpots: f.immatriculeImpots,
-      dateEntreeCnps: f.dateEntreeCnps || undefined, methodeEnvoi: f.methodeEnvoi,
+      serviceId: f.serviceId || undefined,
+      dateEntreeCnps: f.dateEntreeCnps || undefined,
       congesInitial: f.congesInitial || undefined,
       contrat: f.contrat || undefined, dateFin: f.dateFin || undefined,
-      contratRenouvele: f.contratRenouvele,
+    };
+    // Ces trois champs n'ont pas de valeur « vide » qui vaille absence : « non », « automatique »
+    // et « faux » SONT des valeurs. Transmis systématiquement, ils écrasaient donc la donnée en
+    // base par le défaut du formulaire à chaque enregistrement. On ne les envoie que s'ils ont
+    // réellement changé par rapport à la fiche lue — un écran qui ne les charge pas ne peut plus
+    // les effacer, exactement comme WhatsApp juste en dessous.
+    const avant = depuis(creation ? undefined : source);
+    const explicites = {
+      ...(f.immatriculeImpots !== avant.immatriculeImpots ? { immatriculeImpots: f.immatriculeImpots } : {}),
+      ...(f.methodeEnvoi !== avant.methodeEnvoi ? { methodeEnvoi: f.methodeEnvoi } : {}),
+      ...(f.contratRenouvele !== avant.contratRenouvele ? { contratRenouvele: f.contratRenouvele } : {}),
     };
     // WhatsApp : transmis seulement s'il a changé (les écrans qui ne le chargent pas ne l'effacent pas).
-    const whatsapp = f.whatsapp !== (employe?.whatsapp ?? "") ? f.whatsapp : undefined;
+    const whatsapp = f.whatsapp !== (source?.whatsapp ?? "") ? f.whatsapp : undefined;
     try {
       if (creation) {
         const rattachements = Object.entries(autresSocietes).map(([societe, salaire]) => ({
@@ -140,14 +173,14 @@ export function FicheEmploye({
           ...(salaire !== null && salaire > 0 ? { salaireBase: salaire } : {}),
         }));
         const id = await creer({
-          matricule: f.matricule.trim(), nom: f.nom.trim().toUpperCase(), ...commun,
+          matricule: f.matricule.trim(), nom: f.nom.trim().toUpperCase(), ...commun, ...explicites,
           whatsapp: whatsapp || undefined,
           ...(rattachements.length ? { rattachements } : {}),
         });
         toast.success(`${f.nom.trim().toUpperCase()} ajouté à l'effectif`, { description: `${f.matricule} · ${f.societe}` });
         onEnregistre?.(typeof id === "string" ? id : undefined);
       } else {
-        await modifier({ employeId: employe!.employeId, ...commun, whatsapp });
+        await modifier({ employeId: employe!.employeId, ...commun, ...explicites, whatsapp });
         toast.success(`Fiche de ${employe!.nom} enregistrée`);
         onEnregistre?.(employe!.employeId);
       }

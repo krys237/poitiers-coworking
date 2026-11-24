@@ -253,9 +253,14 @@ export function Employes() {
     }
   };
 
+  // Repli d'affichage le temps que `employes.fiche` réponde : la fiche lit désormais ses valeurs
+  // au serveur. On le remplit tout de même en entier — la liste porte toutes ces colonnes, et un
+  // repli partiel ferait clignoter des champs vides sur une fiche qui en a.
   const fiche = (e: any): EmployeFiche => ({
     employeId: String(e._id), matricule: e.matricule, nom: e.nom, fonction: e.fonction, adresse: e.adresse, cnps: e.cnps, niu: e.niu,
     email: e.email, whatsapp: e.whatsapp, societe: e.societe, salaireBase: e.salaireBase ?? e.salaireBrut ?? 0, dateDebut: e.dateDebut, congesInitial: e.congesInitial, actif: e.actif,
+    serviceId: e.serviceId, immatriculeImpots: e.immatriculeImpots, dateEntreeCnps: e.dateEntreeCnps,
+    methodeEnvoi: e.methodeEnvoi, contrat: e.contrat, dateFin: e.dateFin, contratRenouvele: e.contratRenouvele,
   });
 
   return (
