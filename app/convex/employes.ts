@@ -48,6 +48,39 @@ export const liste = query({
 });
 
 /**
+ * La fiche complète d'un employé, telle que le formulaire d'édition l'édite.
+ *
+ * Les trois écrans qui ouvrent la fiche (Employés, Récapitulatif synthèse, Récapitulatif tout
+ * visible) construisaient cet objet à la main, et **aucun ne le remplissait en entier** : les
+ * champs oubliés s'affichaient vides alors qu'ils étaient renseignés en base, et trois d'entre
+ * eux (`immatriculeImpots`, `methodeEnvoi`, `contratRenouvele`) étaient réécrits à la valeur par
+ * défaut du formulaire à chaque enregistrement. Panne constatée en recette ET en production le
+ * 24/11/2026 : « type de contrat, service, date d'entrée CNPS, immatriculé aux impôts ne se
+ * modifient pas ». Le formulaire lit désormais la fiche lui-même — un appelant ne peut plus en
+ * passer une version partielle. Même garde que `liste` : le récapitulatif de paie ouvre la fiche
+ * sans porter le droit `/employes`.
+ */
+export const fiche = query({
+  args: { employeId: v.id("employes") },
+  handler: async (ctx, { employeId }) => {
+    await requireUnDesDroits(ctx, ["/employes", "/paie/saisie", "/paie/planning", "/paie/primes", "/paie/bulletins"]);
+    const e = await ctx.db.get(employeId);
+    if (!e) return null;
+    return {
+      employeId: String(e._id), matricule: e.matricule, nom: e.nom,
+      fonction: e.fonction, adresse: e.adresse, cnps: e.cnps, niu: e.niu,
+      email: e.email, whatsapp: e.whatsapp, societe: e.societe,
+      // `salaireBrut` est l'ancien nom, encore porté par les fiches non migrées.
+      salaireBase: e.salaireBase ?? e.salaireBrut ?? 0,
+      dateDebut: e.dateDebut, congesInitial: e.congesInitial, actif: e.actif,
+      serviceId: e.serviceId, immatriculeImpots: e.immatriculeImpots,
+      dateEntreeCnps: e.dateEntreeCnps, methodeEnvoi: e.methodeEnvoi,
+      contrat: e.contrat, dateFin: e.dateFin, contratRenouvele: e.contratRenouvele,
+    };
+  },
+});
+
+/**
  * Suggestion de matricule pour une nouvelle fiche (lot 6) : le numéro suivant le plus haut trouvé,
  * dans le même format que le dernier matricule connu. La fiche la pré-remplit mais le champ reste
  * modifiable — ce n'est qu'une proposition.
