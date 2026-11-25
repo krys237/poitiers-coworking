@@ -39,13 +39,16 @@ cible confirmée par `SITE_URL = poitiers-clean.vercel.app`) :
 |---|---|
 | `journeesFinancieres` | **25** — le grand livre est réel, toute écriture y est une opération comptable |
 | `users` / `commandes` / `documents` / `journalActivite` | 53 / 22 / 20 / 257 |
-| **`employes`** / **`bulletins`** / `saisiesMensuelles` / `rattachements` | **0** / **0** / 0 / 0 |
+| **`employes`** / **`bulletins`** / `saisiesMensuelles` / `rattachements` | **88** / **0** / 0 / 1 — *relevé le 24/11, l'effectif a été importé ce jour-là* |
 
-> La première rédaction affirmait « employés, bulletins, grand livre financier ». **Le grand livre,
-> oui ; les employés et les bulletins, non.** La différence n'est pas cosmétique : elle retire deux
-> des trois blocages opposés à la fusion `dev` → `clean` (§ 5). À **re-vérifier juste avant toute
-> fusion** — il suffit que quelqu'un saisisse une fiche pour que le déroulé en trois temps
-> redevienne obligatoire.
+> ⚠️ **Mis à jour le 24/11/2026 : ce paragraphe disait « 0 employé », et c'est désormais faux.**
+> La production portait 1 fiche le matin du 24/11 et **88** le soir — le propriétaire a importé
+> l'effectif pendant la séance. Les bulletins restent à 0.
+>
+> Ce qui reste vrai : **aucune fiche ne porte `salaireBrut`**, toutes portent `salaireBase`
+> (vérifié le 24/11 sur les 88). Le déroulé en trois temps du renommage est donc toujours sans
+> objet. Mais la règle tient, et elle vient de prouver son utilité en cinq jours : **relire l'état
+> réel juste avant toute fusion**, ne jamais s'appuyer sur le chiffre écrit ici.
 
 **État de la recette** au 10/11, après amorçage : 1 compte réel (super administrateur), le membre
 technique `dev:dg`, 4 membres `demo:*` — aucun des cinq derniers n'a d'identifiant de connexion.
@@ -388,8 +391,10 @@ champ et dit que c'est un défaut de l'application.
   propriétaire. Le risque est contenu — la production ne porte aucune fiche employé ni bulletin,
   le module RH y arrive donc sur une base vide — mais il n'est pas nul : ces quatre règles n'ont
   toujours jamais tourné contre des données.
-- À **re-vérifier juste avant la fusion** : que la production ne porte toujours ni fiche employé ni
-  bulletin (§ 1). Si elle en porte, le renommage `salaireBase` redevient un déroulé en trois temps.
+- À **re-vérifier juste avant la fusion** : non plus « la production est-elle vide » — elle ne
+  l'est plus, 88 fiches depuis le 24/11 — mais **une fiche porte-t-elle encore `salaireBrut`**.
+  Aucune au 24/11. Si une seule en porte, le renommage `salaireBase` redevient un déroulé en trois
+  temps, et dans cet ordre strict (§ 3.2 de l'ancienne passation `rh`).
 
 ### À corriger, sans bloquer
 

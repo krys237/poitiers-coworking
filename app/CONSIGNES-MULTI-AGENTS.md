@@ -208,6 +208,44 @@ Chaque agent ajoute une ligne quand il touche à une zone frontière ou termine 
   - **Un nouveau skill de projet** : `.agents/skills/lot-agent-externe/SKILL.md` — la méthode de
     travail avec un exécutant qui n'a pas accès au dépôt. À lire avant de préparer un lot.
 
+- **2026-11-24 — DÉPLOIEMENT** : correctif de la **fiche employé**, validé en recette puis reporté
+  sur `clean` (`9fb9538`, merge `07049b7`). Il touche un composant **partagé par trois écrans**,
+  d'où cette note.
+  - **Le symptôme** : « la modification des fiches ne prend pas », en recette comme en production,
+    avec pourtant un message de succès. Deux défauts distincts, et le second est le plus sournois.
+  - **Défaut 1 — trois descriptions de la même donnée.** `Employes.tsx` (`fiche()`),
+    `recap/commun.tsx` (`ficheDe()`) et, par elle, les deux écrans de récapitulatif construisaient
+    *à la main* l'objet passé à `FicheEmploye`. Aucun ne le remplissait en entier : les champs
+    oubliés s'affichaient **vides alors qu'ils étaient renseignés** (type de contrat, service, date
+    d'entrée CNPS, fin de contrat). Et trois d'entre eux — `immatriculeImpots`, `methodeEnvoi`,
+    `contratRenouvele` — n'ont pas de valeur « vide » qui vaille absence : « non », « automatique »
+    et « faux » **sont** des valeurs. Transmis sans condition, ils écrasaient la base par le défaut
+    du formulaire à **chaque** enregistrement.
+  - **Le remède, et la règle qu'il applique** : le formulaire lit la fiche lui-même
+    (`employes.fiche`, même garde que `employes.liste` pour que le récapitulatif de paie y accède).
+    Aucun appelant ne peut plus en passer une version partielle. C'est exactement le remède retenu
+    pour les validateurs désynchronisés — **une seule description de la donnée, lue là où elle vit,
+    jamais recopiée**. Les trois champs explicites ne partent que s'ils ont réellement changé,
+    comme `whatsapp` le faisait déjà seul. ⚠️ **Si vous ajoutez un champ à la fiche, ajoutez-le à
+    `employes.fiche` ET à `employes.modifier`** — les deux décrivent la même fiche.
+  - **Défaut 2 — la saisie en cours était écrasée pendant la frappe.** L'amorçage du formulaire
+    dépendait de l'objet `employe`, que le parent reconstruit à chaque rendu (`employe={fiche(e)}`).
+    Tout rafraîchissement réactif survenant fiche ouverte — la liste, les rattachements, le
+    **compteur de tickets du bandeau arrivé avec le lot notifications** — remettait les valeurs du
+    serveur par-dessus la saisie ; l'enregistrement renvoyait alors les valeurs d'origine. Amorçage
+    désormais limité à une fois par ouverture (garde par `useRef`). **Leçon générale : ne jamais
+    mettre un objet reconstruit à chaque rendu dans les dépendances d'un effet qui écrit l'état.**
+  - **La production n'est plus vide.** Elle portait 1 fiche le 24/11 au matin, elle en porte **88**
+    le soir, et **0 bulletin** — l'effectif a été importé pendant la séance. Aucune ne porte
+    `salaireBrut` (toutes `salaireBase`), donc le déroulé en trois temps du renommage reste sans
+    objet, mais le constat « 0 employé » de `PASSATION-DEPLOIEMENT.md` est **périmé** : il est
+    corrigé là-bas.
+  - ⚠️ **À reprendre, conséquence du défaut 1** : **76 fiches sur 88** en production sont marquées
+    « non immatriculé aux impôts ». Ces personnes produiront un *Récapitulatif de paie* au lieu d'un
+    bulletin et **n'apparaîtront pas au DIPE**. L'import ne renseigne pas ce champ, et jusqu'au
+    24/11 la fiche ne permettait pas de le corriger. À passer en masse sur critère (NIU renseigné,
+    ou par société) avec une mutation qui annonce ce qu'elle écrit avant de l'écrire.
+
 ## Demandes
 
 *(FRONT → AUTH : nouvelles routes à enregistrer. Format : `chemin` — libellé de menu — niveau min.)*

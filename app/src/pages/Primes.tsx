@@ -47,7 +47,10 @@ const SUGGESTIONS: Record<TypeLigne, string[]> = {
   charge: ["Retenue sur avance", "Retenue matériel", "Remboursement prêt", "Cotisation syndicale", "Pénalité de retard"],
 };
 
-type Ligne = { ligneId: string | null; employeId: string; type: TypeLigne; libelle: string; montant: number; date: string };
+type Ligne = { ligneId: string | null; employeId: string; societe: string; type: TypeLigne; libelle: string; montant: number; date: string };
+/** Le couple choisi dans un sélecteur, décomposé. `cle` = `<employeId>:<SOCIETE>`. */
+type Couple = { cle: string; employeId: string; societe: string; nom: string; libelle: string };
+const coupleDe = (couples: Couple[], cle: string) => couples.find((c) => c.cle === cle);
 const aujourdHui = () => new Date().toISOString().slice(0, 10);
 const fmtDate = (s?: string) => (s ? new Date(s + "T00:00:00").toLocaleDateString("fr-FR") : "—");
 const sansAccents = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -71,10 +74,13 @@ export function Primes() {
   const [edition, setEdition] = React.useState<Ligne | null>(null);
 
   const cloture = reg?.cloture ?? false;
-  const employes = (reg?.employesActifs ?? []) as { employeId: string; nom: string }[];
+  // Un couple (employé, déclarant) par entrée : un pluri-employé y figure une fois par employeur,
+  // et c'est le seul moyen de désigner celui qu'on vise. `libelle` porte « NOM — SOCIÉTÉ » quand
+  // l'employé en a plusieurs, son seul nom sinon — pour ne pas alourdir le cas courant.
+  const couples = (reg?.couplesActifs ?? []) as { cle: string; employeId: string; societe: string; nom: string; libelle: string }[];
   const q = sansAccents(recherche.trim());
   const lignes = ((reg?.lignes ?? []) as any[]).filter(
-    (l) => (filtreType === "tous" || l.type === filtreType) && (!q || sansAccents(`${l.nom} ${l.libelle}`).includes(q))
+    (l) => (filtreType === "tous" || l.type === filtreType) && (!q || sansAccents(`${l.nom} ${l.libelle} ${l.societe ?? ""}`).includes(q))
   );
   const totalVisible = (t: TypeLigne) => lignes.filter((l) => l.type === t).reduce((s, l) => s + l.montant, 0);
 
@@ -86,7 +92,7 @@ export function Primes() {
         statut={<StatutMois cloture={reg === undefined ? undefined : cloture} />}
         actions={
           <>
-            {!cloture && !persistant ? <Button size="sm" onClick={() => setEdition({ ligneId: null, employeId: "", type: "prime", libelle: "", montant: 0, date: dateDefaut(periode) })}><PlusIcon /> Ajouter une ligne</Button> : null}
+            {!cloture && !persistant ? <Button size="sm" onClick={() => setEdition({ ligneId: null, employeId: "", societe: "", type: "prime", libelle: "", montant: 0, date: dateDefaut(periode) })}><PlusIcon /> Ajouter une ligne</Button> : null}
             {!cloture ? <BoutonPersistance actif={persistant} onChange={setPersistant} /> : null}
           </>
         }
@@ -120,7 +126,7 @@ export function Primes() {
         <Tuile libelle="Primes du mois" valeur={reg ? <Montant valeur={reg.totaux.primes} zero="0" /> : undefined} note="ajoutées au brut des bulletins" />
         <Tuile libelle="Retenues du mois" valeur={reg ? <Montant valeur={-reg.totaux.charges} signe zero="0" /> : undefined} note="déduites du net à payer" />
         <Tuile libelle="Effet net sur la paie" valeur={reg ? <Montant valeur={reg.totaux.primes - reg.totaux.charges} signe zero="0" gras /> : undefined} note="primes − retenues" vedette />
-        <Tuile libelle="Employés concernés" valeur={reg ? reg.totaux.employes : undefined} note={reg ? `sur ${employes.length} actifs` : undefined} />
+        <Tuile libelle="Couples concernés" valeur={reg ? reg.totaux.couples : undefined} note={reg ? `sur ${couples.length} (employé × déclarant)` : undefined} />
       </GrilleTuiles>
 
       <div className="flex flex-col gap-3.5 lg:flex-row lg:items-start">
@@ -142,19 +148,30 @@ export function Primes() {
               <TableBody>
                 {persistant && !cloture && (
                   <LigneSaisie
-                    employes={employes}
+                    couples={couples}
                     typeParDefaut={filtreType === "charge" ? "charge" : "prime"}
                     dateParDefaut={dateDefaut(periode)}
                     onEnregistrer={async (l) => {
-                      await ajouter({ employeId: l.employeId as any, periode, libelle: l.libelle, montant: l.montant, type: l.type, date: l.date });
-                      const nom = employes.find((e) => String(e.employeId) === l.employeId)?.nom ?? "";
-                      toast.success(`${TYPE[l.type].label} « ${l.libelle} » enregistrée`, { description: `${nom} · ${fcfa(l.montant)} — bulletin recalculé` });
+                      await ajouter({ employeId: l.employeId as any, societe: l.societe as any, periode, libelle: l.libelle, montant: l.montant, type: l.type, date: l.date });
+                      const c = couples.find((x) => x.employeId === l.employeId && x.societe === l.societe);
+                      toast.success(`${TYPE[l.type].label} « ${l.libelle} » enregistrée`, { description: `${c?.libelle ?? ""} · ${fcfa(l.montant)} — bulletin recalculé` });
                     }}
                   />
                 )}
                 {lignes.map((l) => (
-                  <TableRow key={String(l._id)} className={cn(!cloture && "cursor-pointer")} onClick={() => !cloture && setEdition({ ligneId: String(l._id), employeId: String(l.employeId), type: l.type, libelle: l.libelle, montant: l.montant, date: l.date })}>
-                    <TableCell className="whitespace-nowrap text-[13px] font-semibold">{l.nom}</TableCell>
+                  <TableRow key={String(l._id)} className={cn(!cloture && "cursor-pointer")} onClick={() => !cloture && setEdition({ ligneId: String(l._id), employeId: String(l.employeId), societe: String(l.societe ?? ""), type: l.type, libelle: l.libelle, montant: l.montant, date: l.date })}>
+                    <TableCell className="whitespace-nowrap text-[13px] font-semibold">
+                      {l.nom}
+                      {/* Le déclarant est affiché parce que c'est LUI qui reçoit la ligne sur son
+                          bulletin. Une ligne antérieure au déclarant explicite est marquée d'un
+                          point d'interrogation : elle appartient à la société porteuse de la fiche,
+                          mais personne ne l'a jamais confirmé. */}
+                      {l.societe ? (
+                        <span className="ml-1.5 font-normal text-2xs text-encre-pale" title={l.societeDeduite ? "Déclarant déduit de la fiche : cette ligne a été saisie avant que le registre ne le demande" : undefined}>
+                          {l.societe}{l.societeDeduite ? " ?" : ""}
+                        </span>
+                      ) : null}
+                    </TableCell>
                     <TableCell><Flag variant={TYPE[l.type as TypeLigne].variant} size="xs" title={TYPE[l.type as TypeLigne].explication}>{TYPE[l.type as TypeLigne].label}</Flag></TableCell>
                     <TableCell className="text-xs">{l.libelle}</TableCell>
                     <TableCell numerique className={cn("font-mono text-xs font-semibold", l.type === "charge" && "text-carmin")}>{l.type === "charge" ? "−" : "+"}{num(l.montant)}</TableCell>
@@ -162,7 +179,7 @@ export function Primes() {
                     <TableCell className="whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       {!cloture && (
                         <div className="flex items-center justify-end gap-0.5">
-                          <Button variant="ghost" size="icon-sm" aria-label={`Modifier — ${l.nom}, ${l.libelle}`} onClick={() => setEdition({ ligneId: String(l._id), employeId: String(l.employeId), type: l.type, libelle: l.libelle, montant: l.montant, date: l.date })}><PencilIcon /></Button>
+                          <Button variant="ghost" size="icon-sm" aria-label={`Modifier — ${l.nom}, ${l.libelle}`} onClick={() => setEdition({ ligneId: String(l._id), employeId: String(l.employeId), societe: String(l.societe ?? ""), type: l.type, libelle: l.libelle, montant: l.montant, date: l.date })}><PencilIcon /></Button>
                           <BoutonConfirmation
                             variant="ghost" size="icon-sm" className="text-encre-pale hover:bg-carmin-clair hover:text-carmin"
                             libelle={<Trash2Icon className="h-3.5 w-3.5" />}
@@ -207,14 +224,17 @@ export function Primes() {
           </div>
           {reg === undefined ? (
             <div className="p-4"><SqueletteTableau colonnes={3} lignes={4} /></div>
-          ) : reg.parEmploye.length === 0 ? (
+          ) : reg.parCouple.length === 0 ? (
             <p className="p-4 text-xs text-encre-pale">Aucun employé concerné ce mois.</p>
           ) : (
             <table className="w-full text-xs">
               <tbody>
-                {reg.parEmploye.map((r: any) => (
-                  <tr key={r.employeId} className="border-b border-filet-clair last:border-0">
-                    <td className="px-4 py-2 font-semibold">{r.nom}</td>
+                {reg.parCouple.map((r: any) => (
+                  <tr key={r.cle} className="border-b border-filet-clair last:border-0">
+                    <td className="px-4 py-2 font-semibold">
+                      {r.nom}
+                      {r.societe ? <span className="ml-1.5 font-normal text-2xs text-encre-pale">{r.societe}</span> : null}
+                    </td>
                     <td className="px-2 py-2 text-right font-mono tabular-nums text-encre-douce whitespace-nowrap">{r.primes ? `+${num(r.primes)}` : ""}{r.primes && r.charges ? " " : ""}{r.charges ? <span className="text-carmin">−{num(r.charges)}</span> : ""}</td>
                     <td className={cn("px-4 py-2 text-right font-mono tabular-nums font-semibold whitespace-nowrap", r.primes - r.charges < 0 && "text-carmin")}>{r.primes - r.charges < 0 ? "−" : "+"}{num(Math.abs(r.primes - r.charges))}</td>
                   </tr>
@@ -236,8 +256,8 @@ export function Primes() {
                 if (!edition.libelle.trim()) { toast.error("Le libellé est requis : c'est lui qui figure sur le bulletin."); return; }
                 if (!(edition.montant > 0)) { toast.error("Le montant doit être supérieur à 0."); return; }
                 try {
-                  if (edition.ligneId) await modifier({ ligneId: edition.ligneId as any, employeId: edition.employeId as any, libelle: edition.libelle, montant: edition.montant, type: edition.type, date: edition.date });
-                  else await ajouter({ employeId: edition.employeId as any, periode, libelle: edition.libelle, montant: edition.montant, type: edition.type, date: edition.date });
+                  if (edition.ligneId) await modifier({ ligneId: edition.ligneId as any, employeId: edition.employeId as any, societe: edition.societe as any, libelle: edition.libelle, montant: edition.montant, type: edition.type, date: edition.date });
+                  else await ajouter({ employeId: edition.employeId as any, societe: edition.societe as any, periode, libelle: edition.libelle, montant: edition.montant, type: edition.type, date: edition.date });
                   toast.success(edition.ligneId ? "Ligne mise à jour — bulletin recalculé" : "Ligne ajoutée — bulletin recalculé");
                   setEdition(null);
                 } catch (err) { toast.error("Enregistrement refusé", { description: messageErreur(err) }); }
@@ -248,11 +268,17 @@ export function Primes() {
                 <DialogDescription>{libellePeriode(periode)} · {TYPE[edition.type].label} : {TYPE[edition.type].explication}.</DialogDescription>
               </DialogHeader>
               <div className="mt-4 grid grid-cols-2 gap-3">
-                <Champ libelle="Employé" requis>
+                <Champ libelle="Employé et déclarant" requis aide="Un employé rémunéré par deux sociétés apparaît deux fois : la prime va sur le bulletin du déclarant choisi">
                   {(a) => (
-                    <Select value={edition.employeId} onValueChange={(v) => setEdition({ ...edition, employeId: v })}>
-                      <SelectTrigger id={a.id} className="w-full" aria-label="Employé"><SelectValue placeholder="Choisir…" /></SelectTrigger>
-                      <SelectContent>{employes.map((e) => <SelectItem key={String(e.employeId)} value={String(e.employeId)}>{e.nom}</SelectItem>)}</SelectContent>
+                    <Select
+                      value={edition.employeId && edition.societe ? `${edition.employeId}:${edition.societe}` : ""}
+                      onValueChange={(v) => {
+                        const c = coupleDe(couples, v);
+                        setEdition({ ...edition, employeId: c?.employeId ?? "", societe: c?.societe ?? "" });
+                      }}
+                    >
+                      <SelectTrigger id={a.id} className="w-full" aria-label="Employé et déclarant"><SelectValue placeholder="Choisir…" /></SelectTrigger>
+                      <SelectContent>{couples.map((c) => <SelectItem key={c.cle} value={c.cle}>{c.libelle}</SelectItem>)}</SelectContent>
                     </Select>
                   )}
                 </Champ>
@@ -292,14 +318,14 @@ export function Primes() {
 const CS = "bg-ocean-brume/40 align-middle";
 
 function LigneSaisie({
-  employes, typeParDefaut, dateParDefaut, onEnregistrer,
+  couples, typeParDefaut, dateParDefaut, onEnregistrer,
 }: {
-  employes: { employeId: string; nom: string }[];
+  couples: Couple[];
   typeParDefaut: TypeLigne;
   dateParDefaut: string;
   onEnregistrer: (l: Omit<Ligne, "ligneId">) => Promise<void>;
 }) {
-  const vierge = React.useCallback((): Omit<Ligne, "ligneId"> => ({ employeId: "", type: typeParDefaut, libelle: "", montant: 0, date: dateParDefaut }), [typeParDefaut, dateParDefaut]);
+  const vierge = React.useCallback((): Omit<Ligne, "ligneId"> => ({ employeId: "", societe: "", type: typeParDefaut, libelle: "", montant: 0, date: dateParDefaut }), [typeParDefaut, dateParDefaut]);
   const [l, setL] = React.useState(vierge);
   const [enCours, setEnCours] = React.useState(false);
   const premier = React.useRef<HTMLButtonElement>(null);
@@ -324,9 +350,12 @@ function LigneSaisie({
   return (
     <TableRow className={CS} aria-label="Nouvelle prime ou retenue">
       <TableCell className={CS}>
-        <Select value={l.employeId} onValueChange={(v) => setL({ ...l, employeId: v })}>
-          <SelectTrigger ref={premier} size="sm" className="h-8 w-40 text-xs" aria-label="Employé (nouvelle ligne)"><SelectValue placeholder="Employé…" /></SelectTrigger>
-          <SelectContent>{employes.map((e) => <SelectItem key={String(e.employeId)} value={String(e.employeId)}>{e.nom}</SelectItem>)}</SelectContent>
+        <Select
+          value={l.employeId && l.societe ? `${l.employeId}:${l.societe}` : ""}
+          onValueChange={(v) => { const c = coupleDe(couples, v); setL({ ...l, employeId: c?.employeId ?? "", societe: c?.societe ?? "" }); }}
+        >
+          <SelectTrigger ref={premier} size="sm" className="h-8 w-48 text-xs" aria-label="Employé et déclarant (nouvelle ligne)"><SelectValue placeholder="Employé…" /></SelectTrigger>
+          <SelectContent>{couples.map((c) => <SelectItem key={c.cle} value={c.cle}>{c.libelle}</SelectItem>)}</SelectContent>
         </Select>
       </TableCell>
       <TableCell className={CS}>

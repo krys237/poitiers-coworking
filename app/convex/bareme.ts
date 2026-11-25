@@ -12,12 +12,24 @@ import { rubriquesPourPeriode } from "./rubriques";
 const debutMois = (periode: string) => `${periode}-01`;
 
 // Barème applicable à une période : dernière version active dont effectiveFrom <= début du mois.
+/**
+ * Le barème applicable à une période, **catalogue de rubriques inclus**.
+ *
+ * Les rubriques sont jointes ici et non laissées à l'appelant : `computeBulletin` fait
+ * `b.rubriques ?? RUBRIQUES_DEFAUT`, donc un barème servi sans elles fait calculer l'écran avec
+ * les valeurs par DÉFAUT pendant que le serveur, lui, utilise le catalogue de la période
+ * (`lib/calculBulletins.ts` les joint depuis toujours). Deux assiettes, deux bruts, et une
+ * divergence invisible tant que personne ne personnalise une rubrique. Écart É2 de
+ * `docs/coherence/ECARTS-CHIFFRES-DERIVES.md`.
+ */
 export const pourPeriode = query({
   args: { periode: v.string() },
   handler: async (ctx, { periode }) => {
     const debut = debutMois(periode);
     const candidats = await ctx.db.query("baremes").withIndex("by_effective").order("desc").collect();
-    return candidats.find((b) => b.statut === "actif" && b.effectiveFrom <= debut) ?? null;
+    const doc = candidats.find((b) => b.statut === "actif" && b.effectiveFrom <= debut) ?? null;
+    if (!doc) return null;
+    return { ...doc, rubriques: await rubriquesPourPeriode(ctx, periode) };
   },
 });
 
