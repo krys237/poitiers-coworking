@@ -9,6 +9,7 @@ import {
   calculerAssiettes,
   rubriquesApplicables,
   validerRubriques,
+  rubriquesDeLaSaisie,
   type Rubrique,
 } from "../convex/lib/rubriques.ts";
 
@@ -178,6 +179,59 @@ check("mais elle reste VISIBLE sur le bulletin, sous son propre code",
 check("et dans les détails", deuxAnc.details.ancienneteSeparee === 20000);
 check("la prime d'ancienneté, elle, garde sa place dans le brut",
   deuxAnc.lignesGain.find((l) => l.code === "66116")?.gain === 30000);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// L'ANGLE MORT du test ci-dessus, découvert le 25/11/2026.
+//
+// Les trois vérifications précédentes appellent `computeBulletin` SANS extras. Or le serveur, lui,
+// traduit les colonnes de la saisie en montants par code de rubrique et les passe dans
+// `extras.rubriques` — et `ancienneteSeparee` y était traduite en 66117, qui est sommé dans le
+// Total 1. La décision du 05/11 était donc respectée sur le chemin testé et contournée sur le
+// chemin réel : une augmentation de 10 000 gonflait le brut ET le net de 10 000.
+//
+// Ces vérifications portent sur la règle de traduction elle-même, celle que le serveur et l'aperçu
+// de saisie partagent désormais.
+// ─────────────────────────────────────────────────────────────────────────────
+titre("Traduction des colonnes de saisie en rubriques (règle partagée)");
+
+const saisieDipe = {
+  ancienneteSeparee: 20000, primeSalissure: 3000, primePanier: 2500, primeLait: 5000,
+  indemniteRepresentation: 1500, indemniteVehicule: 4000, primeCaisse: 1000,
+  primeRendement: 2000, indemniteOutillage: 500, gratification: 7000,
+  // Déjà portés en propre par `SaisieMois` : ne doivent PAS être traduits, sous peine de compter deux fois.
+  primesVariables: 9000, transport: 4000, primeAssiduite: 1000, indemniteLogement: 6000,
+};
+const traduites = rubriquesDeLaSaisie(saisieDipe);
+
+check("l'augmentation d'ancienneté n'est JAMAIS traduite (66117 absent)",
+  traduites["66117"] === undefined, traduites);
+check("les quatre champs déjà portés par SaisieMois ne sont pas traduits",
+  traduites["66125"] === undefined && traduites["66121"] === undefined
+  && traduites["66122"] === undefined && traduites["6631"] === undefined, traduites);
+check("les neuf primes du DIPE sont traduites, elles",
+  traduites["6632"] === 3000 && traduites["6633"] === 2500 && traduites["6634"] === 5000
+  && traduites["6635"] === 1500 && traduites["6636"] === 4000 && traduites["66123"] === 1000
+  && traduites["66124"] === 2000 && traduites["6637"] === 500 && traduites["66118"] === 7000,
+  traduites);
+check("un montant nul n'est pas traduit (pas de ligne à zéro sur le bulletin)",
+  rubriquesDeLaSaisie({ primeSalissure: 0, primePanier: 1 })["6632"] === undefined);
+check("une saisie absente ne casse rien",
+  Object.keys(rubriquesDeLaSaisie(null)).length === 0 && Object.keys(rubriquesDeLaSaisie(undefined)).length === 0);
+
+// LE test décisif, sur le chemin réel : la saisie complète passée par les extras ne doit pas
+// davantage faire bouger un chiffre à cause de l'augmentation indicative.
+const parExtras = (ancienneteSeparee: number) =>
+  computeBulletin(100000, { ...vide, anciennete: 30000, ancienneteSeparee }, BAREME_DEFAUT, {
+    rubriques: rubriquesDeLaSaisie({ ancienneteSeparee, primeSalissure: 3000 }),
+  });
+const avecIndic = parExtras(20000);
+const sansIndic2 = parExtras(0);
+check("par les extras aussi : l'augmentation ne change AUCUN chiffre",
+  avecIndic.brut === sansIndic2.brut && avecIndic.net === sansIndic2.net
+    && avecIndic.details.irpp === sansIndic2.details.irpp,
+  { avec: avecIndic.brut, sans: sansIndic2.brut });
+check("et la prime de salissure, elle, entre bien dans le brut par les extras",
+  avecIndic.brut === 100000 + 30000 + 3000, avecIndic.brut);
 check("aucune des deux n'entre dans l'agrégat « primes » (elles ont leurs propres colonnes)",
   deuxAnc.details.primes === 0, deuxAnc.details.primes);
 

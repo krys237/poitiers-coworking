@@ -328,3 +328,50 @@ export const CHAMP_SAISIE_VERS_RUBRIQUE: Record<string, string> = {
   indemniteOutillage: "6637",
   gratification: "66118",
 };
+
+/**
+ * Les champs de saisie qu'il ne faut PAS traduire en rubrique, et pourquoi chacun.
+ *
+ * Les quatre premiers sont déjà portés en propre par `SaisieMois` et sommés dans le Total 1
+ * (`paie.computeBulletin`) : les traduire en plus les compterait DEUX FOIS.
+ *
+ * `ancienneteSeparee` est un cas à part et il a une histoire. La décision du 05/11/2026
+ * (A-VERIFIER R-2a) est que l'AUGMENTATION d'ancienneté de l'année est purement **indicative** et
+ * ne compte nulle part : seul le montant global (rubrique 66116) est payé. La rubrique 66117 a donc
+ * été sortie des quatre assiettes, et le `+ ancienneteSeparee` retiré du Total 1. Mais elle y
+ * revenait **par cette traduction** : `extras.rubriques["66117"]` est sommé dans `primes`, donc
+ * dans le Total 1, donc dans le brut et dans le net. Mesuré le 25/11/2026 : une augmentation de
+ * 10 000 gonflait le brut ET le net de 10 000, exactement le double comptage que la correction
+ * du 05/11 visait. Le test d'`assiettes` garde bien cette décision, mais il appelle
+ * `computeBulletin` **sans extras** — son angle mort était précisément le chemin du serveur.
+ *
+ * Aucun montant de production n'a été touché par cette exclusion : `ancienneteSeparee` valait
+ * zéro sur toutes les saisies au moment de la corriger.
+ */
+export const CHAMPS_SAISIE_HORS_RUBRIQUE: ReadonlySet<string> = new Set([
+  "primesVariables", "transport", "primeAssiduite", "indemniteLogement",
+  "ancienneteSeparee",
+]);
+
+/**
+ * Traduit les colonnes dédiées d'une saisie mensuelle en montants **par code de rubrique** — la
+ * seule forme que comprennent les assiettes (`extras.rubriques` de `computeBulletin`).
+ *
+ * Fonction PARTAGÉE par le calcul serveur (`lib/calculBulletins.ts`) et par l'aperçu de saisie
+ * (`src/pages/recap/commun.tsx`). C'est le remède à l'écart É2 de
+ * `docs/coherence/ECARTS-CHIFFRES-DERIVES.md` : l'aperçu ne traduisait rien, donc le brut qu'il
+ * affichait ne bougeait pas quand la RH tapait une prime de panier ou de salissure. Constaté actif
+ * en production le 25/11/2026 sur deux employés, pour 8 000 et 12 500 FCFA.
+ *
+ * Les deux appelants doivent produire le même brut : une seule règle, importée, jamais recopiée.
+ */
+export function rubriquesDeLaSaisie(saisie: Record<string, unknown> | null | undefined): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!saisie) return out;
+  for (const [champ, code] of Object.entries(CHAMP_SAISIE_VERS_RUBRIQUE)) {
+    if (CHAMPS_SAISIE_HORS_RUBRIQUE.has(champ)) continue;
+    const montant = saisie[champ];
+    if (typeof montant === "number" && montant) out[code] = montant;
+  }
+  return out;
+}

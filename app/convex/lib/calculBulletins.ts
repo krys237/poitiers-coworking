@@ -13,7 +13,7 @@ import { QueryCtx, MutationCtx } from "../_generated/server";
 import { Doc, Id } from "../_generated/dataModel";
 import { rubriquesPourPeriode } from "../rubriques";
 import { statutDocument } from "./immatriculation";
-import { CHAMP_SAISIE_VERS_RUBRIQUE } from "./rubriques";
+import { rubriquesDeLaSaisie } from "./rubriques";
 import { computeBulletin, SaisieMois, Bareme, LigneGain, LigneCotisation, Extras, DetailsBulletin } from "./paie";
 import {
   cleCouple, pourSociete, rattachementsEffectifs, societePrincipale, toutesPourSociete,
@@ -21,7 +21,7 @@ import {
 } from "./societes";
 import { resumeMois, CONGES_PAR_MOIS_DEFAUT } from "./absences";
 import { indexFeries } from "./congesOuvrables";
-import { allocationConge, congePayeDuMois } from "./allocationConge";
+import { allocationConge, congePayeDuMois, type ReglesAllocation } from "./allocationConge";
 import { bornesPeriode } from "./periode";
 
 type Ctx = QueryCtx | MutationCtx;
@@ -73,6 +73,17 @@ export interface BulletinPeriode {
   envoyeLe?: string;
   valide: boolean;        // mois clôturé = bulletin validé
   valideLe?: string;
+  /**
+   * Les ENTRÉES de l'allocation de congé, pour que l'aperçu de saisie la recalcule avec la même
+   * fonction (`lib/allocationConge.allocationConge`) et les mêmes dates que ce bulletin.
+   * Absent = aucun congé payé ce mois-ci, donc pas d'allocation.
+   *
+   * L'assiette n'y figure pas volontairement : elle vaut `salaireBase + anciennete`, et
+   * l'ancienneté est un champ ÉDITABLE du récapitulatif. Passer un montant figé serait faux dès
+   * que la RH la modifie — c'est pour cette raison que l'aperçu doit recalculer, et non recevoir.
+   * Écart É1 de `docs/coherence/ECARTS-CHIFFRES-DERIVES.md`.
+   */
+  allocation?: { dateDepart: string; dateRetourPrecedent?: string; dateEmbauche?: string; regles: Partial<ReglesAllocation> };
 }
 
 const SAISIE_VIDE = {
@@ -232,13 +243,9 @@ export async function bulletinsPourPeriode(ctx: Ctx, periode: string): Promise<{
       };
       // Les primes nommées du DIPE sont saisies dans des colonnes dédiées de `saisiesMensuelles`
       // et traduites en montants par code de rubrique, seule forme comprise par les assiettes.
-      const rubriquesSaisies: Record<string, number> = {};
-      for (const [champ, code] of Object.entries(CHAMP_SAISIE_VERS_RUBRIQUE)) {
-        // Les quatre champs historiques sont déjà portés par `SaisieMois` : ne pas les compter deux fois.
-        if (champ in SAISIE_VIDE || champ === "primeAssiduite" || champ === "indemniteLogement") continue;
-        const montant = (saisie as Record<string, unknown> | null | undefined)?.[champ];
-        if (typeof montant === "number" && montant) rubriquesSaisies[code] = montant;
-      }
+      // La règle vit dans `lib/rubriques.rubriquesDeLaSaisie` et NON ici : l'aperçu de saisie doit
+      // appliquer exactement la même, sans quoi les deux écrans affichent deux bruts (écart É2).
+      const rubriquesSaisies = rubriquesDeLaSaisie(saisie as Record<string, unknown> | null | undefined);
       // L'allocation de congé au 1/16 (lot R4), rattachée au mois du DÉPART. Elle remplace la
       // proratisation `journalier × joursPris`, qui ne mesurait pas la même chose.
       //
@@ -247,18 +254,24 @@ export async function bulletinsPourPeriode(ctx: Ctx, periode: string): Promise<{
       // de l'art. 73. Elle est reconstituée ici plutôt que lue sur le bulletin, le bulletin
       // dépendant lui-même de l'allocation.
       const conge = congePayeDuMois(evs, periode);
-      const alloc = conge
-        ? allocationConge({
-            assiette: rat.salaireBase + (saisie?.anciennete ?? 0),
+      // Les règles du barème, extraites UNE fois : elles servent au calcul ci-dessous et sont
+      // exposées telles quelles sur le bulletin, pour que l'aperçu de saisie recalcule à
+      // l'identique au lieu d'en deviner d'autres.
+      const reglesAlloc: Partial<ReglesAllocation> = {
+        ...(bareme.allocationPlafondMois !== undefined ? { plafondMois: bareme.allocationPlafondMois } : {}),
+        ...(bareme.allocationMoisAvantPremierConge !== undefined ? { moisAvantPremierConge: bareme.allocationMoisAvantPremierConge } : {}),
+        ...(bareme.allocationConventionFraction !== undefined ? { conventionFraction: bareme.allocationConventionFraction } : {}),
+      };
+      const entreesAlloc = conge
+        ? {
             dateDepart: conge.depart,
-            dateRetourPrecedent: conge.retourPrecedent,
-            dateEmbauche: e.dateDebut,
-            regles: {
-              ...(bareme.allocationPlafondMois !== undefined ? { plafondMois: bareme.allocationPlafondMois } : {}),
-              ...(bareme.allocationMoisAvantPremierConge !== undefined ? { moisAvantPremierConge: bareme.allocationMoisAvantPremierConge } : {}),
-              ...(bareme.allocationConventionFraction !== undefined ? { conventionFraction: bareme.allocationConventionFraction } : {}),
-            },
-          })
+            ...(conge.retourPrecedent ? { dateRetourPrecedent: conge.retourPrecedent } : {}),
+            ...(e.dateDebut ? { dateEmbauche: e.dateDebut } : {}),
+            regles: reglesAlloc,
+          }
+        : null;
+      const alloc = entreesAlloc
+        ? allocationConge({ assiette: rat.salaireBase + (saisie?.anciennete ?? 0), ...entreesAlloc })
         : null;
       const extras = {
         ...(await extrasPour(ctx, e._id, periode, rat.societe, principale)),
@@ -274,6 +287,7 @@ export async function bulletinsPourPeriode(ctx: Ctx, periode: string): Promise<{
         baremeId: baremeDoc._id, brut: calc.brut, totalRetenues: calc.totalRetenues, net: calc.net,
         lignesGain: calc.lignesGain, cotisations: calc.cotisations, details: calc.details,
         periodeDu: bornes.du, periodeAu: bornes.au, datePaiement: bornes.paiement, valide: false,
+        ...(entreesAlloc ? { allocation: entreesAlloc } : {}),
       });
     }
   }

@@ -20,6 +20,8 @@ import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { BulletinPeriode } from "../../../convex/lib/calculBulletins";
 import { computeBulletin, type Bareme, type Bulletin, type SaisieMois } from "../../../convex/lib/paie";
+import { rubriquesDeLaSaisie } from "../../../convex/lib/rubriques";
+import { allocationConge } from "../../../convex/lib/allocationConge";
 import { bornesPeriode, joursDuMois } from "../../../convex/lib/periode";
 import { fcfa, libellePeriode, messageErreur, num, pct } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -296,9 +298,24 @@ export function apercuBulletin(b: BulletinLigne, v: Valeurs, bareme: Bareme | nu
     congesAcquis: d?.congesAcquis ?? 0,
     congesRestants: d?.congesRestants,
   };
+  // Les trois ingrédients que le serveur passe au moteur, et que cet aperçu doit passer aussi.
+  // Sans eux il affichait un brut qui n'était pas celui du bulletin : écarts É1 et É2 de
+  // `docs/coherence/ECARTS-CHIFFRES-DERIVES.md`.
+  //
+  // 1. Les primes nommées du DIPE, traduites en codes de rubrique par la règle PARTAGÉE. L'aperçu
+  //    n'en traduisait aucune : taper une prime de panier ne faisait pas bouger le brut affiché.
+  // 2. L'allocation de congé, RECALCULÉE — pas reçue : son assiette est `salaire de base +
+  //    ancienneté`, et l'ancienneté est éditable ici. Même fonction, mêmes dates, mêmes règles que
+  //    le serveur, qui les expose sur `b.allocation`.
+  // 3. Les lignes libres du registre « Primes & charges », déjà reprises du bulletin courant.
+  const alloc = b.allocation
+    ? allocationConge({ assiette: b.salaireBase + (v.anciennete ?? 0), ...b.allocation })
+    : null;
   const extras = {
     primes: b.lignesGain.filter((l) => l.code === "PRIME").map((l) => ({ libelle: l.libelle, montant: l.gain })),
     charges: b.cotisations.filter((l) => l.code === "RETENUE").map((l) => ({ libelle: l.libelle, montant: l.retenue })),
+    rubriques: rubriquesDeLaSaisie(v as unknown as Record<string, unknown>),
+    ...(alloc ? { allocationConge: alloc.montant } : {}),
   };
   try {
     return computeBulletin(b.salaireBase, s, bareme, extras);
