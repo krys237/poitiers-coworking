@@ -252,7 +252,9 @@ export function FicheEmploye({
                 <div className="text-xs font-semibold">Autres sociétés qui la rémunèrent</div>
                 <p className="mt-0.5 text-2xs text-encre-pale">
                   Facultatif. Chaque société verse sa part et produit son propre bulletin. Sans
-                  montant, c'est le salaire de base ci-dessus qui s'applique.
+                  montant, cette société ne verse <strong>rien</strong> — à chiffrer plus tard dans
+                  la fiche. Elle ne reprend pas le salaire ci-dessus : ce serait un second bulletin
+                  à taux plein, donc la paie doublée.
                 </p>
                 <div className="mt-2 space-y-1.5">
                   {SOCIETES.filter((soc) => soc !== f.societe).map((soc) => (
