@@ -365,6 +365,47 @@ export const CHAMPS_SAISIE_HORS_RUBRIQUE: ReadonlySet<string> = new Set([
  *
  * Les deux appelants doivent produire le même brut : une seule règle, importée, jamais recopiée.
  */
+/**
+ * Les colonnes de la saisie mensuelle qui AJOUTENT au brut, et que l'onglet « Primes & retenues »
+ * doit montrer en plus de ses propres lignes libres.
+ *
+ * Écart É7 : les primes saisies dans le Récapitulatif salaires vivent dans `saisiesMensuelles`
+ * (colonnes nommées) tandis que l'onglet lit `primesCharges` (lignes libres). Les deux arrivent sur
+ * le bulletin, aucun écran ne montrait celui de l'autre — et c'est ainsi que PP1 a reçu sa prime
+ * d'assiduité DEUX FOIS en novembre 2026, une fois par colonne et une fois par ligne libre.
+ *
+ * Hors de cette liste, volontairement : le salaire de base et les heures supplémentaires, qui ne
+ * sont pas des primes ; et `ancienneteSeparee`, purement indicative depuis le 05/11/2026.
+ */
+export const CHAMPS_PRIMES_SAISIE: readonly string[] = [
+  "primesVariables", "transport", "primeAssiduite", "indemniteLogement", "anciennete",
+  "primeSalissure", "primePanier", "primeLait", "indemniteRepresentation", "indemniteVehicule",
+  "primeCaisse", "primeRendement", "indemniteOutillage", "gratification",
+];
+
+/**
+ * Les colonnes de la saisie mensuelle qui RETIENNENT sur le net, en FCFA.
+ * `mutuellePct` n'y figure pas : c'est un pourcentage, pas un montant — l'afficher comme une
+ * retenue chiffrée demanderait de rejouer le calcul, ce qui n'est pas le rôle de cet écran.
+ */
+export const CHAMPS_RETENUES_SAISIE: readonly string[] = [
+  "sanctions", "absences", "dettesSoins", "acompte",
+];
+
+/** Les montants non nuls d'une saisie, parmi une liste de colonnes. */
+export function montantsDeLaSaisie(
+  saisie: Record<string, unknown> | null | undefined,
+  champs: readonly string[],
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!saisie) return out;
+  for (const c of champs) {
+    const v = saisie[c];
+    if (typeof v === "number" && v) out[c] = v;
+  }
+  return out;
+}
+
 export function rubriquesDeLaSaisie(saisie: Record<string, unknown> | null | undefined): Record<string, number> {
   const out: Record<string, number> = {};
   if (!saisie) return out;

@@ -13,6 +13,10 @@
  */
 import * as React from "react";
 import { useMutation, useQuery } from "convex/react";
+// Les libellés des colonnes du Récapitulatif sont repris de LÀ où ils sont définis : deux
+// descriptions du même champ finiraient par diverger, et cet écran existe précisément pour
+// montrer la même donnée que l'autre.
+import { LIBELLE as LIBELLE_SAISIE } from "./recap/commun";
 import { toast } from "sonner";
 import { PencilIcon, PlusIcon, SearchIcon, Trash2Icon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
@@ -48,6 +52,8 @@ const SUGGESTIONS: Record<TypeLigne, string[]> = {
 };
 
 type Ligne = { ligneId: string | null; employeId: string; societe: string; type: TypeLigne; libelle: string; montant: number; date: string };
+/** Normalisation pour comparer un libellé libre à celui d'une colonne du Récapitulatif. */
+const normLibelle = (x: string) => x.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 /** Le couple choisi dans un sélecteur, décomposé. `cle` = `<employeId>:<SOCIETE>`. */
 type Couple = { cle: string; employeId: string; societe: string; nom: string; libelle: string };
 const coupleDe = (couples: Couple[], cle: string) => couples.find((c) => c.cle === cle);
@@ -83,6 +89,24 @@ export function Primes() {
     (l) => (filtreType === "tous" || l.type === filtreType) && (!q || sansAccents(`${l.nom} ${l.libelle} ${l.societe ?? ""}`).includes(q))
   );
   const totalVisible = (t: TypeLigne) => lignes.filter((l) => l.type === t).reduce((s, l) => s + l.montant, 0);
+
+  /**
+   * Le libellé tapé recouvre-t-il une colonne du Récapitulatif DÉJÀ remplie pour ce couple ?
+   *
+   * On AVERTIT, on ne bloque pas : la RH peut avoir une raison de verser deux fois, et un
+   * formulaire qui refuse d'enregistrer la réalité pousse à le contourner. Mais elle doit le
+   * savoir — c'est faute de l'avoir su que PP1 a reçu sa prime d'assiduité deux fois en novembre.
+   */
+  const colonneQuiRecouvre = (cle: string, libelle: string): string | null => {
+    const r: any = (reg?.saisieParCouple ?? []).find((x: any) => x.cle === cle);
+    if (!r || !libelle.trim()) return null;
+    const cible = normLibelle(libelle);
+    for (const c of [...Object.keys(r.primes), ...Object.keys(r.retenues)]) {
+      const lib = (LIBELLE_SAISIE as any)[c];
+      if (lib && normLibelle(lib) === cible) return lib;
+    }
+    return null;
+  };
 
   return (
     <div className="space-y-4">
@@ -242,6 +266,46 @@ export function Primes() {
               </tbody>
             </table>
           )}
+
+          {/* É7 — ce que le Récapitulatif a déjà saisi ce mois-ci, en COLONNES nommées.
+              L'onglet promet « l'effet sur la paie » : sans ce bloc il ne montrait que ses propres
+              lignes libres, et les deux registres arrivent pourtant sur le même bulletin. */}
+          {reg && reg.saisieParCouple.length > 0 && (
+            <div className="mt-3.5 rounded-xl border border-filet bg-papier">
+              <div className="border-b border-filet px-4 py-2.5">
+                <div className="text-sm font-semibold">Déjà saisi dans le Récapitulatif</div>
+                <div className="text-2xs text-encre-pale">
+                  Colonnes nommées du mois — <strong>en lecture seule ici</strong>, elles se modifient
+                  dans le Récapitulatif salaires. Elles agissent sur le même bulletin que les lignes
+                  ci-contre : avant d'ajouter une ligne libre, vérifiez qu'elle n'y figure pas déjà.
+                </div>
+              </div>
+              <table className="w-full text-xs">
+                <tbody>
+                  {reg.saisieParCouple.map((r: any) => (
+                    <tr key={r.cle} className="border-b border-filet-clair align-top last:border-0">
+                      <td className="px-4 py-2">
+                        <div className="font-semibold">
+                          {r.nom}
+                          {r.societe ? <span className="ml-1.5 font-normal text-2xs text-encre-pale">{r.societe}</span> : null}
+                        </div>
+                        <div className="mt-0.5 text-2xs text-encre-pale">
+                          {[...Object.entries(r.primes as Record<string, number>),
+                            ...Object.entries(r.retenues as Record<string, number>)]
+                            .map(([c, m]) => `${(LIBELLE_SAISIE as any)[c] ?? c} ${num(m)}`)
+                            .join(" · ")}
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2 text-right font-mono tabular-nums font-semibold">
+                        {r.totalPrimes ? <>+{num(r.totalPrimes)}</> : null}
+                        {r.totalRetenues ? <span className="ml-1 text-carmin">−{num(r.totalRetenues)}</span> : null}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </aside>
       </div>
 
@@ -298,6 +362,18 @@ export function Primes() {
                     {(a) => <><Input {...a} list="sugg-edition" required value={edition.libelle} onChange={(e) => setEdition({ ...edition, libelle: e.target.value })} placeholder={SUGGESTIONS[edition.type][0]} /><datalist id="sugg-edition">{SUGGESTIONS[edition.type].map((s) => <option key={s} value={s} />)}</datalist></>}
                   </Champ>
                 </div>
+                {(() => {
+                  const dejaLa = edition.employeId && edition.societe
+                    ? colonneQuiRecouvre(`${edition.employeId}:${edition.societe}`, edition.libelle)
+                    : null;
+                  return dejaLa ? (
+                    <p className="col-span-2 rounded-lg border border-ocre bg-ocre-clair/40 px-3 py-2 text-2xs" role="status">
+                      <strong>« {dejaLa} » est déjà saisie dans le Récapitulatif</strong> pour ce mois et ce
+                      déclarant. Ajouter cette ligne la versera <strong>deux fois</strong> sur le bulletin —
+                      une fois par la colonne, une fois par cette ligne. Si c'est voulu, poursuivez.
+                    </p>
+                  ) : null;
+                })()}
                 <ChampNombre libelle="Montant" unite="FCFA" requis min={0} step={1000} valeur={edition.montant} onChange={(n) => setEdition({ ...edition, montant: n })} />
                 <Champ libelle="Date" requis>{(a) => <Input {...a} type="date" required value={edition.date} onChange={(e) => setEdition({ ...edition, date: e.target.value })} />}</Champ>
               </div>
