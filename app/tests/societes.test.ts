@@ -54,15 +54,43 @@ check("chaque rattachement porte SON salaire de base, pas celui de la fiche",
   && effectifs.find((r) => r.societe === "SESAME")?.salaireBase === 48000, effectifs);
 check("l'origine des lignes explicites est « table »", effectifs.every((r) => r.origine === "table"));
 
-// Un rattachement déclaré sans montant sur une société AUTRE que celle de la fiche retombe sur le
-// salaire de base de la fiche — exactement ce que l'écran de saisie annonce (« Sans montant, c'est
-// le salaire de base ci-dessus qui s'applique »). La RH peut donc déclarer l'appartenance d'abord
-// et chiffrer ensuite, sans produire un bulletin à zéro entre-temps.
+// Un rattachement déclaré sans montant sur une société AUTRE que celle de la fiche vaut ZÉRO.
+//
+// La règle précédente y appliquait le salaire de base de la fiche, « pour ne pas produire un
+// bulletin à zéro entre-temps ». Elle produisait en réalité un SECOND BULLETIN À TAUX PLEIN : un
+// employé à 158 000 chez SGC, déclaré chez SESAME sans montant, sortait deux bulletins de
+// 158 000 — la paie doublée. Retournée le 25/11/2026 sur décision du propriétaire, après constat
+// en production. Ce test est écrit en dur dans ce sens précisément pour que le repli ne revienne
+// pas par mégarde.
 const sansMontant = rattachementsEffectifs(fiche, [
   { _id: "r4", societe: "SESAME", salaireBase: undefined, actif: true },
 ]);
-check("appartenance déclarée sans montant sur une société secondaire : salaire de base de la fiche",
-  sansMontant[0].salaireBase === fiche.salaireBase, sansMontant);
+check("appartenance déclarée sans montant sur une société SECONDAIRE : zéro, pas le salaire de la fiche",
+  sansMontant[0].salaireBase === 0, sansMontant);
+
+// Le repli vaut en revanche TOUJOURS pour la société portée par la fiche : ce rattachement EST la
+// fiche, et laisser diverger les deux montants ferait deux vérités pour le même salaire.
+const principalSansMontant = rattachementsEffectifs(fiche, [
+  { _id: "r5", societe: "SGC", salaireBase: undefined, actif: true, principal: true },
+  { _id: "r6", societe: "SOFINA", salaireBase: undefined, actif: true },
+]);
+check("société de la fiche sans montant : repli sur le salaire de la fiche",
+  principalSansMontant.find((r) => r.societe === "SGC")?.salaireBase === fiche.salaireBase,
+  principalSansMontant);
+check("société secondaire sans montant, en présence d'un principal : toujours zéro",
+  principalSansMontant.find((r) => r.societe === "SOFINA")?.salaireBase === 0,
+  principalSansMontant);
+
+// Un montant EXPLICITE est toujours respecté, y compris 1 FCFA — c'est ainsi que la RH neutralise
+// un second déclarant dont la part n'est pas encore arrêtée, et ce choix lui appartient.
+const unFranc = rattachementsEffectifs(fiche, [
+  { _id: "r7", societe: "SGC", salaireBase: 158000, actif: true, principal: true },
+  { _id: "r8", societe: "SESAME", salaireBase: 1, actif: true },
+]);
+check("1 FCFA explicite sur un second déclarant : conservé tel quel",
+  unFranc.find((r) => r.societe === "SESAME")?.salaireBase === 1, unFranc);
+check("un montant explicite de 0 est conservé lui aussi",
+  rattachementsEffectifs(fiche, [{ _id: "r9", societe: "SESAME", salaireBase: 0, actif: true }])[0].salaireBase === 0);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. Société porteuse et rattachement des lignes antérieures

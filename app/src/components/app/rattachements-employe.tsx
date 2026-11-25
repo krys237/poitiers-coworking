@@ -339,7 +339,7 @@ function LigneAjout({
       </td>
       <td className={cn(cellule, "text-right")}>
         <span onKeyDown={k}>
-          <CelluleNombre libelle={`Salaire de base versé par ${l.societe}`} valeur={l.salaireBase} onChange={(n) => setL({ ...l, salaireBase: n })} largeur={110} min={0} pas={5000} />
+          <CelluleNombre libelle={`Salaire de base versé par ${l.societe} — 0 = ne verse rien pour l'instant`} valeur={l.salaireBase} onChange={(n) => setL({ ...l, salaireBase: n })} largeur={110} min={0} pas={5000} />
         </span>
       </td>
       <td className={cellule}>

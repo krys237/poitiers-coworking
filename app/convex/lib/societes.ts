@@ -136,10 +136,16 @@ export function rattachementsEffectifs(
     .map((l): Rattachement => ({
       rattachementId: l._id,
       societe: l.societe,
-      // Un rattachement sans montant retombe sur le salaire de base de la fiche, quelle que soit
-      // la société portée par la ligne : la RH peut déclarer l'appartenance à une société
-      // secondaire d'abord et chiffrer ensuite, sans produire un bulletin à zéro entre-temps.
-      salaireBase: l.salaireBase ?? salaireDeBase(fiche),
+      // Un rattachement sans montant ne retombe sur le salaire de la fiche QUE s'il porte la
+      // société de la fiche — lui, c'est la fiche, et les deux montants ne doivent pas diverger.
+      //
+      // Sur une société SECONDAIRE, l'absence de montant vaut ZÉRO. L'ancienne règle y appliquait
+      // aussi le salaire de la fiche, « pour ne pas produire un bulletin à zéro entre-temps » :
+      // elle produisait en fait un SECOND BULLETIN À TAUX PLEIN, soit la paie doublée. Constaté en
+      // production le 25/11/2026 — la RH avait contourné en saisissant 1 FCFA sur huit
+      // rattachements secondaires, seul moyen de neutraliser le second bulletin sans renoncer au
+      // rattachement. Ces 1 FCFA sont voulus et restent : ils sont explicites, donc inchangés ici.
+      salaireBase: l.salaireBase ?? (l.societe === fiche.societe ? salaireDeBase(fiche) : 0),
       joursBase: l.joursBase ?? fiche.joursBase ?? JOURS_BASE_DEFAUT,
       matriculeEmployeur: l.matriculeEmployeur ?? (l.societe === fiche.societe ? fiche.matricule : undefined),
       cnpsEmployeur: l.cnpsEmployeur ?? (l.societe === fiche.societe ? fiche.cnps : undefined),
