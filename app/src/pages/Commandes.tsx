@@ -1,6 +1,8 @@
 import { useState, useMemo, useRef, Fragment } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { useEntite } from "@/app/EntiteActive";
 import { parseCsvLignes, exportCsvLignes, totalCommande, normaliserCleProduit } from "../../convex/lib/commandes";
 import { fcfa, messageErreur } from "../lib/format";
 import { Button } from "@/components/ui/button";
@@ -99,17 +101,19 @@ function telechargerFichier(nom: string, contenu: string) {
 function CommandesContenu() {
   const me = useQuery(api.users.me);
   const [type, setType] = useState<TypeCommande>("medicale");
-  const liste = useQuery(api.commandes.liste, {});
-  const fournisseurs = useQuery(api.fournisseurs.liste, {});
+  const { entiteId } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
+  const liste = useQuery(api.commandes.liste, entiteIdTyped ? { entiteId: entiteIdTyped } : "skip");
+  const fournisseurs = useQuery(api.fournisseurs.liste, entiteIdTyped ? { entiteId: entiteIdTyped } : "skip");
 
   const [sel, setSel] = useState<string | null>(null);
   const refDetail = useDefilerVersDetail<HTMLTableRowElement>(sel);
-  const detail = useQuery(api.commandes.detail, sel ? { commandeId: sel as any } : "skip");
+  const detail = useQuery(api.commandes.detail, sel && entiteIdTyped ? { entiteId: entiteIdTyped, commandeId: sel as any } : "skip");
   // Récupération des antécédents d'achats en BD (Option 1 : verrouillage automatique / Option 3 : saisie libre si base vide)
-  const antecedentsCreation = useQuery(api.commandes.derniersAchats, { type });
+  const antecedentsCreation = useQuery(api.commandes.derniersAchats, entiteIdTyped ? { entiteId: entiteIdTyped, type } : "skip");
   const antecedentsModif = useQuery(
     api.commandes.derniersAchats,
-    detail ? { type: detail.type, saufCommandeId: detail._id } : "skip"
+    detail && entiteIdTyped ? { entiteId: entiteIdTyped, type: detail.type, saufCommandeId: detail._id } : "skip"
   );
 
 
@@ -356,6 +360,7 @@ function CommandesContenu() {
     setEnCreation(true);
     try {
       const r = await creer({
+        entiteId: entiteIdTyped,
         type,
         fournisseurId: f.fournisseurId ? (f.fournisseurId as any) : undefined,
         date: f.date,

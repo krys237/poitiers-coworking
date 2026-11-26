@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "convex": "convex dev",
+    "test:multiSociete": "node --experimental-strip-types tests/multi-societe.test.ts",
     "test:perimetre": "node --experimental-strip-types tests/perimetre.test.ts",
     "test:paie": "node --experimental-strip-types tests/paie.test.ts",
     "test:assiettes": "node --experimental-strip-types tests/assiettes.test.ts",

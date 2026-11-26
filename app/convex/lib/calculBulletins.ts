@@ -168,16 +168,27 @@ async function extrasPour(
   };
 }
 
-export async function bulletinsPourPeriode(ctx: Ctx, periode: string): Promise<{
+export async function bulletinsPourPeriode(ctx: Ctx, periode: string, entiteId?: Id<"entites">): Promise<{
   cloture: boolean; baremeId: Id<"baremes"> | null; bulletins: BulletinPeriode[]; erreur?: string;
   periodeDu: string; periodeAu: string; datePaiement: string;
 }> {
   const params = await ctx.db.query("parametresEntreprise").first();
   const bornes = bornesPeriode(periode, params?.jourPaiement ?? 5);
-  const cloture = await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
+  // Clôture et bulletins figés sont cherchés DANS la société quand elle est fournie. Sans ces deux
+  // lignes, clôturer novembre chez POITIERS gèlerait novembre chez EDR-TIM, et la lecture d'un
+  // mois clôturé d'un côté rendrait les bulletins figés de TOUTES les sociétés.
+  //
+  // L'exécutant du lot 6 l'a signalé sans y toucher, et il a eu raison : ma fiche ne l'autorisait
+  // qu'à deux lignes dans ce fichier. La restriction était trop serrée — c'est la fiche qui était
+  // en défaut, pas lui. Levée ici, par l'intégrateur, comme son compte rendu le demandait.
+  const cloture = entiteId
+    ? await ctx.db.query("cloturesPaie").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", periode)).unique()
+    : await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
 
   if (cloture) {
-    const figes = await ctx.db.query("bulletins").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
+    const figes = entiteId
+      ? await ctx.db.query("bulletins").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", periode)).collect()
+      : await ctx.db.query("bulletins").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
     const bulletins: BulletinPeriode[] = [];
     for (const b of figes) {
       const e = await ctx.db.get(b.employeId);
@@ -219,7 +230,7 @@ export async function bulletinsPourPeriode(ctx: Ctx, periode: string): Promise<{
     ? indexFeries(feriesLignes.map((f) => ({ date: f.date, chome: f.chome })))
     : undefined;
 
-  const employes = (await ctx.db.query("employes").collect()).filter((e) => e.actif).sort((a, b) => a.nom.localeCompare(b.nom));
+  const employes = (entiteId ? await ctx.db.query("employes").withIndex("by_entite_matricule", (q) => q.eq("entiteId", entiteId)).collect() : await ctx.db.query("employes").collect()).filter((e) => e.actif).sort((a, b) => a.nom.localeCompare(b.nom));
   const bulletins: BulletinPeriode[] = [];
   for (const e of employes) {
     const lignesRattachement = await ctx.db.query("rattachements").withIndex("by_employe", (q) => q.eq("employeId", e._id)).collect();

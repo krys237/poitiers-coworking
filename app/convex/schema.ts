@@ -762,7 +762,8 @@ export default defineSchema({
     .index("by_date", ["date"])
     .index("by_type_date", ["type", "date"])
     .index("by_reference", ["reference"])
-    .index("by_fournisseur", ["fournisseurId"]),
+    .index("by_fournisseur", ["fournisseurId"])
+    .index("by_entite_date", ["entiteId", "date"]),
 
   // Interventions techniciens (maintenance / matériel). Workflow : ouverte → en_cours → cloturee | rejetee.
   interventions: defineTable({
@@ -788,7 +789,8 @@ export default defineSchema({
   })
     .index("by_statut", ["statut"])
     .index("by_date", ["dateDemande"])
-    .index("by_reference", ["reference"]),
+    .index("by_reference", ["reference"])
+    .index("by_entite_date", ["entiteId", "dateDemande"]),
 
   // Comptes rendus journaliers : un par membre et par jour ; fenêtre 16h–20h jours ouvrables (lib/fenetre.ts).
   comptesRendus: defineTable({
@@ -814,7 +816,8 @@ export default defineSchema({
   })
     .index("by_date", ["date"])
     .index("by_auteur", ["auteurId"])
-    .index("by_auteur_date", ["auteurId", "date"]),
+    .index("by_auteur_date", ["auteurId", "date"])
+    .index("by_entite_date", ["entiteId", "date"]),
 
   // Tableau de caisse mensuel (statistiques). Total espèces et chiffre d'affaires sont calculés (lib/stats.ts).
   statsCaisse: defineTable({
@@ -826,7 +829,8 @@ export default defineSchema({
     caissePP: v.number(), scanner: v.number(), quantiferon: v.number(), tenofovir: v.number(),
     greenEnergy: v.number(), esthetique: v.number(), therapieVie: v.number(), therapieSommeil: v.number(),
     assurance: v.number(), tepScan: v.number(), sortiesDuJour: v.number(),
-  }).index("by_periode", ["periode"]),
+  }).index("by_periode", ["periode"])
+    .index("by_entite_periode", ["entiteId", "periode"]),
 
   // ---- Contrôle (Phase 4) ----
   // Retenue à la source sur les honoraires des médecins (lot R6).
@@ -906,7 +910,8 @@ export default defineSchema({
     notes: v.optional(v.string()),
   })
     .index("by_contexte_periode", ["contexte", "periode"])
-    .index("by_contexte_periode_categorie", ["contexte", "periode", "categorie"]),
+    .index("by_contexte_periode_categorie", ["contexte", "periode", "categorie"])
+    .index("by_entite_periode", ["entiteId", "periode"]),
 
   rapportsAudit: defineTable({
     entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
@@ -915,7 +920,8 @@ export default defineSchema({
     contenu: v.string(),
     auteurId: v.id("users"),
     majLe: v.optional(v.string()),
-  }).index("by_categorie_periode", ["categorie", "periode"]),
+  }).index("by_categorie_periode", ["categorie", "periode"])
+    .index("by_entite_periode", ["entiteId", "periode"]),
 
   // Jours fériés, par année. ADMINISTRABLE : les fêtes religieuses et les dates pascales sont
   // fixées chaque année par acte administratif — elles ne peuvent pas être codées en dur
@@ -983,7 +989,8 @@ export default defineSchema({
   })
     .index("by_employe", ["employeId"])
     .index("by_modele", ["modeleCode"])
-    .index("by_date", ["genereLe"]),
+    .index("by_date", ["genereLe"])
+    .index("by_entite_date", ["entiteId", "genereLe"]),
 
   // Journal d'activité : rôles/activations, clôtures, appels API, contrôles du barème (lib/journal.ts).
   journalActivite: defineTable({

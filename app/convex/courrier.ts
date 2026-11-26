@@ -1,6 +1,6 @@
 import { query, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireDroit, requireUnDesDroits } from "./lib/authz";
+import { requireDroit, requireEntiteSiFournie, requireUnDesDroits } from "./lib/authz";
 import { lireReglages } from "./parametres";
 import { bulletinsPourPeriode } from "./lib/calculBulletins";
 import { MODELE_DEFAUT, rendreLettre, htmlEmail, libellePeriode } from "./lib/courrier";
@@ -26,13 +26,16 @@ export const mode = query({
 
 // Aperçu du courrier du mois : une ligne par employé (lettre rendue + bulletin + dernier envoi).
 export const apercu = query({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => {
+  args: { entiteId: v.optional(v.id("entites")), periode: v.string() },
+  handler: async (ctx, { entiteId, periode }) => {
     await requireDroit(ctx, "/paie/courrier");
+    await requireEntiteSiFournie(ctx, entiteId);
     const entreprise = await ctx.db.query("parametresEntreprise").first();
     const modele = entreprise?.modeleCourrier ?? MODELE_DEFAUT;
-    const r = await bulletinsPourPeriode(ctx, periode);
-    const envois = await ctx.db.query("envois").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
+    const r = await bulletinsPourPeriode(ctx, periode, entiteId);
+    const envois = entiteId
+      ? await ctx.db.query("envois").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", periode)).collect()
+      : await ctx.db.query("envois").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
     // Un courrier par bulletin, donc PAR SOCIÉTÉ (lot R2 bis) : le dernier envoi se suit par
     // couple. Les envois antérieurs n'ont pas de société et restent indexés sur l'employé seul.
     const dernier = new Map<string, typeof envois[number]>();
@@ -52,10 +55,13 @@ export const apercu = query({
 
 // Journal complet des envois d'une période.
 export const journal = query({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => {
+  args: { entiteId: v.optional(v.id("entites")), periode: v.string() },
+  handler: async (ctx, { entiteId, periode }) => {
     await requireDroit(ctx, "/paie/courrier");
-    return await ctx.db.query("envois").withIndex("by_periode", (q) => q.eq("periode", periode)).order("desc").collect();
+    await requireEntiteSiFournie(ctx, entiteId);
+    return entiteId
+      ? await ctx.db.query("envois").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", periode)).order("desc").collect()
+      : await ctx.db.query("envois").withIndex("by_periode", (q) => q.eq("periode", periode)).order("desc").collect();
   },
 });
 
@@ -65,12 +71,13 @@ export const payloads = internalQuery({
   // `cles` désigne des COUPLES (employé, société) : un pluri-employé reçoit un courrier par
   // société, et la RH doit pouvoir n'en envoyer qu'un. `employeIds` reste accepté — il vise alors
   // toutes les sociétés du salarié.
-  args: { periode: v.string(), employeIds: v.optional(v.array(v.id("employes"))), cles: v.optional(v.array(v.string())), envoi: v.optional(v.boolean()) },
-  handler: async (ctx, { periode, employeIds, cles, envoi }) => {
+  args: { entiteId: v.optional(v.id("entites")), periode: v.string(), employeIds: v.optional(v.array(v.id("employes"))), cles: v.optional(v.array(v.string())), envoi: v.optional(v.boolean()) },
+  handler: async (ctx, { entiteId, periode, employeIds, cles, envoi }) => {
     await (envoi ? requireDroit(ctx, "/paie/courrier", "faire") : requireUnDesDroits(ctx, ["/paie/bulletins", "/paie/courrier"]));
+    await requireEntiteSiFournie(ctx, entiteId);
     const entreprise = await ctx.db.query("parametresEntreprise").first();
     const modele = entreprise?.modeleCourrier ?? MODELE_DEFAUT;
-    const r = await bulletinsPourPeriode(ctx, periode);
+    const r = await bulletinsPourPeriode(ctx, periode, entiteId);
     const filtre = employeIds ? new Set(employeIds.map(String)) : null;
     const filtreCles = cles ? new Set(cles) : null;
     const ent = { nom: entreprise?.nom ?? "", adresse: entreprise?.adresse, couleurEntete: entreprise?.couleurEntete, filigrane: entreprise?.filigrane };
@@ -98,6 +105,7 @@ export const payloads = internalQuery({
 
 export const enregistrerEnvoi = internalMutation({
   args: {
+    entiteId: v.optional(v.id("entites")),
     employeId: v.id("employes"), periode: v.string(), email: v.string(),
     societe: v.optional(v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"))),
     canal: v.optional(v.union(v.literal("email"), v.literal("whatsapp"))),
@@ -107,7 +115,8 @@ export const enregistrerEnvoi = internalMutation({
   },
   handler: async (ctx, args) => {
     const envoyeLe = new Date().toISOString();
-    await ctx.db.insert("envois", { ...args, envoyeLe });
+    const entiteId = args.entiteId ?? (await ctx.db.get(args.employeId))?.entiteId;
+    await ctx.db.insert("envois", { ...args, entiteId, envoyeLe });
     if (args.statut === "envoye") {
       // Un pluri-employé a un bulletin PAR SOCIÉTÉ pour le même mois (lot R2 bis) : `unique()`
       // lèverait une erreur. Sans société précisée, on marque tous ses bulletins du mois — c'est

@@ -19,6 +19,8 @@ import {
   PlusIcon, SearchIcon, SendIcon, Trash2Icon, WrenchIcon, XIcon,
 } from "lucide-react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { useEntite } from "@/app/EntiteActive";
 import { messageErreur, num } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useMoi } from "@/components/app/acces";
@@ -77,7 +79,9 @@ export function Interventions() {
   const peutArbitrer = !!me?.droits?.["/interventions"]?.faire;
   const voitTout = !!me?.droits?.["/interventions/toutes"]?.voir;
 
-  const liste = useQuery(api.interventions.liste, {});
+  const { entiteId } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
+  const liste = useQuery(api.interventions.liste, entiteIdTyped ? { entiteId: entiteIdTyped } : "skip");
   const [statut, setStatut] = React.useState<Statut | "toutes">("toutes");
   const [priorite, setPriorite] = React.useState<Priorite | "">("");
   const [recherche, setRecherche] = React.useState("");
@@ -489,6 +493,8 @@ function DetailIntervention({ id, peutArbitrer, onFermer }: { id: string; peutAr
 function NouvelleIntervention({
   ouvert, onFermer, onCreee, demandeurParDefaut,
 }: { ouvert: boolean; onFermer: () => void; onCreee: (id: string) => void; demandeurParDefaut: string }) {
+  const { entiteId } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
   const creer = useMutation(api.interventions.creer);
   const genererUploadUrl = useMutation(api.interventions.genererUploadUrl);
   const vierge = () => ({ titre: "", priorite: "moyenne" as Priorite, lieu: "", service: "", chefService: "", methode: "", demandeur: demandeurParDefaut, commentaireInitial: "" });
@@ -515,6 +521,7 @@ function NouvelleIntervention({
         photos.push((await res.json()).storageId);
       }
       const r = await creer({
+        entiteId: entiteIdTyped,
         ...f, lieu: f.lieu || undefined, service: f.service || undefined, chefService: f.chefService || undefined, methode: f.methode || undefined,
         demandeur: f.demandeur || demandeurParDefaut, commentaireInitial: f.commentaireInitial || undefined, photos: photos as any,
         lignes: lignesValides.map((l) => ({ produit: l.produit.trim(), quantite: Number(l.quantite), prixUnitaire: Number(l.prixUnitaire) })),

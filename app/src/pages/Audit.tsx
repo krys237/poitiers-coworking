@@ -18,6 +18,8 @@ import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 import { CheckIcon, DownloadIcon, FileTextIcon, PencilIcon, PlusIcon, SearchIcon, ShieldAlertIcon, Trash2Icon, UploadIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { useEntite } from "@/app/EntiteActive";
 import { CATEGORIES_AUDIT, LIBELLE_AUDIT, exportCsvAudit, parseCsvAudit, type CategorieAudit } from "../../convex/lib/audit";
 import { fcfa, libellePeriode, messageErreur, num, pct as fmtPct, periodeCourante } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -87,14 +89,16 @@ export function Audit() {
   const [importCsv, setImportCsv] = React.useState<{ fichier: File; categorie: Cat } | null>(null);
   const fichierRef = React.useRef<HTMLInputElement>(null);
 
-  const resume = useQuery(api.audit.resume, { periode });
-  const toutes = useQuery(api.audit.lignesDuMois, { periode });
-  const rapport = useQuery(api.audit.rapport, categorie !== "toutes" ? { periode, categorie } : "skip");
+  const { entiteId } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
+  const resume = useQuery(api.audit.resume, entiteIdTyped ? { entiteId: entiteIdTyped, periode } : "skip");
+  const toutes = useQuery(api.audit.lignesDuMois, entiteIdTyped ? { entiteId: entiteIdTyped, periode } : "skip");
+  const rapport = useQuery(api.audit.rapport, categorie !== "toutes" && entiteIdTyped ? { entiteId: entiteIdTyped, periode, categorie } : "skip");
   // Un audit court souvent sur l'année : horizon des séries, mémorisé.
   const [horizon, setHorizon] = React.useState<6 | 12 | 24>(() => { try { const h = Number(window.localStorage.getItem("audit:horizon")); return h === 12 || h === 24 ? h : 6; } catch { return 6; } });
   const changerHorizon = (h: 6 | 12 | 24) => { setHorizon(h); try { window.localStorage.setItem("audit:horizon", String(h)); } catch { /* ignoré */ } };
-  const salaires = useQuery(api.audit.totalSalaires, onglet === "salaires" ? { periode, mois: horizon } : "skip");
-  const graphes = useQuery(api.audit.graphes, { periode, mois: horizon });
+  const salaires = useQuery(api.audit.totalSalaires, onglet === "salaires" && entiteIdTyped ? { entiteId: entiteIdTyped, periode, mois: horizon } : "skip");
+  const graphes = useQuery(api.audit.graphes, entiteIdTyped ? { entiteId: entiteIdTyped, periode, mois: horizon } : "skip");
   const enregistrer = useMutation(api.audit.enregistrerLigne);
   const supprimer = useMutation(api.audit.supprimerLigne);
   const importer = useMutation(api.audit.importerLignes);
@@ -116,7 +120,7 @@ export function Audit() {
     const l = parseCsvAudit(await importCsv.fichier.text());
     if (!l.length) { toast.error("Aucune ligne valide dans ce fichier", { description: "Colonnes : Nom / Désignation ; Date début ; Date fin ; Montant ; Notes" }); setImportCsv(null); return; }
     try {
-      const r = await importer({ periode, categorie: importCsv.categorie, lignes: l });
+      const r = await importer({ entiteId: entiteIdTyped, periode, categorie: importCsv.categorie, lignes: l });
       toast.success(`${r.importees} ligne(s) importée(s)`, { description: LIBELLE_AUDIT[importCsv.categorie] });
       setImportCsv(null);
     } catch (e) { toast.error("Import refusé", { description: messageErreur(e) }); }
@@ -305,7 +309,7 @@ export function Audit() {
                     <LigneSaisie
                       categorie={categorie}
                       onEnregistrer={async (l) => {
-                        await enregistrer({ periode, categorie: l.categorie, designation: l.designation, dateDebut: l.dateDebut || undefined, dateFin: l.dateFin || undefined, montant: l.montant, notes: l.notes || undefined });
+                        await enregistrer({ entiteId: entiteIdTyped, periode, categorie: l.categorie, designation: l.designation, dateDebut: l.dateDebut || undefined, dateFin: l.dateFin || undefined, montant: l.montant, notes: l.notes || undefined });
                         toast.success(`Ligne ajoutée — ${l.designation}`, { description: `${fcfa(l.montant)} · ${LIBELLE_AUDIT[l.categorie]}` });
                       }}
                     />
@@ -357,7 +361,7 @@ export function Audit() {
                 titre={`Rapport d'audit — ${LIBELLE_AUDIT[categorie]} · ${libellePeriode(periode)}`}
                 rapport={rapport}
                 onEnregistrer={async (contenu) => {
-                  await enregistrerRapport({ periode, categorie, contenu });
+                  await enregistrerRapport({ entiteId: entiteIdTyped, periode, categorie, contenu });
                   toast.success("Rapport enregistré", { description: `${LIBELLE_AUDIT[categorie]} · ${libellePeriode(periode)}` });
                 }}
               />
@@ -419,7 +423,7 @@ export function Audit() {
                 e.preventDefault();
                 if (!edition.designation.trim()) { toast.error("La désignation est requise."); return; }
                 try {
-                  await enregistrer({ ligneId: (edition.ligneId ?? undefined) as any, periode, categorie: edition.categorie, designation: edition.designation, dateDebut: edition.dateDebut || undefined, dateFin: edition.dateFin || undefined, montant: edition.montant, notes: edition.notes || undefined });
+                  await enregistrer({ entiteId: entiteIdTyped, ligneId: (edition.ligneId ?? undefined) as any, periode, categorie: edition.categorie, designation: edition.designation, dateDebut: edition.dateDebut || undefined, dateFin: edition.dateFin || undefined, montant: edition.montant, notes: edition.notes || undefined });
                   toast.success(edition.ligneId ? "Ligne mise à jour" : "Ligne ajoutée");
                   setEdition(null);
                 } catch (err) { toast.error("Enregistrement refusé", { description: messageErreur(err) }); }

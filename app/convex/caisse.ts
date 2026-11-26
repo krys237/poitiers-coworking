@@ -3,7 +3,7 @@
 // différentes, donc de droits différents (`/caisse` et `/primes-medecins`).
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireDroit } from "./lib/authz";
+import { requireDroit, requireEntiteSiFournie } from "./lib/authz";
 import { controlerVerrou, etatVerrou, moisPrecedents } from "./lib/verrouSaisie";
 import { totalEspeces, chiffreAffaires, totauxCaisse } from "./lib/stats";
 import { internal } from "./_generated/api";
@@ -18,10 +18,15 @@ const CHAMPS = {
 };
 
 export const liste = query({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => {
+  args: { entiteId: v.optional(v.id("entites")), periode: v.string() },
+  handler: async (ctx, { entiteId, periode }) => {
     const me = await requireDroit(ctx, "/caisse");
-    const lignes = (await ctx.db.query("statsCaisse").withIndex("by_periode", (q) => q.eq("periode", periode)).collect())
+    await requireEntiteSiFournie(ctx, entiteId);
+    const lignes = (
+      entiteId
+        ? await ctx.db.query("statsCaisse").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", periode)).collect()
+        : await ctx.db.query("statsCaisse").withIndex("by_periode", (q) => q.eq("periode", periode)).collect()
+    )
       .sort((a, b) => a.dateDebut.localeCompare(b.dateDebut))
       .map((l) => ({ ...l, totalEspeces: totalEspeces(l), chiffreAffaires: chiffreAffaires(l) }));
     return { periode, lignes, totaux: totauxCaisse(lignes), ...(await etatVerrou(ctx, me, DEVERROUILLAGE)) };
@@ -29,9 +34,10 @@ export const liste = query({
 });
 
 export const enregistrerLigne = mutation({
-  args: { ligneId: v.optional(v.id("statsCaisse")), periode: v.string(), ...CHAMPS },
+  args: { entiteId: v.optional(v.id("entites")), ligneId: v.optional(v.id("statsCaisse")), periode: v.string(), ...CHAMPS },
   handler: async (ctx, { ligneId, ...l }) => {
     const me = await requireDroit(ctx, "/caisse", "faire");
+    await requireEntiteSiFournie(ctx, l.entiteId);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(l.dateDebut) || !/^\d{4}-\d{2}-\d{2}$/.test(l.dateFin)) throw new Error("Dates au format AAAA-MM-JJ.");
     if (l.dateFin < l.dateDebut) throw new Error("La date de fin précède la date de début.");
     if (ligneId) {
@@ -66,22 +72,26 @@ export const supprimerLigne = mutation({
 });
 
 export const importer = mutation({
-  args: { periode: v.string(), lignes: v.array(v.object(CHAMPS)) },
-  handler: async (ctx, { periode, lignes }) => {
+  args: { entiteId: v.optional(v.id("entites")), periode: v.string(), lignes: v.array(v.object(CHAMPS)) },
+  handler: async (ctx, { entiteId, periode, lignes }) => {
     await requireDroit(ctx, "/caisse", "faire");
-    for (const l of lignes) await ctx.db.insert("statsCaisse", { periode, ...l });
+    await requireEntiteSiFournie(ctx, entiteId);
+    for (const l of lignes) await ctx.db.insert("statsCaisse", { entiteId, periode, ...l });
     return { importees: lignes.length };
   },
 });
 
 /** Chiffre d'affaires et total espèces des 6 derniers mois (graphe de l'écran). */
 export const graphe = query({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => {
+  args: { entiteId: v.optional(v.id("entites")), periode: v.string() },
+  handler: async (ctx, { entiteId, periode }) => {
     await requireDroit(ctx, "/caisse");
+    await requireEntiteSiFournie(ctx, entiteId);
     const caParMois = [];
     for (const p of moisPrecedents(periode, 6)) {
-      const lignes = await ctx.db.query("statsCaisse").withIndex("by_periode", (q) => q.eq("periode", p)).collect();
+      const lignes = entiteId
+        ? await ctx.db.query("statsCaisse").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", p)).collect()
+        : await ctx.db.query("statsCaisse").withIndex("by_periode", (q) => q.eq("periode", p)).collect();
       caParMois.push({ periode: p, chiffreAffaires: lignes.reduce((t, l) => t + chiffreAffaires(l), 0), totalEspeces: lignes.reduce((t, l) => t + totalEspeces(l), 0) });
     }
     return { caParMois };
@@ -90,10 +100,13 @@ export const graphe = query({
 
 /** Chiffre d'affaires du mois, pour la tuile du tableau de bord. */
 export const kpi = query({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => {
+  args: { entiteId: v.optional(v.id("entites")), periode: v.string() },
+  handler: async (ctx, { entiteId, periode }) => {
     await requireDroit(ctx, "/caisse");
-    const lignes = await ctx.db.query("statsCaisse").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
+    await requireEntiteSiFournie(ctx, entiteId);
+    const lignes = entiteId
+      ? await ctx.db.query("statsCaisse").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", periode)).collect()
+      : await ctx.db.query("statsCaisse").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
     return { periode, chiffreAffaires: lignes.reduce((t, l) => t + chiffreAffaires(l), 0), nbLignes: lignes.length };
   },
 });

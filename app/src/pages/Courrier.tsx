@@ -17,6 +17,8 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 import { CheckIcon, EyeIcon, MailIcon, MailWarningIcon, SearchIcon, SendIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { useEntite } from "@/app/EntiteActive";
 import { BulletinCard } from "../components/BulletinCard";
 import { libellePeriode, messageErreur, num, periodeCourante } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -53,9 +55,11 @@ const emailValide = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
 
 export function Courrier() {
   const [periode, setPeriode] = React.useState(periodeCourante());
-  const apercu = useQuery(api.courrier.apercu, { periode });
+  const { entiteId } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
+  const apercu = useQuery(api.courrier.apercu, entiteIdTyped ? { entiteId: entiteIdTyped, periode } : "skip");
   const mode = useQuery(api.courrier.mode);
-  const journal = useQuery(api.courrier.journal, { periode });
+  const journal = useQuery(api.courrier.journal, entiteIdTyped ? { entiteId: entiteIdTyped, periode } : "skip");
   const envoyer = useAction(api.paiePdf.envoyerCourrier);
   const modifierEmploye = useMutation(api.employes.modifier);
   const modifierCourrier = useMutation(api.parametres.modifierCourrier);

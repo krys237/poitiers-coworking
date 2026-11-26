@@ -1,6 +1,6 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireDroit, requireUnDesDroits } from "./lib/authz";
+import { requireDroit, requireEntiteSiFournie, requireUnDesDroits } from "./lib/authz";
 import { journaliser } from "./lib/journal";
 import { bulletinsPourPeriode } from "./lib/calculBulletins";
 import { cleCouple, pourSociete, societePrincipale, SOCIETES } from "./lib/societes";
@@ -9,43 +9,51 @@ import { lireReglages } from "./parametres";
 
 // Requête RÉACTIVE : les bulletins du mois (calcul à la volée, ou snapshots si le mois est clôturé).
 export const bulletinsDuMois = query({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => {
+  args: { entiteId: v.optional(v.id("entites")), periode: v.string() },
+  handler: async (ctx, { entiteId, periode }) => {
     await requireUnDesDroits(ctx, ["/paie/bulletins", "/paie/liste", "/paie/saisie", "/paie/archives", "/paie/courrier"]);
-    return await bulletinsPourPeriode(ctx, periode);
+    await requireEntiteSiFournie(ctx, entiteId);
+    return await bulletinsPourPeriode(ctx, periode, entiteId);
   },
 });
 
 // Même calcul, sur un INTERVALLE de périodes (export Liste des salaires sur plusieurs mois) : un
 // résultat par mois, dans l'ordre demandé, chacun mois ouvert ou clôturé selon son propre état.
 export const bulletinsIntervalle = query({
-  args: { periodes: v.array(v.string()) },
-  handler: async (ctx, { periodes }) => {
+  args: { entiteId: v.optional(v.id("entites")), periodes: v.array(v.string()) },
+  handler: async (ctx, { entiteId, periodes }) => {
     await requireUnDesDroits(ctx, ["/paie/bulletins", "/paie/liste", "/paie/saisie", "/paie/archives", "/paie/courrier"]);
+    await requireEntiteSiFournie(ctx, entiteId);
     const resultats = [];
-    for (const periode of periodes) resultats.push({ periode, ...(await bulletinsPourPeriode(ctx, periode)) });
+    for (const periode of periodes) resultats.push({ periode, ...(await bulletinsPourPeriode(ctx, periode, entiteId)) });
     return resultats;
   },
 });
 
 // Génère et FIGE les bulletins du mois, puis clôture (verrou), comme le grand livre financier.
 export const genererEtCloturer = mutation({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => {
+  args: { entiteId: v.optional(v.id("entites")), periode: v.string() },
+  handler: async (ctx, { entiteId, periode }) => {
     const user = await requireDroit(ctx, "/paie/bulletins", "faire");
-    const r = await bulletinsPourPeriode(ctx, periode);
-    if (r.cloture) throw new Error("Ce mois est déjà clôturé.");
+    await requireEntiteSiFournie(ctx, entiteId);
+    const dejaClos = entiteId
+      ? await ctx.db.query("cloturesPaie").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", periode)).unique()
+      : await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
+    if (dejaClos) throw new Error("Ce mois est déjà clôturé.");
+    const r = await bulletinsPourPeriode(ctx, periode, entiteId);
+    if (!entiteId && r.cloture) throw new Error("Ce mois est déjà clôturé.");
     if (!r.baremeId) throw new Error(r.erreur ?? "Aucun barème applicable à cette période.");
 
     const genereLe = new Date().toISOString();
     for (const b of r.bulletins) {
       await ctx.db.insert("bulletins", {
+        entiteId,
         employeId: b.employeId, periode, baremeId: b.baremeId, societe: b.societe,
         brut: b.brut, totalRetenues: b.totalRetenues, net: b.net,
         lignesGain: b.lignesGain, cotisations: b.cotisations, details: b.details, statut: "genere", genereLe,
       });
     }
-    await ctx.db.insert("cloturesPaie", { periode, closedBy: user._id, closedAt: genereLe, baremeId: r.baremeId });
+    await ctx.db.insert("cloturesPaie", { entiteId, periode, closedBy: user._id, closedAt: genereLe, baremeId: r.baremeId });
     await journaliser(ctx, { auteurId: user._id, auteurNom: user.nom ?? user.email, action: "cloture_paie", cible: periode, detail: `${r.bulletins.length} bulletin(s) figé(s)` });
     // Réglage « PDF à la clôture » : les bulletins figés sont rendus et archivés dans la foulée.
     const pdfAuto = (await lireReglages(ctx)).pdfAutoCloture;
@@ -61,10 +69,13 @@ export const genererEtCloturer = mutation({
  * modifiable, avant comme après la migration.
  */
 export const saisiesDuMois = query({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => {
+  args: { entiteId: v.optional(v.id("entites")), periode: v.string() },
+  handler: async (ctx, { entiteId, periode }) => {
     await requireDroit(ctx, "/paie/saisie");
-    const rows = await ctx.db.query("saisiesMensuelles").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
+    await requireEntiteSiFournie(ctx, entiteId);
+    const rows = entiteId
+      ? await ctx.db.query("saisiesMensuelles").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", periode)).collect()
+      : await ctx.db.query("saisiesMensuelles").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
     const principaleDe = new Map<string, "SESAME" | "SOFINA" | "SGC">();
     for (const r of rows) {
       const id = String(r.employeId);
@@ -90,18 +101,18 @@ export const saisiesDuMois = query({
  * saisie fonctionne sans elle, et un mois précédent absent ne doit pas empêcher de saisir.
  */
 export const anciennetePrecedente = query({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => {
+  args: { entiteId: v.optional(v.id("entites")), periode: v.string() },
+  handler: async (ctx, { entiteId, periode }) => {
     await requireDroit(ctx, "/paie/saisie");
+    await requireEntiteSiFournie(ctx, entiteId);
     const an = +periode.slice(0, 4);
     const mo = +periode.slice(5, 7);
     const precedente = mo === 1
       ? `${an - 1}-12`
       : `${an}-${String(mo - 1).padStart(2, "0")}`;
-    const rows = await ctx.db
-      .query("saisiesMensuelles")
-      .withIndex("by_periode", (q) => q.eq("periode", precedente))
-      .collect();
+    const rows = entiteId
+      ? await ctx.db.query("saisiesMensuelles").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", precedente)).collect()
+      : await ctx.db.query("saisiesMensuelles").withIndex("by_periode", (q) => q.eq("periode", precedente)).collect();
     const out: Record<string, number> = {};
     for (const r of rows) {
       const cle = r.societe
@@ -138,12 +149,16 @@ const VALEURS = v.object({
 // de la fiche, ce qui laisse tous les appels existants fonctionner à l'identique.
 export const saisirMois = mutation({
   args: {
+    entiteId: v.optional(v.id("entites")),
     employeId: v.id("employes"), periode: v.string(), valeurs: VALEURS,
     societe: v.optional(v.union(v.literal("SESAME"), v.literal("SOFINA"), v.literal("SGC"))),
   },
-  handler: async (ctx, { employeId, periode, valeurs, societe: societeDemandee }) => {
+  handler: async (ctx, { entiteId, employeId, periode, valeurs, societe: societeDemandee }) => {
     await requireDroit(ctx, "/paie/saisie", "faire");
-    const clos = await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
+    await requireEntiteSiFournie(ctx, entiteId);
+    const clos = entiteId
+      ? await ctx.db.query("cloturesPaie").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", periode)).unique()
+      : await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
     if (clos) throw new Error(`Le mois ${periode} est clôturé : saisie en lecture seule.`);
     // Bornes de saisie : une case de tableau n'a pas de garde-fou, le serveur en a un.
     if (valeurs.joursTravailles < 0 || valeurs.joursTravailles > 31) throw new Error("Jours travaillés : entre 0 et 31.");
@@ -174,6 +189,6 @@ export const saisirMois = mutation({
     const existant = pourSociete(toutes, societe, principale);
     const v2 = { ...valeurs, primeAssiduite: valeurs.primeAssiduite ?? 0, indemniteLogement: valeurs.indemniteLogement ?? 0, absences: valeurs.absences ?? 0 };
     if (existant) await ctx.db.patch(existant._id, { ...v2, societe });
-    else await ctx.db.insert("saisiesMensuelles", { employeId, periode, societe, ...v2 });
+    else await ctx.db.insert("saisiesMensuelles", { entiteId: entiteId ?? employe.entiteId, employeId, periode, societe, ...v2 });
   },
 });

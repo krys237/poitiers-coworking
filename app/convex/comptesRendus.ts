@@ -1,7 +1,7 @@
 import { query, mutation, type MutationCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
-import { requireDroit, droitsDuMembre } from "./lib/authz";
+import { requireDroit, requireEntiteSiFournie, droitsDuMembre } from "./lib/authz";
 import { dateDouala, estDansFenetre, finFenetre, prochaineOuverture, pointsPour, pointsDuJour, heureDouala, evaluerFenetre, type Fenetre } from "./lib/fenetre";
 import { lireReglages } from "./parametres";
 import { NIVEAU, Role } from "./rbac";
@@ -46,9 +46,10 @@ function etatFenetre(f: Fenetre, now = new Date()) {
 
 // Espace du membre : score, compte rendu du jour, état de la fenêtre, historique.
 export const monEspace = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { entiteId: v.optional(v.id("entites")) },
+  handler: async (ctx, { entiteId }) => {
     const user = await requireDroit(ctx, "/comptes-rendus");
+    await requireEntiteSiFournie(ctx, entiteId);
     const niveau = NIVEAU[user.role as Role] ?? 0;
     // evaluerFenetre encapsule la précédence (niveau prime sur toute règle de poste) ET renvoie la
     // fenêtre DE SON POSTE — l'écran affiche désormais celle du membre connecté, pas la générale.
@@ -60,8 +61,11 @@ export const monEspace = query({
     const droits = await droitsDuMembre(ctx, user);
     // Plusieurs comptes rendus par jour : l'ordre est (date, heure de dépôt) pour que l'historique
     // reste lisible quand une même journée en compte plusieurs.
-    const miens = (await ctx.db.query("comptesRendus").withIndex("by_auteur", (q) => q.eq("auteurId", user._id)).collect())
-      .sort((a, b) => b.date.localeCompare(a.date) || b.soumisA.localeCompare(a.soumisA));
+    const miens = (
+      entiteId
+        ? (await ctx.db.query("comptesRendus").withIndex("by_entite_date", (q) => q.eq("entiteId", entiteId)).collect()).filter((c) => String(c.auteurId) === String(user._id))
+        : await ctx.db.query("comptesRendus").withIndex("by_auteur", (q) => q.eq("auteurId", user._id)).collect()
+    ).sort((a, b) => b.date.localeCompare(a.date) || b.soumisA.localeCompare(a.soumisA));
     const score = miens.reduce((t, c) => t + c.points, 0);
     // Liste (et non plus document unique) : la journée peut porter plusieurs dépôts, rendus dans
     // l'ordre chronologique — l'écran les affiche comme « Dépôt 1, Dépôt 2… ».
@@ -83,9 +87,10 @@ export const monEspace = query({
 // les points de la journée sont recalculés : une journée ne vaut jamais plus d'un point.
 // La correction du texte d'un compte rendu déjà déposé passe par `modifier` (ni heure ni point touchés).
 export const soumettre = mutation({
-  args: { date: v.optional(v.string()), contenu: v.string() },
-  handler: async (ctx, { date, contenu }) => {
+  args: { entiteId: v.optional(v.id("entites")), date: v.optional(v.string()), contenu: v.string() },
+  handler: async (ctx, { entiteId, date, contenu }) => {
     const user = await requireDroit(ctx, "/comptes-rendus");
+    await requireEntiteSiFournie(ctx, entiteId);
     const plusieurs = (await droitsDuMembre(ctx, user))[DROIT_PLUSIEURS]?.faire ?? false;
     const now = new Date();
     const jour = date ?? dateDouala(now);
@@ -108,7 +113,7 @@ export const soumettre = mutation({
     const doc = { contenu: contenu.trim(), soumisA: now.toISOString(), horsFenetre, points: pointsPour(horsFenetre), statut: "en_relecture" as const };
     let id: Id<"comptesRendus">;
     if (existant) { await ctx.db.patch(existant._id, doc); id = existant._id; }
-    else id = await ctx.db.insert("comptesRendus", { auteurId: user._id, date: jour, ...doc });
+    else id = await ctx.db.insert("comptesRendus", { entiteId, auteurId: user._id, date: jour, ...doc });
 
     // L'invariant de la journée l'emporte sur le point calculé à l'instant du dépôt.
     const { pointsJour, nbDuJour } = await recalculerPointsDuJour(ctx, user._id, jour);
@@ -140,9 +145,10 @@ export const modifier = mutation({
 
 // Vue superviseur (niveau 2+) : taux de soumission, statut par membre actif, contenus du jour.
 export const vueSuperviseur = query({
-  args: { date: v.optional(v.string()) },
-  handler: async (ctx, { date }) => {
+  args: { entiteId: v.optional(v.id("entites")), date: v.optional(v.string()) },
+  handler: async (ctx, { entiteId, date }) => {
     await requireDroit(ctx, "/comptes-rendus", "faire");
+    await requireEntiteSiFournie(ctx, entiteId);
     const jour = date ?? dateDouala();
     const now = new Date();
     const reglage = await reglageFenetreDe(ctx);
@@ -150,8 +156,11 @@ export const vueSuperviseur = query({
     // Décision du 22/10/2026 : un membre peut avoir plusieurs comptes rendus pour la journée. On les
     // regroupe par auteur dans l'ordre des dépôts ; aucun nombre attendu n'est suivi — `soumis` reste
     // « a déposé au moins un compte rendu ».
-    const duJour = (await ctx.db.query("comptesRendus").withIndex("by_date", (q) => q.eq("date", jour)).collect())
-      .sort((a, b) => a.soumisA.localeCompare(b.soumisA));
+    const duJour = (
+      entiteId
+        ? await ctx.db.query("comptesRendus").withIndex("by_entite_date", (q) => q.eq("entiteId", entiteId).eq("date", jour)).collect()
+        : await ctx.db.query("comptesRendus").withIndex("by_date", (q) => q.eq("date", jour)).collect()
+    ).sort((a, b) => a.soumisA.localeCompare(b.soumisA));
     const parAuteur = new Map<string, typeof duJour>();
     for (const c of duJour) parAuteur.set(String(c.auteurId), [...(parAuteur.get(String(c.auteurId)) ?? []), c]);
     const lignes = [];

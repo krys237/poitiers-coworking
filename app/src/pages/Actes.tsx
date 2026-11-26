@@ -15,6 +15,8 @@ import * as React from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { FileTextIcon, InfoIcon, TriangleAlertIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { useEntite } from "@/app/EntiteActive";
 import {
   LIBELLE_FAMILLE, rendreActe, type FamilleActe,
 } from "../../convex/lib/actes";
@@ -64,7 +66,9 @@ export function Actes() {
   const [saisies, setSaisies] = React.useState<Record<string, string>>({});
 
   const catalogue = useQuery(api.actes.modeles, {});
-  const employes = useQuery(api.employes.liste, {});
+  const { entiteId } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
+  const employes = useQuery(api.employes.liste, entiteIdTyped ? { entiteId: entiteIdTyped } : "skip");
   const prepa = useQuery(
     api.actes.preparer,
     code
@@ -350,6 +354,7 @@ export function Actes() {
                     disabled={manquants.length > 0}
                     onAction={() =>
                       generer({
+                        entiteId: entiteIdTyped,
                         code,
                         employeId: (employeId || undefined) as any,
                         periode: modele.champs.some((c) => c.source.de === "bulletin") ? periode : undefined,
@@ -387,7 +392,9 @@ export function Actes() {
 // ---------------------------------------------------------------------------
 
 function Historique() {
-  const actes = useQuery(api.actes.historique, {});
+  const { entiteId } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
+  const actes = useQuery(api.actes.historique, entiteIdTyped ? { entiteId: entiteIdTyped } : "skip");
   const annuler = useMutation(api.actes.annuler);
   const pdf = useAction(api.actesPdf.pdfActe);
   const fmt = (iso: string) => new Date(iso).toLocaleString("fr-FR");

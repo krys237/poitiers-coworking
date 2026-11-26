@@ -26,10 +26,12 @@ import { toast } from "sonner";
 import { ChevronDownIcon, KeyRoundIcon, PlusIcon, SearchIcon, UploadIcon, UserRoundPenIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { usePeut } from "@/auth/useMe";
+import { useEntite } from "@/app/EntiteActive";
 import { MOT_DE_PASSE_PROVISOIRE } from "../../convex/lib/motDePasse";
 import { formaterTelephone } from "../../convex/lib/telephone";
 import { BoutonConfirmation } from "@/components/app/bouton-action";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
 import { estClasseurTableur, parseCsv, toFcfa, valeurColonne as lire } from "@/lib/csv";
 import { ErreurClasseur, lireClasseur } from "@/lib/classeur";
 import { messageErreur, num } from "@/lib/format";
@@ -62,13 +64,15 @@ const fmtDate = (s?: string) => (s ? new Date(s + "T00:00:00").toLocaleDateStrin
 const sansAccents = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 export function Employes() {
-  const employes = useQuery(api.employes.liste, {});
+  const { entiteId, nom: entiteNom } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
+  const employes = useQuery(api.employes.liste, entiteIdTyped ? { entiteId: entiteIdTyped } : "skip");
   const creer = useMutation(api.employes.creer);
   const modifier = useMutation(api.employes.modifier);
   const importer = useMutation(api.employes.importer);
   // Rattachements multi-société : une seule requête pour tout l'effectif, résolue côté serveur —
   // l'écran affiche donc exactement ce que la paie calcule (`lib/societes.rattachementsEffectifs`).
-  const rattachements = useQuery(api.employes.rattachements, {});
+  const rattachements = useQuery(api.employes.rattachements, entiteIdTyped ? { entiteId: entiteIdTyped } : "skip");
   const ajouterRattachement = useMutation(api.employes.ajouterRattachement);
   const modifierRattachement = useMutation(api.employes.modifierRattachement);
   const supprimerRattachement = useMutation(api.employes.supprimerRattachement);
@@ -97,8 +101,12 @@ export function Employes() {
     (id: string): RattachementVu[] => ((rattachements ?? {}) as Record<string, RattachementVu[]>)[id] ?? [],
     [rattachements],
   );
+  const creerDansEntite = React.useCallback(
+    (a: any) => creer({ ...a, entiteId: entiteIdTyped }),
+    [creer, entiteIdTyped],
+  );
   const actionsRattachement: ActionsRattachement = {
-    ajouter: (a) => ajouterRattachement(a as any),
+    ajouter: (a) => ajouterRattachement({ ...a, entiteId: entiteIdTyped } as any),
     modifier: (a) => modifierRattachement(a as any),
     supprimer: (a) => supprimerRattachement(a as any),
     modifierFiche: (a) => modifier(a as any),
@@ -217,7 +225,7 @@ export function Employes() {
         if (!nommee) return false;
         return SOCIETES.some((soc) => nommee.includes(soc) && toFcfa(lire(r, `salaire_${soc.toLowerCase()}`, `salaire ${soc}`, soc) || "0") <= 0);
       }).length;
-      const r = await importer({ lignes });
+      const r = await importer({ entiteId: entiteIdTyped, lignes });
       const details = [
         "Reconnaissance par matricule · les bulletins du mois se recalculent",
         r.avecService ? `${r.avecService} affectation(s) de service` : "",
@@ -279,7 +287,7 @@ export function Employes() {
             <Button variant="outline" size="sm" onClick={() => fichierRef.current?.click()} title="Colonnes : matricule ; nom ; fonction ; societe ; salaire_base ; date_debut ; cnps ; email — mise à jour par matricule">
               <UploadIcon /> Importer Excel ou CSV
             </Button>
-            {!persistant ? <FicheEmploye creer={creer as any} modifier={modifier as any} /> : null}
+            {!persistant ? <FicheEmploye creer={creerDansEntite as any} modifier={modifier as any} /> : null}
             <BoutonPersistance actif={persistant} onChange={setPersistant} />
           </>
         }
@@ -360,7 +368,7 @@ export function Employes() {
                 societeParDefaut={societe === "toutes" ? "SGC" : societe}
                 colonnesRestantes={voitComptes ? 3 : 2}
                 onEnregistrer={async (l) => {
-                  await creer({ matricule: l.matricule, nom: l.nom, fonction: l.fonction || undefined, societe: l.societe, salaireBase: l.salaireBase, dateDebut: l.dateDebut || undefined });
+                  await creer({ entiteId: entiteIdTyped, matricule: l.matricule, nom: l.nom, fonction: l.fonction || undefined, societe: l.societe, salaireBase: l.salaireBase, dateDebut: l.dateDebut || undefined });
                   toast.success(`${l.nom} ajouté à l'effectif`, { description: `${l.matricule} · ${l.societe} · complétez CNPS et adresse dans la fiche` });
                 }}
               />
@@ -447,7 +455,7 @@ export function Employes() {
                   <span ref={(n) => { fichesParId.current.set(id, n); }}>
                     <FicheEmploye
                       employe={fiche(e)}
-                      creer={creer as any}
+                      creer={creerDansEntite as any}
                       modifier={modifier as any}
                       declencheur={<Button variant="ghost" size="icon-sm" aria-label={`Fiche — ${e.nom}`} title="Fiche complète (CNPS, NIU, adresse, e-mail, congés initiaux)"><UserRoundPenIcon /></Button>}
                     />
@@ -472,7 +480,7 @@ export function Employes() {
               );
             })}
             {liste.length === 0 && (
-              <TableVide colonnes={voitComptes ? 11 : 10}>{q || societe !== "toutes" || etat !== "actifs" ? "Aucun employé ne correspond aux filtres." : "Aucun employé : saisissez la première fiche ci-dessus ou importez un CSV."}</TableVide>
+              <TableVide colonnes={voitComptes ? 11 : 10}>{q || societe !== "toutes" || etat !== "actifs" ? "Aucun employé ne correspond aux filtres." : entiteNom ? `Aucun employé dans ${entiteNom} — ajoutez la première fiche ci-dessus ou importez un fichier.` : "Aucun employé : saisissez la première fiche ci-dessus ou importez un CSV."}</TableVide>
             )}
           </TableBody>
         </Table>

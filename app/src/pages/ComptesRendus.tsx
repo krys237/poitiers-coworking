@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo, Fragment } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { useEntite } from "@/app/EntiteActive";
 import { dureeLisible } from "../../convex/lib/fenetre";
 import { messageErreur } from "../lib/format";
 import { useMe } from "@/auth/useMe";
@@ -75,7 +77,9 @@ const STATUT_INFO: Record<string, { label: string; variant: FlagVariant }> = {
 
 export function ComptesRendus() {
   const me = useMe();
-  const espace = useQuery(api.comptesRendus.monEspace);
+  const { entiteId } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
+  const espace = useQuery(api.comptesRendus.monEspace, entiteIdTyped ? { entiteId: entiteIdTyped } : "skip");
   const soumettre = useMutation(api.comptesRendus.soumettre);
   const modifierCompteRendu = useMutation(api.comptesRendus.modifier);
   const changerStatut = useMutation(api.comptesRendus.changerStatut);
@@ -112,7 +116,7 @@ export function ComptesRendus() {
 
   const sup = useQuery(
     api.comptesRendus.vueSuperviseur,
-    espace?.superviseur ? { date: jourSup || undefined } : "skip"
+    espace?.superviseur && entiteIdTyped ? { entiteId: entiteIdTyped, date: jourSup || undefined } : "skip"
   );
   const apercu = apercuId ? (sup?.contenus ?? []).find((c: any) => String(c._id) === apercuId) ?? null : null;
 
@@ -238,7 +242,7 @@ export function ComptesRendus() {
         setDate(espace?.fenetre.aujourdHui ?? date);
         return;
       }
-      const r = await soumettre({ date: date || undefined, contenu: contenu.trim() });
+      const r = await soumettre({ entiteId: entiteIdTyped, date: date || undefined, contenu: contenu.trim() });
       if (r.ajout && r.nbDuJour > 1) {
         // Dépôt supplémentaire : le droit « plusieurs par jour » ajoute, il ne remplace pas.
         toast.success(`Compte rendu ajouté au ${fmtDateCourte(r.date)}`, {

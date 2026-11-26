@@ -1,6 +1,6 @@
 import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireDroit, requireUnDesDroits } from "./lib/authz";
+import { requireDroit, requireEntiteSiFournie, requireUnDesDroits } from "./lib/authz";
 import { lireReglages } from "./parametres";
 import { normaliserTelephone, erreurTelephone, avecIndicatif } from "./lib/telephone";
 import { erreurRattachement, rattachementsEffectifs, type Societe } from "./lib/societes";
@@ -37,9 +37,17 @@ function numeroWhatsapp(brut: string | undefined): string | undefined {
 }
 
 export const liste = query({
-  args: { societe: v.optional(SOCIETE) },
-  handler: async (ctx, { societe }) => {
+  args: { entiteId: v.optional(v.id("entites")), societe: v.optional(SOCIETE) },
+  handler: async (ctx, { entiteId, societe }) => {
     await requireUnDesDroits(ctx, ["/employes", "/paie/saisie", "/paie/planning", "/paie/bulletins"]);
+    await requireEntiteSiFournie(ctx, entiteId);
+    if (entiteId) {
+      const lignes = await ctx.db
+        .query("employes")
+        .withIndex("by_entite_matricule", (q) => q.eq("entiteId", entiteId))
+        .collect();
+      return societe ? lignes.filter((e) => e.societe === societe) : lignes;
+    }
     if (societe) {
       return await ctx.db.query("employes").withIndex("by_societe", (q) => q.eq("societe", societe)).collect();
     }
@@ -86,16 +94,20 @@ export const fiche = query({
  * modifiable — ce n'est qu'une proposition.
  */
 export const prochainMatricule = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { entiteId: v.optional(v.id("entites")) },
+  handler: async (ctx, { entiteId }) => {
     await requireDroit(ctx, "/employes");
-    const employes = await ctx.db.query("employes").collect();
+    await requireEntiteSiFournie(ctx, entiteId);
+    const employes = entiteId
+      ? await ctx.db.query("employes").withIndex("by_entite_matricule", (q) => q.eq("entiteId", entiteId)).collect()
+      : await ctx.db.query("employes").collect();
     return calculerProchainMatricule(employes.map((e) => e.matricule));
   },
 });
 
 export const creer = mutation({
   args: {
+    entiteId: v.optional(v.id("entites")),
     matricule: v.string(), nom: v.string(), fonction: v.optional(v.string()),
     adresse: v.optional(v.string()), cnps: v.optional(v.string()), niu: v.optional(v.string()),
     email: v.optional(v.string()), whatsapp: v.optional(v.string()), societe: SOCIETE, salaireBase: v.number(), contrat: v.optional(v.string()),
@@ -115,10 +127,16 @@ export const creer = mutation({
   },
   handler: async (ctx, { rattachements, ...args }) => {
     await requireDroit(ctx, "/employes", "faire");
-    // Le matricule identifie la fiche (import, bulletins, « Mes bulletins ») : jamais deux fois le même (retour terrain du 13/10/2026).
+    await requireEntiteSiFournie(ctx, args.entiteId);
+    // Le matricule identifie la fiche dans sa société : unique par société (deux sociétés peuvent porter le même).
     const matricule = args.matricule.trim().toUpperCase();
     if (!matricule) throw new Error("Matricule requis.");
-    const doublon = await ctx.db.query("employes").withIndex("by_matricule", (q) => q.eq("matricule", matricule)).first();
+    const doublon = args.entiteId
+      ? await ctx.db
+          .query("employes")
+          .withIndex("by_entite_matricule", (q) => q.eq("entiteId", args.entiteId).eq("matricule", matricule))
+          .first()
+      : await ctx.db.query("employes").withIndex("by_matricule", (q) => q.eq("matricule", matricule)).first();
     if (doublon) throw new Error(`Le matricule ${matricule} existe déjà : ${doublon.nom}${doublon.actif ? "" : " (fiche désactivée)"}.`);
     const reglages = await lireReglages(ctx);
 
@@ -146,6 +164,7 @@ export const creer = mutation({
       // dans `ajouterRattachement`.
       if (!aCreer.some((r) => r.societe === args.societe)) {
         await ctx.db.insert("rattachements", {
+          entiteId: args.entiteId,
           employeId, societe: args.societe, principal: true, actif: true, creeLe,
           salaireBase: args.salaireBase, categorie: args.categorie, echelon: args.echelon,
           contrat: args.contrat, dateDebut: args.dateDebut, matriculeEmployeur: matricule,
@@ -154,6 +173,7 @@ export const creer = mutation({
       }
       for (const { societe, ...champs } of aCreer) {
         await ctx.db.insert("rattachements", {
+          entiteId: args.entiteId,
           employeId, societe, principal: societe === args.societe, actif: true, creeLe,
           ...nettoyer(champs),
         });
@@ -217,6 +237,7 @@ export const modifier = mutation({
 // L'écran ne lit pas les classeurs Excel — aucune bibliothèque de tableur n'est embarquée.
 export const importer = mutation({
   args: {
+    entiteId: v.optional(v.id("entites")),
     lignes: v.array(v.object({
       matricule: v.string(), nom: v.string(), fonction: v.optional(v.string()),
       adresse: v.optional(v.string()), cnps: v.optional(v.string()), niu: v.optional(v.string()),
@@ -240,8 +261,9 @@ export const importer = mutation({
       rattachements: v.optional(v.array(v.object({ societe: SOCIETE, salaireBase: v.number() }))),
     })),
   },
-  handler: async (ctx, { lignes }) => {
+  handler: async (ctx, { entiteId, lignes }) => {
     await requireDroit(ctx, "/employes", "faire");
+    await requireEntiteSiFournie(ctx, entiteId);
     const joursBase = (await lireReglages(ctx)).joursBaseDefaut;
 
     // --- Services : rapprochement par nom, création des manquants -----------------------------
@@ -251,7 +273,9 @@ export const importer = mutation({
     // normalisée (casse, accents, espaces), sinon « IMAGERIE RADIO » et « Imagerie Radio »
     // créeraient deux services pour le même.
     const cleService = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim().replace(/\s+/g, " ");
-    const services = await ctx.db.query("services").collect();
+    const services = entiteId
+      ? await ctx.db.query("services").withIndex("by_entite_ordre", (q) => q.eq("entiteId", entiteId)).collect()
+      : await ctx.db.query("services").collect();
     const parNom = new Map(services.map((s) => [cleService(s.nom), s._id]));
     let ordre = services.reduce((m, s) => Math.max(m, s.ordre), -1) + 1;
     const servicesCrees: string[] = [];
@@ -261,7 +285,7 @@ export const importer = mutation({
       // Créé plutôt qu'ignoré : un service absent ferait silencieusement perdre l'affectation,
       // et c'est exactement le genre de perte invisible qu'on ne veut plus. Le compte rendu les
       // nomme, pour qu'une faute de frappe dans le fichier se voie tout de suite.
-      const id = await ctx.db.insert("services", { nom, couleur: couleurServiceParDefaut(ordre), ordre, actif: true, chefs: [] });
+      const id = await ctx.db.insert("services", { entiteId, nom, couleur: couleurServiceParDefaut(ordre), ordre, actif: true, chefs: [] });
       parNom.set(cleService(nom), id);
       servicesCrees.push(nom);
       ordre++;
@@ -276,13 +300,18 @@ export const importer = mutation({
       const serviceId = service?.trim() ? parNom.get(cleService(service)) : undefined;
       if (serviceId) avecService++; else sansService++;
       const avecAffectation = serviceId ? { ...l, serviceId } : l;
-      const existant = await ctx.db
-        .query("employes")
-        .withIndex("by_matricule", (q) => q.eq("matricule", l.matricule))
-        .unique();
+      const existant = entiteId
+        ? await ctx.db
+            .query("employes")
+            .withIndex("by_entite_matricule", (q) => q.eq("entiteId", entiteId).eq("matricule", l.matricule))
+            .unique()
+        : await ctx.db
+            .query("employes")
+            .withIndex("by_matricule", (q) => q.eq("matricule", l.matricule))
+            .unique();
       let employeId;
       if (existant) { await ctx.db.patch(existant._id, avecAffectation); employeId = existant._id; majs++; }
-      else { employeId = await ctx.db.insert("employes", { ...avecAffectation, joursBase, actif: true }); crees++; }
+      else { employeId = await ctx.db.insert("employes", { ...avecAffectation, entiteId, joursBase, actif: true }); crees++; }
 
       // --- Rattachements multi-société -------------------------------------------------------
       // Un import ne SUPPRIME jamais un employeur : il pose ceux que le fichier chiffre et
@@ -304,6 +333,7 @@ export const importer = mutation({
             continue;
           }
           await ctx.db.insert("rattachements", {
+            entiteId,
             employeId, societe: p.societe, principal: p.societe === l.societe, actif: true, creeLe,
             salaireBase: p.salaireBase, joursBase,
             matriculeEmployeur: l.matricule, cnpsEmployeur: l.cnps, niuEmployeur: l.niu,
@@ -368,16 +398,24 @@ export const migrerSalaireBase = mutation({
  * affiche la même vérité que la paie.
  */
 export const rattachements = query({
-  args: { employeId: v.optional(v.id("employes")) },
-  handler: async (ctx, { employeId }) => {
+  args: { entiteId: v.optional(v.id("entites")), employeId: v.optional(v.id("employes")) },
+  handler: async (ctx, { entiteId, employeId }) => {
     await requireUnDesDroits(ctx, ["/employes", "/paie/saisie", "/paie/bulletins", "/paie/dipe"]);
+    await requireEntiteSiFournie(ctx, entiteId);
     const employes = employeId
       ? [await ctx.db.get(employeId)].filter((e): e is NonNullable<typeof e> => !!e)
-      : await ctx.db.query("employes").collect();
+      : entiteId
+        ? await ctx.db.query("employes").withIndex("by_entite_matricule", (q) => q.eq("entiteId", entiteId)).collect()
+        : await ctx.db.query("employes").collect();
 
     const parEmploye: Record<string, ReturnType<typeof rattachementsEffectifs>> = {};
     for (const e of employes) {
-      const lignes = await ctx.db.query("rattachements").withIndex("by_employe", (q) => q.eq("employeId", e._id)).collect();
+      const lignes = entiteId
+        ? await ctx.db
+            .query("rattachements")
+            .withIndex("by_entite_employe", (q) => q.eq("entiteId", entiteId).eq("employeId", e._id))
+            .collect()
+        : await ctx.db.query("rattachements").withIndex("by_employe", (q) => q.eq("employeId", e._id)).collect();
       parEmploye[String(e._id)] = rattachementsEffectifs(e, lignes);
     }
     return parEmploye;
@@ -401,14 +439,17 @@ const nettoyer = (patch: Record<string, unknown>) =>
  */
 export const ajouterRattachement = mutation({
   args: {
+    entiteId: v.optional(v.id("entites")),
     employeId: v.id("employes"),
     societe: SOCIETE,
     ...CHAMPS_RATTACHEMENT,
   },
-  handler: async (ctx, { employeId, societe, ...champs }) => {
+  handler: async (ctx, { entiteId, employeId, societe, ...champs }) => {
     await requireDroit(ctx, "/employes", "faire");
+    await requireEntiteSiFournie(ctx, entiteId);
     const employe = await ctx.db.get(employeId);
     if (!employe) throw new Error("Fiche employé introuvable.");
+    const entiteEffective = entiteId ?? employe.entiteId;
 
     const lignes = await ctx.db.query("rattachements").withIndex("by_employe", (q) => q.eq("employeId", employeId)).collect();
     const erreur = erreurRattachement(
@@ -422,6 +463,7 @@ export const ajouterRattachement = mutation({
     const creeLe = new Date().toISOString();
     if (!lignes.length && societe !== employe.societe) {
       await ctx.db.insert("rattachements", {
+        entiteId: entiteEffective,
         employeId, societe: employe.societe, principal: true, actif: true, creeLe,
         salaireBase: employe.salaireBase ?? employe.salaireBrut, joursBase: employe.joursBase,
         matriculeEmployeur: employe.matricule, cnpsEmployeur: employe.cnps, niuEmployeur: employe.niu,
@@ -430,6 +472,7 @@ export const ajouterRattachement = mutation({
     }
     const principal = !lignes.length && societe === employe.societe;
     return await ctx.db.insert("rattachements", {
+      entiteId: entiteEffective,
       employeId, societe, principal, actif: true, creeLe, ...nettoyer(champs),
     });
   },
@@ -539,10 +582,15 @@ export const migrerRattachements = mutation({
 
 /** Effectif d'UNE société déclarante : ce qu'elle paie et déclare, et rien d'autre. */
 export const effectifSociete = query({
-  args: { societe: SOCIETE },
-  handler: async (ctx, { societe }) => {
+  args: { entiteId: v.optional(v.id("entites")), societe: SOCIETE },
+  handler: async (ctx, { entiteId, societe }) => {
     await requireUnDesDroits(ctx, ["/employes", "/paie/bulletins", "/paie/dipe"]);
-    const employes = (await ctx.db.query("employes").collect()).filter((e) => e.actif);
+    await requireEntiteSiFournie(ctx, entiteId);
+    const employes = (
+      entiteId
+        ? await ctx.db.query("employes").withIndex("by_entite_matricule", (q) => q.eq("entiteId", entiteId)).collect()
+        : await ctx.db.query("employes").collect()
+    ).filter((e) => e.actif);
     const lignes: { employeId: string; matricule: string; nom: string; salaireBase: number; seulEmployeur: boolean }[] = [];
     for (const e of employes) {
       const rats = await ctx.db.query("rattachements").withIndex("by_employe", (q) => q.eq("employeId", e._id)).collect();
@@ -576,9 +624,10 @@ export const effectifSociete = query({
  * décision se requalifiant en CDI.
  */
 export const echeancesContrats = query({
-  args: { aujourdhui: v.optional(v.string()) },
-  handler: async (ctx, { aujourdhui }) => {
+  args: { entiteId: v.optional(v.id("entites")), aujourdhui: v.optional(v.string()) },
+  handler: async (ctx, { entiteId, aujourdhui }) => {
     await requireDroit(ctx, "/employes");
+    await requireEntiteSiFournie(ctx, entiteId);
     const r = await lireReglages(ctx);
     const regles = {
       premierAvisJours: r.rappelPremierAvisJours,
@@ -587,7 +636,9 @@ export const echeancesContrats = query({
     };
     const jour = aujourdhui ?? new Date().toISOString().slice(0, 10);
 
-    const employes = await ctx.db.query("employes").collect();
+    const employes = entiteId
+      ? await ctx.db.query("employes").withIndex("by_entite_matricule", (q) => q.eq("entiteId", entiteId)).collect()
+      : await ctx.db.query("employes").collect();
     const services = await ctx.db.query("services").collect();
     const nomService = new Map(services.map((x) => [String(x._id), x.nom]));
 

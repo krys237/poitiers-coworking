@@ -15,6 +15,8 @@ import { Link } from "react-router-dom";
 import { useAction, useQuery } from "convex/react";
 import { ArchiveIcon, DownloadIcon, EyeIcon, FileCheck2Icon, FileDownIcon, SearchIcon, XIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { useEntite } from "@/app/EntiteActive";
 import { BulletinCard } from "../components/BulletinCard";
 import { libellePeriode, num } from "@/lib/format";
 import { PageEnTete } from "@/components/app/en-tete";
@@ -34,7 +36,9 @@ const fmtDate = (s?: string) => (s ? new Date(s).toLocaleDateString("fr-FR") : "
 const sansAccents = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 export function Archives() {
-  const mois = useQuery(api.archives.liste);
+  const { entiteId } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
+  const mois = useQuery(api.archives.liste, entiteIdTyped ? { entiteId: entiteIdTyped } : "skip");
   const entreprise = useQuery(api.parametres.get);
   const archiver = useAction(api.paiePdf.archiverPdfs);
   const lignesVisibles = useLignesVisibles("archives", 15);
@@ -45,9 +49,9 @@ export function Archives() {
   const liste = (mois ?? []) as any[];
   // Le premier mois clôturé s'ouvre de lui-même.
   React.useEffect(() => { if (ouvert === null && liste.length) setOuvert(liste[0].periode); }, [liste.length]); // eslint-disable-line react-hooks/exhaustive-deps
-  const detail = useQuery(api.archives.bulletinsDuMois, ouvert ? { periode: ouvert } : "skip");
+  const detail = useQuery(api.archives.bulletinsDuMois, ouvert && entiteIdTyped ? { entiteId: entiteIdTyped, periode: ouvert } : "skip");
   // Les snapshots complets (détails du bulletin) pour l'aperçu.
-  const snapshots = useQuery(api.payroll.bulletinsDuMois, ouvert ? { periode: ouvert } : "skip");
+  const snapshots = useQuery(api.payroll.bulletinsDuMois, ouvert && entiteIdTyped ? { entiteId: entiteIdTyped, periode: ouvert } : "skip");
   const moisOuvert = liste.find((m) => m.periode === ouvert) ?? null;
 
   const q = sansAccents(recherche.trim());

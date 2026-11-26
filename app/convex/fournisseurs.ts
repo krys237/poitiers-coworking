@@ -1,12 +1,14 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireDroit } from "./lib/authz";
+import { requireDroit, requireEntiteSiFournie } from "./lib/authz";
 import { avecIndicatif, erreurTelephone } from "./lib/telephone";
 
 export const liste = query({
-  args: { inclureInactifs: v.optional(v.boolean()) },
-  handler: async (ctx, { inclureInactifs }) => {
+  args: { entiteId: v.optional(v.id("entites")), inclureInactifs: v.optional(v.boolean()) },
+  handler: async (ctx, { entiteId, inclureInactifs }) => {
     await requireDroit(ctx, "/commandes");
+    await requireEntiteSiFournie(ctx, entiteId);
+    // Index `by_entite_*` non confirmé sur `fournisseurs` dans cette vague (cf. COMPTE-RENDU.md) : branche non filtrée conservée.
     const q = ctx.db.query("fournisseurs");
     const tous = await q.order("desc").collect();
     const filtres = inclureInactifs ? tous : tous.filter((f) => f.actif !== false);
@@ -16,6 +18,7 @@ export const liste = query({
 
 export const creer = mutation({
   args: {
+    entiteId: v.optional(v.id("entites")),
     nom: v.string(),
     telephone: v.string(),
     ville: v.optional(v.string()),
@@ -24,6 +27,7 @@ export const creer = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireDroit(ctx, "/commandes", "faire");
+    await requireEntiteSiFournie(ctx, args.entiteId);
     const nomClean = args.nom.trim();
     if (!nomClean) throw new Error("Le nom du fournisseur est obligatoire.");
 
@@ -42,6 +46,7 @@ export const creer = mutation({
     }
 
     const id = await ctx.db.insert("fournisseurs", {
+      entiteId: args.entiteId,
       nom: nomClean,
       telephone: telAvecIndicatif,
       ville: args.ville?.trim() || undefined,

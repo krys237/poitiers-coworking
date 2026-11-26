@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { useEntite } from "@/app/EntiteActive";
 import {
   BLOCS,
   SOLDES,
@@ -49,9 +51,11 @@ const fmtDate = (s: string) =>
   });
 
 export function Financier() {
+  const { entiteId, nom: entiteNom } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
   const [date, setDate] = useState(aujourdHui());
-  const j = useQuery(api.financier.journee, { date });
-  const histo = useQuery(api.financier.historique, { date });
+  const j = useQuery(api.financier.journee, entiteIdTyped ? { entiteId: entiteIdTyped, date } : "skip");
+  const histo = useQuery(api.financier.historique, entiteIdTyped ? { entiteId: entiteIdTyped, date } : "skip");
   const enregistrer = useMutation(api.financier.enregistrer);
   const prendreVerrou = useMutation(api.financier.prendreVerrou);
   const libererVerrou = useMutation(api.financier.libererVerrou);
@@ -214,6 +218,25 @@ export function Financier() {
       b.lignes.some((l) => (draft[b.cle]?.[l.cle] ?? 0) !== 0)
     ).length;
   }, [draft]);
+
+  if (j?.nonConfigure) {
+    const nomAffiche = j.entiteNom ?? entiteNom ?? "cette société";
+    return (
+      <div className="space-y-4">
+        <Card className="border-amber-300/80 bg-amber-50/60">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base text-amber-950">
+              <Building2 className="h-5 w-5 text-amber-700" />
+              Grand livre financier — {nomAffiche}
+            </CardTitle>
+            <CardDescription className="text-amber-900">
+              Le grand livre n&apos;est pas encore configuré pour <strong>{nomAffiche}</strong>. Ses blocs de caisse doivent être définis avant toute saisie.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

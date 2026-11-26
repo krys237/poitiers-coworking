@@ -1,17 +1,24 @@
 import { query, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireDroit } from "./lib/authz";
+import { requireDroit, requireEntiteSiFournie } from "./lib/authz";
 import { bulletinsPourPeriode } from "./lib/calculBulletins";
 
 // Mois clôturés : agrégats, état des envois et des PDF archivés.
 export const liste = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { entiteId: v.optional(v.id("entites")) },
+  handler: async (ctx, { entiteId }) => {
     await requireDroit(ctx, "/paie/archives");
-    const clotures = (await ctx.db.query("cloturesPaie").collect()).sort((a, b) => b.periode.localeCompare(a.periode));
+    await requireEntiteSiFournie(ctx, entiteId);
+    const clotures = (
+      entiteId
+        ? await ctx.db.query("cloturesPaie").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId)).collect()
+        : await ctx.db.query("cloturesPaie").collect()
+    ).sort((a, b) => b.periode.localeCompare(a.periode));
     const out = [];
     for (const c of clotures) {
-      const bulletins = await ctx.db.query("bulletins").withIndex("by_periode", (q) => q.eq("periode", c.periode)).collect();
+      const bulletins = entiteId
+        ? await ctx.db.query("bulletins").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", c.periode)).collect()
+        : await ctx.db.query("bulletins").withIndex("by_periode", (q) => q.eq("periode", c.periode)).collect();
       const user = await ctx.db.get(c.closedBy);
       out.push({
         periode: c.periode, closedAt: c.closedAt, closedBy: user?.nom ?? user?.email ?? "?",
@@ -28,10 +35,13 @@ export const liste = query({
 
 // Bulletins figés d'un mois clôturé, avec nom d'employé et URL du PDF archivé.
 export const bulletinsDuMois = query({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => {
+  args: { entiteId: v.optional(v.id("entites")), periode: v.string() },
+  handler: async (ctx, { entiteId, periode }) => {
     await requireDroit(ctx, "/paie/archives");
-    const bulletins = await ctx.db.query("bulletins").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
+    await requireEntiteSiFournie(ctx, entiteId);
+    const bulletins = entiteId
+      ? await ctx.db.query("bulletins").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", periode)).collect()
+      : await ctx.db.query("bulletins").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
     const out = [];
     for (const b of bulletins) {
       const e = await ctx.db.get(b.employeId);

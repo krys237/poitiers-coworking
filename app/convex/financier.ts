@@ -1,7 +1,8 @@
 import { query, mutation, internalMutation, internalQuery, MutationCtx, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { Doc } from "./_generated/dataModel";
-import { getCurrentUser, requireDroit, droitsDuMembre } from "./lib/authz";
+import { Doc, Id } from "./_generated/dataModel";
+import { getCurrentUser, requireDroit, requireEntiteSiFournie, droitsDuMembre } from "./lib/authz";
+import { estGrandLivreConfigure } from "./lib/scopeEntite";
 import { journaliser } from "./lib/journal";
 
 import { calculerSoldes, recetteTotale, periodeDe, Mouvements, Soldes } from "./lib/tresorerie";
@@ -9,6 +10,15 @@ import { lireReglages } from "./parametres";
 import { internal } from "./_generated/api";
 
 type Ctx = QueryCtx | MutationCtx;
+// Lot 8 : les 9 blocs / 13 soldes de `lib/tresorerie.ts` sont propres à POITIERS.
+// Toute autre société reçoit un refus poli (retour vide avec drapeau explicite, pas une exception).
+async function verifierGrandLivre(ctx: Ctx, entiteId: Id<"entites"> | undefined) {
+  if (!entiteId) return { configure: true as const, entiteNom: undefined };
+  const entite = await ctx.db.get(entiteId);
+  if (entite && estGrandLivreConfigure(entite.code)) return { configure: true as const, entiteNom: entite.nom };
+  return { configure: false as const, entiteNom: entite?.nom ?? "cette société" };
+}
+
 
 const mouvementsV = v.record(v.string(), v.record(v.string(), v.number()));
 const soldesV = v.record(v.string(), v.number());
@@ -39,9 +49,22 @@ async function ouverturePour(ctx: Ctx, date: string, j: Doc<"journeesFinancieres
 
 // La journée d'une date (existante ou virtuelle), avec soldes calculés, verrou, clôture, pièces.
 export const journee = query({
-  args: { date: v.string() },
-  handler: async (ctx, { date }) => {
+  args: { entiteId: v.optional(v.id("entites")), date: v.string() },
+  handler: async (ctx, { entiteId, date }) => {
     const me = await requireDroit(ctx, "/financier");
+    await requireEntiteSiFournie(ctx, entiteId);
+    const gl = await verifierGrandLivre(ctx, entiteId);
+    if (!gl.configure) {
+      return {
+        nonConfigure: true as const,
+        entiteNom: gl.entiteNom,
+        date, periode: periodeDe(date), existe: false, cloture: true,
+        mouvements: {} as Mouvements, pieces: {} as Record<string, string | null>, notes: "",
+        soldesOuverture: {} as Soldes, soldesOuvertureManuels: false, ouvertureDepuis: null,
+        soldes: {} as Soldes, recetteTotale: 0,
+        verrou: { actif: false, mien: false, parNom: null, at: null },
+      };
+    }
     const j = await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.eq("date", date)).unique();
     const ouverture = await ouverturePour(ctx, date, j);
     const mouvements: Mouvements = j?.mouvements ?? {};
@@ -49,6 +72,8 @@ export const journee = query({
     for (const [cle, id] of Object.entries(j?.pieces ?? {})) pieces[cle] = await ctx.storage.getUrl(id);
     const verrou = await lireVerrou(ctx, date);
     return {
+      nonConfigure: false as const,
+      entiteNom: gl.entiteNom,
       date, periode: periodeDe(date), existe: !!j,
       cloture: (j?.cloture ?? false) || (await moisCloture(ctx, periodeDe(date))),
       mouvements, pieces, notes: j?.notes ?? "",
@@ -173,9 +198,12 @@ export const clotures = query({
 
 // Historique des 14 dernières journées saisies (≤ date).
 export const historique = query({
-  args: { date: v.string(), jours: v.optional(v.number()) },
-  handler: async (ctx, { date, jours }) => {
+  args: { entiteId: v.optional(v.id("entites")), date: v.string(), jours: v.optional(v.number()) },
+  handler: async (ctx, { entiteId, date, jours }) => {
     await requireDroit(ctx, "/financier");
+    await requireEntiteSiFournie(ctx, entiteId);
+    const gl = await verifierGrandLivre(ctx, entiteId);
+    if (!gl.configure) return [];
     const rows = await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.lte("date", date)).order("desc").take(jours ?? 14);
     return rows.map((j) => ({ date: j.date, recetteTotale: j.recetteTotale, soldes: j.soldes, cloture: j.cloture, notes: j.notes ?? "" }));
   },
@@ -200,16 +228,23 @@ export const attacherPiece = mutation({
 
 // KPI pour le tableau de bord.
 export const kpi = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { entiteId: v.optional(v.id("entites")) },
+  handler: async (ctx, { entiteId }) => {
     // Les soldes du grand livre ne s'affichent qu'à qui peut voir le module, même sur le
     // tableau de bord (découvert en testant le compte « employé »).
     const me = await getCurrentUser(ctx);
     if (!me || !me.isActive || me.enAttente || !(await droitsDuMembre(ctx, me))["/financier"].voir) return null;
+    await requireEntiteSiFournie(ctx, entiteId);
+    const gl = await verifierGrandLivre(ctx, entiteId);
+    if (!gl.configure) {
+      return { nonConfigure: true as const, entiteNom: gl.entiteNom, recetteDuJour: null, derniere: null };
+    }
     const aujourdHui = new Date().toISOString().slice(0, 10);
     const jour = await ctx.db.query("journeesFinancieres").withIndex("by_date", (q) => q.eq("date", aujourdHui)).unique();
     const derniere = await ctx.db.query("journeesFinancieres").withIndex("by_date").order("desc").first();
     return {
+      nonConfigure: false as const,
+      entiteNom: gl.entiteNom,
       recetteDuJour: jour?.recetteTotale ?? null,
       derniere: derniere ? { date: derniere.date, recetteTotale: derniere.recetteTotale, f3Poitiers: derniere.soldes.poitiers_f3 ?? 0 } : null,
     };

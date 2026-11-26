@@ -13,6 +13,8 @@ import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 import { PencilIcon, PlusIcon, RefreshCwIcon, SearchIcon, Trash2Icon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { useEntite } from "@/app/EntiteActive";
 import { jours as fmtJours, libellePeriode, messageErreur, periodeCourante } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageEnTete } from "@/components/app/en-tete";
@@ -56,7 +58,9 @@ const recale = (periodes: string[]) => (periodes.length ? `paie recalée : ${per
 
 export function Planning() {
   const [periode, setPeriode] = React.useState(periodeCourante());
-  const vue = useQuery(api.planning.vueMensuelle, { periode });
+  const { entiteId } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
+  const vue = useQuery(api.planning.vueMensuelle, entiteIdTyped ? { entiteId: entiteIdTyped, periode } : "skip");
   const ajouter = useMutation(api.planning.ajouterAbsence);
   const modifier = useMutation(api.planning.modifierAbsence);
   const supprimer = useMutation(api.planning.supprimerAbsence);
@@ -123,7 +127,7 @@ export function Planning() {
               variant="outline"
               size="sm"
               disabled={!lignes.length || cloture}
-              onAction={() => synchroniser({ periode })}
+              onAction={() => synchroniser({ entiteId: entiteIdTyped, periode })}
               succes={(r: any) => `Paie recalée pour ${r.employes} employé(s) — ${libellePeriode(periode)}`}
             >
               <RefreshCwIcon /> Synchroniser la paie du mois
@@ -198,7 +202,7 @@ export function Planning() {
                     employes={employes}
                     periode={periode}
                     onEnregistrer={async (a) => {
-                      const r = await ajouter({ employeId: a.employeId as any, type: a.type, dateDebut: a.dateDebut, dateFin: a.dateFin, paye: a.paye, motif: a.motif || undefined });
+                      const r = await ajouter({ entiteId: entiteIdTyped, employeId: a.employeId as any, type: a.type, dateDebut: a.dateDebut, dateFin: a.dateFin, paye: a.paye, motif: a.motif || undefined });
                       const nom = employes.find((e) => e.employeId === a.employeId)?.nom ?? "";
                       toast.success(`${TYPE[a.type].label} enregistrée — ${nom}`, { description: `${fmtJours(r.jours)} · ${recale(r.periodes)}` });
                     }}
@@ -309,7 +313,7 @@ export function Planning() {
                 try {
                   const r = edition.absenceId
                     ? await modifier({ absenceId: edition.absenceId as any, type: edition.type, dateDebut: edition.dateDebut, dateFin: edition.dateFin, paye: edition.paye, motif: edition.motif })
-                    : await ajouter({ employeId: edition.employeId as any, type: edition.type, dateDebut: edition.dateDebut, dateFin: edition.dateFin, paye: edition.paye, motif: edition.motif || undefined });
+                    : await ajouter({ entiteId: entiteIdTyped, employeId: edition.employeId as any, type: edition.type, dateDebut: edition.dateDebut, dateFin: edition.dateFin, paye: edition.paye, motif: edition.motif || undefined });
                   toast.success(edition.absenceId ? "Absence mise à jour" : "Absence enregistrée", { description: recale(r.periodes) });
                   setEdition(null);
                 } catch (err) { toast.error("Enregistrement refusé", { description: messageErreur(err) }); }

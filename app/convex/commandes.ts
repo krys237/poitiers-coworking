@@ -1,8 +1,9 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { Doc } from "./_generated/dataModel";
-import { requireDroit } from "./lib/authz";
-import { comparer, totalCommande, reference, normaliserCleProduit } from "./lib/commandes";
+import { requireDroit, requireEntiteSiFournie } from "./lib/authz";
+import { prochaineReference } from "./lib/scopeEntite";
+import { comparer, totalCommande, normaliserCleProduit } from "./lib/commandes";
 import { notifier } from "./notifications";
 
 const TYPE = v.union(v.literal("medicale"), v.literal("fourniture"), v.literal("reactifs_labo"));
@@ -48,14 +49,19 @@ function precedente(c: Doc<"commandes">, toutes: Doc<"commandes">[]) {
 
 export const liste = query({
   args: {
+    entiteId: v.optional(v.id("entites")),
     type: v.optional(TYPE),
     fournisseurId: v.optional(v.id("fournisseurs")),
     statut: v.optional(STATUT),
   },
-  handler: async (ctx, { type, fournisseurId, statut }) => {
+  handler: async (ctx, { entiteId, type, fournisseurId, statut }) => {
     await requireDroit(ctx, "/commandes");
+    await requireEntiteSiFournie(ctx, entiteId);
     let rows: Doc<"commandes">[];
-    if (type) {
+    if (entiteId) {
+      rows = await ctx.db.query("commandes").withIndex("by_entite_date", (q) => q.eq("entiteId", entiteId)).order("desc").collect();
+      if (type) rows = rows.filter((c) => c.type === type);
+    } else if (type) {
       rows = await ctx.db.query("commandes").withIndex("by_type_date", (q) => q.eq("type", type)).order("desc").collect();
     } else {
       rows = await ctx.db.query("commandes").withIndex("by_date").order("desc").collect();
@@ -99,12 +105,16 @@ export const liste = query({
 
 // Détail + comparaison automatique avec la commande précédente du même type.
 export const detail = query({
-  args: { commandeId: v.id("commandes") },
-  handler: async (ctx, { commandeId }) => {
+  args: { entiteId: v.optional(v.id("entites")), commandeId: v.id("commandes") },
+  handler: async (ctx, { entiteId, commandeId }) => {
     await requireDroit(ctx, "/commandes");
+    await requireEntiteSiFournie(ctx, entiteId);
     const c = await ctx.db.get(commandeId);
     if (!c) return null;
-    const toutes = await ctx.db.query("commandes").withIndex("by_type", (q) => q.eq("type", c.type)).collect();
+    const entiteScope = entiteId ?? c.entiteId;
+    const toutes = entiteScope
+      ? (await ctx.db.query("commandes").withIndex("by_entite_date", (q) => q.eq("entiteId", entiteScope)).collect()).filter((x) => x.type === c.type)
+      : await ctx.db.query("commandes").withIndex("by_type", (q) => q.eq("type", c.type)).collect();
     const prev = precedente(c, toutes);
     const validePar = c.validePar ? await ctx.db.get(c.validePar) : null;
     const fournisseur: any = c.fournisseurId ? await ctx.db.get(c.fournisseurId) : null;
@@ -124,14 +134,23 @@ export const detail = query({
 // Si la base est vierge ou un produit n'a aucun antécédent, la liste retournée ne le contiendra pas (Option 3 : saisie libre initiale).
 export const derniersAchats = query({
   args: {
+    entiteId: v.optional(v.id("entites")),
     type: v.optional(TYPE),
     saufCommandeId: v.optional(v.id("commandes")),
     dateMax: v.optional(v.string()),
   },
-  handler: async (ctx, { type, saufCommandeId, dateMax }) => {
+  handler: async (ctx, { entiteId, type, saufCommandeId, dateMax }) => {
     await requireDroit(ctx, "/commandes");
+    await requireEntiteSiFournie(ctx, entiteId);
     let orders: Doc<"commandes">[];
-    if (type) {
+    if (entiteId) {
+      orders = await ctx.db
+        .query("commandes")
+        .withIndex("by_entite_date", (q) => q.eq("entiteId", entiteId))
+        .order("desc")
+        .collect();
+      if (type) orders = orders.filter((c) => c.type === type);
+    } else if (type) {
       orders = await ctx.db
         .query("commandes")
         .withIndex("by_type_date", (q) => q.eq("type", type))
@@ -185,6 +204,7 @@ export const derniersAchats = query({
 
 export const creer = mutation({
   args: {
+    entiteId: v.optional(v.id("entites")),
     type: TYPE,
     fournisseurId: v.optional(v.id("fournisseurs")),
     libelle: v.optional(v.string()),
@@ -198,14 +218,17 @@ export const creer = mutation({
   },
   handler: async (ctx, a) => {
     const user = await requireDroit(ctx, "/commandes", "faire");
+    await requireEntiteSiFournie(ctx, a.entiteId);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(a.date)) throw new Error("Date au format AAAA-MM-JJ.");
 
     // Recherche des antécédents d'achats dans les commandes antérieures non rejetées
-    const commandesPrecedentes = await ctx.db
-      .query("commandes")
-      .withIndex("by_type_date", (q) => q.eq("type", a.type))
-      .order("desc")
-      .collect();
+    const commandesPrecedentes = a.entiteId
+      ? (await ctx.db.query("commandes").withIndex("by_entite_date", (q) => q.eq("entiteId", a.entiteId)).order("desc").collect()).filter((c) => c.type === a.type)
+      : await ctx.db
+          .query("commandes")
+          .withIndex("by_type_date", (q) => q.eq("type", a.type))
+          .order("desc")
+          .collect();
 
     const antecedentsMap = new Map<string, { date: string; quantite: number; prixUnitaire: number; reference: string }>();
     for (const cp of commandesPrecedentes) {
@@ -260,25 +283,22 @@ export const creer = mutation({
     if (!lignes.length) throw new Error("Au moins une ligne de produit est requise.");
     if (lignes.some((l) => !(l.quantite > 0) || l.prixUnitaire < 0)) throw new Error("Quantités > 0 et prix ≥ 0 requis.");
     const annee = +a.date.slice(0, 4);
-    const existantes = await ctx.db
-      .query("commandes")
-      .withIndex("by_date", (q) => q.gte("date", `${annee}-01-01`).lte("date", `${annee}-12-31`))
-      .collect();
-    // Numérotation reprise sur la plus haute séquence existante, et non sur le nombre de bons :
-    // depuis l'ajout de `supprimer`, l'année peut comporter des trous et `length + 1` réattribuerait
-    // une référence déjà portée par un autre bon. L'index `by_reference` n'étant pas unique, la
-    // collision passerait totalement inaperçue et deux bons partageraient la même identité.
-    const prefixeRef = `CMD-${annee}-`;
-    const sequenceMax = existantes.reduce((max, c) => {
-      if (!c.reference.startsWith(prefixeRef)) return max;
-      const n = Number.parseInt(c.reference.slice(prefixeRef.length), 10);
-      return Number.isFinite(n) && n > max ? n : max;
-    }, 0);
-    const ref = reference("CMD", annee, sequenceMax + 1);
+    const existantes = a.entiteId
+      ? await ctx.db
+          .query("commandes")
+          .withIndex("by_entite_date", (q) => q.eq("entiteId", a.entiteId).gte("date", `${annee}-01-01`).lte("date", `${annee}-12-31`))
+          .collect()
+      : await ctx.db
+          .query("commandes")
+          .withIndex("by_date", (q) => q.gte("date", `${annee}-01-01`).lte("date", `${annee}-12-31`))
+          .collect();
+    // Numérotation par société et par année (reprise sur la plus haute séquence existante).
+    const ref = prochaineReference(existantes.map((c) => c.reference), "CMD", annee);
     const auteur = user.nom ?? user.email;
     const initialStatut = a.statut ?? "preparation";
 
     const id = await ctx.db.insert("commandes", {
+      entiteId: a.entiteId,
       reference: ref,
       type: a.type,
       fournisseurId: a.fournisseurId,

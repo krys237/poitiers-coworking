@@ -125,7 +125,8 @@ en attente d'un bug d'affichage.
 | Jamais | Pourquoi |
 |---|---|
 | `convex/schema.ts` | le modèle n'est pas à toi. Besoin d'un champ ou d'un index → **signale-le** |
-| `convex/lib/paie.ts`, `convex/lib/calculBulletins.ts` | le **moteur de paie**. On scope les requêtes qui l'alimentent, jamais le calcul. Un franc d'écart ici se retrouve sur un bulletin |
+| `convex/lib/paie.ts` | le **moteur de paie**, strictement interdit. Un franc d'écart ici se retrouve sur un bulletin |
+| `convex/lib/calculBulletins.ts` | **une seule modification autorisée**, décrite au lot 6 § « sans toucher au moteur » : la signature de `bulletinsPourPeriode` et la ligne qui lit les employés. **Rien d'autre.** Tout autre diff sur ce fichier sera rejeté à l'intégration |
 | `convex/lib/perimetre.ts`, `lib/authz.ts` | la sécurité. Un défaut → tu l'écris, tu ne le corriges pas |
 | `convex/lib/tresorerie.ts` | les blocs du grand livre — voir le lot 8 |
 | `convex/_generated/` | régénéré, toute édition est perdue |
@@ -201,7 +202,7 @@ clôturer un mois chez l'une **ne clôture pas** chez l'autre.
 
 ### Comment scoper `bulletinsPourPeriode` sans toucher au moteur
 
-`lib/calculBulletins.ts` est **interdit**. Mais `bulletinsPourPeriode(ctx, periode)` y lit
+`lib/calculBulletins.ts` n'autorise **qu'une** modification, et c'est celle-ci. `bulletinsPourPeriode(ctx, periode)` y lit
 `ctx.db.query("employes").collect()`. Tu ne peux donc pas filtrer dedans.
 
 **La solution, et c'est la seule acceptable** : ajoute un paramètre à la **signature** de

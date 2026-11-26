@@ -17,6 +17,7 @@ import { augmentationAnciennete, controlerAnciennete } from "../../../convex/lib
 import { toast } from "sonner";
 import { ChevronDownIcon, PrinterIcon, SearchIcon, XIcon } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
+import { useEntite } from "@/app/EntiteActive";
 import type { Id } from "../../../convex/_generated/dataModel";
 import type { BulletinPeriode } from "../../../convex/lib/calculBulletins";
 import { computeBulletin, type Bareme, type Bulletin, type SaisieMois } from "../../../convex/lib/paie";
@@ -123,17 +124,20 @@ export function validerValeurs(v: Valeurs): Partial<Record<Champ, string>> {
 // --- Données de la période ---------------------------------------------------
 
 export function useRecapPaie(periode: string) {
-  const paie = useQuery(api.payroll.bulletinsDuMois, { periode });
-  const saisies = useQuery(api.payroll.saisiesDuMois, { periode });
+  const { entiteId } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
+  const paie = useQuery(api.payroll.bulletinsDuMois, entiteIdTyped ? { entiteId: entiteIdTyped, periode } : "skip");
+  const saisies = useQuery(api.payroll.saisiesDuMois, entiteIdTyped ? { entiteId: entiteIdTyped, periode } : "skip");
   const bareme = useQuery(api.bareme.pourPeriode, { periode });
   // L'ancienneté du mois précédent, pour PROPOSER l'augmentation de l'année (lot R10, A6).
   // Requête séparée : l'écran fonctionne sans elle, et un mois précédent absent ne doit pas
   // empêcher de saisir.
-  const anciennetePrec = useQuery(api.payroll.anciennetePrecedente, { periode });
+  const anciennetePrec = useQuery(api.payroll.anciennetePrecedente, entiteIdTyped ? { entiteId: entiteIdTyped, periode } : "skip");
   const saisir = useMutation(api.payroll.saisirMois);
   const generer = useMutation(api.payroll.genererEtCloturer);
   const modifierEmploye = useMutation(api.employes.modifier);
-  const creerEmploye = useMutation(api.employes.creer);
+  const creerEmployeBrut = useMutation(api.employes.creer);
+  const creerEmploye = React.useCallback((a: any) => creerEmployeBrut({ ...a, entiteId: entiteIdTyped }), [creerEmployeBrut, entiteIdTyped]);
 
   const cloture = paie?.cloture ?? false;
   const bulletins: BulletinLigne[] = (paie?.bulletins ?? []) as BulletinLigne[];
@@ -440,6 +444,11 @@ export function BarreRecap({
   /** Actions propres à l'écran (fiche employé, champs persistants…), à gauche de « Imprimer ». */
   actions?: React.ReactNode;
 }) {
+  // `entiteIdTyped` du hook `useRecapPaie` n'est pas dans cette portée : BarreRecap est un autre
+  // composant du même fichier. Il lit la société active par le contexte, comme tout le monde.
+  const { entiteId: entiteActiveBrute } = useEntite();
+  const entiteActive = entiteActiveBrute as Id<"entites"> | undefined;
+
   const { cloture, bulletins, generer, paie, bareme } = recap;
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-filet bg-surface px-3 py-2 shadow-xs print:hidden">
@@ -462,7 +471,7 @@ export function BarreRecap({
           consequence={`Les ${bulletins.length} bulletins seront figés et les saisies du mois ne seront plus modifiables. Cette opération est irréversible.`}
           motCle="CLOTURER"
           confirmer="Générer et clôturer"
-          onConfirmer={() => generer({ periode })}
+          onConfirmer={() => generer({ entiteId: entiteActive, periode })}
           succes={(r: any) => `${r.bulletins} bulletin(s) générés — ${libellePeriode(periode)} clôturé.`}
         />
       ) : null}

@@ -12,6 +12,8 @@ import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 import { Columns3Icon, DownloadIcon, PencilIcon, PlusIcon, Trash2Icon, UploadIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { useEntite } from "@/app/EntiteActive";
 import {
   LIBELLES_CAISSE, POSTES_ESPECES, chiffreAffaires, exportCsvCaisse, parseCsvCaisse, totalEspeces, type LigneCaisse,
 } from "../../convex/lib/stats";
@@ -71,8 +73,10 @@ export function Caisse() {
   // 14 colonnes + une ligne de saisie : la barre latérale se replie en rail, comme sur le récap salaires.
   useRailLateral(persistant && detailPostes);
 
-  const caisse = useQuery(api.caisse.liste, { periode });
-  const graphe = useQuery(api.caisse.graphe, { periode });
+  const { entiteId } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
+  const caisse = useQuery(api.caisse.liste, entiteIdTyped ? { entiteId: entiteIdTyped, periode } : "skip");
+  const graphe = useQuery(api.caisse.graphe, entiteIdTyped ? { entiteId: entiteIdTyped, periode } : "skip");
   const enregistrerLigne = useMutation(api.caisse.enregistrerLigne);
   const supprimerLigne = useMutation(api.caisse.supprimerLigne);
   const importerCaisse = useMutation(api.caisse.importer);
@@ -87,7 +91,7 @@ export function Caisse() {
     const lignes = parseCsvCaisse(await file.text());
     if (!lignes.length) { toast.error("Aucune ligne de caisse reconnue dans ce fichier."); return; }
     try {
-      const r = await importerCaisse({ periode, lignes: lignes.map((x) => ({ ...x, horaires: x.horaires || undefined })) });
+      const r = await importerCaisse({ entiteId: entiteIdTyped, periode, lignes: lignes.map((x) => ({ ...x, horaires: x.horaires || undefined })) });
       toast.success(`${r.importees} ligne(s) de caisse importée(s)`, { description: libellePeriode(periode) });
     } catch (e) { toast.error("Import refusé", { description: messageErreur(e) }); }
   };
@@ -161,7 +165,7 @@ export function Caisse() {
                   <LigneSaisieCaisse
                     detailPostes={detailPostes}
                     onEnregistrer={async (l) => {
-                      await enregistrerLigne({ periode, dateDebut: l.dateDebut, dateFin: l.dateFin, horaires: l.horaires || undefined, ...Object.fromEntries(COLS.map((k) => [k, Number(l[k]) || 0])) } as any);
+                      await enregistrerLigne({ entiteId: entiteIdTyped, periode, dateDebut: l.dateDebut, dateFin: l.dateFin, horaires: l.horaires || undefined, ...Object.fromEntries(COLS.map((k) => [k, Number(l[k]) || 0])) } as any);
                       toast.success("Intervalle ajouté", { description: `CA ${fcfa(chiffreAffaires(l))} — totaux du mois recalculés` });
                     }}
                   />
@@ -230,7 +234,7 @@ export function Caisse() {
                 e.preventDefault();
                 const { ligneId, ...l } = form;
                 try {
-                  await enregistrerLigne({ ligneId: (ligneId ?? undefined) as any, periode, dateDebut: l.dateDebut, dateFin: l.dateFin, horaires: l.horaires || undefined, ...Object.fromEntries(COLS.map((k) => [k, Number(l[k]) || 0])) } as any);
+                  await enregistrerLigne({ entiteId: entiteIdTyped, ligneId: (ligneId ?? undefined) as any, periode, dateDebut: l.dateDebut, dateFin: l.dateFin, horaires: l.horaires || undefined, ...Object.fromEntries(COLS.map((k) => [k, Number(l[k]) || 0])) } as any);
                   toast.success(ligneId ? "Intervalle mis à jour" : "Intervalle ajouté", { description: `CA ${fcfa(chiffreAffaires(l))} — totaux du mois recalculés` });
                   setForm(null);
                 } catch (err) { toast.error("Enregistrement refusé", { description: messageErreur(err) }); }
