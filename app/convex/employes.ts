@@ -39,7 +39,7 @@ function numeroWhatsapp(brut: string | undefined): string | undefined {
 export const liste = query({
   args: { societe: v.optional(SOCIETE) },
   handler: async (ctx, { societe }) => {
-    await requireUnDesDroits(ctx, ["/employes", "/paie/saisie", "/paie/planning", "/paie/primes", "/paie/bulletins"]);
+    await requireUnDesDroits(ctx, ["/employes", "/paie/saisie", "/paie/planning", "/paie/bulletins"]);
     if (societe) {
       return await ctx.db.query("employes").withIndex("by_societe", (q) => q.eq("societe", societe)).collect();
     }
@@ -63,7 +63,7 @@ export const liste = query({
 export const fiche = query({
   args: { employeId: v.id("employes") },
   handler: async (ctx, { employeId }) => {
-    await requireUnDesDroits(ctx, ["/employes", "/paie/saisie", "/paie/planning", "/paie/primes", "/paie/bulletins"]);
+    await requireUnDesDroits(ctx, ["/employes", "/paie/saisie", "/paie/planning", "/paie/bulletins"]);
     const e = await ctx.db.get(employeId);
     if (!e) return null;
     return {

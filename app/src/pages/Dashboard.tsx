@@ -465,7 +465,7 @@ export function Dashboard() {
                   ? `Primes méd. : ${fcfa(pm.primes)} · ${effectifActif ?? 0} actif(s)`
                   : `${effectifActif ?? 0} employé(s) actif(s)`
               }
-              lienVers={voit("/paie/primes") ? "/paie/primes" : undefined}
+              lienVers={voit("/paie/saisie") ? "/paie/saisie" : undefined}
               badge={
                 <Flag variant="direct" size="xs">
                   <Users className="mr-1 h-3 w-3 inline" />

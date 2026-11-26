@@ -129,6 +129,49 @@ transforme un oubli en avertissement.
 
 ---
 
+## É7 · Deux registres de primes, et une prime payée deux fois — **RÉSOLU le 26/11/2026**
+
+Trouvé après la première rédaction de ce document, en répondant à une question du propriétaire :
+« l'onglet Primes & retenues sert à quoi ? »
+
+**Le constat.** Il existait DEUX registres de primes et aucun écran ne montrait celui de l'autre :
+les **colonnes nommées** de `saisiesMensuelles`, saisies dans le Récapitulatif salaires, et les
+**lignes libres** de `primesCharges`, saisies dans l'onglet. Les deux arrivent sur le même
+bulletin, par deux chemins — code de rubrique officiel pour les colonnes, code générique `PRIME`
+ou `RETENUE` pour les lignes libres.
+
+**Ce que ça a coûté.** PP1 portait 2 500 dans la colonne « prime assiduité » **et** une ligne libre
+« Prime d'assiduité » de 2 500. Son bulletin de novembre 2026 sortait deux lignes d'assiduité —
+66122 et PRIME — pour un brut de 142 222 au lieu de 139 722 et un net de 128 159 au lieu de
+125 969 : **2 190 FCFA de net versés en trop**. Ni l'un ni l'autre écran ne pouvait le montrer.
+Ligne retirée le 25/11 par `primes.retirerDoublonsRegistre`, trace au journal sous
+`paie_correction`.
+
+**La cause, et c'est elle qui compte.** Le bandeau de l'onglet disait pourtant la bonne règle :
+« les primes fixes, le transport, l'assiduité et le logement se saisissent dans le récapitulatif
+salaires ». Mais deux lignes plus bas, son autocomplétion proposait **huit libellés dont six
+recouvraient une colonne nommée** : Prime de rendement, Prime d'assiduité, Prime de caisse,
+Indemnité de logement, Indemnité de représentation, Gratification. **L'écran invitait l'erreur
+contre laquelle il prévenait.**
+
+**Une première tentative de correctif, et son échec.** Le 25/11 un avertissement a été posé dans
+le formulaire, comparant le libellé tapé aux libellés des colonnes après normalisation. Mesuré
+ensuite : il reconnaissait **1 suggestion sur 8**. La colonne s'appelle « Prime assiduité » et la
+suggestion « Prime **d'**assiduité » — ce « d » suffisait à les rendre différentes. Il n'aurait pas
+attrapé le cas de PP1. **Leçon : une ressemblance de chaînes n'est pas une identité de concept.**
+
+**La résolution.** Décision du propriétaire du 26/11 : **le module est retiré.** « Il cause plus de
+problèmes qu'il ne propose de solutions, le récapitulatif salaire nous permet déjà de gérer tout ce
+qui est prime et retenue. » Un seul endroit pour saisir ce qui touche un bulletin — ce qui supprime
+la classe de bug au lieu de la garder sous surveillance.
+
+Retiré : l'écran, sa route, son entrée de menu, l'entrée `/paie/primes` de `rbac.MODULES`, et les
+quatre fonctions publiques du module. Conservé volontairement : la table `primesCharges` et son
+chemin dans le moteur, inerte puisque la table est vide, pour qu'une éventuelle ligne ancienne
+reste lisible sur son bulletin plutôt que de disparaître en silence.
+
+---
+
 ## É5 · Deux notions de « recette » portent le même nom — actif, mais par conception
 
 - `financier.recetteTotale` = **toutes les entrées** de tous les blocs du grand livre ;
@@ -180,7 +223,9 @@ Liste des salaires trouve 97 là où le tableau de bord annonce 88.
 
 | | Écart | Statut | Pourquoi ce rang |
 |---|---|---|---|
-| 1 | **É3** primes aveugles au déclarant | actif | seul écart qui fausse un montant aujourd'hui |
+| ✅ | **É3** primes aveugles au déclarant | *corrigé le 25/11* | puis rendu sans objet par le retrait du module (É7) |
+| ✅ | **É7** deux registres de primes | *résolu le 26/11* | module retiré — la classe de bug disparaît |
+| ✅ | **É1** allocation de congé · **É2** rubriques | *corrigés le 25/11* | l'aperçu reçoit les mêmes ingrédients que le serveur |
 | 2 | **É1** allocation de congé | armé | se déclenche au premier congé payé, et touche un net |
 | 3 | **É2** catalogue de rubriques | armé | même famille que É1, même correctif de fond : une seule source |
 | 4 | **É6** compteurs | actif | trompeur, mais aucun calcul en jeu — du vocabulaire |
