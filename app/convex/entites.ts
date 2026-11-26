@@ -335,6 +335,16 @@ export const migrerEntites = internalMutation({
         `et ${membresEstampilles} membre(s) rattachés à « ${cible.nom} »`,
     });
 
+    // Une seconde passe sur le JOURNAL, et seulement sur lui : la ligne que `journaliser` vient
+    // d'écrire n'a pas d'entité, et sans ce rattrapage chaque exécution estampillerait la ligne de
+    // la précédente. Le compte rendu annoncerait alors « 1 ligne » sur une migration qui n'a rien
+    // fait — un rapport qui ne dit pas vrai est pire qu'un rapport absent.
+    for (const r of await ctx.db.query("journalActivite").collect()) {
+      if (r.entiteId) continue;
+      await ctx.db.patch(r._id, { entiteId: cible._id });
+      estampillees.journalActivite = (estampillees.journalActivite ?? 0) + 1;
+    }
+
     return {
       entite: { nom: cible.nom, code: cible.code },
       estampillees, dejaFaites, membresEstampilles,
