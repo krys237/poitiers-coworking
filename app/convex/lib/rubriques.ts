@@ -366,8 +366,13 @@ export const CHAMPS_SAISIE_HORS_RUBRIQUE: ReadonlySet<string> = new Set([
  * Les deux appelants doivent produire le même brut : une seule règle, importée, jamais recopiée.
  */
 /**
- * Les colonnes de la saisie mensuelle qui AJOUTENT au brut, et que l'onglet « Primes & retenues »
- * doit montrer en plus de ses propres lignes libres.
+ * Les colonnes de la saisie mensuelle qui AJOUTENT au brut.
+ *
+ * ⚠️ **Sans appelant depuis le 26/11/2026** : elles servaient à l'onglet « Primes & retenues »,
+ * retiré ce jour-là (voir l'en-tête de `convex/primes.ts`). Conservées parce que la vue « Groupe »
+ * consolidée du chantier multi-société en aura besoin, et parce que cette classification — ce qui
+ * ajoute au brut, ce qui retient sur le net — est une connaissance métier qui ne se redéduit pas
+ * d'un coup d'œil au schéma.
  *
  * Écart É7 : les primes saisies dans le Récapitulatif salaires vivent dans `saisiesMensuelles`
  * (colonnes nommées) tandis que l'onglet lit `primesCharges` (lignes libres). Les deux arrivent sur

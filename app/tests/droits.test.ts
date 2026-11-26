@@ -12,7 +12,9 @@ function verifie(nom: string, cond: boolean) {
 // Ancienne table « niveau minimum par module » (avant le 28/09/2026), pour comparaison.
 const ANCIEN: Record<string, number> = {
   "/comptes-rendus": 1, "/documents": 1, "/interventions": 1, "/employes": 3, "/commandes": 3, "/caisse": 3, "/primes-medecins": 3,
-  "/paie/saisie": 4, "/paie/bulletins": 4, "/paie/liste": 4, "/paie/planning": 4, "/paie/primes": 4, "/paie/courrier": 4,
+  // `/paie/primes` retiré le 26/11/2026 avec son écran : les primes et retenues se saisissent
+  // dans le Récapitulatif salaires. Voir l'en-tête de `convex/primes.ts`.
+  "/paie/saisie": 4, "/paie/bulletins": 4, "/paie/liste": 4, "/paie/planning": 4, "/paie/courrier": 4,
   "/paie/archives": 4, "/bareme": 4, "/financier": 5, "/parametres": 7, "/membres": 7, "/journal": 7,
 };
 const HIERARCHIE: Role[] = ["employe", "chef_equipe", "comptable", "gestionnaire_rh", "da1", "dg", "super_admin"];
@@ -105,7 +107,7 @@ const verrouDg = [{ role: "dg", module: "/parametres", voir: false, faire: false
 verifie("le DG garde Paramètres", droitsEffectifs("dg", verrouDg)["/parametres"].faire);
 verifie("le DG garde Membres", droitsEffectifs("dg", verrouDg)["/membres"].faire);
 verifie("le super admin garde tout", MODULES.every((m) => droitsEffectifs("super_admin", [], MODULES.map((x) => ({ module: x.cle, voir: false, faire: false })))[m.cle].voir));
-verifie("mais le DG peut perdre la paie", !droitsEffectifs("dg", [{ role: "dg", module: "/paie/primes", voir: false, faire: false }])["/paie/primes"].voir);
+verifie("mais le DG peut perdre la paie", !droitsEffectifs("dg", [{ role: "dg", module: "/paie/saisie", voir: false, faire: false }])["/paie/saisie"].voir);
 
 // 7. Clé dérivée « /paie » : ouverte si un écran de paie l'est.
 verifie("/paie suit ses écrans", droitsEffectifs("employe", [{ role: "employe", module: "/paie/liste", voir: true, faire: false }])["/paie"].voir);

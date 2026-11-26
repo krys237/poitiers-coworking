@@ -110,7 +110,10 @@ export const MODULES: Module[] = [
   { cle: "/paie/liste", libelle: "Liste des salaires", categorie: "Paie", voir: "Consulter, imprimer", faire: null, niveauVoir: 4, niveauFaire: 4 },
   { cle: "/paie/courrier", libelle: "Courrier de paie", categorie: "Paie", voir: "Consulter, imprimer", faire: "Envoyer, modifier la lettre", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/paie/planning", libelle: "Planning des absences", categorie: "Paie", voir: "Consulter", faire: "Saisir, synchroniser la paie", niveauVoir: 4, niveauFaire: 4 },
-  { cle: "/paie/primes", libelle: "Primes & retenues", categorie: "Paie", voir: "Consulter", faire: "Ajouter, modifier, supprimer", niveauVoir: 4, niveauFaire: 4 },
+  // `/paie/primes` retiré le 26/11/2026 : les primes et retenues se saisissent dans le
+  // Récapitulatif salaires, qui porte les colonnes nommées. Voir l'en-tête de `convex/primes.ts`.
+  // Les surcharges de rôle et exceptions qui le mentionnaient encore sont simplement ignorées :
+  // `droitsEffectifs` parcourt MODULES, pas les lignes stockées.
   { cle: "/paie/dipe", libelle: "DIPE (impôts & CNPS)", categorie: "Paie", voir: "Consulter et exporter l'état mensuel", faire: "Comparer avec le classeur de la RH", niveauVoir: 3, niveauFaire: 4 },
   { cle: "/paie/archives", libelle: "Archives de paie", categorie: "Paie", voir: "Consulter les mois clôturés", faire: "Générer les PDF", niveauVoir: 4, niveauFaire: 4 },
   { cle: "/bareme", libelle: "Barème", categorie: "Paie", voir: "Consulter, contrôler la source", faire: "Publier une nouvelle version", niveauVoir: 4, niveauFaire: 7 },

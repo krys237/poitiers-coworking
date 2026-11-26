@@ -29,7 +29,6 @@ const TITRES_PAGES: Record<string, { titre: string; sousTitre: string }> = {
   "/paie/bulletins": { titre: "Bulletins du mois", sousTitre: "Fiches de paie individuelles" },
   "/paie/courrier": { titre: "Courrier de paie", sousTitre: "Lettres et bulletins imprimables" },
   "/paie/planning": { titre: "Planning des absences", sousTitre: "Congés et indisponibilités" },
-  "/paie/primes": { titre: "Primes & retenues", sousTitre: "Lignes libres du bulletin de paie" },
   "/paie/archives": { titre: "Archives de paie", sousTitre: "Historique des clôtures mensuelles" },
   "/audit": { titre: "Audit confidentiel", sousTitre: "Contrôle financier indépendant" },
   "/bareme": { titre: "Barème", sousTitre: "Grille salariale et taux de référence" },
