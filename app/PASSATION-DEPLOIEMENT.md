@@ -327,6 +327,46 @@ L'agent sortant opposait trois raisons. **Deux tombent** au vu de l'état réel 
     « `--inline-query` must not be empty ». Écrire la requête sur **une seule ligne**, dans une
     variable shell.
 
+16. **RETIRER une fonction publique ouvre une fenêtre d'erreur ; en AJOUTER une n'en ouvre pas.**
+    Payé le 26/11/2026, au retrait du module « Primes & retenues ».
+
+    Un `convex deploy` met le backend à jour avant que tous les clients aient le nouveau frontend —
+    et un client installé garde le sien jusqu'à ce que son service worker se renouvelle. L'asymétrie
+    est totale :
+
+    - **ajouter** une fonction : l'ancien frontend l'ignore, personne ne voit rien ;
+    - **retirer** une fonction : l'ancien frontend l'appelle encore et reçoit
+      « Could not find public function for '…' ». Visible, et incompréhensible pour l'utilisateur.
+
+    **La parade, si l'on veut zéro erreur visible : retirer l'ÉCRAN d'abord, les FONCTIONS au
+    déploiement suivant.** Deux poussées au lieu d'une, et la fenêtre disparaît. Ça n'a pas été fait
+    le 26/11 — la table était vide et l'onglet peu fréquenté, donc le risque était acceptable — mais
+    la décision doit être prise sciemment, pas découverte après.
+
+    Corollaire pour un module dont on retire aussi l'entrée de `rbac.MODULES` : les fonctions
+    deviennent de toute façon inappelables, puisque `requireDroit` refuse un module absent de la
+    matrice. Garder les fonctions et retirer seulement la matrice est donc une troisième voie, plus
+    douce : le client ancien reçoit un refus de droits au lieu d'une fonction introuvable.
+
+17. **Le cache de bord Vercel peut faire croire qu'un build n'est pas parti.** Même séance.
+
+    Huit requêtes consécutives sur `poitiers-clean.vercel.app` ont rendu **l'ancien HTML**, avec
+    `X-Vercel-Cache: HIT`, alors que le backend était **déjà à jour** et que le nouveau build était
+    en place depuis le début. Le `index.html` porte `Cache-Control: public, max-age=0,
+    must-revalidate` : le bord revalide, mais il peut servir son entrée un moment.
+
+    **Diagnostic : contourner le cache plutôt que conclure.**
+
+    ```bash
+    curl -s -H "Cache-Control: no-cache" "https://<domaine>/?cb=$RANDOM$RANDOM"       | grep -oE '/assets/index-[^"]+\.js'
+    ```
+
+    Et croiser avec une source qui ne passe pas par le CDN — `npx convex function-spec --prod`
+    dit si le backend a reçu le déploiement. Si le backend est à jour, le build **a** réussi : le
+    reste n'est qu'une question de propagation. C'est l'inverse du piège n° 8, où c'était le jeton
+    qui mentait ; ici c'est le cache. Dans les deux cas, **ne jamais conclure au TIMEOUT sur la
+    seule foi d'un guetteur qui boucle.**
+
 ---
 
 ## 7. Les trois incidents causés par l'agent sortant
