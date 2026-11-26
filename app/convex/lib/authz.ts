@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { QueryCtx, MutationCtx } from "../_generated/server";
-import { Doc } from "../_generated/dataModel";
+import { Doc, Id } from "../_generated/dataModel";
+import { atteintEntite } from "./perimetre";
 import { NIVEAU, Role, droitsEffectifs, type Action, type Droits } from "../rbac";
 
 // Mode développement : si AUTH_DEV_BYPASS=true (variable d'env Convex) et qu'aucune session
@@ -89,4 +90,52 @@ export async function requireLevelOuAmorcage(ctx: Ctx, min: number) {
 // Module Audit : cloisonné par défaut (auditeur externe, DG), ajustable comme tout module.
 export async function requireAudit(ctx: Ctx, action: Action = "voir") {
   return await requireDroit(ctx, "/audit", action);
+}
+
+// ---------------------------------------------------------------------------
+// Périmètre multi-société
+// ---------------------------------------------------------------------------
+
+/**
+ * Vérifie que le membre courant **atteint réellement** cette entité, et la rend.
+ *
+ * C'est LA primitive de sécurité du multi-société, et le seul endroit où cette vérification
+ * vit. Toute requête ou mutation qui reçoit un `entiteId` du client doit l'appeler : le client
+ * PROPOSE une société, le serveur la VÉRIFIE. Un sélecteur d'écran n'est qu'une préférence
+ * d'affichage, et `localStorage` se modifie à la main dans n'importe quel navigateur.
+ *
+ * Ne pas la contourner, ne pas la recopier, ne pas « optimiser » en lisant `accesEntites`
+ * directement : la règle de périmètre vit dans `lib/perimetre.ts` et a ses tests.
+ */
+export async function requireEntite(ctx: Ctx, entiteId: Id<"entites">) {
+  const user = verifierCompte(await getCurrentUser(ctx));
+  const entites = await ctx.db.query("entites").collect();
+  const acces = await ctx.db
+    .query("accesEntites")
+    .withIndex("by_membre", (q) => q.eq("membreId", user._id))
+    .collect();
+  const atteint = atteintEntite(
+    { role: user.role as Role, entitePrincipaleId: user.entitePrincipaleId ? String(user.entitePrincipaleId) : undefined },
+    acces.map((a) => ({ entiteId: String(a.entiteId), role: a.role, droitsPerso: a.droitsPerso, actif: a.actif })),
+    entites.map((e) => ({ entiteId: String(e._id), nom: e.nom, actif: e.actif, ordre: e.ordre })),
+    String(entiteId),
+  );
+  if (!atteint) {
+    const e = entites.find((x) => String(x._id) === String(entiteId));
+    throw new Error(`Accès refusé : vous n'avez pas accès à « ${e?.nom ?? "cette société"} ».`);
+  }
+  return user;
+}
+
+/**
+ * Le même contrôle, mais sur une entité OPTIONNELLE — la forme de la transition.
+ *
+ * Tant que les écrans ne passent pas tous leur société, une requête peut en recevoir aucune :
+ * elle se comporte alors comme avant le chantier, sans filtrer. Dès qu'une société est fournie,
+ * elle est vérifiée. **Cette tolérance est temporaire** : elle disparaît le jour où `entiteId`
+ * devient obligatoire au schéma, et ce jour-là une requête sans société sera refusée.
+ */
+export async function requireEntiteSiFournie(ctx: Ctx, entiteId: Id<"entites"> | undefined) {
+  if (!entiteId) return null;
+  return await requireEntite(ctx, entiteId);
 }
