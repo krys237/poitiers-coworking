@@ -32,6 +32,7 @@ import type * as dipe from "../dipe.js";
 import type * as documents from "../documents.js";
 import type * as documentsIa from "../documentsIa.js";
 import type * as employes from "../employes.js";
+import type * as entites from "../entites.js";
 import type * as financier from "../financier.js";
 import type * as fournisseurs from "../fournisseurs.js";
 import type * as fonctions from "../fonctions.js";
@@ -123,6 +124,7 @@ declare const fullApi: ApiFromModules<{
   documents: typeof documents;
   documentsIa: typeof documentsIa;
   employes: typeof employes;
+  entites: typeof entites;
   financier: typeof financier;
   fournisseurs: typeof fournisseurs;
   fonctions: typeof fonctions;

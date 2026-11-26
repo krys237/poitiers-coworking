@@ -39,7 +39,11 @@ import {
   FileSpreadsheet,
   FileSignature,
   Bell,
+  Building2,
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FournisseurEntite, useEntite } from "@/app/EntiteActive";
+import { BandeauEntite } from "@/components/app/bandeau-entite";
 import { useMe } from "../auth/useMe";
 import "../auth/auth.css";
 
@@ -409,6 +413,33 @@ function RailLateral({
   );
 }
 
+/**
+ * Sélecteur de société (entité) active — Lot 2 du chantier multi-société.
+ * Invisible lorsqu'un membre n'accède qu'à une seule société (ou aucune).
+ */
+export function SelecteurEntite() {
+  const { entiteId, entites, basculer } = useEntite();
+  if (entites.length < 2 || !entiteId) return null;
+  return (
+    <div className="flex items-center justify-end gap-2 border-b border-filet bg-surface/80 px-4 py-1.5 print:hidden sm:px-6 lg:px-8">
+      <Building2 className="h-3.5 w-3.5 text-encre-pale" aria-hidden="true" />
+      <span className="text-2xs font-semibold uppercase tracking-wide text-encre-pale">Société</span>
+      <Select value={entiteId} onValueChange={basculer}>
+        <SelectTrigger size="sm" className="h-7 w-auto min-w-44 bg-white text-xs font-medium" aria-label="Société active">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {entites.map((e) => (
+            <SelectItem key={e.entiteId} value={e.entiteId}>
+              {e.nom}{e.principale ? " · principale" : ""}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 export function Layout() {
   const me = useMe();
   const { signOut } = useAuthActions();
@@ -432,6 +463,7 @@ export function Layout() {
   const valeurRail = useMemo(() => ({ rail, setRail }), [rail, setRail]);
 
   return (
+    <FournisseurEntite>
     <RailContext.Provider value={valeurRail}>
     <div className="flex min-h-screen bg-papier text-encre">
       {/* Sidebar Desktop Fixe (ou rail replié) */}
@@ -470,11 +502,14 @@ export function Layout() {
           </div>
         )}
         <Header onOpenMobileMenu={() => setMobileOpen(true)} />
+        <SelecteurEntite />
         <main className={cn("flex-1 p-4 print:p-0", rail ? "sm:p-5" : "sm:p-6 lg:p-8")}>
+          <BandeauEntite className="mb-4" />
           <Outlet />
         </main>
       </div>
     </div>
     </RailContext.Provider>
+    </FournisseurEntite>
   );
 }

@@ -17,12 +17,15 @@ import * as React from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { CheckIcon, KeyRoundIcon, LockIcon, PlusIcon, RotateCcwKeyIcon, SearchIcon, ShieldCheckIcon, UserRoundPenIcon, UserRoundPlusIcon } from "lucide-react";
+import { Building2, CheckIcon, KeyRoundIcon, LockIcon, PlusIcon, RotateCcwKeyIcon, SearchIcon, ShieldCheckIcon, UserRoundPenIcon, UserRoundPlusIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
 import { DESCRIPTION, LIBELLE, NIVEAU, ROLES_ORDONNES, peutAttribuer, peutModifierMembre, type Role } from "../../convex/rbac";
+import { peutAccorderRole } from "../../convex/lib/perimetre";
 import { erreurTelephone, formaterTelephone } from "../../convex/lib/telephone";
 import { MOT_DE_PASSE_PROVISOIRE, estEmailTechnique } from "../../convex/lib/motDePasse";
 import { usePeut } from "@/auth/useMe";
+import { useEntite } from "@/app/EntiteActive";
 import { ChampTelephone } from "@/components/app/champ-telephone";
 import { messageErreur } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -36,6 +39,7 @@ import { SelecteurLignes, useLignesVisibles } from "@/components/app/lignes-visi
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Flag, type FlagVariant } from "@/components/ui/flag";
+import { Switch } from "@/components/ui/switch";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -46,6 +50,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableVid
 const ROLES = ROLES_ORDONNES;
 const SOCIETES = ["SESAME", "SOFINA", "SGC"] as const;
 const AUCUNE = "__aucune__";
+const ROLE_GLOBAL = "__global__";
 /** Libellé de rôle avec son niveau : « Niv. 4 · Gestionnaire RH ». */
 const libelleRole = (r: Role) => (NIVEAU[r] ? `Niv. ${NIVEAU[r]} · ${LIBELLE[r]}` : `${LIBELLE[r]} · hors hiérarchie`);
 const ORIGINE: Record<string, { label: string; variant: FlagVariant; aide: string }> = {
@@ -92,6 +97,9 @@ const sansAccents = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g
 export function Membres() {
   const membres = useQuery(api.users.liste);
   const me = useQuery(api.users.me);
+  // Démonstration du contexte multi-société (Lot 2) : lu ici pour affichage uniquement,
+  // `api.users.liste` n'étant pas scopée par entité (cf. CONTRAT-ECRANS.md).
+  const { nom: entiteActiveNom, entites: mesEntites } = useEntite();
   const modifier = useMutation(api.users.modifier);
   const creer = useAction(api.compte.creerMembre);
   const reinitialiser = useAction(api.compte.reinitialiser);
@@ -152,7 +160,14 @@ export function Membres() {
       <PageEnTete
         titre="Membres & accès"
         description={<>Les comptes de la plateforme et leur rôle. Le rôle fixe les droits par défaut : changez-le directement dans la ligne, la liste dit ce que chaque rôle ouvre — le détail est dans <Link to="/parametres?onglet=roles" className="underline decoration-dotted underline-offset-2">Paramètres → Rôles & accès</Link>. Un nouveau membre se connecte aussitôt (téléphone ou e-mail) avec le mot de passe provisoire <span className="font-mono font-semibold">{MOT_DE_PASSE_PROVISOIRE}</span>, qu'il doit changer à sa première connexion.</>}
-        statut={me ? <Flag variant="verrou" size="sm" icon={<ShieldCheckIcon className="h-3 w-3" />}>{me.roleLibelle}</Flag> : null}
+        statut={me ? (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Flag variant="verrou" size="sm" icon={<ShieldCheckIcon className="h-3 w-3" />}>{me.roleLibelle}</Flag>
+            {mesEntites.length > 1 && entiteActiveNom ? (
+              <Flag variant="neutre" size="sm" icon={<Building2 className="h-3 w-3" />}>{entiteActiveNom}</Flag>
+            ) : null}
+          </div>
+        ) : null}
         actions={
           <>
             {peutFaire && !persistant ? <Button size="sm" onClick={() => setFiche(nouvelle())}><UserRoundPlusIcon /> Nouveau membre</Button> : null}
@@ -382,6 +397,9 @@ function FormFiche({ fiche, auteur, estMoi, dernierDg, employes, lectureSeule, o
         ) : null}
         {(estMoi || dernierDg) && !creation ? <p className="text-2xs text-encre-pale min-[480px]:col-span-2">{estMoi ? "Vous ne pouvez pas désactiver votre propre compte. " : ""}{dernierDg ? "Dernier Directeur Général actif : ni désactivation ni rétrogradation possible." : ""}</p> : null}
       </fieldset>
+      {!creation && f.userId ? (
+        <BlocAccesEntites membreId={f.userId} auteur={auteur} lectureSeule={!!lectureSeule} />
+      ) : null}
       {onReinitialiser && !creation ? (
         <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-filet bg-papier px-3 py-2">
           <div>
@@ -404,6 +422,260 @@ function FormFiche({ fiche, auteur, estMoi, dernierDg, employes, lectureSeule, o
         {!lectureSeule ? <Button type="submit" disabled={enCours}>{creation ? "Créer le membre" : autorisation ? <><CheckIcon /> Accorder l'accès</> : "Enregistrer"}</Button> : null}
       </DialogFooter>
     </form>
+  );
+}
+
+// --- Accès multi-société du membre (Lot 3) ----------------------------------------
+
+function formaterDateAcces(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function BlocAccesEntites({ membreId, auteur, lectureSeule }: {
+  membreId: string;
+  auteur: Role | undefined;
+  lectureSeule: boolean;
+}) {
+  const peutAdministrer = !!auteur && NIVEAU[auteur] >= 7 && !lectureSeule;
+  const acces = useQuery(api.entites.accesDuMembre, { membreId: membreId as Id<"users"> });
+  const toutesEntites = useQuery(api.entites.liste, peutAdministrer ? {} : "skip");
+  const accorder = useMutation(api.entites.accorderAcces);
+  const modifier = useMutation(api.entites.modifierAcces);
+  const revoquer = useMutation(api.entites.revoquerAcces);
+
+  const [nouvelleEntiteId, setNouvelleEntiteId] = React.useState<string>(AUCUNE);
+  const [nouveauRole, setNouveauRole] = React.useState<string>(ROLE_GLOBAL);
+  const [enCours, setEnCours] = React.useState<string | null>(null);
+
+  // Réinitialise le mini-formulaire lorsqu'on ouvre une autre fiche membre.
+  React.useEffect(() => {
+    setNouvelleEntiteId(AUCUNE);
+    setNouveauRole(ROLE_GLOBAL);
+  }, [membreId]);
+
+  const rolesAccordables = React.useMemo(
+    () => (auteur ? ROLES.filter((r) => peutAccorderRole(auteur, r)) : []),
+    [auteur],
+  );
+
+  const dejaPresentes = new Set((acces ?? []).map((a) => a.entiteId));
+  const entitesDisponibles = (toutesEntites ?? []).filter(
+    (e) => e.actif && !dejaPresentes.has(e.entiteId),
+  );
+
+  const accorderNouveau = async () => {
+    if (nouvelleEntiteId === AUCUNE) {
+      toast.error("Choisissez une société à accorder.");
+      return;
+    }
+    setEnCours("ajout");
+    try {
+      await accorder({
+        membreId: membreId as Id<"users">,
+        entiteId: nouvelleEntiteId as Id<"entites">,
+        role: nouveauRole === ROLE_GLOBAL ? undefined : nouveauRole,
+      });
+      const entite = entitesDisponibles.find((e) => e.entiteId === nouvelleEntiteId);
+      toast.success(`Accès accordé à « ${entite?.nom ?? "la société"} »`);
+      setNouvelleEntiteId(AUCUNE);
+      setNouveauRole(ROLE_GLOBAL);
+    } catch (err) {
+      toast.error("Accès refusé", { description: messageErreur(err) });
+    } finally {
+      setEnCours(null);
+    }
+  };
+
+  const changerRoleAcces = async (accesId: string, entiteNom: string, valeur: string) => {
+    if (valeur === ROLE_GLOBAL) return;
+    setEnCours(accesId);
+    try {
+      await modifier({ accesId: accesId as Id<"accesEntites">, role: valeur });
+      toast.success(`Rôle mis à jour sur « ${entiteNom} »`, {
+        description: valeur in LIBELLE ? libelleRole(valeur as Role) : valeur,
+      });
+    } catch (err) {
+      toast.error("Modification du rôle refusée", { description: messageErreur(err) });
+    } finally {
+      setEnCours(null);
+    }
+  };
+
+  const basculerActif = async (accesId: string, entiteNom: string, actif: boolean) => {
+    setEnCours(accesId);
+    try {
+      if (actif) {
+        await modifier({ accesId: accesId as Id<"accesEntites">, actif: true });
+        toast.success(`Accès à « ${entiteNom} » réactivé`);
+      } else {
+        await revoquer({ accesId: accesId as Id<"accesEntites"> });
+        toast.success(`Accès à « ${entiteNom} » révoqué`, {
+          description: "La trace d'attribution est conservée.",
+        });
+      }
+    } catch (err) {
+      toast.error(actif ? "Réactivation refusée" : "Révocation refusée", {
+        description: messageErreur(err),
+      });
+    } finally {
+      setEnCours(null);
+    }
+  };
+
+  return (
+    <section className="mt-3 rounded-lg border border-filet bg-papier p-3" aria-label="Sociétés accessibles">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 text-xs font-semibold">
+          <Building2 className="h-3.5 w-3.5 text-encre-pale" aria-hidden="true" />
+          Sociétés accessibles
+        </div>
+        {acces ? (
+          <span className="font-mono text-2xs text-encre-pale">
+            {acces.filter((a) => a.actif).length} active(s) / {acces.length}
+          </span>
+        ) : null}
+      </div>
+      <p className="mt-0.5 text-2xs text-encre-pale">
+        La société principale fait toujours partie du périmètre et ne peut pas être révoquée ici.
+      </p>
+
+      {acces === undefined ? (
+        <p className="mt-2 text-2xs text-encre-pale">Chargement des accès…</p>
+      ) : acces.length === 0 ? (
+        <p className="mt-2 text-2xs text-encre-pale">Aucune société rattachée pour le moment.</p>
+      ) : (
+        <ul className="mt-2 space-y-2">
+          {acces.map((a) => {
+            const cle = a.accesId || `principale-${a.entiteId}`;
+            const occupe = enCours === a.accesId;
+            const roleActuel = a.role && a.role in LIBELLE ? (a.role as Role) : undefined;
+            const metaAttribution = [
+              a.accordeParNom ? `Accordé par ${a.accordeParNom}` : null,
+              a.accordeLe ? formaterDateAcces(a.accordeLe) : null,
+            ].filter(Boolean).join(" · ");
+
+            return (
+              <li
+                key={cle}
+                className={cn(
+                  "flex flex-col gap-2 rounded-md border border-filet bg-surface px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between",
+                  !a.actif && !a.principale && "opacity-65",
+                )}
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="truncate text-xs font-semibold">{a.entiteNom}</span>
+                    {a.principale ? (
+                      <Flag variant="verrou" size="xs">Principale</Flag>
+                    ) : a.actif ? (
+                      <Flag variant="renseigne" size="xs">Actif</Flag>
+                    ) : (
+                      <Flag variant="neutre" size="xs">Révoqué</Flag>
+                    )}
+                  </div>
+                  <div className="mt-0.5 text-2xs text-encre-pale">
+                    {a.principale
+                      ? `Périmètre principal · ${roleActuel ? libelleRole(roleActuel) : "Rôle global"}`
+                      : metaAttribution || "Accès secondaire"}
+                  </div>
+                </div>
+
+                {a.principale ? (
+                  <span className="text-2xs text-encre-pale">Non révocable</span>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {peutAdministrer && a.accesId ? (
+                      <Select
+                        value={roleActuel ?? ROLE_GLOBAL}
+                        disabled={occupe}
+                        onValueChange={(v) => void changerRoleAcces(a.accesId, a.entiteNom, v)}
+                      >
+                        <SelectTrigger
+                          size="sm"
+                          className="h-7 w-48 text-2xs"
+                          aria-label={`Rôle sur ${a.entiteNom}`}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {!roleActuel ? (
+                            <SelectItem value={ROLE_GLOBAL}>Rôle global du membre</SelectItem>
+                          ) : null}
+                          {ROLES.filter((r) => (auteur ? peutAccorderRole(auteur, r) : false) || r === roleActuel).map((r) => (
+                            <SelectItem
+                              key={r}
+                              value={r}
+                              disabled={!!auteur && !peutAccorderRole(auteur, r)}
+                            >
+                              {libelleRole(r)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <span className="text-2xs text-encre-douce">
+                        {roleActuel ? libelleRole(roleActuel) : "Rôle global"}
+                      </span>
+                    )}
+
+                    {peutAdministrer && a.accesId ? (
+                      <label className="flex items-center gap-1.5 text-2xs text-encre-douce">
+                        <Switch
+                          checked={a.actif}
+                          disabled={occupe}
+                          onCheckedChange={(checked) => void basculerActif(a.accesId, a.entiteNom, checked)}
+                          aria-label={a.actif ? `Révoquer l'accès à ${a.entiteNom}` : `Réactiver l'accès à ${a.entiteNom}`}
+                        />
+                        <span>{a.actif ? "Actif" : "Révoqué"}</span>
+                      </label>
+                    ) : null}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {peutAdministrer && entitesDisponibles.length > 0 ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-filet pt-2.5">
+          <Select value={nouvelleEntiteId} onValueChange={setNouvelleEntiteId} disabled={enCours === "ajout"}>
+            <SelectTrigger size="sm" className="h-8 min-w-44 flex-1 bg-surface text-xs" aria-label="Société à accorder">
+              <SelectValue placeholder="Choisir une société…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={AUCUNE}>— choisir une société —</SelectItem>
+              {entitesDisponibles.map((e) => (
+                <SelectItem key={e.entiteId} value={e.entiteId}>{e.nom}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={nouveauRole} onValueChange={setNouveauRole} disabled={enCours === "ajout"}>
+            <SelectTrigger size="sm" className="h-8 w-48 bg-surface text-xs" aria-label="Rôle pour cette société">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ROLE_GLOBAL}>Rôle global du membre</SelectItem>
+              {rolesAccordables.map((r) => (
+                <SelectItem key={r} value={r}>{libelleRole(r)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            size="sm"
+            className="h-8 text-xs"
+            disabled={enCours === "ajout" || nouvelleEntiteId === AUCUNE}
+            onClick={() => void accorderNouveau()}
+          >
+            <PlusIcon className="h-3.5 w-3.5" /> Accorder
+          </Button>
+        </div>
+      ) : null}
+    </section>
   );
 }
 
