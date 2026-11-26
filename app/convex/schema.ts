@@ -37,8 +37,76 @@ export default defineSchema({
   // L'ordre compte : notre définition de `users` écrase celle d'authTables.
   ...authTables,
 
+  // ---- Multi-société (chantier du 26/11/2026) ----
+  //
+  // Une ENTITÉ est une personne morale : POLYCLINIQUE DE POITIERS, EDR-TIM, LES LILAS. Chacune a
+  // son registre du commerce, son NIU, ses employés, ses comptes. C'est l'espace de travail entre
+  // lesquels le directeur bascule, et c'est la dimension de cloisonnement de toute l'application.
+  //
+  // ⚠️ NE PAS CONFONDRE avec le champ `societe` (`SESAME | SOFINA | SGC`) que portent `employes`,
+  // `bulletins` et la chaîne de paie : celui-là est le DÉCLARANT de paie, transversal aux entités
+  // — un bulletin par déclarant, un DIPE par déclarant. Les deux coexistent sur la même ligne et
+  // ne veulent pas dire la même chose. C'est pour cette raison que le nouveau champ s'appelle
+  // `entiteId` et non `societeId` : lire l'un en croyant tenir l'autre afficherait les données
+  // d'une autre entité. Le raisonnement complet est dans `docs/multi-societe/MODELE.md` § 1 bis.
+  //
+  // À l'écran, l'entité s'appelle « Société » — le libellé utilisateur n'a pas à suivre le nom du
+  // champ.
+  entites: defineTable({
+    nom: v.string(),                          // "POLYCLINIQUE DE POITIERS" — affiché partout
+    /** Slug stable, jamais affiché : sert de clé dans les exports et les journaux, là où un `_id` serait illisible et un `nom` instable. Immuable après création. */
+    code: v.string(),
+    actif: v.boolean(),
+    ordre: v.number(),                        // ordre du sélecteur
+    // Identité juridique — ce que `parametresEntreprise` portait pour l'entreprise unique.
+    raisonSociale: v.optional(v.string()),
+    adresse: v.optional(v.string()),
+    telephone: v.optional(v.string()),
+    niu: v.optional(v.string()),
+    numeroCnps: v.optional(v.string()),
+    registreCommerce: v.optional(v.string()),
+    dirigeant: v.optional(v.string()),
+    /** Expéditeur du courrier de paie : chaque société écrit sous son propre nom. */
+    emailExpediteur: v.optional(v.string()),
+    logoId: v.optional(v.id("_storage")),
+  })
+    .index("by_code", ["code"])
+    .index("by_actif_ordre", ["actif", "ordre"]),
+
+  // Un accès accordé à un membre sur une entité qui n'est pas la sienne.
+  //
+  // C'est ce qui réalise la demande du propriétaire du 25/11/2026 : « nous devons pouvoir définir
+  // des niveaux d'accès à différentes sociétés au besoin, de sorte que si je veux que le DAF de
+  // Poitiers ait accès aux comptes d'une autre à un niveau ou à un autre, je puisse le faire. »
+  //
+  // Un membre EXISTE UNE SEULE FOIS, quelles que soient les sociétés où il travaille : on ne
+  // duplique jamais une personne, sinon elle aurait deux comptes, deux mots de passe et deux
+  // historiques. C'est cette table qui porte ses périmètres.
+  //
+  // Décision du 26/11/2026 : le **DG** et le **super administrateur** atteignent toutes les
+  // entités actives SANS ligne d'accès — « quelque part c'est un admin ». Tout autre rôle, y
+  // compris l'auditeur externe (niveau 0, hors hiérarchie), n'atteint que son entité principale et
+  // ses accès explicites.
+  accesEntites: defineTable({
+    membreId: v.id("users"),
+    entiteId: v.id("entites"),
+    /** Le rôle du membre DANS cette entité. Absent = il y porte son rôle global (`users.role`). Jamais d'un niveau supérieur au rôle global : ce serait une porte d'escalade. */
+    role: v.optional(v.string()),
+    /** Exceptions par module, bornées à cette entité — même forme que `users.droitsPerso`. */
+    droitsPerso: v.optional(v.array(v.object({ module: v.string(), voir: v.boolean(), faire: v.boolean() }))),
+    /** Faux = accès RÉVOQUÉ, et non supprimé : la trace de qui l'avait accordé reste lisible. */
+    actif: v.boolean(),
+    accordePar: v.optional(v.id("users")),
+    accordeLe: v.optional(v.string()),
+  })
+    .index("by_membre", ["membreId"])
+    .index("by_entite", ["entiteId"])
+    .index("by_membre_entite", ["membreId", "entiteId"]),
+
   // ---- Accès & organisation (Phase 0) ----
   users: defineTable({
+    /** Entité d'appartenance du membre, présélectionnée à l'arrivée. Ses autres périmètres vivent dans `accesEntites`. */
+    entitePrincipaleId: v.optional(v.id("entites")),
     // Champs attendus par Convex Auth (tous optionnels côté métier).
     name: v.optional(v.string()),
     image: v.optional(v.string()),
@@ -150,6 +218,7 @@ export default defineSchema({
   // déjà un congé ». Dans la frise, l'encodage principal reste le regroupement des lignes ; la
   // couleur n'est qu'un repère secondaire (lib/planningAnnuel.PALETTE_SERVICES).
   services: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     nom: v.string(),
     couleur: v.string(),              // hex "#rrggbb"
     ordre: v.number(),
@@ -164,7 +233,8 @@ export default defineSchema({
      * reste pour ne pas réécrire l'historique des demandes déjà déposées.
      */
     chefs: v.optional(v.array(v.id("users"))),
-  }).index("by_nom", ["nom"]),
+  }).index("by_nom", ["nom"])
+    .index("by_entite_ordre", ["entiteId", "ordre"]),
 
   // Référentiel des FONCTIONS (lot R10). `employes.fonction` était un champ texte libre, d'où
   // les fonctions vides que la RH a signalées le 03/11/2026. La table lui permet de les créer
@@ -174,15 +244,18 @@ export default defineSchema({
   // le libellé choisi. C'est volontaire — une fonction renommée ou supprimée ne doit pas effacer
   // la fonction inscrite sur une fiche, ni sur un contrat déjà signé.
   fonctions: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     libelle: v.string(),
     // Catégorie et échelon par défaut, repris à la sélection : la grille salariale les lie.
     categorie: v.optional(v.string()),
     echelon: v.optional(v.string()),
     actif: v.boolean(),
-  }).index("by_libelle", ["libelle"]),
+  }).index("by_libelle", ["libelle"])
+    .index("by_entite_libelle", ["entiteId", "libelle"]),
 
   // ---- Paie (Phase 1) ----
   employes: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     matricule: v.string(),
     nom: v.string(),
     fonction: v.optional(v.string()),
@@ -246,7 +319,9 @@ export default defineSchema({
   })
     .index("by_matricule", ["matricule"])
     .index("by_societe", ["societe"])
-    .index("by_service", ["serviceId"]),
+    .index("by_service", ["serviceId"])
+    .index("by_entite_matricule", ["entiteId", "matricule"])
+    .index("by_entite_societe", ["entiteId", "societe"]),
 
   // Rattachement d'un employé à UNE société employeuse (lot R2 bis, décision du 20/10/2026).
   //
@@ -262,6 +337,7 @@ export default defineSchema({
   // fonctionne AVANT comme APRÈS la migration `employes:migrerRattachements` : sans aucune ligne,
   // c'est `employes.societe` qui fait foi, exactement comme aujourd'hui.
   rattachements: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     employeId: v.id("employes"),
     societe: SOCIETE,
     // Données PROPRES À L'EMPLOYEUR : deux sociétés ne numérotent pas, ne classent pas et ne
@@ -288,7 +364,8 @@ export default defineSchema({
   })
     .index("by_employe", ["employeId"])
     .index("by_societe", ["societe"])
-    .index("by_employe_societe", ["employeId", "societe"]),
+    .index("by_employe_societe", ["employeId", "societe"])
+    .index("by_entite_employe", ["entiteId", "employeId"]),
 
   // Barème officiel DATÉ (CNPS / CGI). Un bulletin référence la version applicable à sa période.
   baremes: defineTable({
@@ -338,6 +415,7 @@ export default defineSchema({
   // bulletin résout la version applicable à SA période, donc un mois clôturé n'est jamais
   // recalculé avec une définition d'assiette plus récente. Voir lib/rubriques.ts.
   rubriquesPaie: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     effectiveFrom: v.string(),        // "YYYY-MM-DD" — début d'applicabilité
     source: v.string(),
     rubriques: v.array(v.object({
@@ -359,6 +437,7 @@ export default defineSchema({
 
   // Éléments variables saisis par mois et par COUPLE (employé, société) depuis le lot R2 bis.
   saisiesMensuelles: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     employeId: v.id("employes"),
     // Société qui verse ces éléments. ABSENTE = ligne antérieure au lot R2 bis : elle appartient
     // à la société porteuse de la fiche (`lib/societes.pourSociete`). Jamais requise, pour que
@@ -391,10 +470,12 @@ export default defineSchema({
     gratification: v.optional(v.number()),
   })
     .index("by_periode", ["periode"])
-    .index("by_employe_periode", ["employeId", "periode"]),
+    .index("by_employe_periode", ["employeId", "periode"])
+    .index("by_entite_periode", ["entiteId", "periode"]),
 
   // Lignes libres de primes / charges datées (alimentent les totaux du mois).
   primesCharges: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     employeId: v.id("employes"),
     // Société qui verse la prime ou retient la charge. Absente = société porteuse de la fiche
     // (lignes antérieures au lot R2 bis) : une prime ne doit jamais changer de déclarant.
@@ -406,10 +487,12 @@ export default defineSchema({
     date: v.string(),
   })
     .index("by_employe_periode", ["employeId", "periode"])
-    .index("by_periode", ["periode"]),
+    .index("by_periode", ["periode"])
+    .index("by_entite_periode", ["entiteId", "periode"]),
 
   // Événements d'absence (planning). Les agrégats mensuels et le solde de congés en dérivent.
   absences: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     employeId: v.id("employes"),
     // Catalogue légal : voir lib/absencesLegales.ts. Les 4 premières valeurs sont les clés
     // HISTORIQUES et restent acceptées — aucune donnée existante n'est invalidée.
@@ -452,11 +535,13 @@ export default defineSchema({
   })
     .index("by_employe", ["employeId"])
     .index("by_debut", ["dateDebut"])
-    .index("by_annee", ["anneeReference"]),
+    .index("by_annee", ["anneeReference"])
+    .index("by_entite_employe", ["entiteId", "employeId"]),
 
   // Bulletins GÉNÉRÉS (snapshot). Les mois ouverts sont calculés à la volée;
   // à la génération/clôture on fige le résultat ici.
   bulletins: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     employeId: v.id("employes"),
     periode: v.string(),
     baremeId: v.id("baremes"),
@@ -500,18 +585,22 @@ export default defineSchema({
     })),
   })
     .index("by_periode", ["periode"])
-    .index("by_employe_periode", ["employeId", "periode"]),
+    .index("by_employe_periode", ["employeId", "periode"])
+    .index("by_entite_periode", ["entiteId", "periode"]),
 
   // Clôture d'un mois de paie (fige les bulletins).
   cloturesPaie: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     periode: v.string(),
     closedBy: v.id("users"),
     closedAt: v.string(),
     baremeId: v.id("baremes"),
-  }).index("by_periode", ["periode"]),
+  }).index("by_periode", ["periode"])
+    .index("by_entite_periode", ["entiteId", "periode"]),
 
   // Journal des envois de courrier de paie (e-mail). Un enregistrement par tentative.
   envois: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     employeId: v.id("employes"),
     // Société du bulletin envoyé (lot R2 bis) : un pluri-employé reçoit un courrier par société.
     // Absente = envoi antérieur, donc société porteuse de la fiche.
@@ -526,11 +615,13 @@ export default defineSchema({
     erreur: v.optional(v.string()),
   })
     .index("by_periode", ["periode"])
-    .index("by_employe_periode", ["employeId", "periode"]),
+    .index("by_employe_periode", ["employeId", "periode"])
+    .index("by_entite_periode", ["entiteId", "periode"]),
 
   // ---- Exploitation financière (Phase 2) ----
   // Grand livre journalier : une ligne par date. mouvements[bloc][ligne] = montant ; soldes calculés (report J-1).
   journeesFinancieres: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     date: v.string(),                 // "YYYY-MM-DD"
     periode: v.string(),              // "YYYY-MM"
     mouvements: v.record(v.string(), v.record(v.string(), v.number())),
@@ -546,19 +637,23 @@ export default defineSchema({
     verrouNom: v.optional(v.string()),
   })
     .index("by_date", ["date"])
-    .index("by_periode", ["periode"]),
+    .index("by_periode", ["periode"])
+    .index("by_entite_date", ["entiteId", "date"]),
 
   cloturesFinancieres: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     periode: v.string(),
     closedBy: v.id("users"),
     closedAt: v.string(),
     journees: v.number(),
-  }).index("by_periode", ["periode"]),
+  }).index("by_periode", ["periode"])
+    .index("by_entite_periode", ["entiteId", "periode"]),
 
   // Verrou d'édition du grand livre, dans SA PROPRE table. Il vivait auparavant sur la journée
   // elle-même, si bien qu'ouvrir un tableau créait une journée vide dans le grand livre : une
   // simple consultation devenait indiscernable d'une journée réellement saisie à zéro.
   verrousFinanciers: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     date: v.string(),                 // "YYYY-MM-DD"
     parId: v.id("users"),
     parNom: v.string(),
@@ -566,6 +661,7 @@ export default defineSchema({
   }).index("by_date", ["date"]),
 
   documents: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     fichierId: v.id("_storage"),
     nomFichier: v.string(),
     taille: v.number(),
@@ -590,6 +686,7 @@ export default defineSchema({
 
   // Répertoire Fournisseurs (légers : nom, téléphone +237 obligatoire, ville)
   fournisseurs: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     nom: v.string(),
     telephone: v.string(),             // E.164 (+237...)
     ville: v.optional(v.string()),
@@ -606,6 +703,7 @@ export default defineSchema({
   // Commandes médicales, fournitures ou réactifs labo.
   // Workflow en 4 jalons : preparation -> en_attente (validation DG) -> en_reception (litiges) -> cloturee
   commandes: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     reference: v.string(),            // "CMD-2026-001" (séquentiel par année)
     type: v.union(v.literal("medicale"), v.literal("fourniture"), v.literal("reactifs_labo")),
     fournisseurId: v.optional(v.id("fournisseurs")),
@@ -668,6 +766,7 @@ export default defineSchema({
 
   // Interventions techniciens (maintenance / matériel). Workflow : ouverte → en_cours → cloturee | rejetee.
   interventions: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     reference: v.string(),            // "INT-2026-001"
     titre: v.string(),
     priorite: v.union(v.literal("basse"), v.literal("moyenne"), v.literal("haute")),
@@ -693,6 +792,7 @@ export default defineSchema({
 
   // Comptes rendus journaliers : un par membre et par jour ; fenêtre 16h–20h jours ouvrables (lib/fenetre.ts).
   comptesRendus: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     auteurId: v.id("users"),
     date: v.string(),                 // jour concerné "YYYY-MM-DD" (heure de Douala)
     contenu: v.string(),
@@ -718,6 +818,7 @@ export default defineSchema({
 
   // Tableau de caisse mensuel (statistiques). Total espèces et chiffre d'affaires sont calculés (lib/stats.ts).
   statsCaisse: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     periode: v.string(),              // "YYYY-MM"
     dateDebut: v.string(),
     dateFin: v.string(),
@@ -743,6 +844,7 @@ export default defineSchema({
   // encore traité, ou traité sans arbitrage — un plantage n'attend pas un avis. Un statut unique
   // ferait perdre l'une des deux informations, et « fermé » ne dirait plus si c'est fait ou refusé.
   tickets: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     auteurId: v.id("users"),
     auteurNom: v.string(),
     titre: v.string(),
@@ -776,6 +878,7 @@ export default defineSchema({
     .index("by_etat", ["etat"]),
 
   retenuesMedecins: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     periode: v.string(),              // "YYYY-MM"
     medecin: v.string(),
     tauxBase: v.number(),             // 5 ou 10, décidé par la RH — porté par la LIGNE
@@ -790,6 +893,7 @@ export default defineSchema({
     .index("by_medecin", ["medecin"]),
 
   primesMedecins: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     contexte: v.union(v.literal("stats"), v.literal("audit")),
     categorie: v.string(),
     periode: v.string(),
@@ -805,6 +909,7 @@ export default defineSchema({
     .index("by_contexte_periode_categorie", ["contexte", "periode", "categorie"]),
 
   rapportsAudit: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     categorie: v.string(),
     periode: v.string(),
     contenu: v.string(),
@@ -861,6 +966,7 @@ export default defineSchema({
   // Actes DÉLIVRÉS. Archivés systématiquement : un acte remis au salarié doit pouvoir être
   // retrouvé à l'identique, et c'est une pièce opposable à l'inspection du travail.
   actes: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     modeleCode: v.string(),
     employeId: v.optional(v.id("employes")),
     nomBeneficiaire: v.string(),      // figé : un acte ne change pas si la fiche change ensuite
@@ -881,6 +987,7 @@ export default defineSchema({
 
   // Journal d'activité : rôles/activations, clôtures, appels API, contrôles du barème (lib/journal.ts).
   journalActivite: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     date: v.string(),                 // ISO
     auteurId: v.optional(v.id("users")),
     auteurNom: v.optional(v.string()),
@@ -898,6 +1005,7 @@ export default defineSchema({
   // La ligne est la trace de qui a été prévenu, et quand : elle ne se réécrit pas si le
   // directeur change la matrice des droits ensuite.
   notifications: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     destinataireId: v.id("users"),
     type: v.string(),                 // clé du catalogue (lib/notifications.TYPES)
     titre: v.string(),                // figé à l'émission
@@ -924,6 +1032,7 @@ export default defineSchema({
 
   // ---- Journal unifié des envois de notifications (lot S3, réutilisé par S4) ----
   envoisNotifications: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     notificationId: v.optional(v.id("notifications")),
     destinataireId: v.id("users"),
     canal: v.union(v.literal("whatsapp"), v.literal("push")),
@@ -967,6 +1076,7 @@ export default defineSchema({
 
   // ---- Rappels déjà émis — garde-fou d'idempotence (lot S5) ----
   rappelsEmis: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     cle: v.string(),
     destinataireId: v.optional(v.id("users")),
     emisLe: v.string(),
@@ -976,6 +1086,7 @@ export default defineSchema({
 
   // ---- Pense-bêtes personnels (lot S7) ----
   penseBetes: defineTable({
+    entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
     membreId: v.id("users"),
     texte: v.string(),
     echeance: v.string(),             // ISO

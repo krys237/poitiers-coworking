@@ -6,9 +6,10 @@
 > Base : dépôt `poitiers-coworking`, branche `dev`. Le commit exact est écrit dans
 > `BASE.txt` à la racine de l'archive.
 >
-> **Quatre lots, à faire dans l'ordre.** Le lot 1 ne dépend de rien. Les lots 2 à 4 consomment un
-> **contrat serveur gelé** (§ 6) : ces fonctions n'existent pas encore dans ton archive, elles sont
-> écrites par l'agent de déploiement en parallèle. Code contre le contrat **tel qu'il est écrit**.
+> **Quatre lots, à faire dans l'ordre.** Le lot 1 ne dépend de rien. Les lots 2 à 4 consomment le
+> **contrat serveur du § 6**, désormais **écrit et déployé** (`convex/entites.ts`, lot M1 du
+> 26/11/2026) : les fonctions existent, mais `convex/_generated/api.d.ts` de ton archive peut ne pas
+> encore les typer. Code contre le contrat **tel qu'il est écrit**.
 > Si quelque chose t'y paraît faux ou manquant, **écris-le dans ton compte rendu — ne l'improvise
 > pas.** Une signature inventée est le défaut le plus coûteux de ce dispositif.
 
@@ -110,112 +111,56 @@ suivant.
 
 ## 5. Les quatre lots
 
-### Lot 1 — `convex/lib/perimetre.ts` : la logique pure du périmètre
+### Lot 1 — éprouver `convex/lib/perimetre.ts` jusqu'au bout
 
-**Intention** : répondre, sans Convex et sans React, à trois questions — quelles entités un membre
-atteint, quel rôle il y porte, et quels droits il y a.
-**Critère d'acceptation** : `npm run test:perimetre` passe avec Node nu, et aucun import de
-`_generated` ni de `convex/server` n'apparaît dans le fichier.
+> ⚠️ **Ce lot a changé de nature le 26/11/2026.** La logique pure du périmètre a finalement été
+> écrite par l'agent de déploiement, parce que les requêtes serveur du lot M1 en dépendaient et
+> l'auraient décrite une seconde fois — or deux descriptions de la même règle finissent toujours par
+> diverger sur ce projet. **Le module existe donc dans ton archive, et tu ne le réécris pas.**
 
-C'est la **clé de voûte** : les lots 2 et 3 s'en servent, et le serveur aussi. Fais-le d'abord et
-soigne-le.
+**Intention** : porter `tests/perimetre.test.ts` d'un filet de sécurité à une couverture
+exhaustive des huit règles.
+**Critère d'acceptation** : `npm run test:perimetre` passe, chacune des huit règles a au moins deux
+contrôles — un cas qui passe, un cas qui échoue — et aucun contrôle existant n'a été affaibli.
 
-#### Les types d'entrée
+Le fichier `convex/lib/perimetre.ts` est fourni **en lecture seule**. Si tu y trouves un défaut,
+**écris-le dans ton compte rendu** et ajoute le test qui le démontre en échec — ne corrige pas le
+module. C'est à l'intégrateur d'arbitrer une règle de sécurité.
 
-```ts
-/** Une ligne de la table `accesEntites` : un accès accordé à un membre sur une entité. */
-export interface AccesEntite {
-  entiteId: string;
-  /** Le rôle du membre DANS cette entité. Absent = il y porte son rôle global. */
-  role?: string;
-  /** Exceptions par module, bornées à cette entité — même forme que `users.droitsPerso`. */
-  droitsPerso?: { module: string; voir: boolean; faire: boolean }[];
-  actif: boolean;
-}
+`tests/perimetre.test.ts` est fourni et **passe déjà** : il couvre les cas les plus coûteux, dont
+l'escalade de privilèges. Tu l'étends, tu ne le remplaces pas.
 
-/** Le membre, réduit à ce dont la logique a besoin. */
-export interface MembrePerimetre {
-  role: Role;                      // de `rbac.ts`
-  /** Entité d'appartenance. Absente = membre sans entité (un compte technique, par exemple). */
-  entitePrincipaleId?: string;
-}
+#### Les huit règles à couvrir, et ce qui manque aujourd'hui
 
-/** Une entité, réduite à ce qui sert au tri et au filtrage. */
-export interface EntiteBrute { entiteId: string; nom: string; actif: boolean; ordre: number; }
-```
+1. **Niveau ≥ 7 (DG, super administrateur) atteint toutes les entités actives** sans ligne d'accès.
+   *Couvert.* Ajoute : un DG **sans** entité principale ; une liste d'entités vide.
+2. **Tout autre rôle n'atteint que sa principale et ses accès `actif: true`.** *Couvert.* Ajoute :
+   un membre à cinq accès dont trois révoqués ; un accès désignant une entité inexistante.
+3. **Une entité désactivée n'est jamais atteignable**, sauf par le niveau 8. *Couvert.* Ajoute : un
+   DG (7) face à une entité désactivée **qui est sa principale** — cas limite non testé.
+4. **Un accès révoqué ne compte pas.** *Couvert.*
+5. **L'entité principale l'emporte pour le dédoublonnage, et l'accès décide du rôle.** *Couvert.*
+   Ajoute : l'ordre d'affichage quand la principale a un `ordre` élevé — elle doit rester en tête.
+6. **Un accès ne peut jamais porter un rôle d'un niveau supérieur au rôle global.** *Couvert pour
+   un cas.* Ajoute : chaque couple (rôle global, rôle accordé) qui doit être borné, en balayant
+   `rbac.ROLES_ORDONNES` ; et le cas de l'`auditeur_externe` (niveau 0), à qui **aucun** rôle ne
+   peut être accordé au-dessus du sien — vérifie que c'est bien ce que fait le module, et dis-le si
+   ça te paraît discutable.
+7. **Composition des droits** : défaut du rôle → surcharges globales → exceptions globales →
+   exceptions de l'accès, le plus spécifique gagnant. *Partiellement couvert.* Ajoute : une
+   surcharge de rôle **et** une exception d'accès sur le même module ; un module absent de toutes
+   les couches.
+8. **Déterminisme.** *Couvert.* Ajoute : la même entrée passée dans un ordre de tableau différent
+   doit rendre le même résultat.
 
-#### Les quatre fonctions à écrire
+#### La forme
 
-```ts
-/**
- * Les entités qu'un membre peut atteindre, dans l'ordre d'affichage du sélecteur.
- * Son entité principale d'abord, puis ses accès accordés, triés par `ordre` puis par `nom`.
- */
-export function entitesAccessibles(
-  membre: MembrePerimetre, acces: AccesEntite[], entites: EntiteBrute[],
-): EntiteBrute[];
+Même style que `tests/droits.test.ts` et que l'existant : pas de framework, un `check(nom, cond)`,
+un compteur d'échecs, `process.exitCode` à la fin. Le script `test:perimetre` existe déjà dans
+`package.json`.
 
-/** Son rôle DANS une entité : celui de l'accès s'il en porte un, sinon son rôle global. `null` si l'entité est hors de son périmètre. */
-export function roleDansEntite(membre: MembrePerimetre, acces: AccesEntite[], entiteId: string): Role | null;
-
-/** Ses droits effectifs dans une entité, ou `null` si elle est hors périmètre. */
-export function droitsDansEntite(
-  membre: MembrePerimetre, acces: AccesEntite[], entiteId: string,
-  surchargesGlobales?: SurchargeRole[], exceptionsGlobales?: Exception[],
-): Droits | null;
-
-/** Raccourci de lisibilité pour les écrans. */
-export function peutDansEntite(
-  membre: MembrePerimetre, acces: AccesEntite[], entiteId: string,
-  module: string, action: Action, surchargesGlobales?: SurchargeRole[], exceptionsGlobales?: Exception[],
-): boolean;
-```
-
-#### Les règles, et elles sont le cœur du lot
-
-1. **Le `super_admin` atteint TOUTES les entités actives**, sans aucune ligne d'accès. C'est un rôle
-   technique — seeds, fiche API, état du déploiement — et le priver d'une entité le rendrait
-   incapable de réparer. Cohérent avec `rbac.estVerrouille`.
-2. **Tout autre rôle, DG compris, n'atteint que son entité principale et ses accès `actif: true`.**
-   Rien d'implicite : le propriétaire veut pouvoir *accorder* un accès entité par entité, et un
-   accès implicite rendrait l'écran d'attribution mensonger.
-   ⚠️ *Point à confirmer avec le propriétaire avant la mise en service — signale-le dans ton compte
-   rendu, ne le change pas.*
-3. **Une entité `actif: false` n'est jamais atteignable**, même par un accès explicite. Sauf pour le
-   `super_admin`, qui doit pouvoir la rouvrir.
-4. **Un accès `actif: false` ne compte pas.** C'est un accès révoqué, pas supprimé : il garde sa
-   trace (`accordePar`, `accordeLe`) et doit rester invisible dans le périmètre.
-5. **L'entité principale l'emporte sur un accès redondant** : si un membre a une ligne d'accès sur
-   sa propre entité principale, cette ligne décide du rôle (elle est plus spécifique), mais l'entité
-   n'apparaît **qu'une fois** dans la liste.
-6. **Le rôle d'un accès ne peut pas dépasser le rôle global du membre.** Un comptable ne devient pas
-   DG parce qu'on lui a accordé une entité : si `acces.role` est d'un niveau **supérieur** à
-   `membre.role`, on retient `membre.role`. Utilise `rbac.NIVEAU` pour comparer. Sans cette règle,
-   l'écran d'attribution devient une porte d'escalade.
-7. **Les droits se composent dans cet ordre** : défaut du rôle retenu (`celluleParDefaut`) →
-   surcharges globales de rôle → exceptions globales du membre → exceptions de l'accès. Le plus
-   spécifique gagne. Réutilise **`rbac.droitsEffectifs`**, ne réécris pas la composition.
-8. **Déterminisme.** Mêmes entrées, même sortie, aucun `Date.now()`, aucun tri instable.
-
-#### Les tests — `tests/perimetre.test.ts`
-
-Même style que `tests/droits.test.ts` (fourni) : pas de framework, un `check(nom, condition)`, un
-compteur d'échecs, `process.exitCode` à la fin. Ajoute dans `package.json` :
-
-```json
-"test:perimetre": "node --experimental-strip-types tests/perimetre.test.ts"
-```
-
-Couvre **chacune des huit règles**, et nommément : un membre sans entité principale ; un accès
-révoqué ; une entité désactivée ; le `super_admin` sans aucun accès ; un accès dont le rôle dépasse
-le rôle global ; un membre à trois entités dont l'ordre d'affichage est vérifié ; et une entité hors
-périmètre qui rend bien `null` et non un objet vide.
-
-⚠️ **Les modules purs importent leurs dépendances avec l'extension `.ts`** et les types avec
-`import type` — `convex/tsconfig.json` a `allowImportingTsExtensions`. Sans ça, Node refuse de
-démarrer. Regarde `tests/droits.test.ts` pour le modèle exact.
-
----
+⚠️ **Les modules purs importent avec l'extension `.ts`** et les types avec `import type` —
+`convex/tsconfig.json` a `allowImportingTsExtensions`. Sans ça, Node refuse de démarrer.
 
 ### Lot 2 — le sélecteur de société
 
