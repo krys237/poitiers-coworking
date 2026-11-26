@@ -329,26 +329,33 @@ export const migrerEntites = internalMutation({
       membresEstampilles++;
     }
 
+    // Le total est figé ICI, avant que la trace de la migration n'entre en jeu.
+    const total = Object.values(estampillees).reduce((t, n) => t + n, 0);
     await journaliser(ctx, {
       action: "parametres_modification", cible: `entite ${cible.code}`,
-      detail: `migration multi-société : ${Object.values(estampillees).reduce((t, n) => t + n, 0)} ligne(s) ` +
-        `et ${membresEstampilles} membre(s) rattachés à « ${cible.nom} »`,
+      detail: `migration multi-société : ${total} ligne(s) et ${membresEstampilles} membre(s) ` +
+        `rattachés à « ${cible.nom} »`,
     });
 
     // Une seconde passe sur le JOURNAL, et seulement sur lui : la ligne que `journaliser` vient
-    // d'écrire n'a pas d'entité, et sans ce rattrapage chaque exécution estampillerait la ligne de
-    // la précédente. Le compte rendu annoncerait alors « 1 ligne » sur une migration qui n'a rien
-    // fait — un rapport qui ne dit pas vrai est pire qu'un rapport absent.
+    // d'écrire n'a pas d'entité, et sans ce rattrapage elle resterait orpheline.
+    //
+    // Elle n'est volontairement PAS comptée dans `estampillees` : ce n'est pas de la donnée migrée,
+    // c'est la trace de la migration elle-même. La compter ferait annoncer « 1 ligne » à toute
+    // exécution, y compris celle qui n'a rien à faire — et un compte rendu qui ne dit pas vrai est
+    // pire qu'un compte rendu absent, surtout sur une migration lancée contre de la paie.
+    // C'est pour ça que `total` est figé AVANT cette passe.
+    let traceRattrapee = 0;
     for (const r of await ctx.db.query("journalActivite").collect()) {
       if (r.entiteId) continue;
       await ctx.db.patch(r._id, { entiteId: cible._id });
-      estampillees.journalActivite = (estampillees.journalActivite ?? 0) + 1;
+      traceRattrapee++;
     }
 
     return {
       entite: { nom: cible.nom, code: cible.code },
       estampillees, dejaFaites, membresEstampilles,
-      total: Object.values(estampillees).reduce((t, n) => t + n, 0),
+      total, traceRattrapee,
     };
   },
 });
