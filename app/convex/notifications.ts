@@ -35,6 +35,16 @@ const RENDU_V = v.object({
 
 export type ArgsEmission = {
   type: string;
+  /**
+   * Société de l'objet notifié. Elle borne la résolution des CHEFS DE SERVICE et estampille la
+   * ligne de notification — voir `emettre`.
+   *
+   * ⚠️ Au 27/11/2026, aucun des 20 appelants de `notifier` ne la passe encore : le correctif de
+   * routage est donc en place mais INERTE. Chaque appelant doit transmettre l'entité de son
+   * objet (`commande.entiteId`, `intervention.entiteId`, …) pour qu'il prenne effet. C'est la
+   * dernière étape du cloisonnement, et elle est purement mécanique.
+   */
+  entiteId?: Id<"entites">;
   acteurId?: Id<"users">;
   acteurNom?: string;
   proprietaireId?: Id<"users">;
