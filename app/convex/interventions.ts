@@ -1,7 +1,7 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireDroit, droitsDuMembre } from "./lib/authz";
-import { reference } from "./lib/commandes";
+import { requireDroit, requireEntiteSiFournie, droitsDuMembre } from "./lib/authz";
+import { prochaineReference } from "./lib/scopeEntite";
 import { dateDouala } from "./lib/fenetre";
 import { Doc } from "./_generated/dataModel";
 import { QueryCtx, MutationCtx } from "./_generated/server";
@@ -31,12 +31,15 @@ async function interventionVisible(ctx: QueryCtx | MutationCtx, id: Doc<"interve
 }
 
 export const liste = query({
-  args: { statut: v.optional(STATUT), priorite: v.optional(PRIORITE) },
-  handler: async (ctx, { statut, priorite }) => {
+  args: { entiteId: v.optional(v.id("entites")), statut: v.optional(STATUT), priorite: v.optional(PRIORITE) },
+  handler: async (ctx, { entiteId, statut, priorite }) => {
     const { visible } = await perimetre(ctx);
-    const rows = statut
-      ? await ctx.db.query("interventions").withIndex("by_statut", (q) => q.eq("statut", statut)).collect()
-      : await ctx.db.query("interventions").withIndex("by_date").order("desc").collect();
+    await requireEntiteSiFournie(ctx, entiteId);
+    const rows = entiteId
+      ? (await ctx.db.query("interventions").withIndex("by_entite_date", (q) => q.eq("entiteId", entiteId)).order("desc").collect()).filter((i) => !statut || i.statut === statut)
+      : statut
+        ? await ctx.db.query("interventions").withIndex("by_statut", (q) => q.eq("statut", statut)).collect()
+        : await ctx.db.query("interventions").withIndex("by_date").order("desc").collect();
     return rows
       .filter(visible)
       .filter((i) => !priorite || i.priorite === priorite)
@@ -68,20 +71,25 @@ export const genererUploadUrl = mutation({
 
 export const creer = mutation({
   args: {
+    entiteId: v.optional(v.id("entites")),
     titre: v.string(), priorite: PRIORITE, lieu: v.optional(v.string()), service: v.optional(v.string()), serviceId: v.optional(v.id("services")), chefService: v.optional(v.string()),
     methode: v.optional(v.string()), demandeur: v.string(), photos: v.optional(v.array(v.id("_storage"))),
     lignes: v.optional(v.array(LIGNE)), commentaireInitial: v.optional(v.string()),
   },
   handler: async (ctx, a) => {
     const user = await requireDroit(ctx, "/interventions");
+    await requireEntiteSiFournie(ctx, a.entiteId);
     if (!a.titre.trim()) throw new Error("Titre requis.");
     // Décision du 13/10/2026 : la date de demande est le jour du dépôt (heure de Douala), jamais saisie.
     const dateDemande = dateDouala();
     const lignes = (a.lignes ?? []).map((l) => ({ ...l, produit: l.produit.trim() })).filter((l) => l.produit && l.quantite > 0);
     const annee = +dateDemande.slice(0, 4);
-    const existantes = await ctx.db.query("interventions").withIndex("by_date", (q) => q.gte("dateDemande", `${annee}-01-01`).lte("dateDemande", `${annee}-12-31`)).collect();
-    const ref = reference("INT", annee, existantes.length + 1);
+    const existantes = a.entiteId
+      ? await ctx.db.query("interventions").withIndex("by_entite_date", (q) => q.eq("entiteId", a.entiteId).gte("dateDemande", `${annee}-01-01`).lte("dateDemande", `${annee}-12-31`)).collect()
+      : await ctx.db.query("interventions").withIndex("by_date", (q) => q.gte("dateDemande", `${annee}-01-01`).lte("dateDemande", `${annee}-12-31`)).collect();
+    const ref = prochaineReference(existantes.map((i) => i.reference), "INT", annee);
     const id = await ctx.db.insert("interventions", {
+      entiteId: a.entiteId,
       reference: ref, titre: a.titre.trim(), priorite: a.priorite, lieu: a.lieu?.trim() || undefined, service: a.service?.trim() || (a.serviceId ? (await ctx.db.get(a.serviceId))?.nom : undefined), serviceId: a.serviceId,
       chefService: a.chefService?.trim() || undefined, methode: a.methode?.trim() || undefined, dateDemande,
       demandeur: a.demandeur.trim() || (user.nom ?? user.email), statut: "ouverte", photos: a.photos ?? [], lignes,

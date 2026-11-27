@@ -12,6 +12,8 @@ import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 import { DownloadIcon, PencilIcon, PlusIcon, SearchIcon, Trash2Icon, UploadIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { useEntite } from "@/app/EntiteActive";
 import {
   CATEGORIES_PRIMES, LIBELLE_CATEGORIE, exportCsvPrimes, montantTotalPrime, parseCsvPrimes, type CategoriePrime,
 } from "../../convex/lib/stats";
@@ -65,8 +67,10 @@ export function PrimesMedecins() {
   const lignesVisibles = useLignesVisibles("primes-medecins", 15);
   const [persistant, setPersistant] = useSaisiePersistante("primes-medecins", true);
 
-  const primes = useQuery(api.primesMedecins.liste, { periode });
-  const graphe = useQuery(api.primesMedecins.graphe, { periode });
+  const { entiteId } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
+  const primes = useQuery(api.primesMedecins.liste, entiteIdTyped ? { entiteId: entiteIdTyped, periode } : "skip");
+  const graphe = useQuery(api.primesMedecins.graphe, entiteIdTyped ? { entiteId: entiteIdTyped, periode } : "skip");
   const enregistrerPrime = useMutation(api.primesMedecins.enregistrer);
   const supprimerPrime = useMutation(api.primesMedecins.supprimer);
   const importerPrimes = useMutation(api.primesMedecins.importer);
@@ -89,7 +93,7 @@ export function PrimesMedecins() {
     const lignes = parseCsvPrimes(await importEnCours.fichier.text());
     if (!lignes.length) { toast.error("Aucune prime reconnue dans ce fichier."); setImportEnCours(null); return; }
     try {
-      const r = await importerPrimes({ periode, categorie: importEnCours.categorie, lignes });
+      const r = await importerPrimes({ entiteId: entiteIdTyped, periode, categorie: importEnCours.categorie, lignes });
       toast.success(`${r.importees} prime(s) importée(s)`, { description: LIBELLE_CATEGORIE[importEnCours.categorie] });
       setImportEnCours(null);
     } catch (e) { toast.error("Import refusé", { description: messageErreur(e) }); }
@@ -177,7 +181,7 @@ export function PrimesMedecins() {
                   <LigneSaisiePrime
                     categorie={categorieCourante}
                     onEnregistrer={async (p) => {
-                      await enregistrerPrime({ periode, categorie: p.categorie, designation: p.designation, dateDebut: p.dateDebut || undefined, dateFin: p.dateFin || undefined, actes: p.actes, montantUnitaire: p.montantUnitaire, notes: p.notes || undefined });
+                      await enregistrerPrime({ entiteId: entiteIdTyped, periode, categorie: p.categorie, designation: p.designation, dateDebut: p.dateDebut || undefined, dateFin: p.dateFin || undefined, actes: p.actes, montantUnitaire: p.montantUnitaire, notes: p.notes || undefined });
                       toast.success(`Prime ajoutée — ${p.designation}`, { description: `${fcfa(montantTotalPrime(p.actes, p.montantUnitaire))} · ${LIBELLE_CATEGORIE[p.categorie]}` });
                       if (categorie !== "toutes" && categorie !== p.categorie) setCategorie(p.categorie);
                     }}
@@ -251,7 +255,7 @@ export function PrimesMedecins() {
                 if (!form.designation.trim()) { toast.error("Le nom du médecin est requis."); return; }
                 const { primeId, ...p } = form;
                 try {
-                  await enregistrerPrime({ primeId: (primeId ?? undefined) as any, periode, categorie: p.categorie, designation: p.designation, dateDebut: p.dateDebut || undefined, dateFin: p.dateFin || undefined, actes: Number(p.actes) || 0, montantUnitaire: Number(p.montantUnitaire) || 0, notes: p.notes || undefined });
+                  await enregistrerPrime({ entiteId: entiteIdTyped, primeId: (primeId ?? undefined) as any, periode, categorie: p.categorie, designation: p.designation, dateDebut: p.dateDebut || undefined, dateFin: p.dateFin || undefined, actes: Number(p.actes) || 0, montantUnitaire: Number(p.montantUnitaire) || 0, notes: p.notes || undefined });
                   toast.success(primeId ? "Prime mise à jour" : "Prime ajoutée", { description: `${p.designation} · ${fcfa(montantTotalPrime(p.actes, p.montantUnitaire))} · ${LIBELLE_CATEGORIE[p.categorie]}` });
                   setForm(null);
                   if (categorie !== "toutes" && categorie !== p.categorie) setCategorie(p.categorie);

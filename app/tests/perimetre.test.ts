@@ -1,14 +1,13 @@
 // Périmètre d'un membre sur les entités : `npm run test:perimetre`.
 //
-// ⚠️ Ce fichier couvre les règles de SÉCURITÉ et les cas limites les plus coûteux. Il est
-// volontairement incomplet : son extension exhaustive aux huit règles de `lib/perimetre.ts` est le
-// lot 1 du dossier `docs/multi-societe/LOTS-AGENT-CLOUD.md`. Ce qui est ici ne doit pas régresser.
+// Couverture exhaustive des huit règles de `convex/lib/perimetre.ts` (lot 1 multi-société).
+// Tous les contrôles d'origine sont conservés tels quels ; les nouveaux complètent chaque règle.
 import {
   entitesAccessibles, atteintEntite, roleDansEntite, droitsDansEntite, peutDansEntite,
   peutAccorderRole, NIVEAU_TOUTES_ENTITES,
   type AccesEntite, type EntiteBrute, type MembrePerimetre,
 } from "../convex/lib/perimetre.ts";
-import { NIVEAU } from "../convex/rbac.ts";
+import { NIVEAU, ROLES_ORDONNES, type Role } from "../convex/rbac.ts";
 
 let echecs = 0;
 const check = (nom: string, cond: boolean, d?: unknown) => {
@@ -133,6 +132,146 @@ check("deux appels identiques rendent le même ordre",
   once.join() === cles(entitesAccessibles(dg, [{ entiteId: "e3", actif: true }], TOUTES)).join());
 check("atteintEntite et entitesAccessibles ne se contredisent pas",
   TOUTES.every((e) => atteintEntite(dg, [], TOUTES, e.entiteId) === cles(entitesAccessibles(dg, [], TOUTES)).includes(e.entiteId)));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Lot 1 — Extensions exhaustives des huit règles (FICHE.md § 5)
+// ─────────────────────────────────────────────────────────────────────────────
+
+titre("Règle 1 — Niveau >= 7 sans principale et liste vide");
+
+const dgSansPrincipale: MembrePerimetre = { role: "dg" };
+check("un DG sans entité principale atteint toutes les actives triées par ordre",
+  cles(entitesAccessibles(dgSansPrincipale, [], TOUTES)).join() === "e1,e2,e3",
+  cles(entitesAccessibles(dgSansPrincipale, [], TOUTES)));
+check("un DG face à une liste d'entités vide obtient [] sans erreur",
+  entitesAccessibles(dg, [], []).length === 0 && !atteintEntite(dg, [], [], "e1"));
+check("un super administrateur face à une liste vide obtient [] sans erreur",
+  entitesAccessibles(superAdmin, [], []).length === 0);
+
+titre("Règle 2 & 4 — Multiples accès mixtes, entité inexistante et révocation");
+
+const E5: EntiteBrute = { entiteId: "e5", nom: "CLINIQUE NORD", actif: true, ordre: 5 };
+const E6: EntiteBrute = { entiteId: "e6", nom: "CLINIQUE SUD", actif: true, ordre: 6 };
+const ETENDUES = [POITIERS, EDRTIM, LILAS, FERMEE, E5, E6];
+const cinqAcces: AccesEntite[] = [
+  { entiteId: "e2", actif: true },
+  { entiteId: "e3", actif: false, role: "employe" },
+  { entiteId: "e5", actif: false },
+  { entiteId: "e6", actif: true },
+  { entiteId: "e4", actif: false },
+];
+check("membre à 5 accès dont 3 révoqués : seules sa principale et les 2 actifs sortent",
+  cles(entitesAccessibles(comptable, cinqAcces, ETENDUES)).join() === "e1,e2,e6",
+  cles(entitesAccessibles(comptable, cinqAcces, ETENDUES)));
+check("un accès désignant une entité inexistante est ignoré silencieusement",
+  cles(entitesAccessibles(comptable, [{ entiteId: "inconnue", actif: true }], TOUTES)).join() === "e1"
+  && !atteintEntite(comptable, [{ entiteId: "inconnue", actif: true }], TOUTES, "inconnue"));
+check("un accès révoqué sur une entité atteinte autrement ne force pas son rôle ni ses droits",
+  roleDansEntite(
+    { role: "da1", entitePrincipaleId: "e1" },
+    [{ entiteId: "e1", role: "employe", actif: false, droitsPerso: [{ module: "/financier", voir: false, faire: false }] }],
+    TOUTES, "e1",
+  ) === "da1"
+  && peutDansEntite(
+    { role: "da1", entitePrincipaleId: "e1" },
+    [{ entiteId: "e1", role: "employe", actif: false, droitsPerso: [{ module: "/financier", voir: false, faire: false }] }],
+    TOUTES, "e1", "/financier", "faire",
+  ));
+
+titre("Règle 3 — Entité désactivée, y compris comme principale du DG");
+
+const dgPrincipaleFermee: MembrePerimetre = { role: "dg", entitePrincipaleId: "e4" };
+check("un DG (7) dont l'entité principale est désactivée ne l'atteint PAS",
+  !cles(entitesAccessibles(dgPrincipaleFermee, [], TOUTES)).includes("e4")
+  && !atteintEntite(dgPrincipaleFermee, [], TOUTES, "e4")
+  && roleDansEntite(dgPrincipaleFermee, [], TOUTES, "e4") === null,
+  cles(entitesAccessibles(dgPrincipaleFermee, [], TOUTES)));
+check("un super admin (8) dont la principale est désactivée la garde en tête",
+  cles(entitesAccessibles({ role: "super_admin", entitePrincipaleId: "e4" }, [], TOUTES))[0] === "e4");
+
+titre("Règle 5 — Ordre d'affichage quand la principale a un ordre élevé");
+
+const HAUT_ORDRE: EntiteBrute = { entiteId: "e99", nom: "ZETA", actif: true, ordre: 99 };
+const AVEC_HAUT = [POITIERS, EDRTIM, HAUT_ORDRE];
+check("pour un non-implicite, la principale d'ordre 99 reste en tête devant ordre 1 et 2",
+  cles(entitesAccessibles(
+    { role: "comptable", entitePrincipaleId: "e99" },
+    [{ entiteId: "e1", actif: true }, { entiteId: "e2", actif: true }],
+    AVEC_HAUT,
+  )).join() === "e99,e1,e2");
+check("pour un DG, la principale d'ordre 99 reste aussi en tête",
+  cles(entitesAccessibles({ role: "dg", entitePrincipaleId: "e99" }, [], AVEC_HAUT)).join() === "e99,e1,e2");
+
+titre("Règle 6 — Balayage exhaustif des couples de rôles et cas auditeur_externe");
+
+// Chaque couple (rôle global, rôle accordé) dans ROLES_ORDONNES : jamais d'escalade.
+let tousCouplesOk = true;
+for (const globalRole of ROLES_ORDONNES) {
+  for (const roleAccorde of ROLES_ORDONNES) {
+    const m: MembrePerimetre = { role: globalRole, entitePrincipaleId: "e1" };
+    const obtenu = roleDansEntite(m, [{ entiteId: "e3", role: roleAccorde, actif: true }], TOUTES, "e3");
+    const attendu: Role = NIVEAU[roleAccorde] > NIVEAU[globalRole] ? globalRole : roleAccorde;
+    if (obtenu !== attendu) {
+      tousCouplesOk = false;
+      console.error(`    couple (${globalRole}, ${roleAccorde}) : obtenu=${obtenu}, attendu=${attendu}`);
+    }
+    const autorise = peutAccorderRole(globalRole, roleAccorde);
+    if (autorise !== (NIVEAU[roleAccorde] <= NIVEAU[globalRole])) {
+      tousCouplesOk = false;
+      console.error(`    peutAccorderRole(${globalRole}, ${roleAccorde}) = ${autorise}`);
+    }
+  }
+}
+check(`balayage exhaustif des ${ROLES_ORDONNES.length * ROLES_ORDONNES.length} couples (rôle global × rôle accordé)`, tousCouplesOk);
+
+// Cas explicite de l'auditeur externe (niveau 0) : aucun rôle de niveau > 0 ne peut lui être accordé.
+const auditeur: MembrePerimetre = { role: "auditeur_externe" };
+const rolesStrictementSuperieurs = ROLES_ORDONNES.filter((r) => NIVEAU[r] > 0);
+check("auditeur_externe (niv. 0) : tout rôle de niveau > 0 est ramené à auditeur_externe",
+  rolesStrictementSuperieurs.every(
+    (r) => roleDansEntite(auditeur, [{ entiteId: "e3", role: r, actif: true }], TOUTES, "e3") === "auditeur_externe",
+  ));
+check("auditeur_externe (niv. 0) : peutAccorderRole refuse tout rôle de niveau > 0 et accepte auditeur_externe",
+  rolesStrictementSuperieurs.every((r) => !peutAccorderRole("auditeur_externe", r))
+  && peutAccorderRole("auditeur_externe", "auditeur_externe"));
+
+titre("Règle 7 — Composition des droits (surcharge + exception d'accès + module absent)");
+
+// Surcharge de rôle retire `/commandes` au comptable, mais l'exception d'accès le lui rouvre sur e3.
+check("exception d'accès l'emporte sur une surcharge globale de rôle sur le même module",
+  peutDansEntite(
+    comptable,
+    [{ entiteId: "e3", actif: true, droitsPerso: [{ module: "/commandes", voir: true, faire: true }] }],
+    TOUTES, "e3", "/commandes", "faire",
+    [{ role: "comptable", module: "/commandes", voir: false, faire: false }],
+    [],
+  ));
+// Réciproque : sans exception d'accès, la surcharge globale de rôle retire bien le droit.
+check("sans exception d'accès, la surcharge globale de rôle s'applique",
+  !peutDansEntite(
+    comptable,
+    [{ entiteId: "e3", actif: true }],
+    TOUTES, "e3", "/commandes", "voir",
+    [{ role: "comptable", module: "/commandes", voir: false, faire: false }],
+    [],
+  ));
+check("un module absent de toutes les couches renvoie false (jamais d'exception)",
+  !peutDansEntite(comptable, [{ entiteId: "e3", actif: true }], TOUTES, "e3", "/module-inexistant", "voir")
+  && !peutDansEntite(superAdmin, [], TOUTES, "e1", "/module-inexistant", "voir"));
+
+titre("Règle 8 — Déterminisme indépendant de l'ordre des tableaux en entrée");
+
+const TOUTES_INVERSE = [...TOUTES].reverse();
+const TOUTES_MELANGE = [LILAS, FERMEE, POITIERS, EDRTIM];
+const accesA: AccesEntite[] = [{ entiteId: "e3", actif: true }, { entiteId: "e2", actif: true }];
+const accesB: AccesEntite[] = [{ entiteId: "e2", actif: true }, { entiteId: "e3", actif: true }];
+
+check("même résultat pour un DG quel que soit l'ordre du tableau `entites`",
+  cles(entitesAccessibles(dg, [], TOUTES)).join() === cles(entitesAccessibles(dg, [], TOUTES_INVERSE)).join()
+  && cles(entitesAccessibles(dg, [], TOUTES)).join() === cles(entitesAccessibles(dg, [], TOUTES_MELANGE)).join());
+check("même résultat pour un membre quel que soit l'ordre de `entites` et `acces`",
+  cles(entitesAccessibles(comptable, accesA, TOUTES)).join()
+  === cles(entitesAccessibles(comptable, accesB, TOUTES_INVERSE)).join());
 
 console.log(echecs === 0
   ? `\npérimètre : tous les contrôles passent.`

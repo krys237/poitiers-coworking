@@ -7,7 +7,7 @@ const jours = (n: number) => new Date(Date.now() - n * 86400000).toISOString();
 
 // Derniers événements (DG), filtrables par action et par date de début (ISO) ; 500 au plus.
 export const liste = query({
-  args: { action: v.optional(v.string()), depuis: v.optional(v.string()), limite: v.optional(v.number()) },
+  args: { action: v.optional(v.string()), depuis: v.optional(v.string()), limite: v.optional(v.number()), entiteId: v.optional(v.id("entites")) },
   handler: async (ctx, { action, depuis, limite }) => {
     await requireUnDesDroits(ctx, ["/journal", "/parametres"]);
     const n = Math.min(500, limite ?? 200);

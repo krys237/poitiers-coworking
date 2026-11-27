@@ -6,7 +6,7 @@
 // « audit » appartient au module Audit, cloisonné (convex/audit.ts).
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireDroit } from "./lib/authz";
+import { requireDroit, requireEntiteSiFournie } from "./lib/authz";
 import { controlerVerrou, etatVerrou } from "./lib/verrouSaisie";
 import { montantTotalPrime, CATEGORIES_PRIMES } from "./lib/stats";
 
@@ -14,12 +14,15 @@ const DEVERROUILLAGE = "/primes-medecins/deverrouillage";
 const CATEGORIE = v.union(...CATEGORIES_PRIMES.map(([k]) => v.literal(k)));
 
 export const liste = query({
-  args: { periode: v.string(), categorie: v.optional(CATEGORIE) },
-  handler: async (ctx, { periode, categorie }) => {
+  args: { entiteId: v.optional(v.id("entites")), periode: v.string(), categorie: v.optional(CATEGORIE) },
+  handler: async (ctx, { entiteId, periode, categorie }) => {
     const me = await requireDroit(ctx, "/primes-medecins");
-    const rows = categorie
-      ? await ctx.db.query("primesMedecins").withIndex("by_contexte_periode_categorie", (q) => q.eq("contexte", "stats").eq("periode", periode).eq("categorie", categorie)).collect()
-      : await ctx.db.query("primesMedecins").withIndex("by_contexte_periode", (q) => q.eq("contexte", "stats").eq("periode", periode)).collect();
+    await requireEntiteSiFournie(ctx, entiteId);
+    const rows = entiteId
+      ? (await ctx.db.query("primesMedecins").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", periode)).collect()).filter((r) => r.contexte === "stats" && (!categorie || r.categorie === categorie))
+      : categorie
+        ? await ctx.db.query("primesMedecins").withIndex("by_contexte_periode_categorie", (q) => q.eq("contexte", "stats").eq("periode", periode).eq("categorie", categorie)).collect()
+        : await ctx.db.query("primesMedecins").withIndex("by_contexte_periode", (q) => q.eq("contexte", "stats").eq("periode", periode)).collect();
     const parCategorie: Record<string, number> = {};
     for (const [k] of CATEGORIES_PRIMES) parCategorie[k] = 0;
     for (const r of rows) parCategorie[r.categorie] = (parCategorie[r.categorie] ?? 0) + r.montant;
@@ -33,11 +36,13 @@ export const liste = query({
 
 export const enregistrer = mutation({
   args: {
+    entiteId: v.optional(v.id("entites")),
     primeId: v.optional(v.id("primesMedecins")), periode: v.string(), categorie: CATEGORIE, designation: v.string(),
     dateDebut: v.optional(v.string()), dateFin: v.optional(v.string()), actes: v.number(), montantUnitaire: v.number(), notes: v.optional(v.string()),
   },
   handler: async (ctx, { primeId, ...p }) => {
     const me = await requireDroit(ctx, "/primes-medecins", "faire");
+    await requireEntiteSiFournie(ctx, p.entiteId);
     if (!p.designation.trim()) throw new Error("Nom du médecin requis.");
     const doc = { contexte: "stats" as const, ...p, designation: p.designation.trim(), montant: montantTotalPrime(p.actes, p.montantUnitaire) };
     if (primeId) {
@@ -63,32 +68,40 @@ export const supprimer = mutation({
 
 export const importer = mutation({
   args: {
+    entiteId: v.optional(v.id("entites")),
     periode: v.string(), categorie: CATEGORIE,
     lignes: v.array(v.object({ designation: v.string(), dateDebut: v.optional(v.string()), dateFin: v.optional(v.string()), actes: v.number(), montantUnitaire: v.number(), notes: v.optional(v.string()) })),
   },
-  handler: async (ctx, { periode, categorie, lignes }) => {
+  handler: async (ctx, { entiteId, periode, categorie, lignes }) => {
     await requireDroit(ctx, "/primes-medecins", "faire");
-    for (const l of lignes) await ctx.db.insert("primesMedecins", { contexte: "stats", periode, categorie, ...l, montant: montantTotalPrime(l.actes, l.montantUnitaire) });
+    await requireEntiteSiFournie(ctx, entiteId);
+    for (const l of lignes) await ctx.db.insert("primesMedecins", { entiteId, contexte: "stats", periode, categorie, ...l, montant: montantTotalPrime(l.actes, l.montantUnitaire) });
     return { importees: lignes.length };
   },
 });
 
 /** Montant par catégorie du mois (graphe de l'écran). */
 export const graphe = query({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => {
+  args: { entiteId: v.optional(v.id("entites")), periode: v.string() },
+  handler: async (ctx, { entiteId, periode }) => {
     await requireDroit(ctx, "/primes-medecins");
-    const primes = await ctx.db.query("primesMedecins").withIndex("by_contexte_periode", (q) => q.eq("contexte", "stats").eq("periode", periode)).collect();
+    await requireEntiteSiFournie(ctx, entiteId);
+    const primes = entiteId
+      ? (await ctx.db.query("primesMedecins").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", periode)).collect()).filter((r) => r.contexte === "stats")
+      : await ctx.db.query("primesMedecins").withIndex("by_contexte_periode", (q) => q.eq("contexte", "stats").eq("periode", periode)).collect();
     return { primesParCategorie: CATEGORIES_PRIMES.map(([k, libelle]) => ({ categorie: k, libelle, montant: primes.filter((p) => p.categorie === k).reduce((t, p) => t + p.montant, 0) })) };
   },
 });
 
 /** Total des primes du mois, pour la tuile du tableau de bord. */
 export const kpi = query({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => {
+  args: { entiteId: v.optional(v.id("entites")), periode: v.string() },
+  handler: async (ctx, { entiteId, periode }) => {
     await requireDroit(ctx, "/primes-medecins");
-    const primes = await ctx.db.query("primesMedecins").withIndex("by_contexte_periode", (q) => q.eq("contexte", "stats").eq("periode", periode)).collect();
+    await requireEntiteSiFournie(ctx, entiteId);
+    const primes = entiteId
+      ? (await ctx.db.query("primesMedecins").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", periode)).collect()).filter((r) => r.contexte === "stats")
+      : await ctx.db.query("primesMedecins").withIndex("by_contexte_periode", (q) => q.eq("contexte", "stats").eq("periode", periode)).collect();
     return { periode, primes: primes.reduce((t, p) => t + p.montant, 0), nbLignes: primes.length };
   },
 });

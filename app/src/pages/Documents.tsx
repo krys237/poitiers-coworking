@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { useEntite } from "@/app/EntiteActive";
 import { messageErreur } from "../lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -150,9 +152,12 @@ const FORM_VIDE: Form = {
 export function Documents() {
   const [recherche, setRecherche] = useState("");
   const [categorieFiltre, setCategorieFiltre] = useState("");
-  const liste = useQuery(api.documents.liste, {
+  const { entiteId } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
+  const liste = useQuery(api.documents.liste, entiteIdTyped ? {
+    entiteId: entiteIdTyped,
     recherche: recherche || undefined,
-  });
+  } : "skip");
 
   const genererUploadUrl = useMutation(api.documents.genererUploadUrl);
   const deposer = useMutation(api.documents.deposer);
@@ -277,6 +282,7 @@ export function Documents() {
     if (!f.fichierId || !f.titre.trim()) return;
     try {
       await deposer({
+        entiteId: entiteIdTyped,
         fichierId: f.fichierId as any,
         nomFichier: f.nomFichier,
         taille: f.taille,

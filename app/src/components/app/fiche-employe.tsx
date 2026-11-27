@@ -11,6 +11,7 @@ import { controlerDureeCdd } from "../../../convex/lib/echeancesContrat";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { toast } from "sonner";
+import { useEntite } from "@/app/EntiteActive";
 import { UserRoundPenIcon, UserRoundPlusIcon } from "lucide-react";
 import { messageErreur } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -87,10 +88,14 @@ export function FicheEmploye({
     });
   // Les services alimentent le sélecteur : sans service, la frise annuelle affiche un
   // code couleur neutre, ce que la RH avait signalé le 03/11/2026.
-  const services = useQuery(api.services.liste, {});
+  // Les référentiels suivent la SOCIÉTÉ ACTIVE : les services et les fonctions de POITIERS
+  // n'ont rien à faire dans la fiche d'un employé d'EDR-TIM.
+  const { entiteId: entiteActive } = useEntite();
+  const argEntite = entiteActive ? { entiteId: entiteActive as any } : {};
+  const services = useQuery(api.services.liste, argEntite);
   // Référentiel des fonctions : « les fonctions sont vides » venait de l'absence de
   // toute proposition à la saisie (constat du 03/11/2026).
-  const fonctions = useQuery(api.fonctions.liste, {});
+  const fonctions = useQuery(api.fonctions.liste, argEntite);
   const [open, setOpen] = React.useState(false);
   // Source de vérité des VALEURS du formulaire : la fiche lue au serveur. L'objet `employe` que
   // passe l'écran ne sert plus qu'à l'affichage immédiat (titre, matricule, état actif) et de

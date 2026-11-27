@@ -122,13 +122,14 @@ export const initialiserAnnee = mutation({
  */
 export const decreter = mutation({
   args: {
+    entiteId: v.optional(v.id("entites")),
     date: v.string(),
     libelle: v.string(),
     motif: v.string(),
     /** Faux = jour férié travaillé dans l'entreprise, donc décompté comme un jour ouvrable. */
     chome: v.optional(v.boolean()),
   },
-  handler: async (ctx, { date, libelle, motif, chome }) => {
+  handler: async (ctx, { date, libelle, motif, chome, entiteId }) => {
     const user = await requireDroit(ctx, "/paie/planning", "faire");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Date attendue au format AAAA-MM-JJ.");
     if (!libelle.trim()) throw new Error("Libellé du jour férié requis.");
@@ -148,7 +149,7 @@ export const decreter = mutation({
       });
     }
 
-    const rapport = await appliquerDecalages(ctx, date, annee);
+    const rapport = await appliquerDecalages(ctx, date, annee, entiteId);
     await journaliser(ctx, {
       auteurId: user._id, auteurNom: user.name, action: "feries_modification", cible: date,
       detail: `Décrété : ${libelle.trim()} — ${motif.trim()}. ${libelleRecalcul(resumerRecalcul(rapport.decalages))}`,
@@ -163,7 +164,18 @@ export const decreter = mutation({
  * Extrait de `decreter` parce que la SUPPRESSION d'un férié doit faire exactement la même chose,
  * en sens inverse : retirer un jour décrété raccourcit les congés qu'il avait prolongés.
  */
-async function appliquerDecalages(ctx: MutationCtx, date: string, annee: number) {
+/**
+ * Le recalcul des congés qui enjambent un férié nouvellement décrété.
+ *
+ * ⚠️ `entiteId` n'est PAS cosmétique ici : cette fonction **écrit** dans les absences. Sans elle,
+ * décréter un férié chez EDR-TIM recalculait les congés de POITIERS, et vérifiait la clôture de
+ * paie sur la mauvaise société — donc pouvait réécrire un mois que POITIERS avait clos. C'est le
+ * seul des cloisonnements oubliés qui modifiait des données au lieu d'en montrer trop.
+ *
+ * Le calendrier des fériés reste **national** et partagé : c'est seulement son effet sur les
+ * absences et les clôtures qui est propre à chaque société.
+ */
+async function appliquerDecalages(ctx: MutationCtx, date: string, annee: number, entiteId?: Id<"entites">) {
   const feriesLignes = await ctx.db
     .query("joursFeries")
     .withIndex("by_annee", (q) => q.eq("annee", annee))
@@ -172,7 +184,9 @@ async function appliquerDecalages(ctx: MutationCtx, date: string, annee: number)
 
   // Seuls les congés qui ENJAMBENT la date, et seulement ceux de l'année : on ne relit pas
   // 78 plannings pour deux lignes utiles.
-  const absences = await ctx.db.query("absences").collect();
+  const absences = entiteId
+    ? await ctx.db.query("absences").withIndex("by_entite_employe", (q) => q.eq("entiteId", entiteId)).collect()
+    : await ctx.db.query("absences").collect();
   const candidats = congesAReprendre(
     absences.filter((a) => a.dateDebut.slice(0, 4) === String(annee) || a.dateFin.slice(0, 4) === String(annee)),
     date,
@@ -190,7 +204,9 @@ async function appliquerDecalages(ctx: MutationCtx, date: string, annee: number)
     // Le mois du DÉPART fait foi pour la clôture : c'est lui qui porte l'allocation et les jours.
     const periode = a.dateDebut.slice(0, 7);
     if (!closDe.has(periode)) {
-      const c = await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
+      const c = entiteId
+        ? await ctx.db.query("cloturesPaie").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", periode)).unique()
+        : await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
       closDe.set(periode, !!c);
     }
     aRecalculer.push({
@@ -215,6 +231,7 @@ async function appliquerDecalages(ctx: MutationCtx, date: string, annee: number)
 
 export const enregistrer = mutation({
   args: {
+    entiteId: v.optional(v.id("entites")),
     date: v.string(),
     libelle: v.string(),
     chome: v.boolean(),
@@ -246,8 +263,8 @@ export const enregistrer = mutation({
 });
 
 export const supprimer = mutation({
-  args: { id: v.id("joursFeries") },
-  handler: async (ctx, { id }) => {
+  args: { id: v.id("joursFeries"), entiteId: v.optional(v.id("entites")) },
+  handler: async (ctx, { id, entiteId }) => {
     const user = await requireDroit(ctx, "/paie/planning", "faire");
     const f = await ctx.db.get(id);
     if (!f) throw new Error("Jour férié introuvable.");
@@ -256,7 +273,7 @@ export const supprimer = mutation({
     // Retirer un férié RACCOURCIT les congés qu'il avait prolongés : le décalage joue dans les
     // deux sens, et il doit être appliqué ici aussi — sans quoi un férié supprimé par erreur
     // laisserait des retours de congé définitivement faux.
-    const rapport = await appliquerDecalages(ctx, f.date, f.annee);
+    const rapport = await appliquerDecalages(ctx, f.date, f.annee, entiteId);
 
     await journaliser(ctx, {
       auteurId: user._id,

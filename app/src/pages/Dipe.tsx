@@ -23,6 +23,8 @@ import * as React from "react";
 import { useQuery } from "convex/react";
 import { AlertTriangleIcon, DownloadIcon, FileUpIcon, InfoIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { useEntite } from "@/app/EntiteActive";
 import {
   COLONNES_CALCULEES,
   ENTETES_RECONNUES,
@@ -73,7 +75,9 @@ export function Dipe() {
   // Purement visuel : ne filtre rien, ne relance aucune requête, n'est pas conservée.
   const [ligneChoisie, setLigneChoisie] = React.useState<string | number | null>(null);
 
-  const vue = useQuery(api.dipe.etat, societe === "toutes" ? { periode } : { periode, societe });
+  const { entiteId } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
+  const vue = useQuery(api.dipe.etat, entiteIdTyped ? (societe === "toutes" ? { entiteId: entiteIdTyped, periode } : { entiteId: entiteIdTyped, periode, societe }) : "skip");
   const lignes = vue?.lignes ?? [];
   const recap = vue?.recapitulatif;
   const pagination = usePagination(lignes, "dipe-etat", 25);

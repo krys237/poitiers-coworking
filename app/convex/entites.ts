@@ -57,7 +57,14 @@ export const mesEntites = query({
     if (!me || !me.isActive || me.enAttente) return [];
     const { entites, acces, accessibles } = await perimetreDe(ctx, me);
     const parId = new Map(entites.map((e) => [String(e._id), e]));
-    return accessibles.map((e) => {
+    // Le SÉLECTEUR ne propose que des sociétés ACTIVES, y compris au super administrateur.
+    //
+    // `entitesAccessibles` lui laisse voir les sociétés désactivées — c'est voulu, sans lui nul ne
+    // pourrait en rouvrir une. Mais ce périmètre-là sert l'ADMINISTRATION, pas le travail
+    // quotidien : désactiver une société et la voir rester sélectionnable n'a aucun sens, et le
+    // propriétaire l'a constaté le 27/11. Les sociétés désactivées restent listées dans
+    // `entites.liste`, l'écran Paramètres → Sociétés, qui est l'endroit où on les réactive.
+    return accessibles.filter((e) => parId.get(e.entiteId)?.actif).map((e) => {
       const doc = parId.get(e.entiteId)!;
       return {
         entiteId: e.entiteId, nom: doc.nom, code: doc.code,
@@ -205,18 +212,36 @@ export const accorderAcces = mutation({
 });
 
 export const modifierAcces = mutation({
-  args: { accesId: v.id("accesEntites"), role: v.optional(v.string()), actif: v.optional(v.boolean()) },
+  args: {
+    accesId: v.id("accesEntites"),
+    /**
+     * Le rôle porté dans cette entité. Trois valeurs distinctes, et la distinction compte :
+     * **absent** = ne pas y toucher · une **chaîne** = poser ce rôle · **`null`** = REVENIR au rôle
+     * global du membre.
+     *
+     * Le `null` a été ajouté le 26/11/2026 : l'exécutant du lot 3 a signalé qu'un rôle déjà posé
+     * sur un accès ne pouvait plus être réinitialisé, les propriétés `undefined` étant filtrées
+     * avant le `patch`. « Ne pas toucher » et « remettre au défaut » se disaient donc de la même
+     * façon, et le second était impossible. C'est exactement le genre de défaut qu'un exécutant
+     * trouve et qu'on ne voit pas en écrivant la mutation.
+     */
+    role: v.optional(v.union(v.string(), v.null())),
+    actif: v.optional(v.boolean()),
+  },
   handler: async (ctx, { accesId, role, actif }) => {
     const me = await requireLevel(ctx, NIVEAU_ADMIN_ENTITES);
     const a = await ctx.db.get(accesId);
     if (!a) throw new Error("Accès introuvable.");
-    if (role !== undefined) {
+    if (role !== undefined && role !== null) {
       if (NIVEAU[role as Role] === undefined) throw new Error("Rôle inconnu.");
       if (!peutAccorderRole(me.role as Role, role as Role)) {
         throw new Error("Vous ne pouvez pas accorder un rôle supérieur au vôtre.");
       }
     }
-    const propre = Object.fromEntries(Object.entries({ role, actif }).filter(([, x]) => x !== undefined));
+    const propre: Record<string, unknown> = {};
+    // `null` arrive jusqu'au patch sous la forme `undefined`, qui RETIRE le champ dans Convex.
+    if (role !== undefined) propre.role = role === null ? undefined : role;
+    if (actif !== undefined) propre.actif = actif;
     await ctx.db.patch(accesId, propre);
     const membre = await ctx.db.get(a.membreId);
     const entite = await ctx.db.get(a.entiteId);

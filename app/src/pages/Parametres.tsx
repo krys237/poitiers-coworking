@@ -40,6 +40,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Flag } from "@/components/ui/flag";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { GestionSocietes } from "@/components/app/gestion-societes";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -55,8 +56,8 @@ const entrepriseDe = (p: any): Entreprise => ({
   couleurEntete: p?.couleurEntete ?? "#0f2a44", filigrane: p?.filigrane ?? "", responsableRH: p?.responsableRH ?? "",
   jourPaiement: p?.jourPaiement ?? 5, congesParMois: p?.congesParMois ?? 1.5, emailExpediteur: p?.emailExpediteur ?? "", modeleCourrier: p?.modeleCourrier ?? "",
 });
-const ONGLETS = ["entreprise", "paie", "courrier", "fonctionnement", "roles", "deploiement"] as const;
-type Onglet = typeof ONGLETS[number];
+const ONGLETS = ["societes", "entreprise", "paie", "courrier", "fonctionnement", "roles", "deploiement"] as const;
+type Onglet = "societes" | typeof ONGLETS[number];
 
 const memes = (a: object, b: object) => JSON.stringify(a) === JSON.stringify(b);
 // Comparaison par VALEUR d'un réglage isolé. Depuis `crFenetresParPoste`, un réglage peut être un
@@ -241,6 +242,7 @@ export function Parametres() {
           <TabsList className="h-auto flex-wrap gap-1 rounded-xl border border-filet bg-slate-100/80 p-1">
             {([
               ["entreprise", "Entreprise & documents", (["nom", "adresse", "niu", "numeroCnps", "dirigeant", "registreCommerce", "logoUrl", "couleurEntete", "filigrane"] as (keyof Entreprise)[]).some(modifieE)],
+              ["societes", "Sociétés", false],
               ["paie", "Paie & congés", (["responsableRH", "jourPaiement", "congesParMois"] as (keyof Entreprise)[]).some(modifieE) || (["joursBaseDefaut", "plafondSaisie", "pdfAutoCloture", "rappelPremierAvisJours", "rappelHebdoDepuisJours", "rappelQuotidienDepuisJours"] as (keyof Reglages)[]).some(modifieR)],
               ["courrier", "Courrier & e-mail", (["emailExpediteur", "modeleCourrier"] as (keyof Entreprise)[]).some(modifieE) || modifieR("envoiReelActive") || modifieR("whatsappReelActive")],
               ["fonctionnement", "Fonctionnement", (["crHeureOuverture", "crHeureFermeture", "crSamedi", "crFenetresParPoste", "verrouFinancierMin", "verrouCaisseMin", "iaDocumentsActive"] as (keyof Reglages)[]).some(modifieR)],
@@ -352,6 +354,10 @@ export function Parametres() {
             </TabsContent>
 
             {/* --- Paie & congés ------------------------------------------------------------ */}
+            <TabsContent value="societes">
+              <GestionSocietes />
+            </TabsContent>
+
             <TabsContent value="paie" className="grid gap-4 lg:grid-cols-2">
               <Bloc titre="Bulletin & paiement" description="Mentions portées sur chaque bulletin.">
                 <Grille>

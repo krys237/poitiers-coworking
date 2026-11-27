@@ -11,6 +11,7 @@
  * reçoivent un neutre — l'écran le dit, plutôt que d'inventer une teinte indistinguable.
  */
 import * as React from "react";
+import { useEntite } from "@/app/EntiteActive";
 import { useMutation } from "convex/react";
 import { PaletteIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
@@ -57,6 +58,8 @@ export function GestionServices({
    */
   optionsChefs?: OptionAutocomplete[];
 }) {
+  // Un service créé appartient à la société active, sinon il naîtrait sans société.
+  const { entiteId: entiteActive } = useEntite();
   const enregistrer = useMutation(api.services.enregistrer);
   const supprimer = useMutation(api.services.supprimer);
   // Règle du projet (28/09/2026) : sans le droit « Faire », la ligne se lit mais ne s'édite pas.
@@ -146,7 +149,7 @@ export function GestionServices({
             <BoutonAction
               size="sm"
               disabled={!nouveau.trim()}
-              onAction={() => enregistrer({ nom: nouveau, couleur: couleurProposee })}
+              onAction={() => enregistrer({ nom: nouveau, couleur: couleurProposee, entiteId: entiteActive as any })}
               succes={() => {
                 const n = nouveau;
                 setNouveau("");

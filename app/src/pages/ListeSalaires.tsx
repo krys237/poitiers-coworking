@@ -15,6 +15,8 @@ import { Link } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
 import { FileCheck2Icon, SearchIcon, UsersIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { useEntite } from "@/app/EntiteActive";
 import { libellePeriode, num, periodeCourante } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { PageEnTete } from "@/components/app/en-tete";
@@ -39,7 +41,9 @@ const N = ({ v }: { v: number }) => (v ? <>{num(v)}</> : <span className="text-e
 
 export function ListeSalaires() {
   const [periode, setPeriode] = React.useState(periodeCourante());
-  const paie = useQuery(api.payroll.bulletinsDuMois, { periode });
+  const { entiteId } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
+  const paie = useQuery(api.payroll.bulletinsDuMois, entiteIdTyped ? { entiteId: entiteIdTyped, periode } : "skip");
   const entreprise = useQuery(api.parametres.get);
   const generer = useMutation(api.payroll.genererEtCloturer);
   const [societe, setSociete] = React.useState<Societe | "toutes">("toutes");
@@ -49,7 +53,7 @@ export function ListeSalaires() {
   const [modeExport, setModeExport] = React.useState<"mois" | "intervalle">("mois");
   const [intervalle, setIntervalle] = React.useState(() => ({ debut: decalerPeriode(periodeCourante(), -2), fin: periodeCourante() }));
   const periodesIntervalle = React.useMemo(() => periodesEntre(intervalle.debut, intervalle.fin), [intervalle]);
-  const paieIntervalle = useQuery(api.payroll.bulletinsIntervalle, modeExport === "intervalle" ? { periodes: periodesIntervalle } : "skip");
+  const paieIntervalle = useQuery(api.payroll.bulletinsIntervalle, modeExport === "intervalle" && entiteIdTyped ? { entiteId: entiteIdTyped, periodes: periodesIntervalle } : "skip");
 
   const cloture = paie?.cloture ?? false;
   const toutes = (paie?.bulletins ?? []) as any[];
@@ -96,7 +100,7 @@ export function ListeSalaires() {
                 consequence={`Les ${toutes.length} bulletins seront figés sur ces montants et les saisies du mois ne seront plus modifiables. Opération irréversible.`}
                 motCle="CLOTURER"
                 confirmer="Générer et clôturer"
-                onConfirmer={() => generer({ periode })}
+                onConfirmer={() => generer({ entiteId: entiteIdTyped, periode })}
                 succes={(r: any) => `${r.bulletins} bulletin(s) générés — ${libellePeriode(periode)} clôturé.`}
               />
             ) : null}

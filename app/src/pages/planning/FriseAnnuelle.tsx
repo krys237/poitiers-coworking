@@ -16,6 +16,7 @@ import * as React from "react";
 import { useMutation, useQuery } from "convex/react";
 import { AlertTriangleIcon, CalendarPlusIcon, InfoIcon, PencilIcon, PrinterIcon, UsersIcon } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
+import { useEntite } from "@/app/EntiteActive";
 import { LIBELLE_OBSERVATION, OBSERVATIONS } from "../../../convex/lib/planningAnnuel";
 import { cn } from "@/lib/utils";
 import { GrilleTuiles, Tuile } from "@/components/app/tuile";
@@ -67,7 +68,14 @@ export function FriseAnnuelle() {
   // Filtre par personne pour l'impression : une frise de 78 lignes n'est pas lisible sur papier.
   const [employeImprime, setEmployeImprime] = React.useState<string>("tous");
 
-  const vue = useQuery(api.planning.vueAnnuelle, { annee, seuilChevauchement: seuil });
+  // La frise lit les services et l'effectif : sans la société, elle affichait ceux de POITIERS
+  // quelle que soit la société active. `vueAnnuelle` était scopée côté serveur, cet écran ne la
+  // lui passait pas — le correctif serveur restait donc invisible ici.
+  const { entiteId: entiteActive } = useEntite();
+  const vue = useQuery(
+    api.planning.vueAnnuelle,
+    entiteActive ? { annee, seuilChevauchement: seuil, entiteId: entiteActive as any } : "skip",
+  );
   // Membres désignables comme chefs de service. Requête dédiée, sous le droit du planning : la
   // liste complète des membres exige le droit « Membres », qu'un responsable du planning n'a pas.
   const membres = useQuery(api.services.membresAssignables);
@@ -136,7 +144,7 @@ export function FriseAnnuelle() {
           <BoutonAction
             size="sm"
             variant="outline"
-            onAction={() => initServices({})}
+            onAction={() => initServices({ entiteId: entiteActive as any })}
             succes={(r: any) =>
               `${r.ajoutes} service(s) créé(s)` +
               (r.sansCouleurDistincte

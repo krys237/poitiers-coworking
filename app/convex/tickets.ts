@@ -15,7 +15,7 @@
 
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireDroit, droitsDuMembre } from "./lib/authz";
+import { requireDroit, requireEntiteSiFournie, droitsDuMembre } from "./lib/authz";
 import { journaliser } from "./lib/journal";
 import { notifier } from "./notifications";
 import {
@@ -37,6 +37,7 @@ export const genererUploadUrl = mutation({
 
 export const ouvrir = mutation({
   args: {
+    entiteId: v.optional(v.id("entites")),
     titre: v.string(),
     description: v.string(),
     nature: NATURE,
@@ -50,6 +51,7 @@ export const ouvrir = mutation({
   },
   handler: async (ctx, a) => {
     const me = await requireDroit(ctx, "/tickets", "faire");
+    await requireEntiteSiFournie(ctx, a.entiteId);
     const erreurs = controlerTicket(a);
     if (erreurs.length) throw new Error(erreurs.join(" "));
 
@@ -62,6 +64,7 @@ export const ouvrir = mutation({
     }
 
     const id = await ctx.db.insert("tickets", {
+      entiteId: a.entiteId,
       auteurId: me._id,
       auteurNom: me.nom ?? me.email,
       titre: a.titre.trim(),
@@ -97,9 +100,11 @@ export const ouvrir = mutation({
  * agacement qu'on n'écrit pas pour être lu de tous.
  */
 export const liste = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { entiteId: v.optional(v.id("entites")) },
+  handler: async (ctx, { entiteId }) => {
     const me = await requireDroit(ctx, "/tickets");
+    await requireEntiteSiFournie(ctx, entiteId);
+    // Index `by_entite_*` non confirmé sur `tickets` dans cette vague (cf. COMPTE-RENDU.md) : branche non filtrée conservée.
     const droits = await droitsDuMembre(ctx, me);
     const arbitre = !!droits["/tickets/arbitrage"]?.faire;
     const traite = !!droits["/tickets/traitement"]?.faire;
@@ -134,9 +139,10 @@ export const liste = query({
 
 /** Compteur pour le menu : ce qui attend une action de MA part. */
 export const enAttente = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { entiteId: v.optional(v.id("entites")) },
+  handler: async (ctx, { entiteId }) => {
     const me = await requireDroit(ctx, "/tickets");
+    await requireEntiteSiFournie(ctx, entiteId);
     const droits = await droitsDuMembre(ctx, me);
     const arbitre = !!droits["/tickets/arbitrage"]?.faire;
     const traite = !!droits["/tickets/traitement"]?.faire;

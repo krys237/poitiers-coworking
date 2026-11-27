@@ -1,7 +1,7 @@
 import { query, mutation, QueryCtx, MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
-import { requireDroit } from "./lib/authz";
+import { requireDroit, requireEntiteSiFournie } from "./lib/authz";
 import { salaireDeBase } from "./lib/paie";
 import { rattachementsEffectifs, type Societe } from "./lib/societes";
 import { resumeMois, joursCalendaires, joursDansMois, periodesTouchees, PAYE_PAR_DEFAUT, CONGES_PAR_MOIS_DEFAUT, TypeAbsence } from "./lib/absences";
@@ -36,12 +36,17 @@ async function tauxConges(ctx: QueryCtx | MutationCtx) {
 
 // Vue mensuelle : une ligne par employé actif (agrégats + solde + événements du mois + état de la saisie de paie).
 export const vueMensuelle = query({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => {
+  args: { entiteId: v.optional(v.id("entites")), periode: v.string() },
+  handler: async (ctx, { entiteId, periode }) => {
     await requireDroit(ctx, "/paie/planning");
+    await requireEntiteSiFournie(ctx, entiteId);
     const congesParMois = await tauxConges(ctx);
-    const cloture = await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
-    const saisies = await ctx.db.query("saisiesMensuelles").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
+    const cloture = entiteId
+      ? await ctx.db.query("cloturesPaie").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", periode)).unique()
+      : await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
+    const saisies = entiteId
+      ? await ctx.db.query("saisiesMensuelles").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", periode)).collect()
+      : await ctx.db.query("saisiesMensuelles").withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
     // Un pluri-employé a UNE saisie PAR SOCIÉTÉ (lot R2 bis) : on les groupe, là où une Map par
     // employé n'en aurait gardé qu'une au hasard et aurait faussé l'état « à recaler ».
     const saisiesDe = new Map<string, typeof saisies>();
@@ -49,7 +54,11 @@ export const vueMensuelle = query({
       const k = String(s.employeId);
       saisiesDe.set(k, [...(saisiesDe.get(k) ?? []), s]);
     }
-    const employes = (await ctx.db.query("employes").collect()).filter((e) => e.actif);
+    const employes = (
+      entiteId
+        ? await ctx.db.query("employes").withIndex("by_entite_matricule", (q) => q.eq("entiteId", entiteId)).collect()
+        : await ctx.db.query("employes").collect()
+    ).filter((e) => e.actif);
 
     // La vue mensuelle doit compter dans la MÊME unité que la paie, sinon l'écran contredirait
     // le bulletin qu'il annonce.
@@ -109,7 +118,9 @@ async function appliquerAuxSaisies(ctx: MutationCtx, employeId: Id<"employes">, 
   const societes: Societe[] = rattachementsEffectifs(e, lignesRattachement).map((x) => x.societe);
 
   for (const periode of periodes) {
-    const clos = await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
+    const clos = e.entiteId
+      ? await ctx.db.query("cloturesPaie").withIndex("by_entite_periode", (q) => q.eq("entiteId", e.entiteId).eq("periode", periode)).unique()
+      : await ctx.db.query("cloturesPaie").withIndex("by_periode", (q) => q.eq("periode", periode)).unique();
     if (clos) continue;
     const r = resumeMois({ employe: e, evenements: evs, periode, congesParMois, feries: await feriesDe(+periode.slice(0, 4)) });
     const toutes = await ctx.db.query("saisiesMensuelles")
@@ -121,6 +132,7 @@ async function appliquerAuxSaisies(ctx: MutationCtx, employeId: Id<"employes">, 
         ?? (societe === societes[0] ? toutes.find((x) => x.societe === undefined) : undefined);
       if (existant) await ctx.db.patch(existant._id, { joursTravailles: r.joursTravailles, absencesJours: r.absencesNonPayees });
       else await ctx.db.insert("saisiesMensuelles", {
+        entiteId: e.entiteId,
         employeId, periode, societe, joursTravailles: r.joursTravailles, absencesJours: r.absencesNonPayees,
         sanctions: 0, primesVariables: 0, transport: 0, heuresSup: 0, anciennete: 0, mutuellePct: 0, dettesSoins: 0, acompte: 0,
       });
@@ -132,16 +144,19 @@ async function appliquerAuxSaisies(ctx: MutationCtx, employeId: Id<"employes">, 
 
 export const ajouterAbsence = mutation({
   args: {
+    entiteId: v.optional(v.id("entites")),
     employeId: v.id("employes"), type: TYPE, dateDebut: v.string(), dateFin: v.string(),
     paye: v.optional(v.boolean()), motif: v.optional(v.string()),
   },
   handler: async (ctx, a) => {
     await requireDroit(ctx, "/paie/planning", "faire");
+    await requireEntiteSiFournie(ctx, a.entiteId);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(a.dateDebut) || !/^\d{4}-\d{2}-\d{2}$/.test(a.dateFin)) throw new Error("Dates au format AAAA-MM-JJ.");
     if (a.dateFin < a.dateDebut) throw new Error("La date de fin précède la date de début.");
     const jours = joursCalendaires(a.dateDebut, a.dateFin);
     const paye = a.paye ?? PAYE_PAR_DEFAUT[a.type as TypeAbsence];
-    const id = await ctx.db.insert("absences", { employeId: a.employeId, type: a.type, dateDebut: a.dateDebut, dateFin: a.dateFin, jours, paye, motif: a.motif });
+    const entiteId = a.entiteId ?? (await ctx.db.get(a.employeId))?.entiteId;
+    const id = await ctx.db.insert("absences", { entiteId, employeId: a.employeId, type: a.type, dateDebut: a.dateDebut, dateFin: a.dateFin, jours, paye, motif: a.motif });
     const periodes = await appliquerAuxSaisies(ctx, a.employeId, periodesTouchees(a));
     return { id, jours, periodes };
   },
@@ -186,10 +201,15 @@ export const supprimerAbsence = mutation({
 
 // Recale la saisie de paie de tous les employés sur le planning pour un mois.
 export const synchroniserPaie = mutation({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => {
+  args: { entiteId: v.optional(v.id("entites")), periode: v.string() },
+  handler: async (ctx, { entiteId, periode }) => {
     await requireDroit(ctx, "/paie/planning", "faire");
-    const employes = (await ctx.db.query("employes").collect()).filter((e) => e.actif);
+    await requireEntiteSiFournie(ctx, entiteId);
+    const employes = (
+      entiteId
+        ? await ctx.db.query("employes").withIndex("by_entite_matricule", (q) => q.eq("entiteId", entiteId)).collect()
+        : await ctx.db.query("employes").collect()
+    ).filter((e) => e.actif);
     let n = 0;
     for (const e of employes) { n += (await appliquerAuxSaisies(ctx, e._id, [periode])).length; }
     return { employes: n, periode };
@@ -205,9 +225,10 @@ export const synchroniserPaie = mutation({
 // =====================================================================================
 
 export const vueAnnuelle = query({
-  args: { annee: v.number(), seuilChevauchement: v.optional(v.number()) },
-  handler: async (ctx, { annee, seuilChevauchement }) => {
+  args: { entiteId: v.optional(v.id("entites")), annee: v.number(), seuilChevauchement: v.optional(v.number()) },
+  handler: async (ctx, { entiteId, annee, seuilChevauchement }) => {
     await requireDroit(ctx, "/paie/planning");
+    await requireEntiteSiFournie(ctx, entiteId);
     const seuil = seuilChevauchement ?? 2;
     const congesParMois = await tauxConges(ctx);
 
@@ -217,11 +238,17 @@ export const vueAnnuelle = query({
       .collect();
     const feries = indexFeries(feriesLignes.map((f) => ({ date: f.date, chome: f.chome })));
 
-    const services = await ctx.db.query("services").collect();
+    const services = entiteId
+      ? await ctx.db.query("services").withIndex("by_entite_ordre", (q) => q.eq("entiteId", entiteId)).collect()
+      : await ctx.db.query("services").collect();
     services.sort((a, b) => a.ordre - b.ordre);
     const serviceDe = new Map(services.map((s) => [String(s._id), s]));
 
-    const employes = (await ctx.db.query("employes").collect()).filter((e) => e.actif);
+    const employes = (
+      entiteId
+        ? await ctx.db.query("employes").withIndex("by_entite_matricule", (q) => q.eq("entiteId", entiteId)).collect()
+        : await ctx.db.query("employes").collect()
+    ).filter((e) => e.actif);
     const nomEmploye = new Map(employes.map((e) => [String(e._id), e.nom]));
     const aujourdHui = new Date().toISOString().slice(0, 10);
 
@@ -547,9 +574,10 @@ export const controlerAvantSaisie = query({
  * limite, l'absence injustifiée et le sans-solde pas du tout.
  */
 export const serviceEffectif = query({
-  args: { employeId: v.id("employes"), annee: v.number() },
-  handler: async (ctx, { employeId, annee }) => {
+  args: { entiteId: v.optional(v.id("entites")), employeId: v.id("employes"), annee: v.number() },
+  handler: async (ctx, { entiteId, employeId, annee }) => {
     await requireDroit(ctx, "/paie/planning");
+    await requireEntiteSiFournie(ctx, entiteId);
     const toutes = await ctx.db
       .query("absences")
       .withIndex("by_employe", (q) => q.eq("employeId", employeId))

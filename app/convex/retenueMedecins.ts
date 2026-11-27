@@ -11,7 +11,7 @@
 
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireDroit } from "./lib/authz";
+import { requireDroit , requireEntiteSiFournie} from "./lib/authz";
 import { journaliser } from "./lib/journal";
 import {
   EXPLICATIONS, PART_ESPECES_PCT, TAUX_BASE, estTauxBase, exportCsv as csvDe,
@@ -22,13 +22,17 @@ const MODULE = "/retenues-medecins";
 
 /** L'état d'une période : les lignes, le récapitulatif, les anomalies, les explications. */
 export const etat = query({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => {
+  args: { periode: v.string(), entiteId: v.optional(v.id("entites")) },
+  handler: async (ctx, { periode, entiteId }) => {
     await requireDroit(ctx, MODULE);
-    const rows = await ctx.db
-      .query("retenuesMedecins")
-      .withIndex("by_periode", (q) => q.eq("periode", periode))
-      .collect();
+    await requireEntiteSiFournie(ctx, entiteId);
+    // Les retenues sont propres à la société : celles d'un médecin d'EDR-TIM n'ont rien à faire
+    // dans le récapitulatif de POITIERS.
+    const rows = entiteId
+      ? await ctx.db.query("retenuesMedecins")
+          .withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", periode)).collect()
+      : await ctx.db.query("retenuesMedecins")
+          .withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
     rows.sort((a, b) => a.medecin.localeCompare(b.medecin, "fr"));
 
     // Le récapitulatif est RECALCULÉ depuis les saisies, et comparé aux montants figés : un écart
@@ -73,10 +77,13 @@ export const etat = query({
  * passée se relit telle qu'elle a été déposée.
  */
 export const tauxConnus = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { entiteId: v.optional(v.id("entites")) },
+  handler: async (ctx, { entiteId }) => {
     await requireDroit(ctx, MODULE);
-    const rows = await ctx.db.query("retenuesMedecins").collect();
+    await requireEntiteSiFournie(ctx, entiteId);
+    const rows = entiteId
+      ? await ctx.db.query("retenuesMedecins").withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId)).collect()
+      : await ctx.db.query("retenuesMedecins").collect();
     rows.sort((a, b) => b.periode.localeCompare(a.periode));
     const dernier = new Map<string, number>();
     for (const r of rows) if (!dernier.has(r.medecin)) dernier.set(r.medecin, r.tauxBase);
@@ -88,6 +95,7 @@ export const tauxConnus = query({
 
 export const enregistrer = mutation({
   args: {
+    entiteId: v.optional(v.id("entites")),
     ligneId: v.optional(v.id("retenuesMedecins")),
     periode: v.string(),
     medecin: v.string(),
@@ -130,7 +138,7 @@ export const enregistrer = mutation({
       if (!avant) throw new Error("Ligne introuvable.");
       await ctx.db.patch(ligneId, doc);
     } else {
-      await ctx.db.insert("retenuesMedecins", doc);
+      await ctx.db.insert("retenuesMedecins", { ...doc, entiteId: p.entiteId });
     }
     await journaliser(ctx, {
       auteurId: me._id, auteurNom: me.nom ?? me.email,
@@ -161,13 +169,17 @@ export const supprimer = mutation({
 
 /** CSV de la déclaration du mois. */
 export const exportCsv = query({
-  args: { periode: v.string() },
-  handler: async (ctx, { periode }) => {
+  args: { periode: v.string(), entiteId: v.optional(v.id("entites")) },
+  handler: async (ctx, { periode, entiteId }) => {
     await requireDroit(ctx, MODULE);
-    const rows = await ctx.db
-      .query("retenuesMedecins")
-      .withIndex("by_periode", (q) => q.eq("periode", periode))
-      .collect();
+    await requireEntiteSiFournie(ctx, entiteId);
+    // Les retenues sont propres à la société : celles d'un médecin d'EDR-TIM n'ont rien à faire
+    // dans le récapitulatif de POITIERS.
+    const rows = entiteId
+      ? await ctx.db.query("retenuesMedecins")
+          .withIndex("by_entite_periode", (q) => q.eq("entiteId", entiteId).eq("periode", periode)).collect()
+      : await ctx.db.query("retenuesMedecins")
+          .withIndex("by_periode", (q) => q.eq("periode", periode)).collect();
     rows.sort((a, b) => a.medecin.localeCompare(b.medecin, "fr"));
     return {
       nomFichier: `retenue-medecins-${periode}.csv`,

@@ -1,6 +1,6 @@
 import { query, mutation, internalQuery, internalMutation, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { getCurrentUser, requireDroit, droitsDuMembre, lireConfidentiel } from "./lib/authz";
+import { getCurrentUser, requireDroit, requireEntiteSiFournie, droitsDuMembre, lireConfidentiel } from "./lib/authz";
 import { canView, canDownload, NIVEAU, LIBELLE, Role } from "./rbac";
 import { Doc, Id } from "./_generated/dataModel";
 import { notifier } from "./notifications";
@@ -22,6 +22,7 @@ export const genererUploadUrl = mutation({
 
 export const deposer = mutation({
   args: {
+    entiteId: v.optional(v.id("entites")),
     fichierId: v.id("_storage"), nomFichier: v.string(), taille: v.number(), typeMime: v.string(),
     titre: v.string(), description: v.optional(v.string()), categorie: v.optional(v.string()),
     niveauVisible: v.number(), niveauTelechargement: v.number(), confidentiel: v.boolean(),
@@ -30,6 +31,7 @@ export const deposer = mutation({
   },
   handler: async (ctx, a) => {
     const me = await requireDroit(ctx, "/documents", "faire");
+    await requireEntiteSiFournie(ctx, a.entiteId);
     for (const id of a.destinataires ?? []) {
       const u = await ctx.db.get(id);
       if (!u || !u.isActive || u.enAttente) throw new Error("Un destinataire choisi n'est pas un membre actif.");
@@ -59,9 +61,11 @@ export const deposer = mutation({
 
 // Liste filtrée par l'ACCÈS PAR OBJET du membre courant (niveau, confidentiel). Jamais d'URL ici.
 export const liste = query({
-  args: { recherche: v.optional(v.string()), categorie: v.optional(v.string()) },
-  handler: async (ctx, { recherche, categorie }) => {
+  args: { entiteId: v.optional(v.id("entites")), recherche: v.optional(v.string()), categorie: v.optional(v.string()) },
+  handler: async (ctx, { entiteId, recherche, categorie }) => {
     const me = await requireDroit(ctx, "/documents");
+    await requireEntiteSiFournie(ctx, entiteId);
+    // Index `by_entite_*` non confirmé sur `documents` dans cette vague (cf. COMPTE-RENDU.md) : branche non filtrée conservée.
     const role = me.role as Role;
     const conf = await lireConfidentiel(ctx, me);
     const tous = await ctx.db.query("documents").collect();

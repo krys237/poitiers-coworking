@@ -4,7 +4,7 @@
 
 import { query } from "./_generated/server";
 import { v } from "convex/values";
-import { requireDroit } from "./lib/authz";
+import { requireDroit, requireEntiteSiFournie } from "./lib/authz";
 import { bulletinsPourPeriode } from "./lib/calculBulletins";
 import {
   declarantPourSociete, grouperParSociete, ligneDipe, recapitulatifDipe,
@@ -68,12 +68,13 @@ function assiettesOuRepli(
  * quel : ce n'est la déclaration de personne.
  */
 export const etat = query({
-  args: { periode: v.string(), societe: v.optional(SOCIETE) },
-  handler: async (ctx, { periode, societe }) => {
+  args: { entiteId: v.optional(v.id("entites")), periode: v.string(), societe: v.optional(SOCIETE) },
+  handler: async (ctx, { entiteId, periode, societe }) => {
     // Le DIPE sert la RH et le comptable : son propre module, visible dès le niveau 3.
     await requireDroit(ctx, "/paie/dipe");
+    await requireEntiteSiFournie(ctx, entiteId);
 
-    const r = await bulletinsPourPeriode(ctx, periode);
+    const r = await bulletinsPourPeriode(ctx, periode, entiteId);
     const rubriques = await rubriquesPourPeriode(ctx, periode);
     const parametres = await ctx.db.query("parametresEntreprise").first();
 

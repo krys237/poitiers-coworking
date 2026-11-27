@@ -16,6 +16,8 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { ArchiveIcon, CalendarRangeIcon, FileCheck2Icon, PrinterIcon, SearchIcon, TableIcon, XIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { useEntite } from "@/app/EntiteActive";
 import { fcfa, libellePeriode, num, periodeCourante } from "@/lib/format";
 import { PageEnTete } from "@/components/app/en-tete";
 import { GrilleTuiles, Tuile } from "@/components/app/tuile";
@@ -43,7 +45,9 @@ export function Bulletins() {
   const [params, setParams] = useSearchParams();
   const [periode, setPeriode] = React.useState(params.get("periode") ?? periodeCourante());
   const filtre = params.get("employe");
-  const paie = useQuery(api.payroll.bulletinsDuMois, { periode });
+  const { entiteId } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
+  const paie = useQuery(api.payroll.bulletinsDuMois, entiteIdTyped ? { entiteId: entiteIdTyped, periode } : "skip");
   const entreprise = useQuery(api.parametres.get);
   const generer = useMutation(api.payroll.genererEtCloturer);
   const pdfBulletins = useAction(api.paiePdf.pdfBulletins);
@@ -113,7 +117,7 @@ export function Bulletins() {
                 consequence={`${tous.length} bulletin(s) seront figés tels qu'ils sont affichés : plus aucune saisie, absence ou prime ne les modifiera. Le mois passera en lecture seule et rejoindra les archives.`}
                 motCle="CLOTURER"
                 confirmer="Clôturer le mois"
-                onConfirmer={() => generer({ periode })}
+                onConfirmer={() => generer({ entiteId: entiteIdTyped, periode })}
                 succes={(r: any) => `${libellePeriode(periode)} clôturé : ${r.bulletins} bulletin(s) figé(s)${r.pdfPlanifies ? ", PDF en cours de génération" : ""}.`}
               />
             )}

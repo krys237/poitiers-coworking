@@ -13,6 +13,8 @@ import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 import { ImagePlusIcon, LifeBuoyIcon, SendIcon, XIcon } from "lucide-react";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { useEntite } from "@/app/EntiteActive";
 import {
   MIN_DESCRIPTION, PIECES_MAX, TYPES_PIECE, controlerPiece, controlerTicket,
 } from "../../convex/lib/tickets";
@@ -49,7 +51,9 @@ const libelleAvis = (m: Record<string, string>, cle: string) => m[cle] ?? cle;
 const libelleEtat = (m: Record<string, string>, cle: string) => m[cle] ?? cle;
 
 export function Tickets() {
-  const vue = useQuery(api.tickets.liste, {});
+  const { entiteId } = useEntite();
+  const entiteIdTyped = entiteId as Id<"entites"> | undefined;
+  const vue = useQuery(api.tickets.liste, entiteIdTyped ? { entiteId: entiteIdTyped } : "skip");
   const ouvrir = useMutation(api.tickets.ouvrir);
   const urlDepot = useMutation(api.tickets.genererUploadUrl);
   const arbitrer = useMutation(api.tickets.arbitrer);
@@ -96,6 +100,7 @@ export function Tickets() {
     setEnCours(true);
     try {
       await ouvrir({
+        entiteId: entiteIdTyped,
         titre, description, nature: nature as never,
         ecran: ecran.trim() || undefined,
         ...(pieces.length ? { pieces: pieces as never } : {}),

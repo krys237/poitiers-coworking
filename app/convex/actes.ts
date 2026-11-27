@@ -9,7 +9,7 @@
 
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireDroit } from "./lib/authz";
+import { requireDroit, requireEntiteSiFournie } from "./lib/authz";
 import { bulletinsPourPeriode } from "./lib/calculBulletins";
 import { salaireDeBase } from "./lib/paie";
 import { identitePourSociete, societePrincipale } from "./lib/societes";
@@ -217,13 +217,15 @@ export const preparer = query({
  */
 export const generer = mutation({
   args: {
+    entiteId: v.optional(v.id("entites")),
     code: v.string(),
     employeId: v.optional(v.id("employes")),
     periode: v.optional(v.string()),
     valeurs: v.record(v.string(), v.string()),
   },
-  handler: async (ctx, { code, employeId, periode, valeurs }) => {
+  handler: async (ctx, { entiteId, code, employeId, periode, valeurs }) => {
     const me = await requireDroit(ctx, "/employes", "faire");
+    await requireEntiteSiFournie(ctx, entiteId);
     const modele = await modeleDe(ctx, code);
 
     const date = valeurs.date && /^\d{2}\/\d{2}\/\d{4}$/.test(valeurs.date)
@@ -234,7 +236,11 @@ export const generer = mutation({
     let reference: string | undefined;
     if (modele.formatReference) {
       const annee = +date.slice(0, 4);
-      const existantes = (await ctx.db.query("actes").withIndex("by_modele", (q) => q.eq("modeleCode", code)).collect())
+      const existantes = (
+        entiteId
+          ? (await ctx.db.query("actes").withIndex("by_entite_date", (q) => q.eq("entiteId", entiteId)).collect()).filter((a) => a.modeleCode === code)
+          : await ctx.db.query("actes").withIndex("by_modele", (q) => q.eq("modeleCode", code)).collect()
+      )
         .map((a) => a.reference ?? "")
         .filter(Boolean);
       reference = construireReference(modele.formatReference, prochaineSequence(existantes, annee), date);
@@ -247,6 +253,7 @@ export const generer = mutation({
 
     const employe = employeId ? await ctx.db.get(employeId) : null;
     const id = await ctx.db.insert("actes", {
+      entiteId: entiteId ?? employe?.entiteId,
       modeleCode: code,
       employeId: employeId ?? undefined,
       nomBeneficiaire: completes.nom || employe?.nom || "—",
@@ -264,12 +271,15 @@ export const generer = mutation({
 
 /** Les actes délivrés, du plus récent au plus ancien. */
 export const historique = query({
-  args: { employeId: v.optional(v.id("employes")), limite: v.optional(v.number()) },
-  handler: async (ctx, { employeId, limite }) => {
+  args: { entiteId: v.optional(v.id("entites")), employeId: v.optional(v.id("employes")), limite: v.optional(v.number()) },
+  handler: async (ctx, { entiteId, employeId, limite }) => {
     await requireDroit(ctx, "/employes");
+    await requireEntiteSiFournie(ctx, entiteId);
     const lignes = employeId
       ? await ctx.db.query("actes").withIndex("by_employe", (q) => q.eq("employeId", employeId)).collect()
-      : await ctx.db.query("actes").withIndex("by_date").order("desc").take(limite ?? 100);
+      : entiteId
+        ? await ctx.db.query("actes").withIndex("by_entite_date", (q) => q.eq("entiteId", entiteId)).order("desc").take(limite ?? 100)
+        : await ctx.db.query("actes").withIndex("by_date").order("desc").take(limite ?? 100);
     lignes.sort((a, b) => b.genereLe.localeCompare(a.genereLe));
     const libelles = new Map(MODELES_DEFAUT.map((m) => [m.code, m.libelle]));
     for (const m of await ctx.db.query("modelesActes").collect()) libelles.set(m.code, m.libelle);
