@@ -11,17 +11,23 @@
 
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { requireDroit, requireUnDesDroits } from "./lib/authz";
+import { requireDroit, requireUnDesDroits, requireEntiteSiFournie } from "./lib/authz";
 
 const normaliser = (s: string) => s.trim().replace(/\s+/g, " ");
 
 /** Les fonctions, actives d'abord, par ordre alphabétique. */
 export const liste = query({
-  args: { inclureInactives: v.optional(v.boolean()) },
-  handler: async (ctx, { inclureInactives }) => {
+  args: { inclureInactives: v.optional(v.boolean()), entiteId: v.optional(v.id("entites")) },
+  handler: async (ctx, { inclureInactives, entiteId }) => {
     // Le référentiel sert la fiche employé et le futur générateur d'actes.
     await requireUnDesDroits(ctx, ["/employes", "/paie/saisie"]);
-    const toutes = await ctx.db.query("fonctions").collect();
+    await requireEntiteSiFournie(ctx, entiteId);
+    // Le référentiel des fonctions est PROPRE à chaque société : les métiers d'une pharmacie ne
+    // sont pas ceux d'une clinique, et voir les onze fonctions de POITIERS dans la fiche d'un
+    // employé d'EDR-TIM était l'un des cloisonnements oubliés de la seconde vague.
+    const toutes = entiteId
+      ? await ctx.db.query("fonctions").withIndex("by_entite_libelle", (q) => q.eq("entiteId", entiteId)).collect()
+      : await ctx.db.query("fonctions").collect();
     const lignes = inclureInactives ? toutes : toutes.filter((f) => f.actif);
     lignes.sort((a, b) => a.libelle.localeCompare(b.libelle, "fr"));
     return lignes;
@@ -31,19 +37,25 @@ export const liste = query({
 export const enregistrer = mutation({
   args: {
     id: v.optional(v.id("fonctions")),
+    entiteId: v.optional(v.id("entites")),
     libelle: v.string(),
     categorie: v.optional(v.string()),
     echelon: v.optional(v.string()),
     actif: v.optional(v.boolean()),
   },
-  handler: async (ctx, { id, libelle, categorie, echelon, actif }) => {
+  handler: async (ctx, { id, entiteId, libelle, categorie, echelon, actif }) => {
     await requireDroit(ctx, "/employes", "faire");
+    await requireEntiteSiFournie(ctx, entiteId);
     const propre = normaliser(libelle);
     if (!propre) throw new Error("Le libellé de la fonction est obligatoire.");
 
     // Comparaison insensible à la casse et aux espaces : « Aide soignant » et « aide  soignant »
     // sont la même fonction, et deux lignes jumelles rendraient la liste inutilisable.
-    const homonyme = (await ctx.db.query("fonctions").collect()).find(
+    // L'homonymie se juge DANS la société : deux sociétés peuvent chacune avoir un « Caissier ».
+    const voisines = entiteId
+      ? await ctx.db.query("fonctions").withIndex("by_entite_libelle", (q) => q.eq("entiteId", entiteId)).collect()
+      : await ctx.db.query("fonctions").collect();
+    const homonyme = voisines.find(
       (f) => f.libelle.toLowerCase() === propre.toLowerCase() && f._id !== id,
     );
     if (homonyme) throw new Error(`La fonction « ${homonyme.libelle} » existe déjà.`);
@@ -59,7 +71,7 @@ export const enregistrer = mutation({
       });
       return { id, cree: false };
     }
-    const nouveau = await ctx.db.insert("fonctions", {
+    const nouveau = await ctx.db.insert("fonctions", { entiteId,
       libelle: propre,
       categorie: categorie?.trim() || undefined,
       echelon: echelon?.trim() || undefined,

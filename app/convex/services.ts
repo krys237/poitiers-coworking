@@ -4,7 +4,7 @@
 import { query, mutation, internalMutation, type QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { v } from "convex/values";
-import { requireDroit, requireUnDesDroits } from "./lib/authz";
+import { requireDroit, requireUnDesDroits , requireEntiteSiFournie} from "./lib/authz";
 import { couleurServiceParDefaut, PALETTE_SERVICES } from "./lib/planningAnnuel";
 
 /**
@@ -29,11 +29,17 @@ const normaliser = (s: string) => s.trim().replace(/\s+/g, " ").toUpperCase();
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
 export const liste = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { entiteId: v.optional(v.id("entites")) },
+  handler: async (ctx, { entiteId }) => {
     // Le planning et les fiches employés ont tous deux besoin de la liste.
     await requireUnDesDroits(ctx, ["/paie/planning", "/employes", "/commandes", "/interventions", "/membres", "/parametres"]);
-    const lignes = await ctx.db.query("services").collect();
+    await requireEntiteSiFournie(ctx, entiteId);
+    // Les services sont PROPRES à chaque société : les dix services de POITIERS n'ont rien à faire
+    // dans le planning ni dans la fiche d'un employé d'EDR-TIM. C'est l'un des cloisonnements
+    // oubliés de la seconde vague, et l'un des plus visibles — ce sélecteur est dans la fiche employé.
+    const lignes = entiteId
+      ? await ctx.db.query("services").withIndex("by_entite_ordre", (q) => q.eq("entiteId", entiteId)).collect()
+      : await ctx.db.query("services").collect();
     lignes.sort((a, b) => a.ordre - b.ordre || a.nom.localeCompare(b.nom));
     // Les chefs sont stockés par identifiant ; l'écran a besoin de noms. On les résout ICI plutôt
     // que de laisser la page interroger la liste des membres : la consulter demande un droit que
@@ -139,17 +145,22 @@ export const reprendreServicesDepuisFiches = internalMutation({
 
 /** Crée les services du classeur. Idempotent : un nom déjà présent n'est pas touché. */
 export const initialiser = mutation({
-  args: {},
-  handler: async (ctx) => {
+  args: { entiteId: v.optional(v.id("entites")) },
+  handler: async (ctx, { entiteId }) => {
     await requireDroit(ctx, "/paie/planning", "faire");
-    const existants = await ctx.db.query("services").collect();
+    await requireEntiteSiFournie(ctx, entiteId);
+    // Les services initiaux d'une société NEUVE lui appartiennent : sans ce filtre, amorcer
+    // EDR-TIM ne créerait rien, les noms existant déjà chez POITIERS.
+    const existants = entiteId
+      ? await ctx.db.query("services").withIndex("by_entite_ordre", (q) => q.eq("entiteId", entiteId)).collect()
+      : await ctx.db.query("services").collect();
     const deja = new Set(existants.map((s) => normaliser(s.nom)));
     let ordre = existants.reduce((m, s) => Math.max(m, s.ordre), -1) + 1;
     let ajoutes = 0;
 
     for (const nom of SERVICES_INITIAUX) {
       if (deja.has(normaliser(nom))) continue;
-      await ctx.db.insert("services", {
+      await ctx.db.insert("services", { entiteId,
         nom,
         couleur: couleurServiceParDefaut(ordre),
         ordre,
@@ -169,19 +180,25 @@ export const initialiser = mutation({
 
 export const enregistrer = mutation({
   args: {
+    entiteId: v.optional(v.id("entites")),
     id: v.optional(v.id("services")),
     nom: v.string(),
     couleur: v.optional(v.string()),
     actif: v.optional(v.boolean()),
     chefs: v.optional(v.array(v.id("users"))),
   },
-  handler: async (ctx, { id, nom, couleur, actif, chefs }) => {
+  handler: async (ctx, { entiteId, id, nom, couleur, actif, chefs }) => {
     await requireDroit(ctx, "/paie/planning", "faire");
+    await requireEntiteSiFournie(ctx, entiteId);
     const propre = normaliser(nom);
     if (!propre) throw new Error("Le nom du service est obligatoire.");
     if (couleur && !HEX.test(couleur)) throw new Error("Couleur attendue au format #rrggbb.");
 
-    const homonyme = (await ctx.db.query("services").collect()).find(
+    // L'homonymie se juge DANS la société : deux sociétés peuvent chacune avoir un « LABORATOIRE ».
+    const voisins = entiteId
+      ? await ctx.db.query("services").withIndex("by_entite_ordre", (q) => q.eq("entiteId", entiteId)).collect()
+      : await ctx.db.query("services").collect();
+    const homonyme = voisins.find(
       (s) => normaliser(s.nom) === propre && s._id !== id,
     );
     if (homonyme) throw new Error(`Le service « ${homonyme.nom} » existe déjà.`);
@@ -212,7 +229,7 @@ export const enregistrer = mutation({
     }
     const tous = await ctx.db.query("services").collect();
     const ordre = tous.reduce((m, s) => Math.max(m, s.ordre), -1) + 1;
-    const nouveau = await ctx.db.insert("services", {
+    const nouveau = await ctx.db.insert("services", { entiteId,
       nom: propre,
       couleur: couleur ?? couleurServiceParDefaut(ordre),
       ordre,

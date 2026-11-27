@@ -9,6 +9,7 @@
  * référentiel avec ce qui a déjà été saisi en texte libre, pour qu'elle n'ait rien à retaper.
  */
 import * as React from "react";
+import { useEntite } from "@/app/EntiteActive";
 import { useMutation, useQuery } from "convex/react";
 import { BriefcaseBusinessIcon, DownloadIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
@@ -25,7 +26,8 @@ import {
 
 export function GestionFonctions({ disabled }: { disabled?: boolean }) {
   const [ouvert, setOuvert] = React.useState(false);
-  const fonctions = useQuery(api.fonctions.liste, ouvert ? { inclureInactives: true } : "skip");
+  const { entiteId: entiteActive } = useEntite();
+  const fonctions = useQuery(api.fonctions.liste, ouvert ? { inclureInactives: true, ...(entiteActive ? { entiteId: entiteActive as any } : {}) } : "skip");
   const enregistrer = useMutation(api.fonctions.enregistrer);
   const supprimer = useMutation(api.fonctions.supprimer);
   const reprendre = useMutation(api.fonctions.reprendreDesFiches);
