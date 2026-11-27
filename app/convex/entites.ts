@@ -57,7 +57,14 @@ export const mesEntites = query({
     if (!me || !me.isActive || me.enAttente) return [];
     const { entites, acces, accessibles } = await perimetreDe(ctx, me);
     const parId = new Map(entites.map((e) => [String(e._id), e]));
-    return accessibles.map((e) => {
+    // Le SÉLECTEUR ne propose que des sociétés ACTIVES, y compris au super administrateur.
+    //
+    // `entitesAccessibles` lui laisse voir les sociétés désactivées — c'est voulu, sans lui nul ne
+    // pourrait en rouvrir une. Mais ce périmètre-là sert l'ADMINISTRATION, pas le travail
+    // quotidien : désactiver une société et la voir rester sélectionnable n'a aucun sens, et le
+    // propriétaire l'a constaté le 27/11. Les sociétés désactivées restent listées dans
+    // `entites.liste`, l'écran Paramètres → Sociétés, qui est l'endroit où on les réactive.
+    return accessibles.filter((e) => parId.get(e.entiteId)?.actif).map((e) => {
       const doc = parId.get(e.entiteId)!;
       return {
         entiteId: e.entiteId, nom: doc.nom, code: doc.code,
