@@ -70,6 +70,13 @@ export async function notifier(ctx: MutationCtx, e: ArgsEmission) {
  */
 export const emettre = internalMutation({
   args: {
+    /**
+     * Société de l'objet notifié. Elle sert à deux choses, et la première est une fuite
+     * corrigée : la résolution des CHEFS DE SERVICE lisait `services` sans société, si bien
+     * qu'une notification sur un objet d'EDR-TIM pouvait être routée vers les chefs de service
+     * de POITIERS. La seconde est l'estampillage de la ligne de notification.
+     */
+    entiteId: v.optional(v.id("entites")),
     type: v.string(),
     acteurId: v.optional(v.id("users")),
     acteurNom: v.optional(v.string()),
@@ -101,7 +108,9 @@ export const emettre = internalMutation({
       // Lot S6 / correctif C1.3 : résolution des chefs du service en une seule lecture de `services`.
       let serviceChefsIds: string[] = [];
       if (type.previentLeServiceConcerne && (a.serviceId || a.serviceNom)) {
-        const services = await ctx.db.query("services").collect();
+        const services = a.entiteId
+          ? await ctx.db.query("services").withIndex("by_entite_ordre", (q) => q.eq("entiteId", a.entiteId!)).collect()
+          : await ctx.db.query("services").collect();
         const service = serviceDeLObjet(
           { serviceId: a.serviceId ? String(a.serviceId) : undefined, service: a.serviceNom },
           services.map((s) => ({
@@ -144,7 +153,7 @@ export const emettre = internalMutation({
       const creees: { destinataireId: Id<"users">; notificationId: Id<"notifications"> }[] = [];
 
       for (const destinataireId of cibles) {
-        const notificationId = await ctx.db.insert("notifications", {
+        const notificationId = await ctx.db.insert("notifications", { entiteId: a.entiteId,
           destinataireId: destinataireId as Id<"users">,
           type: type.cle,
           titre,

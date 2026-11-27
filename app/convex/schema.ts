@@ -894,7 +894,8 @@ export default defineSchema({
     notes: v.optional(v.string()),
   })
     .index("by_periode", ["periode"])
-    .index("by_medecin", ["medecin"]),
+    .index("by_medecin", ["medecin"])
+    .index("by_entite_periode", ["entiteId", "periode"]),
 
   primesMedecins: defineTable({
     entiteId: v.optional(v.id("entites")),   // société (personne morale) — voir la table `entites`
