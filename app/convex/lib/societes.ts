@@ -22,6 +22,25 @@ export type Societe = (typeof SOCIETES)[number];
 /** Jours de référence d'un mois de paie, à défaut de valeur sur la fiche ou le rattachement. */
 export const JOURS_BASE_DEFAUT = 30;
 
+/**
+ * Déclarants qui ne subissent NI taxe NI cotisation : ils déduisent eux-mêmes, et leur bulletin
+ * ne porte que le net. Décision du propriétaire du 27/11/2026, qui applique une consigne
+ * consignée depuis le chantier RH et jamais mise en œuvre (`ETAT-DU-PROJET.md` § 5 : « les trois
+ * sociétés ont les mêmes cotisations, alors que la légende dit SESAME non déclarés CNPS »).
+ *
+ * Conséquence assumée : ni CNPS, ni IRPP, ni CAC, ni TDL, ni RAV, ni CFC — et **aucune charge
+ * patronale**, puisque sans CNPS il n'y a ni PVID patronal, ni prestations familiales, ni AT/MP.
+ * Restent dues les retenues qui ne sont ni des taxes ni des cotisations : sanctions, absences,
+ * dettes de soins, acompte, mutuelle.
+ *
+ * La liste est ICI et nulle part ailleurs : la recopier, c'est accepter qu'elle diverge.
+ */
+export const DECLARANTS_SANS_RETENUES: readonly Societe[] = ["SESAME", "SOFINA"];
+
+/** Ce déclarant subit-il les taxes et cotisations ? */
+export const subitLesRetenues = (societe: Societe): boolean =>
+  !DECLARANTS_SANS_RETENUES.includes(societe);
+
 export const estSociete = (x: unknown): x is Societe =>
   typeof x === "string" && (SOCIETES as readonly string[]).includes(x);
 
