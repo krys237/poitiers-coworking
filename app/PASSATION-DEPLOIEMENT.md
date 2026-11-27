@@ -419,7 +419,74 @@ champ et dit que c'est un défaut de l'application.
 
 ---
 
+## 7 ter. Le chantier MULTI-SOCIÉTÉ, livré du 26 au 27/11/2026
+
+**En production depuis le 27/11** (merge `f6f2840`). Le modèle complet est dans
+`docs/multi-societe/MODELE.md`, les lots délégués dans `LOTS-AGENT-CLOUD.md` et `-2.md`.
+
+Une **entité** est une personne morale (table `entites`) : c'est l'espace de travail. Elle n'est
+**pas** le déclarant de paie (`societe` : SESAME/SOFINA/SGC), qui reste transversal. Le champ
+s'appelle `entiteId` et non `societeId` précisément pour que personne ne confonde les deux —
+§ 1 bis du modèle.
+
+| | |
+|---|---|
+| Production | **une** entité, `poitiers`. 88 fiches, 43 journées, **0 ligne sans entité** |
+| Sélecteur | invisible sous deux entités : rien n'a changé pour POITIERS |
+| Périmètre | `lib/perimetre.ts` + `accesEntites`. DG (7) et super admin (8) atteignent tout implicitement |
+| Primitive de sécurité | **`authz.requireEntite`** — le client PROPOSE, le serveur VÉRIFIE. Seul endroit |
+| Création d'entité | Paramètres → Sociétés |
+
+**`entiteId` est encore OPTIONNEL au schéma, et c'est volontaire** : chaque requête filtre quand
+une entité est fournie, et se comporte comme avant sinon. Le rendre obligatoire est la dernière
+étape, à faire quand tous les écrans sont câblés — **pas avant**.
+
+⚠️ **Le piège de cette transition, payé deux fois** : la branche sans filtre protège l'existant
+**et masque les écrans qu'on a oublié de câbler**. `planning.vueAnnuelle` était scopée côté
+serveur mais `FriseAnnuelle.tsx` ne lui passait pas l'entité : la frise a continué d'afficher les
+services de POITIERS sous EDR-TIM, et le typecheck ne pouvait pas le voir. **Un correctif serveur
+n'est prouvé que vu à l'écran, avec deux entités et de la donnée.**
+
+⚠️ **La migration `migrerEntites` frôle la limite de lectures de Convex** : 3 945 sur 4 096. Elle
+a réussi, elle est idempotente, mais **elle ne peut plus être relancée** en l'état et échouerait
+sur une base plus grosse. À rendre reprenable par table (argument `table`) **avant le premier
+client du white label**.
+
+**Le grand livre reste borné à l'entité `poitiers`** : ses neuf blocs sont une constante de code
+calquée sur la feuille du DAF. C'est aussi l'explication des soldes « Les Lilas » et « E DR TIM »
+à zéro depuis la création.
+
+---
+
 ## 8. Ce qui reste ouvert
+
+### ⚠️ Arbitrage de PAIE en attente, demandé le 27/11/2026
+
+**Les déclarants SESAME et SOFINA ne doivent PAS subir les retenues.** Constaté par le
+propriétaire sur le DIPE : les bulletins de ces deux déclarants portent cotisations et impôts
+comme ceux de SGC. Ce n'est pas ce qu'il veut — **ces sociétés déduisent elles-mêmes**, et la
+consigne est ancienne : `../ETAT-DU-PROJET.md` § 5 la consigne déjà, « les trois sociétés ont les
+mêmes cotisations, alors que la légende dit *SESAME non déclarés CNPS* ». Elle n'a jamais été
+appliquée.
+
+**Ce qu'il faut savoir avant de toucher au moteur** — et il ne faut pas y toucher sans ces
+réponses :
+
+1. **Quelles retenues exactement ?** CNPS seule (la légende ne parle que d'elle), ou aussi IRPP,
+   CAC, TDL, RAV, CFC ? Un bulletin sans CNPS mais avec IRPP n'est pas le même qu'un bulletin net
+   de tout.
+2. **Les charges PATRONALES suivent-elles ?** Si SESAME ne déclare pas à la CNPS, elle ne paie
+   pas non plus la part patronale ni les prestations familiales.
+3. **Le DIPE** : ces déclarants doivent-ils encore y figurer, à montant de cotisation nul, ou en
+   sortir entièrement ?
+4. **Les mois déjà clôturés** se rejouent-ils ? Un bulletin figé ne doit jamais être recalculé
+   avec une règle postérieure — c'est la règle du barème daté. La bascule doit donc être **datée**,
+   comme l'a été le passage aux jours ouvrables.
+
+Le point d'entrée est `lib/paie.computeBulletin`, qui ne connaît pas le déclarant aujourd'hui :
+il reçoit un salaire de base et un barème. Faire dépendre les retenues du déclarant demande de le
+lui passer, ou de porter l'information sur le barème. **C'est une modification du moteur de paie :
+elle se fait dans le dépôt, avec des tests écrits avant, et jamais déléguée.**
 
 ### Bloquant pour une fusion vers `clean`
 

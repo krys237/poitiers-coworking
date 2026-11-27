@@ -16,6 +16,7 @@ import { computeBulletin, BAREME_DEFAUT } from "../convex/lib/paie.ts";
 import type { SaisieMois } from "../convex/lib/paie.ts";
 import {
   rattachementsEffectifs, societePrincipale, pourSociete, toutesPourSociete, masseParSociete, cleCouple,
+  subitLesRetenues,
 } from "../convex/lib/societes.ts";
 import type { FicheRattachable, RattachementBrut } from "../convex/lib/societes.ts";
 
@@ -173,3 +174,40 @@ check("le net cumulé des deux bulletins diffère du net d'un salaire unique éq
 
 if (echecs) { console.error(`\n${echecs} test(s) en échec`); process.exit(1); }
 else console.log("\nTous les tests multi-société passent.");
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Déclarants exonérés de taxes et cotisations — décision du 27/11/2026.
+// SESAME et SOFINA déduisent elles-mêmes : leur bulletin ne porte que le net.
+// ─────────────────────────────────────────────────────────────────────────────
+check("SESAME et SOFINA ne subissent pas les retenues",
+  !subitLesRetenues("SESAME") && !subitLesRetenues("SOFINA"));
+check("SGC les subit, elle",
+  subitLesRetenues("SGC"));
+
+const avecRetenues = computeBulletin(200000, { ...vide, joursTravailles: 30 }, BAREME_DEFAUT, {});
+const sansRetenues = computeBulletin(200000, { ...vide, joursTravailles: 30 }, BAREME_DEFAUT, { sansRetenues: true });
+
+check("le BRUT est le même : seules les retenues changent",
+  avecRetenues.brut === sansRetenues.brut, { avec: avecRetenues.brut, sans: sansRetenues.brut });
+check("exonéré : le net ÉGALE le brut",
+  sansRetenues.net === sansRetenues.brut, { net: sansRetenues.net, brut: sansRetenues.brut });
+check("et il y avait bien quelque chose à retirer",
+  avecRetenues.net < avecRetenues.brut, { net: avecRetenues.net });
+check("aucune charge salariale ni patronale",
+  sansRetenues.chargesSalariales === 0 && sansRetenues.chargesPatronales === 0,
+  { sal: sansRetenues.chargesSalariales, pat: sansRetenues.chargesPatronales });
+check("les onze lignes restent PRÉSENTES, à zéro",
+  sansRetenues.cotisations.length === avecRetenues.cotisations.length
+  && ["43131", "44721", "44722", "44723", "44724", "44725", "66411", "66412", "66413", "64131", "64132"]
+    .every((c) => sansRetenues.cotisations.find((l) => l.code === c)?.retenue === 0
+      && (sansRetenues.cotisations.find((l) => l.code === c)?.chargePatronale ?? 0) === 0));
+
+// Ce qui n'est NI taxe NI cotisation reste dû.
+const avecAutres = computeBulletin(200000, { ...vide, joursTravailles: 30, sanctions: 5000, acompte: 10000 }, BAREME_DEFAUT, { sansRetenues: true });
+check("sanctions et acompte restent déduits même exonéré",
+  avecAutres.net === avecAutres.brut - 15000, { net: avecAutres.net, brut: avecAutres.brut });
+
+// Le résumé initial se trouvait AVANT ce bloc : sans cette seconde sortie, un échec des
+// vérifications d'exonération n'aurait pas fait rougir la suite.
+console.log(echecs === 0 ? "\nmulti-société + exonérations : tout passe." : `\nmulti-société : ${echecs} échec(s).`);
+process.exitCode = echecs === 0 ? 0 : 1;

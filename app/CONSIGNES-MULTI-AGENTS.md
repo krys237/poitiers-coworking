@@ -246,6 +246,27 @@ Chaque agent ajoute une ligne quand il touche à une zone frontière ou termine 
     24/11 la fiche ne permettait pas de le corriger. À passer en masse sur critère (NIU renseigné,
     ou par société) avec une mutation qui annonce ce qu'elle écrit avant de l'écrire.
 
+- **2026-11-27 — DÉPLOIEMENT** : chantier **multi-société** livré en production (`f6f2840`).
+  Modèle dans `docs/multi-societe/MODELE.md`, état et pièges au § 7 ter de
+  `PASSATION-DEPLOIEMENT.md`. Trois choses à savoir avant de toucher à quoi que ce soit :
+  - ⚠️ **`entiteId` n'est PAS `societe`.** `entiteId` est la personne morale (l'espace de
+    travail) ; `societe` reste le **déclarant de paie** (SESAME/SOFINA/SGC), transversal aux
+    entités. Les deux cohabitent sur la même ligne. **Si vous écrivez `e.societe` pour filtrer un
+    espace de travail, arrêtez-vous.**
+  - ⚠️ **Toute requête qui reçoit un `entiteId` du client appelle `authz.requireEntite`** (ou
+    `requireEntiteSiFournie`). Le client propose, le serveur vérifie — `localStorage` se modifie à
+    la main. Ne recopiez pas cette vérification ailleurs : elle vit à un seul endroit, et la règle
+    de périmètre est dans `lib/perimetre.ts`, qui a ses 47 contrôles.
+  - ⚠️ **`entiteId` est optionnel au schéma, et chaque requête a une branche sans filtre.** Elle
+    protège l'existant **et masque les écrans non câblés** : un correctif serveur n'est prouvé que
+    vu à l'écran, avec deux entités et de la donnée. Deux défauts sont passés par là.
+  - **Index** : chaque table scopée a un `by_entite_*` qui commence par `entiteId`. Jamais de
+    `.filter()` sur l'entité après un `withIndex` posé sur autre chose.
+  - 📌 **À l'agent RH** : un arbitrage de paie est en attente — **SESAME et SOFINA ne doivent pas
+    subir les retenues**, elles déduisent elles-mêmes. Les quatre questions à trancher avant de
+    toucher `lib/paie.computeBulletin` sont au § 8 de `PASSATION-DEPLOIEMENT.md`. La consigne est
+    ancienne (`../ETAT-DU-PROJET.md` § 5) et n'a jamais été appliquée.
+
 ## Demandes
 
 *(FRONT → AUTH : nouvelles routes à enregistrer. Format : `chemin` — libellé de menu — niveau min.)*

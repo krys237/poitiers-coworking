@@ -16,7 +16,7 @@ import { statutDocument } from "./immatriculation";
 import { rubriquesDeLaSaisie } from "./rubriques";
 import { computeBulletin, SaisieMois, Bareme, LigneGain, LigneCotisation, Extras, DetailsBulletin } from "./paie";
 import {
-  cleCouple, pourSociete, rattachementsEffectifs, societePrincipale, toutesPourSociete,
+  cleCouple, pourSociete, rattachementsEffectifs, societePrincipale, toutesPourSociete, subitLesRetenues,
   type Rattachement, type Societe,
 } from "./societes";
 import { resumeMois, CONGES_PAR_MOIS_DEFAUT } from "./absences";
@@ -288,6 +288,8 @@ export async function bulletinsPourPeriode(ctx: Ctx, periode: string, entiteId?:
         ...(await extrasPour(ctx, e._id, periode, rat.societe, principale)),
         rubriques: rubriquesSaisies,
         ...(alloc ? { allocationConge: alloc.montant } : {}),
+        // SESAME et SOFINA déduisent elles-mêmes : leur bulletin ne porte que le net.
+        ...(subitLesRetenues(rat.societe) ? {} : { sansRetenues: true as const }),
         // Les dates des congés du mois, pour les afficher à côté du nombre de jours (lot R10).
         ...(r.congesDuMois.length ? { periodesConges: r.congesDuMois } : {}),
       };

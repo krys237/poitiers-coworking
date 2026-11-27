@@ -133,6 +133,8 @@ export interface Extras {
    * gratification…), indexés par code de rubrique.
    */
   rubriques?: Record<string, number>;
+  /** Déclarant qui ne subit ni taxe ni cotisation (SESAME, SOFINA) — voir `chargesPatronales`. */
+  sansRetenues?: boolean;
   /** C9 — exonération « jeunes de moins de 35 ans » (LF 2026) : charges fiscales et patronales. */
   exonereJeune?: boolean;
   /**
@@ -370,9 +372,30 @@ export function computeBulletin(salaireBaseRef: number, s: SaisieMois, b: Bareme
   const atmp = pct(assiettes.cotisableAtmp, tauxAtmp);
   const fne = extras.exonereJeune ? 0 : pct(baseCfcFne, b.tauxFne);
   const cfcPat = extras.exonereJeune ? 0 : pct(baseCfcFne, b.tauxCfcPat);
-  const chargesPatronales = pf + pvidPat + atmp + fne + cfcPat;
+  /**
+   * Déclarant qui ne subit NI taxe NI cotisation : SESAME et SOFINA déduisent elles-mêmes, donc
+   * leur bulletin ne porte que le net. Décision du propriétaire du 27/11/2026, qui applique enfin
+   * une consigne consignée depuis le chantier RH (`ETAT-DU-PROJET.md` § 5, « les trois sociétés
+   * ont les mêmes cotisations, alors que la légende dit SESAME non déclarés CNPS »).
+   *
+   * ⚠️ Mis à ZÉRO, pas retiré : les lignes de cotisation restent présentes sur le bulletin, à
+   * montant nul, comme le fait déjà le reste de la liste fixe. Un bulletin dont les lignes
+   * changeraient de nombre selon le déclarant serait illisible à la comparaison.
+   *
+   * Pas de part PATRONALE non plus : sans CNPS, il n'y a ni PVID patronal, ni prestations
+   * familiales, ni AT/MP.
+   *
+   * Ce qui RESTE déduit : sanctions, absences, dettes de soins, acompte et mutuelle. Ce ne sont ni
+   * des taxes ni des cotisations, mais des retenues d'une autre nature, et elles sont dues.
+   *
+   * Un mois CLÔTURÉ ne se rejoue pas : ses bulletins sont des snapshots figés, que
+   * `bulletinsPourPeriode` restitue sans repasser par ce calcul. La bascule est donc datée par
+   * construction, sans rien à faire.
+   */
+  const sansRetenues = extras.sansRetenues === true;
+  const chargesPatronales = sansRetenues ? 0 : pf + pvidPat + atmp + fne + cfcPat;
 
-  const chargesSalariales = cnpsSalarie + irpp + cac + tdl + rav + cfcSalarie;
+  const chargesSalariales = sansRetenues ? 0 : cnpsSalarie + irpp + cac + tdl + rav + cfcSalarie;
   const acompteImpotsCnps = s.acompte + chargesSalariales;
 
   const chargesRegistre = (extras.charges ?? []).map((c) => ({ libelle: c.libelle, montant: Math.round(c.montant) })).filter((c) => c.montant);
@@ -381,18 +404,22 @@ export function computeBulletin(salaireBaseRef: number, s: SaisieMois, b: Bareme
   const patron = (code: string, libelle: string, base: number, taux: number, montant: number) =>
     ({ code, libelle, base, taux, retenue: 0, chargePatronale: montant });
 
+  // Les onze lignes de taxe et de cotisation tombent à ZÉRO pour un déclarant qui n'en subit pas.
+  // Elles restent PRÉSENTES : un bulletin dont le nombre de lignes changerait selon le déclarant
+  // serait illisible à la comparaison, et la liste codée est fixe depuis le format du directeur.
+  const z = (x: number) => (sansRetenues ? 0 : x);
   const cotisations: LigneCotisation[] = [
-    retenue("43131", "Retenue CNPS", baseCnps, b.tauxPvidSal, cnpsSalarie),
-    patron("66411", "PF", baseCnps, b.tauxPf, pf),
-    patron("66412", "PVID PAT", baseCnps, b.tauxPvidPat, pvidPat),
-    patron("66413", "ATMP", assiettes.cotisableAtmp, tauxAtmp, atmp),
-    retenue("44721", "IRPP", brutTaxable, 0, irpp),
-    retenue("44722", "CAC", irpp, b.tauxCac, cac),
-    retenue("44723", "TDL", salaireBase, 0, tdl),
-    retenue("44724", "CFC SAL", brutTaxable, b.tauxCfcSal, cfcSalarie),
-    patron("64131", "F.N.E.", baseCfcFne, b.tauxFne, fne),
-    patron("64132", "CFC PAT", baseCfcFne, b.tauxCfcPat, cfcPat),
-    retenue("44725", "RAV", brutTaxable, 0, rav),
+    retenue("43131", "Retenue CNPS", baseCnps, b.tauxPvidSal, z(cnpsSalarie)),
+    patron("66411", "PF", baseCnps, b.tauxPf, z(pf)),
+    patron("66412", "PVID PAT", baseCnps, b.tauxPvidPat, z(pvidPat)),
+    patron("66413", "ATMP", assiettes.cotisableAtmp, tauxAtmp, z(atmp)),
+    retenue("44721", "IRPP", brutTaxable, 0, z(irpp)),
+    retenue("44722", "CAC", irpp, b.tauxCac, z(cac)),
+    retenue("44723", "TDL", salaireBase, 0, z(tdl)),
+    retenue("44724", "CFC SAL", brutTaxable, b.tauxCfcSal, z(cfcSalarie)),
+    patron("64131", "F.N.E.", baseCfcFne, b.tauxFne, z(fne)),
+    patron("64132", "CFC PAT", baseCfcFne, b.tauxCfcPat, z(cfcPat)),
+    retenue("44725", "RAV", brutTaxable, 0, z(rav)),
     retenue("", "Sanctions", 0, 0, s.sanctions),
     retenue("", "Absences", 0, 0, s.absences),
     retenue("", "Dettes de soins", 0, 0, s.dettesSoins),
